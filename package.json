@@ -1,21 +1,29 @@
 {
-  "name": "hantibink-app",
+  "name": "hantibink",
   "version": "1.0.0",
-  "main": "index.js",
+  "description": "A modern dating app connecting the Armenian community worldwide",
+  "private": true,
+  "workspaces": [
+    "mobile"
+  ],
   "scripts": {
-    "start": "expo start",
-    "android": "expo start --android",
-    "ios": "expo start --ios",
-    "web": "expo start --web"
-  },
-  "dependencies": {
-    "expo": "~53.0.20",
-    "expo-status-bar": "~2.2.3",
-    "react": "19.0.0",
-    "react-native": "0.79.5"
+    "mobile": "cd mobile && npm start",
+    "mobile:ios": "cd mobile && npm run ios",
+    "mobile:android": "cd mobile && npm run android",
+    "lint": "cd mobile && npm run lint",
+    "format": "cd mobile && npm run format"
   },
   "devDependencies": {
-    "@babel/core": "^7.20.0"
+    "husky": "^8.0.0",
+    "lint-staged": "^16.1.2"
   },
-  "private": true
+  "lint-staged": {
+    "mobile/**/*.{js,jsx,ts,tsx}": [
+      "cd mobile && prettier --write",
+      "cd mobile && eslint --fix"
+    ],
+    "*.{json,md}": [
+      "prettier --write"
+    ]
+  }
 }
