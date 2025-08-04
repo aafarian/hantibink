@@ -9,7 +9,7 @@ class ErrorBoundary extends React.Component {
     this.state = { hasError: false, error: null, errorInfo: null };
   }
 
-  static getDerivedStateFromError(error) {
+  static getDerivedStateFromError(_error) {
     // Update state so the next render will show the fallback UI
     return { hasError: true };
   }
@@ -21,8 +21,13 @@ class ErrorBoundary extends React.Component {
       errorInfo: errorInfo,
     });
 
-    // Log to console in development
-    Logger.error('ErrorBoundary caught an error:', error, errorInfo);
+    // Enhanced logging for better debugging
+    Logger.error('ErrorBoundary caught an error:', {
+      name: error.name || 'Error',
+      message: error.message,
+      stack: error.stack,
+      componentStack: errorInfo.componentStack,
+    });
 
     // In production, you would send this to a service like Sentry
     // logErrorToService(error, errorInfo);
@@ -46,7 +51,15 @@ class ErrorBoundary extends React.Component {
           {this.state.error && (
             <View style={styles.debugContainer}>
               <Text style={styles.debugTitle}>Debug Info (Development Only):</Text>
-              <Text style={styles.debugText}>{this.state.error.toString()}</Text>
+              <Text style={styles.debugText}>
+                {this.state.error.name}: {this.state.error.message}
+              </Text>
+              {this.state.errorInfo?.componentStack && (
+                <Text style={styles.debugText}>
+                  {'\n'}Component Stack:{'\n'}
+                  {this.state.errorInfo.componentStack.slice(0, 300)}...
+                </Text>
+              )}
             </View>
           )}
 

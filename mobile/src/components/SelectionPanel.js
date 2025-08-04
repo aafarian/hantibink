@@ -103,22 +103,27 @@ const SelectionPanel = ({
             {/* Options */}
             <ScrollView style={styles.optionsContainer} showsVerticalScrollIndicator={false}>
               {options.map((option, index) => {
+                // Handle both string options and object options {id, label}
+                const optionKey = typeof option === 'object' ? option.id : option;
+                const optionLabel = typeof option === 'object' ? option.label : option;
+                const optionValue = typeof option === 'object' ? option.id : option;
+
                 const isSelected = multiSelect
-                  ? selectedValues.includes(option)
-                  : selectedValues === option;
+                  ? selectedValues.includes(optionValue)
+                  : selectedValues === optionValue;
 
                 return (
                   <TouchableOpacity
-                    key={option}
+                    key={optionKey}
                     style={[
                       styles.option,
                       isSelected && styles.optionSelected,
                       index === options.length - 1 && styles.lastOption,
                     ]}
-                    onPress={() => handleSelect(option)}
+                    onPress={() => handleSelect(optionValue)}
                   >
                     <Text style={[styles.optionText, isSelected && styles.optionTextSelected]}>
-                      {option}
+                      {optionLabel}
                     </Text>
                     {isSelected && <MaterialIcons name="check" size={20} color="#007AFF" />}
                   </TouchableOpacity>

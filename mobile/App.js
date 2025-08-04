@@ -6,7 +6,10 @@ import { Provider as PaperProvider } from 'react-native-paper';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import ErrorBoundary from './src/components/ErrorBoundary';
 import { AuthProvider } from './src/contexts/AuthContext';
+import { UnreadProvider } from './src/contexts/UnreadContext';
+import { FeatureFlagsProvider } from './src/contexts/FeatureFlagsContext';
 import AppNavigator from './src/navigation/AppNavigator';
+import './src/utils/devTools'; // Load dev tools in development
 
 export default function App() {
   return (
@@ -14,10 +17,14 @@ export default function App() {
       <PaperProvider>
         <SafeAreaProvider>
           <AuthProvider>
-            <GestureHandlerRootView style={styles.container}>
-              <AppNavigator />
-              <StatusBar style="light" />
-            </GestureHandlerRootView>
+            <FeatureFlagsProvider>
+              <UnreadProvider>
+                <GestureHandlerRootView style={styles.container}>
+                  <AppNavigator />
+                  <StatusBar style="light" />
+                </GestureHandlerRootView>
+              </UnreadProvider>
+            </FeatureFlagsProvider>
           </AuthProvider>
         </SafeAreaProvider>
       </PaperProvider>

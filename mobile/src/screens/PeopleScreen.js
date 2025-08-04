@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   View,
   Text,
@@ -6,122 +6,214 @@ import {
   Dimensions,
   TouchableOpacity,
   Image,
-  PanGestureHandler,
   Animated,
+  ActivityIndicator,
+  Modal,
 } from 'react-native';
+import { PanGestureHandler, State } from 'react-native-gesture-handler';
 import { Ionicons } from '@expo/vector-icons';
-import AsyncStorage from '@react-native-async-storage/async-storage';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useAuth } from '../contexts/AuthContext';
+import { useToast } from '../contexts/ToastContext';
+import { useTabNavigation } from '../hooks/useTabNavigation';
+import { useAsyncOperation } from '../hooks/useAsyncOperation';
+import { LoadingScreen } from '../components/LoadingScreen';
+import DataService from '../services/DataService';
+import Logger from '../utils/logger';
+import { handleError } from '../utils/errorHandler';
+import { getUserProfilePhoto } from '../utils/profileHelpers';
 
-const { width, height } = Dimensions.get('window');
+const { width } = Dimensions.get('window');
 const SWIPE_THRESHOLD = width * 0.25;
 
 const PeopleScreen = ({ navigation }) => {
+  const { user, userProfile } = useAuth();
+  const { showSuccess, showError } = useToast();
+  const { navigateToMessages } = useTabNavigation();
+  const { loading, execute } = useAsyncOperation();
+
   const [profiles, setProfiles] = useState([]);
   const [currentIndex, setCurrentIndex] = useState(0);
   const [position] = useState(new Animated.ValueXY());
-  const insets = useSafeAreaInsets();
+  const [actionLoading, setActionLoading] = useState(false);
+
+  const [showMatchModal, setShowMatchModal] = useState(false);
+  const [matchedUser, setMatchedUser] = useState(null);
 
   useEffect(() => {
-    loadProfiles();
-  }, []);
+    if (user?.uid) {
+      loadProfiles();
+      loadUserActions();
+    }
+  }, [user, loadProfiles, loadUserActions]);
 
-  const loadProfiles = async () => {
+  const loadUserActions = useCallback(async () => {
     try {
-      // Load sample profiles from local storage or create default ones
-      const savedProfiles = await AsyncStorage.getItem('sampleProfiles');
-      if (savedProfiles) {
-        setProfiles(JSON.parse(savedProfiles));
-      } else {
-        // Create sample profiles
-        const sampleProfiles = [
-          {
-            id: '1',
-            name: 'Ani',
-            age: 25,
-            bio: 'Love hiking and Armenian coffee ☕',
-            photos: ['https://images.unsplash.com/photo-1494790108755-2616b612b786?w=400'],
-            location: 'Yerevan, Armenia',
-            interests: ['Hiking', 'Coffee', 'Photography'],
-          },
-          {
-            id: '2',
-            name: 'Saro',
-            age: 28,
-            bio: 'Software developer by day, musician by night 🎸',
-            photos: ['https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=400'],
-            location: 'Yerevan, Armenia',
-            interests: ['Music', 'Technology', 'Travel'],
-          },
-          {
-            id: '3',
-            name: 'Lusine',
-            age: 23,
-            bio: 'Art lover and foodie 🎨🍕',
-            photos: ['https://images.unsplash.com/photo-1438761681033-6461ffad8d80?w=400'],
-            location: 'Yerevan, Armenia',
-            interests: ['Art', 'Food', 'Travel'],
-          },
-          {
-            id: '4',
-            name: 'Armen',
-            age: 27,
-            bio: 'Passionate about Armenian history and culture 🇦🇲',
-            photos: ['https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=400'],
-            location: 'Yerevan, Armenia',
-            interests: ['History', 'Culture', 'Reading'],
-          },
-        ];
-        setProfiles(sampleProfiles);
-        await AsyncStorage.setItem('sampleProfiles', JSON.stringify(sampleProfiles));
+      if (user?.uid) {
+        const actions = await DataService.getUserActions(user.uid);
+        Logger.info('User actions loaded:', actions.length);
       }
     } catch (error) {
-      console.error('Error loading profiles:', error);
+      Logger.error('Error loading user actions:', error);
     }
-  };
+  }, [user]);
 
-  const handleLike = () => {
-    if (currentIndex < profiles.length) {
+  const loadProfiles = useCallback(async () => {
+    if (!user?.uid) return;
+
+    const result = await execute(
+      async () => {
+        // Get already processed user IDs (liked or passed)
+        const actions = await DataService.getUserActions(user.uid);
+        const processedUserIds = actions.map(action => action.targetUserId);
+
+        // Get fresh users from Firebase
+        const users = await DataService.getUsersForSwiping(user.uid, processedUserIds);
+
+        // For now, show all users (later we can add photo filtering)
+        // const usersWithPhotos = users.filter(
+        //   mappedUser => mappedUser.photos && mappedUser.photos.length > 0 && mappedUser.mainPhoto
+        // );
+
+        return users;
+      },
+      {
+        loadingMessage: 'Loading profiles for swiping',
+        errorMessage: 'Failed to load profiles',
+        successMessage: `Loaded ${profiles.length} profiles`,
+      }
+    );
+
+    if (result.success) {
+      setProfiles(result.data);
+      setCurrentIndex(0);
+    } else {
+      const errorInfo = handleError(result.originalError, result.errorMessage);
+      showError(errorInfo.message, {
+        action: { text: 'Retry', onPress: () => loadProfiles() },
+      });
+    }
+  }, [user, execute, profiles.length, showError]);
+
+  const handleLike = async () => {
+    if (currentIndex < profiles.length && !actionLoading) {
       const currentProfile = profiles[currentIndex];
-      saveLike(currentProfile);
-      nextCard();
+      setActionLoading(true);
+
+      try {
+        const result = await DataService.saveLikeAction(user.uid, currentProfile.id, 'like');
+        if (result.success) {
+          Logger.success(`Liked ${currentProfile.name}`);
+
+          // Check if this created a match
+          if (result.isMatch) {
+            setMatchedUser(currentProfile);
+            setShowMatchModal(true);
+            showSuccess(`It's a match with ${currentProfile.name}! 💕`);
+          }
+
+          nextCard();
+        } else {
+          const errorInfo = handleError(result.originalError, 'Failed to save like');
+          showError(errorInfo.message, {
+            action: { text: 'Retry', onPress: handleLike },
+          });
+        }
+      } catch (error) {
+        const errorInfo = handleError(error, 'Failed to save like');
+        showError(errorInfo.message, {
+          action: { text: 'Retry', onPress: handleLike },
+        });
+      } finally {
+        setActionLoading(false);
+      }
     }
   };
 
-  const handleDislike = () => {
-    if (currentIndex < profiles.length) {
-      nextCard();
-    }
-  };
+  const handleDislike = async () => {
+    if (currentIndex < profiles.length && !actionLoading) {
+      const currentProfile = profiles[currentIndex];
+      setActionLoading(true);
 
-  const saveLike = async profile => {
-    try {
-      const existingLikes = await AsyncStorage.getItem('userLikes');
-      const likes = existingLikes ? JSON.parse(existingLikes) : [];
-      likes.push(profile.id);
-      await AsyncStorage.setItem('userLikes', JSON.stringify(likes));
-    } catch (error) {
-      console.error('Error saving like:', error);
+      try {
+        const result = await DataService.saveLikeAction(user.uid, currentProfile.id, 'pass');
+        if (result.success) {
+          Logger.success(`Passed on ${currentProfile.name}`);
+          nextCard();
+        } else {
+          showError('Failed to save pass. Please try again.');
+        }
+      } catch (error) {
+        Logger.error('Error saving pass:', error);
+        showError('Failed to save pass. Please try again.');
+      } finally {
+        setActionLoading(false);
+      }
     }
   };
 
   const nextCard = () => {
-    setCurrentIndex(prev => prev + 1);
-    position.setValue({ x: 0, y: 0 });
+    if (currentIndex < profiles.length - 1) {
+      setCurrentIndex(currentIndex + 1);
+      position.setValue({ x: 0, y: 0 });
+    } else {
+      // Load more profiles when we run out
+      loadProfiles();
+    }
+  };
+
+  const onGestureEvent = Animated.event(
+    [{ nativeEvent: { translationX: position.x, translationY: position.y } }],
+    { useNativeDriver: false }
+  );
+
+  const onHandlerStateChange = event => {
+    if (event.nativeEvent.oldState === State.ACTIVE) {
+      const { translationX } = event.nativeEvent;
+
+      if (translationX > SWIPE_THRESHOLD && !actionLoading) {
+        // Swipe right - like
+        Animated.timing(position, {
+          toValue: { x: width, y: 0 },
+          duration: 300,
+          useNativeDriver: false,
+        }).start(() => {
+          handleLike();
+        });
+      } else if (translationX < -SWIPE_THRESHOLD && !actionLoading) {
+        // Swipe left - pass
+        Animated.timing(position, {
+          toValue: { x: -width, y: 0 },
+          duration: 300,
+          useNativeDriver: false,
+        }).start(() => {
+          handleDislike();
+        });
+      } else {
+        // Return to center
+        Animated.spring(position, {
+          toValue: { x: 0, y: 0 },
+          useNativeDriver: false,
+        }).start();
+      }
+    }
   };
 
   const resetCards = () => {
-    setCurrentIndex(0);
+    loadProfiles(); // Reload fresh profiles
   };
 
   const renderCard = () => {
+    if (loading) {
+      return <LoadingScreen message="Loading profiles..." />;
+    }
+
     if (currentIndex >= profiles.length) {
       return (
         <View style={styles.noMoreCards}>
           <Ionicons name="heart-outline" size={80} color="#ccc" />
           <Text style={styles.noMoreCardsText}>No more profiles to show</Text>
           <TouchableOpacity style={styles.resetButton} onPress={resetCards}>
-            <Text style={styles.resetButtonText}>Reset</Text>
+            <Text style={styles.resetButtonText}>Load More</Text>
           </TouchableOpacity>
         </View>
       );
@@ -147,43 +239,51 @@ const PeopleScreen = ({ navigation }) => {
     });
 
     return (
-      <Animated.View
-        style={[
-          styles.card,
-          {
-            transform: [{ translateX: position.x }, { translateY: position.y }, { rotate }],
-          },
-        ]}
+      <PanGestureHandler
+        onGestureEvent={onGestureEvent}
+        onHandlerStateChange={onHandlerStateChange}
+        enabled={!actionLoading}
       >
-        <Image source={{ uri: profile.photos[0] }} style={styles.cardImage} />
+        <Animated.View
+          style={[
+            styles.card,
+            {
+              transform: [{ translateX: position.x }, { translateY: position.y }, { rotate }],
+            },
+          ]}
+        >
+          <Image source={{ uri: getUserProfilePhoto(profile) }} style={styles.cardImage} />
 
-        <View style={styles.cardOverlay}>
-          <View style={styles.cardInfo}>
-            <Text style={styles.cardName}>
-              {profile.name}, {profile.age}
-            </Text>
-            <Text style={styles.cardLocation}>{profile.location}</Text>
-            <Text style={styles.cardBio}>{profile.bio}</Text>
+          <View style={styles.cardOverlay}>
+            <View style={styles.cardInfo}>
+              <Text style={styles.cardName}>
+                {profile.name}, {profile.age}
+              </Text>
+              <Text style={styles.cardLocation}>{profile.location}</Text>
+              <Text style={styles.cardBio}>{profile.bio}</Text>
 
-            <View style={styles.interestsContainer}>
-              {profile.interests.map((interest, index) => (
-                <View key={index} style={styles.interestTag}>
-                  <Text style={styles.interestText}>{interest}</Text>
-                </View>
-              ))}
+              <View style={styles.interestsContainer}>
+                {Array.isArray(profile.interests)
+                  ? profile.interests.map((interest, index) => (
+                      <View key={index} style={styles.interestTag}>
+                        <Text style={styles.interestText}>{interest}</Text>
+                      </View>
+                    ))
+                  : null}
+              </View>
             </View>
           </View>
-        </View>
 
-        {/* Like/Dislike indicators */}
-        <Animated.View style={[styles.likeIndicator, { opacity: likeOpacity }]}>
-          <Text style={styles.likeText}>LIKE</Text>
-        </Animated.View>
+          {/* Like/Dislike indicators */}
+          <Animated.View style={[styles.likeIndicator, { opacity: likeOpacity }]}>
+            <Text style={styles.likeText}>LIKE</Text>
+          </Animated.View>
 
-        <Animated.View style={[styles.dislikeIndicator, { opacity: dislikeOpacity }]}>
-          <Text style={styles.dislikeText}>NOPE</Text>
+          <Animated.View style={[styles.dislikeIndicator, { opacity: dislikeOpacity }]}>
+            <Text style={styles.dislikeText}>NOPE</Text>
+          </Animated.View>
         </Animated.View>
-      </Animated.View>
+      </PanGestureHandler>
     );
   };
 
@@ -205,17 +305,130 @@ const PeopleScreen = ({ navigation }) => {
         <Ionicons name="filter" size={24} color="#FF6B6B" />
       </TouchableOpacity>
 
-      <View style={styles.cardContainer}>{renderCard()}</View>
+      {/* Test Button - Remove after testing */}
+      <TouchableOpacity
+        style={styles.testButton}
+        onPress={async () => {
+          if (profiles.length > 0) {
+            const testUser = profiles[currentIndex];
+            Logger.info('🧪 Testing match creation with:', testUser.name);
 
-      <View style={[styles.actionsContainer, { paddingBottom: insets.bottom + 20 }]}>
-        <TouchableOpacity style={styles.actionButton} onPress={handleDislike}>
-          <Ionicons name="close" size={30} color="#FF6B6B" />
-        </TouchableOpacity>
+            // Simulate the other user liking us first
+            await DataService.saveLikeAction(testUser.id, user.uid, 'like');
+            Logger.info('🧪 Simulated reverse like');
 
-        <TouchableOpacity style={styles.actionButton} onPress={handleLike}>
-          <Ionicons name="heart" size={30} color="#4ECDC4" />
-        </TouchableOpacity>
+            // Now our like should create a match
+            const result = await DataService.saveLikeAction(user.uid, testUser.id, 'like');
+            if (result.isMatch) {
+              setMatchedUser(testUser);
+              setShowMatchModal(true);
+              Logger.success('🧪 Test match created!');
+            }
+          }
+        }}
+      >
+        <Text style={styles.testButtonText}>TEST</Text>
+      </TouchableOpacity>
+
+      {/* Main content area - card takes up most space */}
+      <View style={styles.mainContent}>
+        <View style={styles.cardContainer}>{renderCard()}</View>
+
+        {/* Action buttons positioned at bottom of main content */}
+        <View style={styles.actionsContainer}>
+          <TouchableOpacity
+            style={[styles.actionButton, actionLoading && styles.disabledButton]}
+            onPress={handleDislike}
+            disabled={actionLoading}
+          >
+            {actionLoading ? (
+              <ActivityIndicator size="small" color="#FF6B6B" />
+            ) : (
+              <Ionicons name="close" size={30} color="#FF6B6B" />
+            )}
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={[styles.actionButton, actionLoading && styles.disabledButton]}
+            onPress={handleLike}
+            disabled={actionLoading}
+          >
+            {actionLoading ? (
+              <ActivityIndicator size="small" color="#4ECDC4" />
+            ) : (
+              <Ionicons name="heart" size={30} color="#4ECDC4" />
+            )}
+          </TouchableOpacity>
+        </View>
       </View>
+
+      {/* Match Modal */}
+      <Modal
+        visible={showMatchModal}
+        animationType="fade"
+        transparent={true}
+        onRequestClose={() => setShowMatchModal(false)}
+      >
+        <View style={styles.matchModalOverlay}>
+          <View style={styles.matchModalContent}>
+            <View style={styles.matchModalHeader}>
+              <Text style={styles.matchModalTitle}>It's a Match! 🎉</Text>
+              <Text style={styles.matchModalSubtitle}>
+                You and {matchedUser?.name} liked each other
+              </Text>
+            </View>
+
+            <View style={styles.matchedUsersContainer}>
+              <View style={styles.matchedUserCard}>
+                <Image
+                  source={{
+                    uri:
+                      userProfile?.mainPhoto ||
+                      userProfile?.photos?.[0] ||
+                      'https://via.placeholder.com/100',
+                  }}
+                  style={styles.matchedUserPhoto}
+                />
+                <Text style={styles.matchedUserName}>You</Text>
+              </View>
+
+              <View style={styles.heartIcon}>
+                <Ionicons name="heart" size={40} color="#FF6B6B" />
+              </View>
+
+              <View style={styles.matchedUserCard}>
+                <Image
+                  source={{ uri: getUserProfilePhoto(matchedUser) }}
+                  style={styles.matchedUserPhoto}
+                />
+                <Text style={styles.matchedUserName}>{matchedUser?.name}</Text>
+              </View>
+            </View>
+
+            <View style={styles.matchModalActions}>
+              <TouchableOpacity
+                style={styles.continueSwipingButton}
+                onPress={() => setShowMatchModal(false)}
+              >
+                <Text style={styles.continueSwipingText}>Keep Swiping</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={styles.sendMessageButton}
+                onPress={() => {
+                  setShowMatchModal(false);
+                  const navResult = navigateToMessages();
+                  if (!navResult.success) {
+                    showError('Failed to open messages. Please go to the Messages tab manually.');
+                  }
+                }}
+              >
+                <Text style={styles.sendMessageText}>Send Message</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 };
@@ -242,15 +455,20 @@ const styles = StyleSheet.create({
     shadowRadius: 3.84,
     elevation: 5,
   },
+  mainContent: {
+    flex: 1,
+    paddingTop: 20, // Small space from "Discover" header
+    paddingBottom: 0, // No bottom padding - let actions sit close to tabs
+  },
   cardContainer: {
     flex: 1,
-    justifyContent: 'center',
+    justifyContent: 'flex-start', // Start card at top instead of centering
     alignItems: 'center',
-    padding: 20,
+    paddingHorizontal: 20,
   },
   card: {
     width: width - 40,
-    height: height * 0.6,
+    flex: 1, // Take up all available space in cardContainer
     backgroundColor: '#fff',
     borderRadius: 20,
     shadowColor: '#000',
@@ -345,8 +563,10 @@ const styles = StyleSheet.create({
   actionsContainer: {
     flexDirection: 'row',
     justifyContent: 'space-evenly',
-    padding: 20,
-    paddingBottom: 40,
+    alignItems: 'center',
+    paddingVertical: 15,
+    paddingHorizontal: 20,
+    marginBottom: 10, // Small gap above navigation tabs
   },
   actionButton: {
     width: 60,
@@ -363,6 +583,94 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.25,
     shadowRadius: 3.84,
     elevation: 5,
+  },
+  disabledButton: {
+    opacity: 0.5,
+  },
+  matchModalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.8)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 20,
+  },
+  matchModalContent: {
+    backgroundColor: '#fff',
+    borderRadius: 20,
+    padding: 30,
+    alignItems: 'center',
+    maxWidth: 350,
+    width: '100%',
+  },
+  matchModalHeader: {
+    alignItems: 'center',
+    marginBottom: 30,
+  },
+  matchModalTitle: {
+    fontSize: 28,
+    fontWeight: 'bold',
+    color: '#FF6B6B',
+    marginBottom: 10,
+  },
+  matchModalSubtitle: {
+    fontSize: 16,
+    color: '#666',
+    textAlign: 'center',
+  },
+  matchedUsersContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 40,
+    width: '100%',
+  },
+  matchedUserCard: {
+    alignItems: 'center',
+    flex: 1,
+  },
+  matchedUserPhoto: {
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    marginBottom: 10,
+  },
+  matchedUserName: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#333',
+  },
+  heartIcon: {
+    paddingHorizontal: 20,
+  },
+  matchModalActions: {
+    flexDirection: 'row',
+    gap: 15,
+    width: '100%',
+  },
+  continueSwipingButton: {
+    flex: 1,
+    borderWidth: 2,
+    borderColor: '#FF6B6B',
+    borderRadius: 25,
+    paddingVertical: 12,
+    alignItems: 'center',
+  },
+  continueSwipingText: {
+    color: '#FF6B6B',
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  sendMessageButton: {
+    flex: 1,
+    backgroundColor: '#FF6B6B',
+    borderRadius: 25,
+    paddingVertical: 12,
+    alignItems: 'center',
+  },
+  sendMessageText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: '600',
   },
   noMoreCards: {
     alignItems: 'center',
@@ -385,6 +693,27 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontSize: 16,
     fontWeight: 'bold',
+  },
+  testButton: {
+    position: 'absolute',
+    top: 110,
+    right: 20,
+    zIndex: 1000,
+    backgroundColor: '#4ECDC4',
+    borderRadius: 20,
+    padding: 10,
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.25,
+    shadowRadius: 3.84,
+    elevation: 5,
+  },
+  testButtonText: {
+    color: '#fff',
+    fontSize: 12,
   },
 });
 

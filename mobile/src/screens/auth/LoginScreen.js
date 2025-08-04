@@ -1,17 +1,9 @@
 import React, { useState } from 'react';
-import {
-  View,
-  Text,
-  StyleSheet,
-  TextInput,
-  TouchableOpacity,
-  Alert,
-  KeyboardAvoidingView,
-  Platform,
-  ScrollView,
-} from 'react-native';
+import { View, Text, StyleSheet, TextInput, TouchableOpacity } from 'react-native';
+import { StaticKeyboardWrapper } from '../../components/KeyboardAwareWrapper';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../../contexts/AuthContext';
+import { useToast } from '../../contexts/ToastContext';
 
 const LoginScreen = ({ navigation }) => {
   const [email, setEmail] = useState('');
@@ -20,10 +12,11 @@ const LoginScreen = ({ navigation }) => {
   const [showPassword, setShowPassword] = useState(false);
 
   const { login } = useAuth();
+  const { showError } = useToast();
 
   const handleLogin = async () => {
     if (!email || !password) {
-      Alert.alert('Error', 'Please fill in all fields');
+      showError('Please fill in all fields');
       return;
     }
 
@@ -32,8 +25,18 @@ const LoginScreen = ({ navigation }) => {
     setLoading(false);
 
     if (!result.success) {
-      Alert.alert('Login Failed', result.error);
+      // Handle specific login errors
+      if (result.errorCode === 'auth/user-not-found') {
+        showError('No account exists with this email address.');
+      } else if (result.errorCode === 'auth/wrong-password') {
+        showError('The password you entered is incorrect.');
+      } else if (result.errorCode === 'auth/invalid-email') {
+        showError('Please enter a valid email address.');
+      } else {
+        showError(result.error || 'Login failed. Please try again.');
+      }
     }
+    // AppNavigator will handle navigation based on user's onboarding status
   };
 
   const handleForgotPassword = () => {
@@ -41,11 +44,8 @@ const LoginScreen = ({ navigation }) => {
   };
 
   return (
-    <KeyboardAvoidingView
-      style={styles.container}
-      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-    >
-      <ScrollView contentContainerStyle={styles.scrollContainer}>
+    <StaticKeyboardWrapper style={styles.container}>
+      <View style={styles.scrollContainer}>
         <View style={styles.header}>
           <Text style={styles.title}>Welcome Back</Text>
           <Text style={styles.subtitle}>Sign in to continue your journey</Text>
@@ -113,8 +113,8 @@ const LoginScreen = ({ navigation }) => {
             <Text style={styles.footerLink}>Sign Up</Text>
           </TouchableOpacity>
         </View>
-      </ScrollView>
-    </KeyboardAvoidingView>
+      </View>
+    </StaticKeyboardWrapper>
   );
 };
 

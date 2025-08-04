@@ -1,56 +1,24 @@
 {
-  // Auto-format and fix on save
-  "editor.formatOnSave": true,
+  // ESLint configuration that works from any parent directory
+  "eslint.workingDirectories": [
+    // When opened from /mobile directory
+    {
+      "directory": ".",
+      "changeProcessCwd": true
+    },
+    // When opened from /hantibink (parent) directory
+    {
+      "directory": "./mobile",
+      "changeProcessCwd": true
+    }
+  ],
+
   "editor.codeActionsOnSave": {
-    "source.fixAll.eslint": "explicit",
-    "source.organizeImports": "explicit"
+    "source.fixAll.eslint": "always"
   },
 
-  // Set Prettier as the default formatter
-  "editor.defaultFormatter": "esbenp.prettier-vscode",
-
-  // Language-specific settings
-  "[javascript]": {
-    "editor.defaultFormatter": "esbenp.prettier-vscode",
-    "editor.formatOnSave": true
-  },
-  "[javascriptreact]": {
-    "editor.defaultFormatter": "esbenp.prettier-vscode",
-    "editor.formatOnSave": true
-  },
-  "[typescript]": {
-    "editor.defaultFormatter": "esbenp.prettier-vscode",
-    "editor.formatOnSave": true
-  },
-  "[typescriptreact]": {
-    "editor.defaultFormatter": "esbenp.prettier-vscode",
-    "editor.formatOnSave": true
-  },
-  "[json]": {
-    "editor.defaultFormatter": "esbenp.prettier-vscode"
-  },
-
-  // ESLint settings
   "eslint.validate": ["javascript", "javascriptreact", "typescript", "typescriptreact"],
-  "eslint.workingDirectories": ["."],
-
-  // React Native specific settings
-  "emmet.includeLanguages": {
-    "javascript": "javascriptreact"
-  },
-
-  // File associations
   "files.associations": {
     "*.js": "javascriptreact"
-  },
-
-  // Disable some annoying auto-suggestions for React Native
-  "typescript.suggest.autoImports": false,
-  "javascript.suggest.autoImports": false,
-
-  // Show ESLint status in status bar
-  "eslint.alwaysShowStatus": true,
-
-  // Auto-save for better workflow
-  "files.autoSave": "onFocusChange"
+  }
 }
