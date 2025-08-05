@@ -1,0 +1,13 @@
+---
+description: Enforce modular code organization by breaking down large files into smaller, focused modules. Each module should have a single responsibility and be easily maintainable. This helps with:
+
+- Code reusability and maintainability
+- Easier testing and debugging
+- Better collaboration between team members
+- Simpler code reviews
+- Reduced merge conflicts
+- Faster onboarding for new engineers
+- More manageable feature additions
+globs:
+alwaysApply: true
+---

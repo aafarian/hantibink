@@ -1,0 +1,5 @@
+---
+description: use Logger instead of console.log or console.warn if isDevelopment is true
+globs:
+alwaysApply: true
+---
