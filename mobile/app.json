@@ -24,7 +24,12 @@
         "backgroundColor": "#ffffff"
       },
       "edgeToEdgeEnabled": true,
-      "permissions": ["ACCESS_FINE_LOCATION", "ACCESS_COARSE_LOCATION"]
+      "permissions": [
+        "android.permission.ACCESS_FINE_LOCATION",
+        "android.permission.ACCESS_COARSE_LOCATION",
+        "android.permission.RECORD_AUDIO"
+      ],
+      "package": "com.antoafarian.hantibink"
     },
     "web": {
       "favicon": "./assets/favicon.png"
@@ -37,6 +42,11 @@
           "locationAlwaysAndWhenInUsePermission": "This app uses location to show you people nearby and improve your dating experience."
         }
       ]
-    ]
+    ],
+    "extra": {
+      "eas": {
+        "projectId": "316f94ce-dca3-4d3d-868a-5885e6704f84"
+      }
+    }
   }
 }
