@@ -6,8 +6,9 @@ import {
   onAuthStateChanged,
   updateProfile,
   sendPasswordResetEmail,
+  // fetchSignInMethodsForEmail, // Currently unused but keeping for potential future use
 } from 'firebase/auth';
-import { doc, setDoc, getDoc } from 'firebase/firestore';
+import { doc, setDoc, getDoc, updateDoc } from 'firebase/firestore';
 import { auth, db } from '../config/firebase';
 import Logger from '../utils/logger';
 
@@ -28,21 +29,25 @@ export const AuthProvider = ({ children }) => {
 
   // Listen for authentication state changes
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, async user => {
-      setUser(user);
+    const unsubscribe = onAuthStateChanged(auth, async authUser => {
+      setUser(authUser);
 
-      if (user) {
+      if (authUser) {
         // Fetch user profile from Firestore
         try {
-          const userDoc = await getDoc(doc(db, 'users', user.uid));
+          const userDoc = await getDoc(doc(db, 'users', authUser.uid));
           if (userDoc.exists()) {
             setUserProfile(userDoc.data());
+            Logger.auth('User profile loaded from Firestore');
+          } else {
+            Logger.warn('No user profile found in Firestore');
           }
         } catch (error) {
-          console.error('Error fetching user profile:', error);
+          Logger.error('Error fetching user profile:', error);
         }
       } else {
         setUserProfile(null);
+        Logger.auth('User signed out');
       }
 
       setLoading(false);
@@ -50,6 +55,90 @@ export const AuthProvider = ({ children }) => {
 
     return unsubscribe;
   }, []);
+
+  // Function to refresh user profile (for location updates)
+  const refreshUserProfile = async () => {
+    Logger.info('🔄 refreshUserProfile called, user uid:', user?.uid);
+
+    if (user?.uid) {
+      try {
+        const userDoc = await getDoc(doc(db, 'users', user.uid));
+        if (userDoc.exists()) {
+          const profileData = userDoc.data();
+          Logger.info('🔄 Profile data from Firestore:', {
+            photosCount: profileData.photos?.length || 0,
+            hasPhotos: !!profileData.photos?.length,
+          });
+          setUserProfile(profileData);
+          Logger.auth('User profile refreshed');
+          return profileData;
+        } else {
+          Logger.warn('User document does not exist in Firestore');
+        }
+      } catch (error) {
+        Logger.error('Error refreshing user profile:', error);
+      }
+    } else {
+      Logger.warn('refreshUserProfile called but no user.uid available');
+    }
+    return null;
+  };
+
+  // Function to refresh user profile with specific userId (for registration flow)
+  const refreshUserProfileWithId = async userId => {
+    Logger.info('🔄 refreshUserProfileWithId called for userId:', userId);
+
+    try {
+      const userDoc = await getDoc(doc(db, 'users', userId));
+      if (userDoc.exists()) {
+        const profileData = userDoc.data();
+        Logger.info('🔄 Profile data from Firestore (by ID):', {
+          photosCount: profileData.photos?.length || 0,
+          hasPhotos: !!profileData.photos?.length,
+        });
+        setUserProfile(profileData);
+        Logger.auth('User profile refreshed with ID');
+        return profileData;
+      } else {
+        Logger.warn('User document does not exist in Firestore for ID:', userId);
+      }
+    } catch (error) {
+      Logger.error('Error refreshing user profile with ID:', error);
+    }
+    return null;
+  };
+
+  // Mark onboarding as complete
+  const completeOnboarding = async () => {
+    if (user?.uid) {
+      const updatedProfile = {
+        ...userProfile,
+        hasCompletedOnboarding: true,
+        onboardingStep: 4, // Completed all steps
+      };
+      await updateDoc(doc(db, 'users', user.uid), {
+        hasCompletedOnboarding: true,
+        onboardingStep: 4,
+      });
+      setUserProfile(updatedProfile);
+      Logger.auth('Onboarding completed');
+    }
+  };
+
+  // Check if email already exists (simplified - no temp user creation)
+  const checkEmailExists = async email => {
+    try {
+      Logger.info('🔍 Checking if email exists:', email);
+
+      // For now, we'll skip the email check and handle duplicates during registration
+      // This prevents creating temporary users that trigger auth state changes
+      Logger.info('📧 Email check skipped - will handle duplicates during registration');
+      return false;
+    } catch (error) {
+      Logger.error('Error checking email:', error);
+      return false;
+    }
+  };
 
   // Register new user
   const register = async userData => {
@@ -61,17 +150,17 @@ export const AuthProvider = ({ children }) => {
         userData.email,
         userData.password
       );
-      const user = userCredential.user;
+      const registeredUser = userCredential.user;
 
       // Update display name
-      await updateProfile(user, {
+      await updateProfile(registeredUser, {
         displayName: userData.name,
       });
 
       // Create user profile in Firestore with enhanced structure
-      const userProfile = {
-        id: user.uid,
-        email: user.email,
+      const newUserProfile = {
+        id: registeredUser.uid,
+        email: registeredUser.email,
         name: userData.name,
         age: userData.age,
         birthDate: userData.birthDate,
@@ -115,34 +204,63 @@ export const AuthProvider = ({ children }) => {
 
         return Object.fromEntries(
           Object.entries(obj)
-            .filter(([key, value]) => value !== undefined)
+            .filter(([_key, value]) => value !== undefined)
             .map(([key, value]) => [key, cleanObject(value)])
         );
       };
 
-      const cleanUserProfile = cleanObject(userProfile);
+      // Process images after user is created (upload local images to Firebase Storage)
+      if (userData.photos && userData.photos.length > 0) {
+        try {
+          const { processImageUris } = await import('../utils/imageUpload');
+          Logger.info('Processing images after user creation...');
+          const uploadedPhotos = await processImageUris(userData.photos, registeredUser.uid);
+          newUserProfile.photos = uploadedPhotos;
+          newUserProfile.mainPhoto = uploadedPhotos[0] || null;
+          Logger.success('Images uploaded successfully');
+        } catch (imageError) {
+          Logger.error('Error uploading images:', imageError);
+          // Continue with registration even if image upload fails
+          newUserProfile.photos = [];
+          newUserProfile.mainPhoto = null;
+        }
+      }
+
+      // Add onboarding tracking to profile
+      newUserProfile.hasCompletedOnboarding = false;
+      newUserProfile.onboardingStep = 1; // Start at basic info step
+
+      const cleanUserProfile = cleanObject(newUserProfile);
 
       Logger.firebase('Saving user profile to Firestore');
-      await setDoc(doc(db, 'users', user.uid), cleanUserProfile);
+      await setDoc(doc(db, 'users', registeredUser.uid), cleanUserProfile);
       Logger.firebase('User profile saved successfully');
-      setUserProfile(userProfile);
-      return { success: true, user };
+
+      // Note: Don't set user state manually here to avoid race conditions
+      // The onAuthStateChanged listener will automatically pick up the new user
+      // and load the profile from Firestore
+
+      return { success: true, user: registeredUser, profile: cleanUserProfile };
     } catch (error) {
-      console.error('Registration error:', error);
-      console.error('Error code:', error.code);
-      console.error('Error message:', error.message);
-      return { success: false, error: error.message };
+      Logger.error('Registration error:', error);
+      Logger.error('Error code:', error.code);
+      Logger.error('Error message:', error.message);
+      return { success: false, error: error.message, errorCode: error.code };
     }
   };
 
   // Login user
   const login = async (email, password) => {
     try {
+      Logger.auth('Attempting login for:', email);
       const userCredential = await signInWithEmailAndPassword(auth, email, password);
+      Logger.auth('Login successful for:', email);
       return { success: true, user: userCredential.user };
     } catch (error) {
-      console.error('Login error:', error);
-      return { success: false, error: error.message };
+      Logger.error('Login error:', error);
+      Logger.error('Login error code:', error.code);
+      Logger.error('Login error message:', error.message);
+      return { success: false, error: error.message, errorCode: error.code };
     }
   };
 
@@ -152,7 +270,7 @@ export const AuthProvider = ({ children }) => {
       await signOut(auth);
       return { success: true };
     } catch (error) {
-      console.error('Logout error:', error);
+      Logger.error('Logout error:', error);
       return { success: false, error: error.message };
     }
   };
@@ -163,7 +281,7 @@ export const AuthProvider = ({ children }) => {
       await sendPasswordResetEmail(auth, email);
       return { success: true };
     } catch (error) {
-      console.error('Password reset error:', error);
+      Logger.error('Password reset error:', error);
       return { success: false, error: error.message };
     }
   };
@@ -186,7 +304,7 @@ export const AuthProvider = ({ children }) => {
 
       return { success: true, profile: updatedProfile };
     } catch (error) {
-      console.error('Profile update error:', error);
+      Logger.error('Profile update error:', error);
       return { success: false, error: error.message };
     }
   };
@@ -196,10 +314,14 @@ export const AuthProvider = ({ children }) => {
     userProfile,
     loading,
     register,
+    completeOnboarding,
     login,
     logout,
     resetPassword,
     updateUserProfile,
+    refreshUserProfile,
+    refreshUserProfileWithId,
+    checkEmailExists,
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

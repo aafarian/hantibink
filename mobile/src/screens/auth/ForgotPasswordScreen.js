@@ -5,22 +5,23 @@ import {
   StyleSheet,
   TextInput,
   TouchableOpacity,
-  Alert,
   KeyboardAvoidingView,
   Platform,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../../contexts/AuthContext';
+import { useToast } from '../../contexts/ToastContext';
 
 const ForgotPasswordScreen = ({ navigation }) => {
   const [email, setEmail] = useState('');
   const [loading, setLoading] = useState(false);
 
   const { resetPassword } = useAuth();
+  const { showError, showSuccess } = useToast();
 
   const handleResetPassword = async () => {
     if (!email) {
-      Alert.alert('Error', 'Please enter your email address');
+      showError('Please enter your email address');
       return;
     }
 
@@ -29,11 +30,11 @@ const ForgotPasswordScreen = ({ navigation }) => {
     setLoading(false);
 
     if (result.success) {
-      Alert.alert('Password Reset Sent', 'Check your email for password reset instructions.', [
-        { text: 'OK', onPress: () => navigation.navigate('Login') },
-      ]);
+      showSuccess('Check your email for password reset instructions.', {
+        action: { text: 'Back to Login', onPress: () => navigation.navigate('Login') },
+      });
     } else {
-      Alert.alert('Error', result.error);
+      showError(result.error || 'Failed to send password reset email. Please try again.');
     }
   };
 

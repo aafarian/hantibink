@@ -11,7 +11,7 @@ import {
 } from 'react-native';
 import { MaterialIcons } from '@expo/vector-icons';
 
-const { width, height } = Dimensions.get('window');
+const { width: _width, height: _height } = Dimensions.get('window');
 
 const SelectionPanel = ({
   visible,
@@ -21,7 +21,7 @@ const SelectionPanel = ({
   selectedValues,
   onSelect,
   multiSelect = false,
-  placeholder = 'Select an option',
+  placeholder: _placeholder = 'Select an option',
 }) => {
   const slideAnim = useRef(new Animated.Value(300)).current;
 
@@ -59,7 +59,7 @@ const SelectionPanel = ({
     onClose();
   };
 
-  const getDisplayText = () => {
+  const _getDisplayText = () => {
     if (!selectedValues || selectedValues.length === 0) {
       return '';
     }
@@ -103,22 +103,27 @@ const SelectionPanel = ({
             {/* Options */}
             <ScrollView style={styles.optionsContainer} showsVerticalScrollIndicator={false}>
               {options.map((option, index) => {
+                // Handle both string options and object options {id, label}
+                const optionKey = `option-${index}`; // Use index for stable, unique React keys
+                const optionLabel = typeof option === 'object' ? option.label : option;
+                const optionValue = typeof option === 'object' ? option.id : option;
+
                 const isSelected = multiSelect
-                  ? selectedValues.includes(option)
-                  : selectedValues === option;
+                  ? selectedValues.includes(optionValue)
+                  : selectedValues === optionValue;
 
                 return (
                   <TouchableOpacity
-                    key={option}
+                    key={optionKey}
                     style={[
                       styles.option,
                       isSelected && styles.optionSelected,
                       index === options.length - 1 && styles.lastOption,
                     ]}
-                    onPress={() => handleSelect(option)}
+                    onPress={() => handleSelect(optionValue)}
                   >
                     <Text style={[styles.optionText, isSelected && styles.optionTextSelected]}>
-                      {option}
+                      {optionLabel}
                     </Text>
                     {isSelected && <MaterialIcons name="check" size={20} color="#007AFF" />}
                   </TouchableOpacity>
@@ -146,7 +151,7 @@ const styles = StyleSheet.create({
     justifyContent: 'flex-end',
   },
   panelContainer: {
-    maxHeight: height * 0.8,
+    maxHeight: _height * 0.8,
   },
   panel: {
     backgroundColor: '#fff',
@@ -176,7 +181,7 @@ const styles = StyleSheet.create({
     width: 34, // Same width as close button for centering
   },
   optionsContainer: {
-    maxHeight: height * 0.5,
+    maxHeight: _height * 0.5,
   },
   option: {
     flexDirection: 'row',

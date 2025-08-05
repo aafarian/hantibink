@@ -1,95 +1,76 @@
-import React, { useState, useEffect } from 'react';
+import React from 'react';
 import {
   View,
   Text,
   StyleSheet,
   ScrollView,
-  TouchableOpacity,
-  Image,
   FlatList,
+  Image,
+  TouchableOpacity,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import AsyncStorage from '@react-native-async-storage/async-storage';
-
+import { useToast } from '../contexts/ToastContext';
+import { useTabNavigation } from '../hooks/useTabNavigation';
+import { useMatchesWithProfiles } from '../hooks/useMatches';
+import { LoadingScreen } from '../components/LoadingScreen';
+import { ErrorScreen, EmptyState } from '../components/ErrorScreen';
+import { MatchCard } from '../components/MatchCard';
+import { commonStyles } from '../styles/commonStyles';
+import Logger from '../utils/logger';
+import { getUserProfilePhoto } from '../utils/profileHelpers';
 const LikedYouScreen = () => {
-  const [matches, setMatches] = useState([]);
-  const [incomingLikes, setIncomingLikes] = useState([]);
+  const { showError } = useToast();
+  const { navigateToMessages } = useTabNavigation();
+  const { conversations, loading, error, refresh } = useMatchesWithProfiles();
 
-  useEffect(() => {
-    loadMatches();
-  }, []);
+  // Convert conversations to the format this screen expects
+  const matchesWithProfiles = conversations.map(conversation => ({
+    id: conversation.otherUserId,
+    matchId: conversation.matchId,
+    name: conversation.otherUser?.name || 'Unknown User',
+    age: conversation.otherUser?.age || '?',
+    location: conversation.otherUser?.location || 'Unknown location',
+    bio: conversation.otherUser?.bio || 'No bio available',
+    photos: conversation.otherUser?.photos || [],
+    mainPhoto:
+      conversation.otherUser?.mainPhoto ||
+      conversation.otherUser?.photos?.[0] ||
+      'https://via.placeholder.com/150',
+    otherUser: conversation.otherUser, // Pass through for MatchCard component
+  }));
 
-  const loadMatches = async () => {
-    try {
-      // Load user's likes
-      const userLikes = await AsyncStorage.getItem('userLikes');
-      const likes = userLikes ? JSON.parse(userLikes) : [];
-
-      // Load sample profiles to simulate matches
-      const sampleProfiles = await AsyncStorage.getItem('sampleProfiles');
-      const profiles = sampleProfiles ? JSON.parse(sampleProfiles) : [];
-
-      // Simulate mutual matches (profiles that also liked the user)
-      const mutualMatches = profiles.filter(
-        profile => likes.includes(profile.id) && Math.random() > 0.5 // 50% chance of mutual match
-      );
-
-      // Simulate incoming likes (profiles that liked the user but user hasn't seen them yet)
-      const incoming = profiles.filter(
-        profile => !likes.includes(profile.id) && Math.random() > 0.7 // 30% chance of incoming like
-      );
-
-      setMatches(mutualMatches);
-      setIncomingLikes(incoming);
-    } catch (error) {
-      console.error('Error loading matches:', error);
-    }
-  };
+  const incomingLikes = []; // TODO: Implement incoming likes feature
 
   const handleLikeBack = async profile => {
-    try {
-      // Add to user's likes
-      const existingLikes = await AsyncStorage.getItem('userLikes');
-      const likes = existingLikes ? JSON.parse(existingLikes) : [];
-      if (!likes.includes(profile.id)) {
-        likes.push(profile.id);
-        await AsyncStorage.setItem('userLikes', JSON.stringify(likes));
-      }
-
-      // Move from incoming likes to matches
-      setIncomingLikes(prev => prev.filter(p => p.id !== profile.id));
-      setMatches(prev => [...prev, profile]);
-    } catch (error) {
-      console.error('Error handling like back:', error);
-    }
+    // TODO: Implement like back functionality when incoming likes feature is ready
+    Logger.info('Like back pressed for:', profile.name);
+    showError('Incoming likes feature coming soon!');
   };
 
   const handlePass = profile => {
-    setIncomingLikes(prev => prev.filter(p => p.id !== profile.id));
+    // TODO: Implement pass functionality when incoming likes feature is ready
+    Logger.info('Pass pressed for:', profile.name);
   };
 
   const renderMatch = ({ item }) => (
-    <View style={styles.matchCard}>
-      <Image source={{ uri: item.photos[0] }} style={styles.matchPhoto} />
-      <View style={styles.matchInfo}>
-        <Text style={styles.matchName}>
-          {item.name}, {item.age}
-        </Text>
-        <Text style={styles.matchLocation}>{item.location}</Text>
-        <Text style={styles.matchBio} numberOfLines={2}>
-          {item.bio}
-        </Text>
-      </View>
-      <TouchableOpacity style={styles.messageButton}>
-        <Ionicons name="chatbubble" size={20} color="#fff" />
-        <Text style={styles.messageButtonText}>Message</Text>
-      </TouchableOpacity>
-    </View>
+    <MatchCard
+      match={item}
+      onPress={() => {
+        // TODO: Navigate to user profile or chat
+        Logger.info('Tapped on match:', item.name);
+      }}
+      onMessagePress={() => {
+        const navResult = navigateToMessages();
+        if (!navResult.success) {
+          showError('Failed to open messages. Please go to the Messages tab manually.');
+        }
+      }}
+    />
   );
 
   const renderIncomingLike = ({ item }) => (
     <View style={styles.likeCard}>
-      <Image source={{ uri: item.photos[0] }} style={styles.likePhoto} />
+      <Image source={{ uri: getUserProfilePhoto(item) }} style={styles.likePhoto} />
       <View style={styles.likeInfo}>
         <Text style={styles.likeName}>
           {item.name}, {item.age}
@@ -116,29 +97,37 @@ const LikedYouScreen = () => {
     </View>
   );
 
+  if (loading) {
+    return <LoadingScreen message="Loading your matches..." />;
+  }
+
+  if (error) {
+    return <ErrorScreen message="Failed to load matches" onRetry={refresh} />;
+  }
+
   return (
-    <ScrollView style={styles.container}>
+    <ScrollView style={commonStyles.container}>
       {/* Mutual Matches Section */}
       <View style={styles.section}>
         <View style={styles.sectionHeader}>
           <Ionicons name="heart" size={24} color="#FF6B6B" />
           <Text style={styles.sectionTitle}>Mutual Matches</Text>
-          <Text style={styles.matchCount}>({matches.length})</Text>
+          <Text style={styles.matchCount}>({matchesWithProfiles.length})</Text>
         </View>
 
-        {matches.length > 0 ? (
+        {matchesWithProfiles.length > 0 ? (
           <FlatList
-            data={matches}
+            data={matchesWithProfiles}
             renderItem={renderMatch}
             keyExtractor={item => item.id}
             scrollEnabled={false}
           />
         ) : (
-          <View style={styles.emptyState}>
-            <Ionicons name="heart-outline" size={50} color="#ccc" />
-            <Text style={styles.emptyStateText}>No mutual matches yet</Text>
-            <Text style={styles.emptyStateSubtext}>Keep swiping to find your match!</Text>
-          </View>
+          <EmptyState
+            icon="heart-outline"
+            title="No mutual matches yet"
+            subtitle="Keep swiping to find your match!"
+          />
         )}
       </View>
 
@@ -312,6 +301,15 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: '#999',
     textAlign: 'center',
+  },
+  centered: {
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  loadingText: {
+    marginTop: 10,
+    fontSize: 16,
+    color: '#666',
   },
 });
 

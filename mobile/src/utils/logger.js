@@ -4,6 +4,8 @@
  * No more scattered if (__DEV__) checks needed!
  */
 
+/* eslint-disable no-console */
+
 const isDevelopment = __DEV__ || process.env.NODE_ENV === 'development';
 
 class Logger {
@@ -77,6 +79,12 @@ class Logger {
   static api(message, ...args) {
     if (isDevelopment) {
       console.log(`🌐 ${message}`, ...args);
+    }
+  }
+
+  static match(message, ...args) {
+    if (isDevelopment) {
+      console.log(`💕 ${message}`, ...args);
     }
   }
 }

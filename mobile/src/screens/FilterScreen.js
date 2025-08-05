@@ -1,9 +1,12 @@
 import React, { useState } from 'react';
-import { View, Text, ScrollView, TouchableOpacity, StyleSheet, Switch, Alert } from 'react-native';
+import { View, Text, ScrollView, TouchableOpacity, StyleSheet, Switch } from 'react-native';
 import { MaterialIcons } from '@expo/vector-icons';
+import { useToast } from '../contexts/ToastContext';
 import Logger from '../utils/logger';
 
 const FilterScreen = ({ navigation, route }) => {
+  const { showSuccess } = useToast();
+
   // Get user preferences from route params or default values
   const userPreferences = route?.params?.userPreferences || {
     ageRange: { min: 18, max: 50 },
@@ -61,7 +64,7 @@ const FilterScreen = ({ navigation, route }) => {
   const applyFilters = () => {
     // Here you would apply the filters to your matching algorithm
     Logger.debug('Applying filters:', filters);
-    Alert.alert('Filters Applied', 'Your filters have been updated!');
+    showSuccess('Your filters have been updated!');
     navigation.goBack();
   };
 

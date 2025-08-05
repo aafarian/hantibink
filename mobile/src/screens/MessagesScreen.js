@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   View,
   Text,
@@ -7,110 +7,282 @@ import {
   TouchableOpacity,
   Image,
   TextInput,
-  KeyboardAvoidingView,
-  Platform,
+  Animated,
 } from 'react-native';
+import { ChatKeyboardWrapper } from '../components/KeyboardAwareWrapper';
 import { Ionicons } from '@expo/vector-icons';
-import AsyncStorage from '@react-native-async-storage/async-storage';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useAuth } from '../contexts/AuthContext';
+import { useToast } from '../contexts/ToastContext';
+// Unread count now handled globally in UnreadContext
+import { useFeatureFlags } from '../contexts/FeatureFlagsContext';
+import { useMatchesWithProfiles } from '../hooks/useMatches';
+import { LoadingScreen } from '../components/LoadingScreen';
+import { ErrorScreen, EmptyState } from '../components/ErrorScreen';
+import { MatchCard } from '../components/MatchCard';
+import { theme } from '../styles/theme';
+import { commonStyles } from '../styles/commonStyles';
+import DataService from '../services/DataService';
+import Logger from '../utils/logger';
+import { handleErrorWithToast } from '../utils/errorHandler';
+import { getUserProfilePhoto, getUserDisplayName } from '../utils/profileHelpers';
 
 const MessagesScreen = () => {
-  const [conversations, setConversations] = useState([]);
+  const { user } = useAuth();
+  const { showError } = useToast();
+  const { hasFeature, FEATURES, isPremium, togglePremiumForTesting } = useFeatureFlags();
+  // Unread count now handled globally in UnreadContext
+  const { conversations, loading, error, refresh } = useMatchesWithProfiles();
+
+  // Note: We don't auto-mark conversations as viewed here to preserve unread counts
+  // Conversations should only be marked as viewed when user actually opens them
+
   const [selectedConversation, setSelectedConversation] = useState(null);
   const [messageText, setMessageText] = useState('');
-  const insets = useSafeAreaInsets();
+  const [realTimeMessages, setRealTimeMessages] = useState([]);
+  const [sendingMessage, setSendingMessage] = useState(false);
 
-  useEffect(() => {
-    loadConversations();
-  }, []);
+  // Typing indicators
+  const [typingUsers, setTypingUsers] = useState([]);
+  const [isCurrentUserTyping, setIsCurrentUserTyping] = useState(false);
+  const typingTimeoutRef = useRef(null);
 
-  const loadConversations = async () => {
+  // Animation for typing dots
+  const typingAnim1 = useRef(new Animated.Value(0.4)).current;
+  const typingAnim2 = useRef(new Animated.Value(0.4)).current;
+  const typingAnim3 = useRef(new Animated.Value(0.4)).current;
+
+  // Ref for auto-scrolling to bottom
+  const flatListRef = useRef(null);
+
+  // Handle typing indicator logic
+  const handleTypingStart = async () => {
+    if (!selectedConversation?.matchId || isCurrentUserTyping) return;
+
     try {
-      // Load user's matches
-      const userLikes = await AsyncStorage.getItem('userLikes');
-      const likes = userLikes ? JSON.parse(userLikes) : [];
-
-      // Load sample profiles
-      const sampleProfiles = await AsyncStorage.getItem('sampleProfiles');
-      const profiles = sampleProfiles ? JSON.parse(sampleProfiles) : [];
-
-      // Create conversations from mutual matches
-      const mutualMatches = profiles.filter(
-        profile => likes.includes(profile.id) && Math.random() > 0.3 // 70% chance of mutual match
-      );
-
-      // Load existing conversations or create new ones
-      const savedConversations = await AsyncStorage.getItem('conversations');
-      const existingConversations = savedConversations ? JSON.parse(savedConversations) : [];
-
-      // Merge with new matches
-      const newConversations = mutualMatches.map(match => {
-        const existing = existingConversations.find(c => c.matchId === match.id);
-        return (
-          existing || {
-            matchId: match.id,
-            profile: match,
-            messages: [],
-            lastMessage: null,
-            unreadCount: 0,
-          }
-        );
-      });
-
-      setConversations(newConversations);
-      await AsyncStorage.setItem('conversations', JSON.stringify(newConversations));
-    } catch (error) {
-      console.error('Error loading conversations:', error);
+      await DataService.setTypingStatus(selectedConversation.matchId, user.uid, true);
+      setIsCurrentUserTyping(true);
+    } catch (err) {
+      Logger.error('Error setting typing status:', err);
     }
   };
 
-  const sendMessage = async () => {
-    if (!messageText.trim() || !selectedConversation) {
+  const handleTypingStop = async () => {
+    if (!selectedConversation?.matchId || !isCurrentUserTyping) return;
+
+    try {
+      await DataService.setTypingStatus(selectedConversation.matchId, user.uid, false);
+      setIsCurrentUserTyping(false);
+    } catch (err) {
+      Logger.error('Error clearing typing status:', err);
+    }
+  };
+
+  const handleTextChange = text => {
+    setMessageText(text);
+
+    if (text.length > 0) {
+      handleTypingStart();
+
+      // Clear existing timeout
+      if (typingTimeoutRef.current) {
+        clearTimeout(typingTimeoutRef.current);
+      }
+
+      // Set new timeout to stop typing after 3 seconds of no typing
+      typingTimeoutRef.current = setTimeout(handleTypingStop, 3000);
+    } else {
+      // If text is empty, stop typing immediately
+      if (typingTimeoutRef.current) {
+        clearTimeout(typingTimeoutRef.current);
+      }
+      handleTypingStop();
+    }
+  };
+
+  // Cleanup typing timeout on unmount
+  useEffect(() => {
+    return () => {
+      if (typingTimeoutRef.current) {
+        clearTimeout(typingTimeoutRef.current);
+      }
+    };
+  }, []);
+
+  // Unread count now handled globally in UnreadContext
+
+  // Animate typing dots
+  useEffect(() => {
+    if (typingUsers.length > 0) {
+      // Start the staggered animation when someone is typing
+      const animate = () => {
+        Animated.sequence([
+          Animated.timing(typingAnim1, { toValue: 1, duration: 500, useNativeDriver: true }),
+          Animated.timing(typingAnim2, { toValue: 1, duration: 500, useNativeDriver: true }),
+          Animated.timing(typingAnim3, { toValue: 1, duration: 500, useNativeDriver: true }),
+          Animated.timing(typingAnim1, { toValue: 0.4, duration: 500, useNativeDriver: true }),
+          Animated.timing(typingAnim2, { toValue: 0.4, duration: 500, useNativeDriver: true }),
+          Animated.timing(typingAnim3, { toValue: 0.4, duration: 500, useNativeDriver: true }),
+        ]).start(() => {
+          if (typingUsers.length > 0) {
+            animate(); // Loop the animation
+          }
+        });
+      };
+      animate();
+    } else {
+      // Reset animation when no one is typing
+      typingAnim1.setValue(0.4);
+      typingAnim2.setValue(0.4);
+      typingAnim3.setValue(0.4);
+    }
+  }, [typingUsers.length, typingAnim1, typingAnim2, typingAnim3]);
+
+  // Set up real-time listener for typing indicators
+  useEffect(() => {
+    if (!selectedConversation?.matchId) {
+      setTypingUsers([]);
       return;
     }
 
-    const newMessage = {
-      id: Date.now().toString(),
-      text: messageText.trim(),
-      senderId: 'currentUser',
-      timestamp: new Date().toISOString(),
-    };
-
-    const updatedConversations = conversations.map(conv => {
-      if (conv.matchId === selectedConversation.matchId) {
-        return {
-          ...conv,
-          messages: [...conv.messages, newMessage],
-          lastMessage: newMessage,
-        };
+    const unsubscribe = DataService.subscribeToTypingStatus(
+      selectedConversation.matchId,
+      user.uid,
+      typingUsersList => {
+        setTypingUsers(typingUsersList);
       }
-      return conv;
+    );
+
+    return () => {
+      if (unsubscribe) unsubscribe();
+    };
+  }, [selectedConversation?.matchId, user.uid]);
+
+  // Set up real-time listener for messages when a conversation is selected
+  useEffect(() => {
+    if (!selectedConversation?.matchId) {
+      setRealTimeMessages([]);
+      return;
+    }
+
+    Logger.info(`Setting up real-time listener for match: ${selectedConversation.matchId}`);
+
+    // Mark conversation as viewed when opening (clears unread badge)
+    DataService.markConversationAsViewed(selectedConversation.matchId, user.uid);
+
+    // Mark messages as read when opening conversation (for detailed read receipts)
+    DataService.markMessagesAsRead(selectedConversation.matchId, user.uid);
+
+    const unsubscribe = DataService.subscribeToMessages(selectedConversation.matchId, messages => {
+      const previousCount = realTimeMessages.length;
+      setRealTimeMessages(messages);
+      Logger.info(`Received ${messages.length} real-time messages`);
+
+      // Auto-scroll to bottom when new messages arrive
+      if (messages.length > previousCount && flatListRef.current) {
+        setTimeout(() => {
+          flatListRef.current?.scrollToEnd({ animated: true });
+        }, 100);
+      }
+
+      // Mark as read when new messages arrive (if user is actively viewing)
+      if (messages.length > 0) {
+        DataService.markMessagesAsRead(selectedConversation.matchId, user.uid);
+      }
     });
 
-    setConversations(updatedConversations);
-    setMessageText('');
-    await AsyncStorage.setItem('conversations', JSON.stringify(updatedConversations));
+    // Cleanup listener when conversation changes or component unmounts
+    return () => {
+      if (unsubscribe) {
+        Logger.info(`Cleaning up listener for match: ${selectedConversation.matchId}`);
+        unsubscribe();
+      }
+    };
+  }, [selectedConversation?.matchId, user.uid, realTimeMessages.length]);
+
+  const sendMessage = async () => {
+    if (!messageText.trim() || !selectedConversation || sendingMessage) {
+      return;
+    }
+
+    setSendingMessage(true);
+    const messageToSend = messageText.trim();
+    setMessageText(''); // Clear input immediately for better UX
+
+    // Clear typing indicator when sending message
+    if (typingTimeoutRef.current) {
+      clearTimeout(typingTimeoutRef.current);
+    }
+    handleTypingStop();
+
+    try {
+      const result = await DataService.sendMessage(
+        selectedConversation.matchId,
+        user.uid,
+        messageToSend
+      );
+
+      if (result.success) {
+        Logger.info('Message sent successfully:', messageToSend);
+
+        // Auto-scroll to bottom after sending
+        setTimeout(() => {
+          flatListRef.current?.scrollToEnd({ animated: true });
+        }, 100);
+      } else {
+        throw new Error(result.error);
+      }
+    } catch (e) {
+      handleErrorWithToast(e, 'Failed to send message. Please try again.', showError);
+      setMessageText(messageToSend); // Restore message text on error
+    } finally {
+      setSendingMessage(false);
+    }
   };
 
   const renderConversation = ({ item }) => (
-    <TouchableOpacity style={styles.conversationItem} onPress={() => setSelectedConversation(item)}>
-      <Image source={{ uri: item.profile.photos[0] }} style={styles.conversationPhoto} />
-      <View style={styles.conversationInfo}>
-        <Text style={styles.conversationName}>{item.profile.name}</Text>
-        <Text style={styles.lastMessage} numberOfLines={1}>
-          {item.lastMessage ? item.lastMessage.text : 'Start a conversation!'}
-        </Text>
-      </View>
-      {item.unreadCount > 0 && (
-        <View style={styles.unreadBadge}>
-          <Text style={styles.unreadCount}>{item.unreadCount}</Text>
-        </View>
-      )}
-    </TouchableOpacity>
+    <MatchCard
+      match={item}
+      onPress={() => {
+        // Mark conversation as viewed when selected
+        DataService.markConversationAsViewed(item.matchId, user.uid);
+        setSelectedConversation(item);
+      }}
+      onMessagePress={() => {
+        // Mark conversation as viewed when selected
+        DataService.markConversationAsViewed(item.matchId, user.uid);
+        setSelectedConversation(item);
+      }}
+      showMessageButton={false}
+      unreadCount={item.unreadCount}
+      showLastMessage={true}
+    />
   );
 
   const renderMessage = ({ item }) => {
-    const isOwnMessage = item.senderId === 'currentUser';
+    // Handle typing indicator as special message type
+    if (item.isTyping) {
+      return (
+        <View style={styles.typingIndicatorMessage}>
+          <View style={styles.typingBubble}>
+            <Text style={styles.typingText}>
+              {selectedConversation?.otherUser?.name || 'Someone'} is typing
+            </Text>
+            <View style={styles.typingDots}>
+              <Animated.View style={[styles.typingDot, { opacity: typingAnim1 }]} />
+              <Animated.View style={[styles.typingDot, { opacity: typingAnim2 }]} />
+              <Animated.View style={[styles.typingDot, { opacity: typingAnim3 }]} />
+            </View>
+          </View>
+        </View>
+      );
+    }
+
+    const isOwnMessage = item.senderId === user.uid;
+    const isSending = item.status === 'sending';
+
+    // Check if message has been read by the other user (for read receipts)
+    const otherUserId = selectedConversation?.otherUserId;
+    const isRead = item.readBy && otherUserId && item.readBy.includes(otherUserId);
 
     return (
       <View
@@ -125,6 +297,15 @@ const MessagesScreen = () => {
           >
             {item.text}
           </Text>
+        </View>
+
+        {/* Timestamp and status */}
+        <View
+          style={[
+            styles.messageFooter,
+            isOwnMessage ? styles.ownMessageFooter : styles.otherMessageFooter,
+          ]}
+        >
           <Text
             style={[
               styles.messageTime,
@@ -136,6 +317,29 @@ const MessagesScreen = () => {
               minute: '2-digit',
             })}
           </Text>
+
+          {/* Status indicator for own messages - Premium Feature */}
+          {isOwnMessage && hasFeature(FEATURES.READ_RECEIPTS) && (
+            <View style={styles.messageStatus}>
+              {isSending ? (
+                <Ionicons name="time-outline" size={12} color="#999" />
+              ) : isRead ? (
+                <Ionicons name="checkmark-done" size={12} color="#4ECDC4" />
+              ) : (
+                <Ionicons name="checkmark" size={12} color="#999" />
+              )}
+            </View>
+          )}
+
+          {/* Premium upgrade hint for read receipts */}
+          {isOwnMessage && !hasFeature(FEATURES.READ_RECEIPTS) && (
+            <TouchableOpacity
+              style={styles.premiumHint}
+              onPress={() => showError('Upgrade to Premium to see read receipts! 💎')}
+            >
+              <Ionicons name="diamond-outline" size={10} color="#FFD700" />
+            </TouchableOpacity>
+          )}
         </View>
       </View>
     );
@@ -143,114 +347,108 @@ const MessagesScreen = () => {
 
   if (selectedConversation) {
     return (
-      <KeyboardAvoidingView
-        style={styles.container}
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-      >
+      <ChatKeyboardWrapper>
         {/* Chat Header */}
         <View style={styles.chatHeader}>
           <TouchableOpacity onPress={() => setSelectedConversation(null)}>
             <Ionicons name="arrow-back" size={24} color="#fff" />
           </TouchableOpacity>
           <Image
-            source={{ uri: selectedConversation.profile.photos[0] }}
+            source={{
+              uri: getUserProfilePhoto(selectedConversation.otherUser),
+            }}
             style={styles.chatHeaderPhoto}
           />
           <View style={styles.chatHeaderInfo}>
-            <Text style={styles.chatHeaderName}>{selectedConversation.profile.name}</Text>
-            <Text style={styles.chatHeaderStatus}>Online</Text>
+            <Text style={styles.chatHeaderName}>
+              {getUserDisplayName(selectedConversation.otherUser)}
+            </Text>
+            <Text style={styles.chatHeaderStatus}>Matched recently</Text>
           </View>
         </View>
 
-        {/* Messages */}
-        <FlatList
-          style={styles.messagesList}
-          data={selectedConversation.messages}
-          renderItem={renderMessage}
-          keyExtractor={item => item.id}
-          inverted={false}
-        />
+        {/* Messages area - scrollable content */}
+        <View style={styles.messagesContainer}>
+          <FlatList
+            ref={flatListRef}
+            style={styles.messagesList}
+            data={[
+              ...realTimeMessages,
+              ...(typingUsers.length > 0 ? [{ id: 'typing-indicator', isTyping: true }] : []),
+            ]}
+            renderItem={renderMessage}
+            keyExtractor={item => item.id}
+            inverted={false}
+            showsVerticalScrollIndicator={false}
+            onContentSizeChange={() => flatListRef.current?.scrollToEnd({ animated: false })}
+            onLayout={() => flatListRef.current?.scrollToEnd({ animated: false })}
+          />
+        </View>
 
-        {/* Message Input */}
-        <View style={[styles.inputContainer, { paddingBottom: insets.bottom + 15 }]}>
+        {/* Input area - fixed at bottom with keyboard avoidance */}
+        <View style={styles.inputContainer}>
           <TextInput
             style={styles.messageInput}
             value={messageText}
-            onChangeText={setMessageText}
+            onChangeText={handleTextChange}
             placeholder="Type a message..."
             multiline
+            maxLength={500}
+            blurOnSubmit={false}
+            returnKeyType="send"
+            onSubmitEditing={sendMessage}
           />
-          <TouchableOpacity style={styles.sendButton} onPress={sendMessage}>
-            <Ionicons name="send" size={20} color="#fff" />
+          <TouchableOpacity
+            style={[styles.sendButton, sendingMessage && styles.sendButtonDisabled]}
+            onPress={sendMessage}
+            disabled={sendingMessage}
+          >
+            <Ionicons name={sendingMessage ? 'hourglass' : 'send'} size={20} color="#fff" />
           </TouchableOpacity>
         </View>
-      </KeyboardAvoidingView>
+      </ChatKeyboardWrapper>
     );
   }
 
+  if (loading) {
+    return <LoadingScreen message="Loading your matches..." />;
+  }
+
+  if (error) {
+    return <ErrorScreen message="Failed to load matches" onRetry={refresh} />;
+  }
+
   return (
-    <View style={styles.container}>
+    <View style={commonStyles.container}>
+      {/* 🧪 Development Premium Toggle */}
+      {__DEV__ && togglePremiumForTesting && (
+        <TouchableOpacity style={styles.debugToggle} onPress={togglePremiumForTesting}>
+          <Text style={styles.debugText}>
+            🧪 {isPremium ? '💎 PREMIUM' : '🆓 FREE'} (Tap to toggle)
+          </Text>
+        </TouchableOpacity>
+      )}
+
       <FlatList
         data={conversations}
         renderItem={renderConversation}
         keyExtractor={item => item.matchId}
         ListEmptyComponent={
-          <View style={styles.emptyState}>
-            <Ionicons name="chatbubbles-outline" size={80} color="#ccc" />
-            <Text style={styles.emptyStateText}>No conversations yet</Text>
-            <Text style={styles.emptyStateSubtext}>Start matching to begin chatting!</Text>
-          </View>
+          <EmptyState
+            icon="heart-outline"
+            title="No matches yet"
+            subtitle="Start swiping to find your perfect match!"
+          />
         }
+        refreshing={loading}
+        onRefresh={refresh}
+        contentContainerStyle={{ padding: theme.spacing.md }}
       />
     </View>
   );
 };
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#f8f9fa',
-  },
-  conversationItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    padding: 15,
-    backgroundColor: '#fff',
-    borderBottomWidth: 1,
-    borderBottomColor: '#f0f0f0',
-  },
-  conversationPhoto: {
-    width: 50,
-    height: 50,
-    borderRadius: 25,
-    marginRight: 15,
-  },
-  conversationInfo: {
-    flex: 1,
-  },
-  conversationName: {
-    fontSize: 16,
-    fontWeight: 'bold',
-    color: '#333',
-    marginBottom: 5,
-  },
-  lastMessage: {
-    fontSize: 14,
-    color: '#666',
-  },
-  unreadBadge: {
-    backgroundColor: '#FF6B6B',
-    borderRadius: 10,
-    minWidth: 20,
-    height: 20,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  unreadCount: {
-    color: '#fff',
-    fontSize: 12,
-    fontWeight: 'bold',
-  },
   chatHeader: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -277,9 +475,13 @@ const styles = StyleSheet.create({
     color: '#fff',
     opacity: 0.8,
   },
+  messagesContainer: {
+    flex: 1,
+    justifyContent: 'flex-start',
+  },
   messagesList: {
     flex: 1,
-    padding: 15,
+    paddingHorizontal: theme.spacing.md,
   },
   messageContainer: {
     marginBottom: 10,
@@ -313,22 +515,41 @@ const styles = StyleSheet.create({
   otherMessageText: {
     color: '#333',
   },
+  messageFooter: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 4,
+    marginHorizontal: 12,
+  },
   messageTime: {
-    fontSize: 12,
+    fontSize: 11,
+  },
+  messageStatus: {
+    marginLeft: 4,
+  },
+  ownMessageFooter: {
+    justifyContent: 'flex-end',
+  },
+  otherMessageFooter: {
+    justifyContent: 'flex-start',
   },
   ownMessageTime: {
-    color: 'rgba(255,255,255,0.7)',
+    color: '#999',
+    textAlign: 'right',
   },
   otherMessageTime: {
-    color: '#666',
+    color: '#999',
+    textAlign: 'left',
   },
   inputContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    padding: 15,
-    backgroundColor: '#fff',
+    padding: theme.spacing.md,
+    paddingBottom: theme.spacing.md,
+    backgroundColor: theme.colors.background.primary,
     borderTopWidth: 1,
-    borderTopColor: '#e0e0e0',
+    borderTopColor: theme.colors.border.light,
+    marginBottom: 0,
   },
   messageInput: {
     flex: 1,
@@ -348,22 +569,73 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
   },
-  emptyState: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    padding: 40,
-    marginTop: 100,
+  sendButtonDisabled: {
+    backgroundColor: '#CCC',
+    opacity: 0.6,
   },
-  emptyStateText: {
-    fontSize: 18,
-    color: '#666',
-    marginTop: 15,
+  // Typing indicator styles
+  typingIndicatorMessage: {
+    paddingHorizontal: 15,
+    paddingVertical: 5,
     marginBottom: 5,
   },
-  emptyStateSubtext: {
+  typingBubble: {
+    backgroundColor: '#f0f0f0',
+    borderRadius: 18,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    alignSelf: 'flex-start',
+    flexDirection: 'row',
+    alignItems: 'center',
+    maxWidth: '70%',
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 1,
+    },
+    shadowOpacity: 0.1,
+    shadowRadius: 2,
+    elevation: 2,
+  },
+  typingText: {
     fontSize: 14,
-    color: '#999',
-    textAlign: 'center',
+    color: '#666',
+    marginRight: 8,
+  },
+  typingDots: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  typingDot: {
+    width: 4,
+    height: 4,
+    borderRadius: 2,
+    backgroundColor: '#999',
+    marginHorizontal: 1,
+  },
+  // Removed static opacity styles - now handled by animation
+
+  // Premium feature styles
+  premiumHint: {
+    marginLeft: 4,
+    opacity: 0.7,
+  },
+
+  // 🧪 Development styles
+  debugToggle: {
+    position: 'absolute',
+    top: 10,
+    right: 10,
+    backgroundColor: 'rgba(0,0,0,0.8)',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 12,
+    zIndex: 1000,
+  },
+  debugText: {
+    color: '#fff',
+    fontSize: 10,
+    fontWeight: '600',
   },
 });
 
