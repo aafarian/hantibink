@@ -79,8 +79,8 @@ class DataService {
       const querySnapshot = await getDocs(usersQuery);
       const users = [];
 
-      querySnapshot.forEach(doc => {
-        const userData = { id: doc.id, ...doc.data() };
+      querySnapshot.forEach(currDoc => {
+        const userData = { id: currDoc.id, ...currDoc.data() };
 
         // Exclude current user and already processed users
         if (userData.id !== currentUserId && !excludeUserIds.includes(userData.id)) {
@@ -133,8 +133,8 @@ class DataService {
       const querySnapshot = await getDocs(actionsQuery);
       const actions = [];
 
-      querySnapshot.forEach(doc => {
-        actions.push(doc.data());
+      querySnapshot.forEach(currDoc => {
+        actions.push(currDoc.data());
       });
 
       return actions;
@@ -171,7 +171,6 @@ class DataService {
   static async createMatch(userId1, userId2) {
     try {
       const matchId = `${userId1}_${userId2}`;
-      const reverseMatchId = `${userId2}_${userId1}`;
       const timestamp = new Date().toISOString();
 
       // Get user profiles for testing logs
@@ -232,9 +231,9 @@ class DataService {
       const querySnapshot = await getDocs(matchesQuery);
       const matches = [];
 
-      querySnapshot.forEach(doc => {
-        const matchData = { id: doc.id, ...doc.data() };
-        Logger.info(`Found match: ${doc.id} with users:`, matchData.users);
+      querySnapshot.forEach(currDoc => {
+        const matchData = { id: currDoc.id, ...currDoc.data() };
+        Logger.info(`Found match: ${currDoc.id} with users:`, matchData.users);
         matches.push(matchData);
       });
 
@@ -289,8 +288,8 @@ class DataService {
       const querySnapshot = await getDocs(matchesQuery);
       const allMatches = [];
 
-      querySnapshot.forEach(doc => {
-        allMatches.push({ id: doc.id, ...doc.data() });
+      querySnapshot.forEach(currDoc => {
+        allMatches.push({ id: currDoc.id, ...currDoc.data() });
       });
 
       Logger.info(`DEBUG: Total matches in database: ${allMatches.length}`);
@@ -314,8 +313,8 @@ class DataService {
       const querySnapshot = await getDocs(matchesQuery);
 
       const deletePromises = [];
-      querySnapshot.forEach(doc => {
-        deletePromises.push(deleteDoc(doc.ref));
+      querySnapshot.forEach(currDoc => {
+        deletePromises.push(deleteDoc(currDoc.ref));
       });
 
       await Promise.all(deletePromises);
@@ -467,10 +466,10 @@ class DataService {
       const querySnapshot = await getDocs(messagesQuery);
       const messages = [];
 
-      querySnapshot.forEach(doc => {
+      querySnapshot.forEach(currDoc => {
         messages.push({
-          id: doc.id,
-          ...doc.data(),
+          id: currDoc.id,
+          ...currDoc.data(),
         });
       });
 
@@ -494,10 +493,10 @@ class DataService {
         messagesQuery,
         querySnapshot => {
           const messages = [];
-          querySnapshot.forEach(doc => {
+          querySnapshot.forEach(currDoc => {
             messages.push({
-              id: doc.id,
-              ...doc.data(),
+              id: currDoc.id,
+              ...currDoc.data(),
             });
           });
 
@@ -718,9 +717,9 @@ class DataService {
       const unsubscribe = onSnapshot(typingCollectionRef, snapshot => {
         const typingUsers = [];
 
-        snapshot.forEach(doc => {
-          const data = doc.data();
-          const userId = doc.id;
+        snapshot.forEach(currDoc => {
+          const data = currDoc.data();
+          const userId = currDoc.id;
 
           // Only include other users who are typing (not current user)
           if (userId !== currentUserId && data.isTyping && data.timestamp) {
@@ -761,13 +760,13 @@ class DataService {
       const now = new Date();
       const promises = [];
 
-      snapshot.forEach(doc => {
-        const data = doc.data();
+      snapshot.forEach(currDoc => {
+        const data = currDoc.data();
         const timeDiff = now - data.timestamp.toDate();
 
         // Remove typing indicators older than 5 seconds
         if (timeDiff > 5000) {
-          promises.push(deleteDoc(doc.ref));
+          promises.push(deleteDoc(currDoc.ref));
         }
       });
 
