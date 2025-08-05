@@ -9,7 +9,6 @@ import { AuthProvider } from './src/contexts/AuthContext';
 import { UnreadProvider } from './src/contexts/UnreadContext';
 import { FeatureFlagsProvider } from './src/contexts/FeatureFlagsContext';
 import AppNavigator from './src/navigation/AppNavigator';
-import './src/utils/devTools'; // Load dev tools in development
 
 export default function App() {
   return (
