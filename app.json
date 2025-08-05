@@ -1,0 +1,12 @@
+{
+  "expo": {
+    "extra": {
+      "eas": {
+        "projectId": "316f94ce-dca3-4d3d-868a-5885e6704f84"
+      }
+    },
+    "android": {
+      "package": "com.antoafarian.hantibink"
+    }
+  }
+}
