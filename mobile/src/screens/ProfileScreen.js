@@ -47,7 +47,8 @@ const ProfileScreen = () => {
       // Fallback to loading from DataService if AuthContext doesn't have profile
       loadUserProfile();
     }
-  }, [user, authUserProfile, loadUserProfile]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user, authUserProfile]);
 
   // Refresh profile when app comes to foreground (to get location updates)
   useEffect(() => {
@@ -110,7 +111,7 @@ const ProfileScreen = () => {
     } catch (error) {
       const errorInfo = handleError(error, 'Failed to save profile');
       showError(errorInfo.message, {
-        action: { text: 'Retry', onPress: () => saveProfileEdits() },
+        action: { text: 'Retry', onPress: () => saveUserProfile(updatedProfile) },
       });
     } finally {
       setSaving(false);
@@ -212,6 +213,7 @@ const ProfileScreen = () => {
 
       if (remainingSlots <= 0) {
         showError('You can upload up to 6 photos');
+        setSaving(false);
         return;
       }
 
@@ -429,15 +431,7 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#f8f9fa',
   },
-  header: {
-    padding: 20,
-    backgroundColor: '#FF6B6B',
-  },
-  title: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    color: '#fff',
-  },
+
   photoSection: {
     padding: 20,
     backgroundColor: '#fff',

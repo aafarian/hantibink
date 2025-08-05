@@ -26,7 +26,7 @@ export const FeatureFlagsProvider = ({ children }) => {
   // const isPremiumUser = subscription?.status === 'active' && subscription?.plan === 'premium';
 
   // Check if a specific premium feature is enabled
-  const hasFeature = _featureName => {
+  const hasFeature = () => {
     // 🎯 Future: Could add per-feature subscription tiers here
     // For now, all premium features require premium subscription
     return isPremiumUser;
@@ -43,8 +43,11 @@ export const FeatureFlagsProvider = ({ children }) => {
 
   // 🧪 Development helper - Remove in production
   const togglePremiumForTesting = () => {
-    setIsPremiumUser(prev => !prev);
-    Logger.info(`🎛️  Premium status toggled to: ${!isPremiumUser}`);
+    setIsPremiumUser(prev => {
+      const newValue = !prev;
+      Logger.info(`🎛️  Premium status toggled to: ${newValue}`);
+      return newValue;
+    });
   };
 
   const value = {

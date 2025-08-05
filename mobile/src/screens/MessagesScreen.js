@@ -23,7 +23,7 @@ import { theme } from '../styles/theme';
 import { commonStyles } from '../styles/commonStyles';
 import DataService from '../services/DataService';
 import Logger from '../utils/logger';
-import { logAndShowError } from '../utils/errorHandler';
+import { handleErrorWithToast } from '../utils/errorHandler';
 import { getUserProfilePhoto, getUserDisplayName } from '../utils/profileHelpers';
 
 const MessagesScreen = () => {
@@ -33,14 +33,8 @@ const MessagesScreen = () => {
   // Unread count now handled globally in UnreadContext
   const { conversations, loading, error, refresh } = useMatchesWithProfiles();
 
-  // Mark all conversations as viewed when user opens Messages tab
-  useEffect(() => {
-    if (conversations.length > 0) {
-      conversations.forEach(conversation => {
-        DataService.markConversationAsViewed(conversation.matchId, user.uid);
-      });
-    }
-  }, [conversations, user.uid]); // Only when conversation list changes or user changes
+  // Note: We don't auto-mark conversations as viewed here to preserve unread counts
+  // Conversations should only be marked as viewed when user actually opens them
 
   const [selectedConversation, setSelectedConversation] = useState(null);
   const [messageText, setMessageText] = useState('');
@@ -141,7 +135,7 @@ const MessagesScreen = () => {
       typingAnim2.setValue(0.4);
       typingAnim3.setValue(0.4);
     }
-  }, [typingUsers.length, typingAnim1, typingAnim2, typingAnim3, realTimeMessages.length]);
+  }, [typingUsers.length, typingAnim1, typingAnim2, typingAnim3]);
 
   // Set up real-time listener for typing indicators
   useEffect(() => {
@@ -238,7 +232,7 @@ const MessagesScreen = () => {
         throw new Error(result.error);
       }
     } catch (e) {
-      logAndShowError(e, 'Failed to send message. Please try again.', showError);
+      handleErrorWithToast(e, 'Failed to send message. Please try again.', showError);
       setMessageText(messageToSend); // Restore message text on error
     } finally {
       setSendingMessage(false);

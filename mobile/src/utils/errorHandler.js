@@ -35,11 +35,6 @@ export const handleErrorWithToast = (error, userMessage, showError, options = {}
   return errorInfo;
 };
 
-// Convenience function for logging + showing errors in one call
-export const logAndShowError = (error, userMessage, showError, options = {}) => {
-  return handleErrorWithToast(error, userMessage, showError, options);
-};
-
 // Specific error handlers
 export const handleNetworkError = error => {
   return handleError(error, 'Network connection failed. Please check your internet connection.', {

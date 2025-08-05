@@ -19,9 +19,9 @@ export const useTabNavigation = () => {
       Logger.success(`✅ Navigated to ${tabName} tab directly`);
       return { success: true, method: 'direct' };
     } catch (error) {
-      // Final fallback - try jumpTo for tab navigation
+      // Final fallback - try jumpTo for tab navigation (without params)
       try {
-        navigation.jumpTo(tabName, params);
+        navigation.jumpTo(tabName);
         Logger.success(`✅ Jumped to ${tabName} tab`);
         return { success: true, method: 'jumpTo' };
       } catch (jumpError) {

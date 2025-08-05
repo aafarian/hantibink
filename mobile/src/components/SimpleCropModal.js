@@ -36,6 +36,11 @@ const SimpleCropModal = ({ visible, imageUri, onCropComplete, onCancel }) => {
   };
 
   const handleSkip = () => {
+    if (!imageSize.width || !imageSize.height) {
+      showError('Image not loaded properly. Please try again.');
+      return;
+    }
+
     // Return original image dimensions (no crop)
     const cropData = {
       originX: 0,

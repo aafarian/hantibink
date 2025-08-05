@@ -35,13 +35,14 @@ const LocationPicker = ({
     if (showModal && status === 'success' && localLocation) {
       if (!localLocation.hasMultipleOptions) {
         // Auto-select single option
-        setTimeout(() => {
+        const timeoutId = setTimeout(() => {
           handleLocationConfirm();
         }, 1500);
+
+        return () => clearTimeout(timeoutId);
       }
     }
   }, [showModal, status, localLocation, handleLocationConfirm]);
-
   const handleOpenLocationPicker = () => {
     setShowModal(true);
     fetchLocation(); // Start fetching location when modal opens

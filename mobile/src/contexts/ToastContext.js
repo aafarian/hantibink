@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState } from 'react';
+import React, { createContext, useContext, useState, useRef, useEffect } from 'react';
 import Toast from '../components/Toast';
 
 const ToastContext = createContext();
@@ -14,6 +14,16 @@ export const useToast = () => {
 export const ToastProvider = ({ children }) => {
   const [toasts, setToasts] = useState([]);
   const [counter, setCounter] = useState(0);
+  const timeoutsRef = useRef(new Map()); // Store timeout IDs for cleanup
+
+  // Cleanup timeouts on unmount
+  useEffect(() => {
+    const timeouts = timeoutsRef.current;
+    return () => {
+      timeouts.forEach(timeoutId => clearTimeout(timeoutId));
+      timeouts.clear();
+    };
+  }, []);
 
   const showToast = (message, type = 'info', options = {}) => {
     const id = `${Date.now()}-${counter}`;
@@ -31,9 +41,12 @@ export const ToastProvider = ({ children }) => {
 
     // Auto-remove if no duration specified
     if (!options.persistent) {
-      setTimeout(() => {
+      const timeoutId = setTimeout(() => {
         hideToast(id);
+        timeoutsRef.current.delete(id); // Clean up timeout reference
       }, options.duration || 4000);
+
+      timeoutsRef.current.set(id, timeoutId); // Store timeout for cleanup
     }
 
     return id;
@@ -41,6 +54,13 @@ export const ToastProvider = ({ children }) => {
 
   const hideToast = id => {
     setToasts(prev => prev.filter(toast => toast.id !== id));
+
+    // Clear timeout if it exists
+    const timeoutId = timeoutsRef.current.get(id);
+    if (timeoutId) {
+      clearTimeout(timeoutId);
+      timeoutsRef.current.delete(id);
+    }
   };
 
   const showSuccess = (message, options = {}) => {

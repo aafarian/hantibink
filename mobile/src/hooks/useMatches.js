@@ -3,6 +3,7 @@ import { useFocusEffect } from '@react-navigation/native';
 import { useAuth } from '../contexts/AuthContext';
 import { useAsyncOperation } from './useAsyncOperation';
 import DataService from '../services/DataService';
+import Logger from '../utils/logger';
 
 export const useMatches = () => {
   const { user } = useAuth();
@@ -89,7 +90,23 @@ export const useMatchesWithProfiles = () => {
           })
         );
 
-        return conversationsWithProfiles.filter(conv => conv.otherUser); // Filter out failed profile loads
+        // Filter out failed profile loads and log failures for debugging
+        const validConversations = conversationsWithProfiles.filter(conv => {
+          if (!conv.otherUser) {
+            Logger.warn('Failed to load profile for user:', conv.otherUserId);
+            return false;
+          }
+          return true;
+        });
+
+        const failedCount = conversationsWithProfiles.length - validConversations.length;
+        if (failedCount > 0) {
+          Logger.warn(
+            `${failedCount} profile(s) failed to load out of ${conversationsWithProfiles.length} matches`
+          );
+        }
+
+        return validConversations;
       },
       {
         loadingMessage: `Loading matches with profiles for user: ${user.uid}`,

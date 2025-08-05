@@ -1,15 +1,6 @@
 import React, { useState, useRef } from 'react';
-import {
-  View,
-  Modal,
-  Image,
-  TouchableOpacity,
-  Text,
-  StyleSheet,
-  Dimensions,
-  PanGestureHandler,
-  PinchGestureHandler,
-} from 'react-native';
+import { View, Modal, Image, TouchableOpacity, Text, StyleSheet, Dimensions } from 'react-native';
+import { PinchGestureHandler, PanGestureHandler } from 'react-native-gesture-handler';
 import { MaterialIcons } from '@expo/vector-icons';
 import Animated, {
   useSharedValue,

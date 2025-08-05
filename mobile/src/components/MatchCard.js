@@ -1,7 +1,6 @@
 import React from 'react';
 import { View, Text, TouchableOpacity, Image } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-// import { commonStyles } from '../styles/commonStyles';
 import { theme } from '../styles/theme';
 import {
   getUserProfilePhoto,
@@ -20,15 +19,7 @@ export const MatchCard = ({
   showLastMessage = false,
 }) => {
   const user = match.otherUser || match;
-
-  // Debug: Log user data and profile photo URL
   const profilePhotoUrl = getUserProfilePhoto(user);
-  // console.log('🔍 MatchCard Debug:', {
-  //   userName: user?.name,
-  //   userPhotos: user?.photos,
-  //   userMainPhoto: user?.mainPhoto,
-  //   resolvedPhotoUrl: profilePhotoUrl,
-  // });
 
   return (
     <TouchableOpacity style={[styles.container, style]} onPress={onPress} activeOpacity={0.7}>

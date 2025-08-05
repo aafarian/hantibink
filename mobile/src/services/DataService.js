@@ -723,14 +723,21 @@ class DataService {
           const userId = doc.id;
 
           // Only include other users who are typing (not current user)
-          if (userId !== currentUserId && data.isTyping) {
-            // Check if typing indicator is recent (within 5 seconds)
-            const timeDiff = new Date() - data.timestamp.toDate();
-            if (timeDiff < 5000) {
-              typingUsers.push({
-                userId,
-                timestamp: data.timestamp.toDate(),
-              });
+          if (userId !== currentUserId && data.isTyping && data.timestamp) {
+            try {
+              // Check if typing indicator is recent (within 5 seconds)
+              const timestamp = data.timestamp.toDate
+                ? data.timestamp.toDate()
+                : new Date(data.timestamp);
+              const timeDiff = new Date() - timestamp;
+              if (timeDiff < 5000) {
+                typingUsers.push({
+                  userId,
+                  timestamp,
+                });
+              }
+            } catch (error) {
+              Logger.error('Error parsing typing timestamp:', error);
             }
           }
         });

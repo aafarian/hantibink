@@ -236,9 +236,9 @@ export const AuthProvider = ({ children }) => {
       await setDoc(doc(db, 'users', registeredUser.uid), cleanUserProfile);
       Logger.firebase('User profile saved successfully');
 
-      // Set user in context immediately - normal flow
-      setUser(registeredUser);
-      setUserProfile(cleanUserProfile);
+      // Note: Don't set user state manually here to avoid race conditions
+      // The onAuthStateChanged listener will automatically pick up the new user
+      // and load the profile from Firestore
 
       return { success: true, user: registeredUser, profile: cleanUserProfile };
     } catch (error) {

@@ -44,7 +44,8 @@ const PeopleScreen = ({ navigation }) => {
       loadProfiles();
       loadUserActions();
     }
-  }, [user, loadProfiles, loadUserActions]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user?.uid]); // Only re-run when user ID changes (callbacks excluded to prevent infinite loops)
 
   const loadUserActions = useCallback(async () => {
     try {
@@ -92,7 +93,8 @@ const PeopleScreen = ({ navigation }) => {
         action: { text: 'Retry', onPress: () => loadProfiles() },
       });
     }
-  }, [user, execute, profiles.length, showError]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user?.uid, execute, showError]); // profiles.length excluded to avoid circular dependency
 
   const handleLike = async () => {
     if (currentIndex < profiles.length && !actionLoading) {

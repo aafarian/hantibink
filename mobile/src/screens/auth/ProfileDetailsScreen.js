@@ -10,11 +10,13 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { MaterialIcons } from '@expo/vector-icons';
 import { KeyboardAwareScrollView } from 'react-native-keyboard-aware-scroll-view';
+import { doc, updateDoc } from 'firebase/firestore';
 import { useAuth } from '../../contexts/AuthContext';
 import { useToast } from '../../contexts/ToastContext';
 import { uploadImageToFirebase } from '../../utils/imageUpload';
 import SelectionPanel from '../../components/SelectionPanel';
 import Logger from '../../utils/logger';
+import { db } from '../../config/firebase';
 
 const ProfileDetailsScreen = ({ navigation, route }) => {
   const [formData, setFormData] = useState({
@@ -48,7 +50,7 @@ const ProfileDetailsScreen = ({ navigation, route }) => {
   const photos = step2Data.photos || [];
 
   // Extract step1 data (everything except photos)
-  const { photos: _, ...step1Data } = step2Data;
+  const { photos: _photos, ...step1Data } = step2Data;
 
   // All selection options
   const relationshipOptions = [
@@ -182,9 +184,6 @@ const ProfileDetailsScreen = ({ navigation, route }) => {
         // Update the user profile with photo URLs directly in Firestore
         // We can't use updateUserProfile because AuthContext user might not be ready yet
         try {
-          const { doc, updateDoc } = await import('firebase/firestore');
-          const { db } = await import('../../config/firebase');
-
           await updateDoc(doc(db, 'users', userId), {
             photos: photoUrls,
             mainPhoto: photoUrls[0], // First photo as main photo
