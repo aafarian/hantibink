@@ -4,6 +4,7 @@
 
 const express = require('express');
 const router = express.Router();
+const { checkDatabaseHealth } = require('../config/database');
 
 // Basic health check
 router.get('/', (req, res) => {
@@ -14,9 +15,12 @@ router.get('/', (req, res) => {
     environment: process.env.NODE_ENV || 'development',
     version: '1.0.0',
     memory: {
-      used: Math.round(process.memoryUsage().heapUsed / 1024 / 1024 * 100) / 100,
-      total: Math.round(process.memoryUsage().heapTotal / 1024 / 1024 * 100) / 100,
-      external: Math.round(process.memoryUsage().external / 1024 / 1024 * 100) / 100,
+      used:
+        Math.round((process.memoryUsage().heapUsed / 1024 / 1024) * 100) / 100,
+      total:
+        Math.round((process.memoryUsage().heapTotal / 1024 / 1024) * 100) / 100,
+      external:
+        Math.round((process.memoryUsage().external / 1024 / 1024) * 100) / 100,
     },
     cpu: process.cpuUsage(),
   };
@@ -39,27 +43,22 @@ router.get('/detailed', async (req, res) => {
     },
   };
 
-  // Check database connection (when implemented)
-  // TODO: Add database health check when database is implemented
-  // try {
-  //   const dbCheck = await checkDatabaseHealth();
-  //   checks.checks.database = {
-  //     status: 'healthy',
-  //     message: 'Database connection successful',
-  //   };
-  // } catch (error) {
-  //   checks.checks.database = {
-  //     status: 'unhealthy',
-  //     error: error.message,
-  //   };
-  //   checks.status = 'degraded';
-  // }
-  
-  // Placeholder until database is implemented
-  checks.checks.database = {
-    status: 'not_implemented',
-    message: 'Database health check not yet implemented',
-  };
+  // Check database connection
+  try {
+    const dbCheck = await checkDatabaseHealth();
+    checks.checks.database = dbCheck;
+
+    if (dbCheck.status !== 'healthy') {
+      checks.status = 'degraded';
+    }
+  } catch (error) {
+    checks.checks.database = {
+      status: 'unhealthy',
+      error: error.message,
+      timestamp: new Date().toISOString(),
+    };
+    checks.status = 'degraded';
+  }
 
   // Check Redis connection (when implemented)
   try {

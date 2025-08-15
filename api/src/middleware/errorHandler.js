@@ -11,13 +11,13 @@ class AppError extends Error {
     this.statusCode = statusCode;
     this.isOperational = isOperational;
     this.status = `${statusCode}`.startsWith('4') ? 'fail' : 'error';
-    
+
     Error.captureStackTrace(this, this.constructor);
   }
 }
 
 // Error handler middleware
-const errorHandler = (err, req, res, next) => {
+const errorHandler = (err, req, res, _next) => {
   let error = { ...err };
   error.message = err.message;
 
@@ -47,7 +47,7 @@ const errorHandler = (err, req, res, next) => {
 
   // Mongoose validation error
   if (err.name === 'ValidationError') {
-    const errors = Object.values(err.errors).map(val => val.message);
+    const errors = Object.values(err.errors).map((val) => val.message);
     const message = `Invalid input data. ${errors.join('. ')}`;
     error = new AppError(message, 400);
   }
@@ -66,7 +66,7 @@ const errorHandler = (err, req, res, next) => {
   // Firebase errors
   if (err.code && err.code.startsWith('auth/')) {
     let message = 'Authentication failed';
-    
+
     switch (err.code) {
       case 'auth/user-not-found':
         message = 'User not found';
@@ -83,7 +83,7 @@ const errorHandler = (err, req, res, next) => {
       default:
         message = 'Authentication failed';
     }
-    
+
     error = new AppError(message, 401);
   }
 
@@ -91,7 +91,7 @@ const errorHandler = (err, req, res, next) => {
   if (err.code && err.code.startsWith('P')) {
     let message = 'Database error';
     let statusCode = 500;
-    
+
     switch (err.code) {
       case 'P2002':
         message = 'A record with this information already exists';
@@ -108,7 +108,7 @@ const errorHandler = (err, req, res, next) => {
       default:
         message = 'Database operation failed';
     }
-    
+
     error = new AppError(message, statusCode);
   }
 
@@ -120,7 +120,7 @@ const errorHandler = (err, req, res, next) => {
 const sendErrorResponse = (err, req, res) => {
   const statusCode = err.statusCode || 500;
   const status = err.status || 'error';
-  
+
   // Operational, trusted error: send message to client
   if (err.isOperational) {
     res.status(statusCode).json({
@@ -134,7 +134,7 @@ const sendErrorResponse = (err, req, res) => {
   } else {
     // Programming or other unknown error: don't leak error details
     logger.error('Programming Error:', err);
-    
+
     res.status(500).json({
       status: 'error',
       message: 'Something went wrong!',

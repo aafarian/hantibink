@@ -57,14 +57,14 @@ const transports = [
   new winston.transports.Console({
     format: consoleFormat,
   }),
-  
+
   // File transport for errors
   new winston.transports.File({
     filename: path.join(logsDir, 'error.log'),
     level: 'error',
     format: fileFormat,
   }),
-  
+
   // File transport for all logs
   new winston.transports.File({
     filename: path.join(logsDir, 'combined.log'),
@@ -84,18 +84,18 @@ const logger = winston.createLogger({
 // Add request logging helper
 logger.logRequest = (req, res, next) => {
   const start = Date.now();
-  
+
   res.on('finish', () => {
     const duration = Date.now() - start;
     const message = `${req.method} ${req.originalUrl} ${res.statusCode} - ${duration}ms`;
-    
+
     if (res.statusCode >= 400) {
       logger.warn(message);
     } else {
       logger.info(message);
     }
   });
-  
+
   next();
 };
 
@@ -104,7 +104,6 @@ logger.logAuth = (message, userId = null, extra = {}) => {
   logger.info(`[AUTH] ${message}`, {
     userId,
     ...extra,
-
   });
 };
 
@@ -113,16 +112,19 @@ logger.logMatch = (message, userId = null, targetUserId = null, extra = {}) => {
     userId,
     targetUserId,
     ...extra,
-
   });
 };
 
-logger.logMessage = (message, senderId = null, receiverId = null, extra = {}) => {
+logger.logMessage = (
+  message,
+  senderId = null,
+  receiverId = null,
+  extra = {},
+) => {
   logger.info(`[MESSAGE] ${message}`, {
     senderId,
     receiverId,
     ...extra,
-
   });
 };
 
@@ -131,7 +133,6 @@ logger.logPayment = (message, userId = null, amount = null, extra = {}) => {
     userId,
     amount,
     ...extra,
-
   });
 };
 
@@ -140,7 +141,6 @@ logger.logSecurity = (message, ip = null, userId = null, extra = {}) => {
     ip,
     userId,
     ...extra,
-
   });
 };
 
@@ -151,7 +151,6 @@ logger.logPerformance = (operation, duration, extra = {}) => {
     operation,
     duration,
     ...extra,
-
   });
 };
 
@@ -161,7 +160,6 @@ logger.logDatabase = (query, duration = null, extra = {}) => {
     query,
     duration,
     ...extra,
-
   });
 };
 

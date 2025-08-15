@@ -1,0 +1,46 @@
+module.exports = {
+  env: {
+    node: true,
+    es2021: true,
+    jest: true,
+  },
+  extends: [
+    'eslint:recommended',
+  ],
+  parserOptions: {
+    ecmaVersion: 'latest',
+    sourceType: 'module',
+  },
+  rules: {
+    'no-console': 'warn',
+    'no-unused-vars': ['error', { argsIgnorePattern: '^_' }],
+    'prefer-const': 'error',
+    'no-var': 'error',
+    'object-shorthand': 'error',
+    'prefer-arrow-callback': 'error',
+    'prefer-template': 'error',
+    'template-curly-spacing': 'error',
+    'arrow-spacing': 'error',
+    // 'comma-dangle': ['error', 'always-multiline'],
+    // 'semi': ['error', 'always'],
+    // 'quotes': ['error', 'single'],
+    // Formatting rules handled by Prettier
+    // 'indent': ['error', 2],
+    // 'linebreak-style': ['error', 'unix'],
+    // 'eol-last': 'error',
+    // 'no-trailing-spaces': 'error',
+    // 'space-before-blocks': 'error',
+    // 'keyword-spacing': 'error',
+    // 'space-infix-ops': 'error',
+    // 'comma-spacing': 'error',
+    // 'brace-style': 'error',
+    'curly': 'error',
+  },
+  ignorePatterns: [
+    'node_modules/',
+    'dist/',
+    'build/',
+    'coverage/',
+    '*.min.js',
+  ],
+};
