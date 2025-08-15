@@ -13,15 +13,13 @@ RUN npm ci --only=production
 # Copy source code
 COPY src/ ./src/
 
-# Create logs directory
-RUN mkdir -p logs
-
 # Create non-root user
 RUN addgroup -g 1001 -S nodejs
 RUN adduser -S hantibink -u 1001
 
-# Change ownership of the app directory
-RUN chown -R hantibink:nodejs /app
+# Create logs directory and change ownership of the app directory
+RUN mkdir -p logs && chown -R hantibink:nodejs /app
+
 USER hantibink
 
 # Expose port

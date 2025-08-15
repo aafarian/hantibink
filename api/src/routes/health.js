@@ -4,7 +4,6 @@
 
 const express = require('express');
 const router = express.Router();
-const logger = require('../utils/logger');
 
 // Basic health check
 router.get('/', (req, res) => {
@@ -41,20 +40,26 @@ router.get('/detailed', async (req, res) => {
   };
 
   // Check database connection (when implemented)
-  try {
-    // TODO: Add database health check
-    // const dbCheck = await checkDatabaseHealth();
-    checks.checks.database = {
-      status: 'not_implemented',
-      message: 'Database health check not yet implemented',
-    };
-  } catch (error) {
-    checks.checks.database = {
-      status: 'unhealthy',
-      error: error.message,
-    };
-    checks.status = 'degraded';
-  }
+  // TODO: Add database health check when database is implemented
+  // try {
+  //   const dbCheck = await checkDatabaseHealth();
+  //   checks.checks.database = {
+  //     status: 'healthy',
+  //     message: 'Database connection successful',
+  //   };
+  // } catch (error) {
+  //   checks.checks.database = {
+  //     status: 'unhealthy',
+  //     error: error.message,
+  //   };
+  //   checks.status = 'degraded';
+  // }
+  
+  // Placeholder until database is implemented
+  checks.checks.database = {
+    status: 'not_implemented',
+    message: 'Database health check not yet implemented',
+  };
 
   // Check Redis connection (when implemented)
   try {

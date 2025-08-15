@@ -34,10 +34,18 @@ const colors = {
 // Add colors to winston
 winston.addColors(colors);
 
-// Define log format
-const format = winston.format.combine(
+// Define log format for console (with colors)
+const consoleFormat = winston.format.combine(
   winston.format.timestamp({ format: 'YYYY-MM-DD HH:mm:ss:ms' }),
   winston.format.colorize({ all: true }),
+  winston.format.printf(
+    (info) => `${info.timestamp} ${info.level}: ${info.message}`,
+  ),
+);
+
+// Define log format for files (without colors)
+const fileFormat = winston.format.combine(
+  winston.format.timestamp({ format: 'YYYY-MM-DD HH:mm:ss:ms' }),
   winston.format.printf(
     (info) => `${info.timestamp} ${info.level}: ${info.message}`,
   ),
@@ -47,29 +55,20 @@ const format = winston.format.combine(
 const transports = [
   // Console transport
   new winston.transports.Console({
-    format: winston.format.combine(
-      winston.format.colorize(),
-      winston.format.simple()
-    ),
+    format: consoleFormat,
   }),
   
   // File transport for errors
   new winston.transports.File({
     filename: path.join(logsDir, 'error.log'),
     level: 'error',
-    format: winston.format.combine(
-      winston.format.timestamp(),
-      winston.format.json()
-    ),
+    format: fileFormat,
   }),
   
   // File transport for all logs
   new winston.transports.File({
     filename: path.join(logsDir, 'combined.log'),
-    format: winston.format.combine(
-      winston.format.timestamp(),
-      winston.format.json()
-    ),
+    format: fileFormat,
   }),
 ];
 
@@ -77,7 +76,7 @@ const transports = [
 const logger = winston.createLogger({
   level: process.env.LOG_LEVEL || 'info',
   levels,
-  format,
+  format: consoleFormat,
   transports,
   exitOnError: false,
 });
@@ -105,7 +104,7 @@ logger.logAuth = (message, userId = null, extra = {}) => {
   logger.info(`[AUTH] ${message}`, {
     userId,
     ...extra,
-    timestamp: new Date().toISOString(),
+
   });
 };
 
@@ -114,7 +113,7 @@ logger.logMatch = (message, userId = null, targetUserId = null, extra = {}) => {
     userId,
     targetUserId,
     ...extra,
-    timestamp: new Date().toISOString(),
+
   });
 };
 
@@ -123,7 +122,7 @@ logger.logMessage = (message, senderId = null, receiverId = null, extra = {}) =>
     senderId,
     receiverId,
     ...extra,
-    timestamp: new Date().toISOString(),
+
   });
 };
 
@@ -132,7 +131,7 @@ logger.logPayment = (message, userId = null, amount = null, extra = {}) => {
     userId,
     amount,
     ...extra,
-    timestamp: new Date().toISOString(),
+
   });
 };
 
@@ -141,7 +140,7 @@ logger.logSecurity = (message, ip = null, userId = null, extra = {}) => {
     ip,
     userId,
     ...extra,
-    timestamp: new Date().toISOString(),
+
   });
 };
 
@@ -152,7 +151,7 @@ logger.logPerformance = (operation, duration, extra = {}) => {
     operation,
     duration,
     ...extra,
-    timestamp: new Date().toISOString(),
+
   });
 };
 
@@ -162,7 +161,7 @@ logger.logDatabase = (query, duration = null, extra = {}) => {
     query,
     duration,
     ...extra,
-    timestamp: new Date().toISOString(),
+
   });
 };
 
