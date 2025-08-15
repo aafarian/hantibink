@@ -4,18 +4,39 @@
   "description": "A modern dating app connecting the Armenian community worldwide",
   "private": true,
   "workspaces": [
-    "mobile"
+    "mobile",
+    "api"
   ],
   "scripts": {
     "mobile": "cd mobile && npm start",
     "mobile:ios": "cd mobile && npm run ios",
     "mobile:android": "cd mobile && npm run android",
-    "lint": "cd mobile && npm run lint",
-    "format": "cd mobile && npm run format"
+    "mobile:clean": "cd mobile && npm run clean",
+    "api": "cd api && npm run dev",
+    "api:start": "cd api && npm start",
+    "api:test": "cd api && npm test",
+    "lint": "cd mobile && npm run lint && cd ../api && npm run lint",
+    "lint:fix": "cd mobile && npm run lint:fix && cd ../api && npm run lint:fix",
+    "format": "cd mobile && npm run format && cd ../api && npm run format",
+    "deps:check": "cd mobile && npm run deps:check && cd ../api && npm run deps:check",
+    "deps:update": "cd mobile && npm run deps:update && cd ../api && npm run deps:update",
+    "security:audit": "cd mobile && npm run security:audit && cd ../api && npm run security:audit",
+    "security:fix": "cd mobile && npm run security:fix && cd ../api && npm run security:fix",
+    "install:all": "npm install && cd mobile && npm install && cd ../api && npm install",
+    "clean:all": "rm -rf node_modules mobile/node_modules api/node_modules && npm run install:all",
+    "doctor": "cd mobile && npx expo-doctor",
+    "dev": "concurrently \"npm run mobile\" \"npm run api\"",
+    "test:all": "cd mobile && npm test && cd ../api && npm test",
+    "docker:build": "docker-compose build",
+    "docker:up": "docker-compose up -d",
+    "docker:down": "docker-compose down",
+    "docker:logs": "docker-compose logs -f",
+    "prod:start": "docker-compose -f docker-compose.prod.yml up -d"
   },
   "devDependencies": {
     "husky": "^8.0.0",
-    "lint-staged": "^16.1.2"
+    "lint-staged": "^16.1.2",
+    "concurrently": "^9.1.0"
   },
   "lint-staged": {
     "mobile/**/*.{js,jsx,ts,tsx}": [
@@ -25,5 +46,10 @@
     "*.{json,md}": [
       "prettier --write"
     ]
+  },
+  "dependencies": {
+    "react-dom": "19.0.0",
+    "react-native-web": "^0.20.0",
+    "@expo/metro-runtime": "~5.0.4"
   }
 }
