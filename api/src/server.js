@@ -197,7 +197,12 @@ async function startServer() {
     await connectDatabase();
 
     // Initialize Firebase Admin SDK
-    initializeFirebase();
+    try {
+      initializeFirebase();
+    } catch (firebaseError) {
+      logger.warn('⚠️ Firebase initialization failed:', firebaseError.message);
+      logger.warn('🔧 Continuing without Firebase - JWT authentication only');
+    }
 
     // Start server
     const server = app.listen(PORT, HOST, () => {

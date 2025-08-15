@@ -49,7 +49,7 @@ const registerSchema = Joi.object({
     }),
   
   interestedIn: Joi.array()
-    .items(Joi.string().valid('Men', 'Women', 'Non-binary'))
+    .items(Joi.string().valid('male', 'female', 'non-binary'))
     .min(1)
     .required()
     .messages({
@@ -173,7 +173,7 @@ const profileUpdateSchema = Joi.object({
     }),
   
   interestedIn: Joi.array()
-    .items(Joi.string().valid('Men', 'Women', 'Non-binary'))
+    .items(Joi.string().valid('male', 'female', 'non-binary'))
     .min(1)
     .optional()
     .messages({

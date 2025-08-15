@@ -135,9 +135,9 @@ router.get('/preferences', authenticateJWT, async (req, res) => {
   } catch (error) {
     logger.error('❌ Get preferences error:', error);
     
-    res.status(404).json({
+    res.status(500).json({
       success: false,
-      error: 'Preferences not found',
+      error: 'Failed to retrieve preferences',
       message: error.message,
     });
   }

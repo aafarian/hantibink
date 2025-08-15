@@ -1,6 +1,6 @@
 const bcrypt = require('bcryptjs');
 const { PrismaClient } = require('@prisma/client');
-const { generateTokenPair } = require('../utils/jwt');
+const { generateTokenPair, verifyToken } = require('../utils/jwt');
 const { createFirebaseUser, verifyIdToken } = require('../config/firebase');
 const logger = require('../utils/logger');
 
@@ -26,7 +26,7 @@ const registerUser = async (userData) => {
     const saltRounds = 12;
     const hashedPassword = await bcrypt.hash(password, saltRounds);
 
-    // Create Firebase user
+    // Create Firebase user first (outside transaction)
     let firebaseUser;
     try {
       firebaseUser = await createFirebaseUser({
@@ -40,53 +40,58 @@ const registerUser = async (userData) => {
       throw new Error('Failed to create authentication account');
     }
 
-    // Create user in database
-    const user = await prisma.user.create({
-      data: {
-        name,
-        email,
-        password: hashedPassword,
-        birthDate: new Date(birthDate),
-        gender,
-        interestedIn,
-        firebaseUid: firebaseUser.uid,
-        latitude: location?.latitude,
-        longitude: location?.longitude,
-        address: location?.address,
-        city: location?.city,
-        country: location?.country,
-        isActive: true,
-        emailVerified: false,
-      },
-    });
-
-    // Create photos
-    if (photos && photos.length > 0) {
-      const photoData = photos.map((url, index) => ({
-        userId: user.id,
-        url,
-        order: index,
-        isMain: index === 0, // First photo is main
-      }));
-
-      await prisma.photo.createMany({
-        data: photoData,
+    // Use database transaction for all database operations
+    const result = await prisma.$transaction(async (tx) => {
+      // Create user in database
+      const user = await tx.user.create({
+        data: {
+          name,
+          email,
+          password: hashedPassword,
+          birthDate: new Date(birthDate),
+          gender,
+          interestedIn,
+          firebaseUid: firebaseUser.uid,
+          latitude: location?.latitude,
+          longitude: location?.longitude,
+          address: location?.address,
+          city: location?.city,
+          country: location?.country,
+          isActive: true,
+          emailVerified: false,
+        },
       });
 
-      // Update user with main photo
-      if (photoData.length > 0) {
-        const mainPhoto = await prisma.photo.findFirst({
+      // Create photos
+      if (photos && photos.length > 0) {
+        const photoData = photos.map((url, index) => ({
+          userId: user.id,
+          url,
+          order: index,
+          isMain: index === 0, // First photo is main
+        }));
+
+        await tx.photo.createMany({
+          data: photoData,
+        });
+
+        // Update user with main photo
+        const mainPhoto = await tx.photo.findFirst({
           where: { userId: user.id, isMain: true },
         });
         
         if (mainPhoto) {
-          await prisma.user.update({
+          await tx.user.update({
             where: { id: user.id },
             data: { mainPhotoId: mainPhoto.id },
           });
         }
       }
-    }
+
+      return user;
+    });
+
+    const user = result;
 
     // Generate JWT tokens
     const tokens = generateTokenPair({
@@ -229,7 +234,6 @@ const loginWithFirebase = async (idToken) => {
  */
 const refreshTokens = async (refreshToken) => {
   try {
-    const { verifyToken } = require('../utils/jwt');
     
     // Verify refresh token
     const decoded = verifyToken(refreshToken);
@@ -318,64 +322,77 @@ const updateUserProfile = async (userId, updateData) => {
       },
     });
 
-    // Update photos if provided
+    // Update photos if provided (use transaction)
     if (photos && photos.length > 0) {
-      // Delete existing photos
-      await prisma.photo.deleteMany({
-        where: { userId },
-      });
-
-      // Create new photos
-      const photoData = photos.map((url, index) => ({
-        userId,
-        url,
-        order: index,
-        isMain: index === 0,
-      }));
-
-      await prisma.photo.createMany({
-        data: photoData,
-      });
-
-      // Update main photo
-      const mainPhoto = await prisma.photo.findFirst({
-        where: { userId, isMain: true },
-      });
-      
-      if (mainPhoto) {
-        await prisma.user.update({
-          where: { id: userId },
-          data: { mainPhotoId: mainPhoto.id },
+      await prisma.$transaction(async (tx) => {
+        // Delete existing photos
+        await tx.photo.deleteMany({
+          where: { userId },
         });
-      }
+
+        // Create new photos
+        const photoData = photos.map((url, index) => ({
+          userId,
+          url,
+          order: index,
+          isMain: index === 0,
+        }));
+
+        await tx.photo.createMany({
+          data: photoData,
+        });
+
+        // Update main photo
+        const mainPhoto = await tx.photo.findFirst({
+          where: { userId, isMain: true },
+        });
+        
+        if (mainPhoto) {
+          await tx.user.update({
+            where: { id: userId },
+            data: { mainPhotoId: mainPhoto.id },
+          });
+        }
+      });
     }
 
-    // Update interests if provided
+    // Update interests if provided (use transaction with bulk operations)
     if (interests && interests.length > 0) {
-      // Delete existing user interests
-      await prisma.userInterest.deleteMany({
-        where: { userId },
-      });
-
-      // Create or find interests and link to user
-      for (const interestName of interests) {
-        let interest = await prisma.interest.findUnique({
-          where: { name: interestName },
+      await prisma.$transaction(async (tx) => {
+        // Delete existing user interests
+        await tx.userInterest.deleteMany({
+          where: { userId },
         });
 
-        if (!interest) {
-          interest = await prisma.interest.create({
-            data: { name: interestName },
+        // Find existing interests
+        const existingInterests = await tx.interest.findMany({
+          where: { name: { in: interests } },
+        });
+
+        const existingInterestNames = existingInterests.map(i => i.name);
+        const newInterestNames = interests.filter(name => !existingInterestNames.includes(name));
+
+        // Create new interests in bulk
+        if (newInterestNames.length > 0) {
+          await tx.interest.createMany({
+            data: newInterestNames.map(name => ({ name })),
+            skipDuplicates: true,
           });
         }
 
-        await prisma.userInterest.create({
-          data: {
+        // Get all interest IDs
+        const allInterests = await tx.interest.findMany({
+          where: { name: { in: interests } },
+        });
+
+        // Create user interests in bulk
+        await tx.userInterest.createMany({
+          data: allInterests.map(interest => ({
             userId,
             interestId: interest.id,
-          },
+          })),
         });
-      }
+      });
     }
 
     logger.info(`✅ User profile updated: ${user.email}`);

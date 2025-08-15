@@ -56,6 +56,9 @@ const getAuth = () => {
   if (!firebaseApp) {
     initializeFirebase();
   }
+  if (!firebaseApp) {
+    throw new Error('Firebase not initialized - cannot get Auth instance');
+  }
   return admin.auth();
 };
 
@@ -65,6 +68,9 @@ const getAuth = () => {
 const getFirestore = () => {
   if (!firebaseApp) {
     initializeFirebase();
+  }
+  if (!firebaseApp) {
+    throw new Error('Firebase not initialized - cannot get Firestore instance');
   }
   return admin.firestore();
 };
