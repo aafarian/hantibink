@@ -40,7 +40,6 @@
     "expo-status-bar": "~2.2.3",
     "firebase": "^12.1.0",
     "react": "19.0.0",
-    "react-dom": "19.0.0",
     "react-hook-form": "^7.62.0",
     "react-native": "0.79.5",
     "react-native-gesture-handler": "~2.24.0",
@@ -56,6 +55,7 @@
     "@babel/core": "^7.28.3",
     "@babel/eslint-parser": "^7.28.0",
     "@babel/plugin-transform-template-literals": "^7.27.1",
+    "@expo/metro-config": "^0.20.17",
     "@react-native-community/eslint-config": "^3.2.0",
     "babel-preset-expo": "~13.0.0",
     "eslint": "^8.57.1",
@@ -65,6 +65,7 @@
     "eslint-plugin-react-native": "^5.0.0",
     "husky": "^9.1.7",
     "lint-staged": "^16.1.5",
+    "metro": "^0.82.0",
     "prettier": "^3.6.2"
   },
   "lint-staged": {
@@ -75,10 +76,6 @@
     "*.{json,md}": [
       "prettier --write"
     ]
-  },
-  "resolutions": {
-    "react": "19.0.0",
-    "react-dom": "19.0.0"
   },
   "private": true
 }
