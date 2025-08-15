@@ -4,28 +4,43 @@
   "main": "index.js",
   "scripts": {
     "start": "expo start",
+    "start:clear": "expo start --clear",
     "android": "expo start --android",
     "ios": "expo start --ios",
     "web": "expo start --web",
+    "build:android": "eas build --platform android",
+    "build:ios": "eas build --platform ios",
+    "build:all": "eas build --platform all",
+    "submit:android": "eas submit --platform android",
+    "submit:ios": "eas submit --platform ios",
     "lint": "eslint . --ext .js,.jsx,.ts,.tsx",
     "lint:fix": "eslint . --ext .js,.jsx,.ts,.tsx --fix",
     "prettier": "prettier --check .",
     "prettier:fix": "prettier --write .",
-    "format": "npm run prettier:fix && npm run lint:fix"
+    "format": "npm run prettier:fix && npm run lint:fix",
+    "clean": "expo install --fix && npm run start:clear",
+    "deps:check": "npm outdated",
+    "deps:update": "npm update",
+    "security:audit": "npm audit",
+    "security:fix": "npm audit fix",
+    "bundle:analyze": "npx expo export --dump-assetmap",
+    "doctor": "npx expo-doctor"
   },
   "dependencies": {
     "@react-native-async-storage/async-storage": "2.1.2",
     "@react-native-community/datetimepicker": "8.4.1",
-    "@react-navigation/bottom-tabs": "^7.4.5",
+    "@react-navigation/bottom-tabs": "^7.4.6",
     "@react-navigation/native": "^7.1.17",
-    "@react-navigation/stack": "^7.4.5",
+    "@react-navigation/stack": "^7.4.7",
     "expo": "~53.0.20",
+    "expo-dev-client": "~5.2.4",
     "expo-image-manipulator": "~13.1.7",
     "expo-image-picker": "^16.1.4",
     "expo-location": "^18.1.6",
     "expo-status-bar": "~2.2.3",
-    "firebase": "^12.0.0",
+    "firebase": "^12.1.0",
     "react": "19.0.0",
+    "react-dom": "19.0.0",
     "react-hook-form": "^7.62.0",
     "react-native": "0.79.5",
     "react-native-gesture-handler": "~2.24.0",
@@ -35,11 +50,10 @@
     "react-native-paper": "^5.14.5",
     "react-native-reanimated": "~3.17.4",
     "react-native-safe-area-context": "5.4.0",
-    "react-native-screens": "~4.11.1",
-    "expo-dev-client": "~5.2.4"
+    "react-native-screens": "~4.11.1"
   },
   "devDependencies": {
-    "@babel/core": "^7.20.0",
+    "@babel/core": "^7.28.3",
     "@babel/eslint-parser": "^7.28.0",
     "@babel/plugin-transform-template-literals": "^7.27.1",
     "@react-native-community/eslint-config": "^3.2.0",
@@ -47,10 +61,10 @@
     "eslint": "^8.57.1",
     "eslint-config-expo": "^9.2.0",
     "eslint-config-prettier": "^10.1.8",
-    "eslint-plugin-prettier": "^5.5.3",
+    "eslint-plugin-prettier": "^5.5.4",
     "eslint-plugin-react-native": "^5.0.0",
-    "husky": "^8.0.3",
-    "lint-staged": "^16.1.2",
+    "husky": "^9.1.7",
+    "lint-staged": "^16.1.5",
     "prettier": "^3.6.2"
   },
   "lint-staged": {
@@ -61,6 +75,10 @@
     "*.{json,md}": [
       "prettier --write"
     ]
+  },
+  "resolutions": {
+    "react": "19.0.0",
+    "react-dom": "19.0.0"
   },
   "private": true
 }
