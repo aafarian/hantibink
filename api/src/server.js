@@ -16,6 +16,7 @@ const logger = require('./utils/logger');
 const { errorHandler } = require('./middleware/errorHandler');
 const notFoundHandler = require('./middleware/notFoundHandler');
 const { connectDatabase, gracefulShutdown: dbGracefulShutdown } = require('./config/database');
+const { initializeFirebase } = require('./config/firebase');
 
 // Import routes
 const healthRoutes = require('./routes/health');
@@ -194,6 +195,14 @@ async function startServer() {
   try {
     // Connect to database
     await connectDatabase();
+
+    // Initialize Firebase Admin SDK
+    try {
+      initializeFirebase();
+    } catch (firebaseError) {
+      logger.warn('⚠️ Firebase initialization failed:', firebaseError.message);
+      logger.warn('🔧 Continuing without Firebase - JWT authentication only');
+    }
 
     // Start server
     const server = app.listen(PORT, HOST, () => {
