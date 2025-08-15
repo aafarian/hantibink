@@ -17,48 +17,47 @@ model User {
   updatedAt DateTime @updatedAt
 
   // Authentication fields
-  email     String  @unique
-  password  String
+  email       String  @unique
+  password    String
   firebaseUid String? @unique // For migration from Firebase Auth
 
   // Basic profile information
-  name      String
-  age       Int
-  birthDate DateTime
-  gender    Gender
+  name         String
+  birthDate    DateTime
+  gender       Gender
   interestedIn Gender[]
 
   // Profile details
-  bio          String?
-  education    String?
-  profession   String?
-  height       String?
+  bio              String?
+  education        String?
+  profession       String?
+  height           String?
   relationshipType RelationshipType?
-  religion     String?
-  smoking      SmokingPreference?
-  drinking     DrinkingPreference?
-  travel       String?
-  pets         String?
+  religion         String?
+  smoking          SmokingPreference?
+  drinking         DrinkingPreference?
+  travel           String?
+  pets             String?
 
   // Location
-  location     String?
-  latitude     Float?
-  longitude    Float?
+  location  String?
+  latitude  Float?
+  longitude Float?
 
   // Photos
-  photos       Photo[]
-  mainPhotoId  String?
-  mainPhoto    Photo? @relation("MainPhoto", fields: [mainPhotoId], references: [id])
+  photos      Photo[]
+  mainPhotoId String?
+  mainPhoto   Photo?  @relation("MainPhoto", fields: [mainPhotoId], references: [id], onDelete: SetNull)
 
   // Interests (many-to-many relationship)
-  interests    UserInterest[]
+  interests UserInterest[]
 
   // Profile status
-  isActive     Boolean @default(true)
-  isPremium    Boolean @default(false)
-  hasCompletedOnboarding Boolean @default(false)
-  onboardingStep Int @default(1)
-  lastActive   DateTime @default(now())
+  isActive               Boolean  @default(true)
+  isPremium              Boolean  @default(false)
+  hasCompletedOnboarding Boolean  @default(false)
+  onboardingStep         Int      @default(1)
+  lastActive             DateTime @default(now())
 
   // Statistics
   profileViews Int @default(0)
@@ -66,16 +65,16 @@ model User {
   totalMatches Int @default(0)
 
   // Relationships
-  sentActions     UserAction[] @relation("ActionSender")
-  receivedActions UserAction[] @relation("ActionReceiver")
-  sentMatches     Match[] @relation("MatchUser1")
-  receivedMatches Match[] @relation("MatchUser2")
-  sentMessages    Message[] @relation("MessageSender")
-  receivedMessages Message[] @relation("MessageReceiver")
-  reportsMade     Report[] @relation("ReportReporter")
-  reportsReceived Report[] @relation("ReportReported")
-  subscriptions   Subscription[]
-  notifications   Notification[]
+  sentActions      UserAction[]   @relation("ActionSender")
+  receivedActions  UserAction[]   @relation("ActionReceiver")
+  sentMatches      Match[]        @relation("MatchUser1")
+  receivedMatches  Match[]        @relation("MatchUser2")
+  sentMessages     Message[]      @relation("MessageSender")
+  receivedMessages Message[]      @relation("MessageReceiver")
+  reportsMade      Report[]       @relation("ReportReporter")
+  reportsReceived  Report[]       @relation("ReportReported")
+  subscriptions    Subscription[]
+  notifications    Notification[]
 
   @@map("users")
 }
@@ -86,13 +85,13 @@ model Photo {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  userId    String
-  user      User   @relation(fields: [userId], references: [id], onDelete: Cascade)
-  
-  url       String
-  order     Int    @default(0)
-  isMain    Boolean @default(false)
-  
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  url    String
+  order  Int     @default(0)
+  isMain Boolean @default(false)
+
   // Reverse relation for main photo
   mainPhotoUsers User[] @relation("MainPhoto")
 
@@ -105,7 +104,7 @@ model Interest {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  name        String @unique
+  name        String  @unique
   category    String?
   description String?
   isActive    Boolean @default(true)
@@ -141,8 +140,8 @@ model UserAction {
   receiverId String
   receiver   User   @relation("ActionReceiver", fields: [receiverId], references: [id], onDelete: Cascade)
 
-  action ActionType
-  timestamp DateTime @default(now())
+  action    ActionType
+  timestamp DateTime   @default(now())
 
   @@unique([senderId, receiverId])
   @@map("user_actions")
@@ -160,9 +159,9 @@ model Match {
   user2   User   @relation("MatchUser2", fields: [user2Id], references: [id], onDelete: Cascade)
 
   // Match metadata
-  isActive      Boolean @default(true)
-  matchedAt     DateTime @default(now())
-  
+  isActive  Boolean  @default(true)
+  matchedAt DateTime @default(now())
+
   // Last message info for quick access
   lastMessage     String?
   lastMessageTime DateTime?
@@ -193,18 +192,18 @@ model Message {
   receiverId String
   receiver   User   @relation("MessageReceiver", fields: [receiverId], references: [id], onDelete: Cascade)
 
-  content   String
+  content     String
   messageType MessageType @default(TEXT)
-  
+
   // Message status
-  isRead      Boolean @default(false)
+  isRead      Boolean   @default(false)
   readAt      DateTime?
-  isDelivered Boolean @default(false)
+  isDelivered Boolean   @default(false)
   deliveredAt DateTime?
 
   // Media attachments (for future use)
-  mediaUrl    String?
-  mediaType   String?
+  mediaUrl  String?
+  mediaType String?
 
   @@map("messages")
 }
@@ -223,11 +222,11 @@ model Report {
   reason      ReportReason
   description String?
   status      ReportStatus @default(PENDING)
-  
+
   // Admin fields
-  reviewedBy   String?
-  reviewedAt   DateTime?
-  adminNotes   String?
+  reviewedBy String?
+  reviewedAt DateTime?
+  adminNotes String?
 
   @@map("reports")
 }
@@ -241,17 +240,17 @@ model Subscription {
   userId String
   user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
 
-  plan          SubscriptionPlan
-  status        SubscriptionStatus
-  startDate     DateTime
-  endDate       DateTime
-  autoRenew     Boolean @default(true)
+  plan      SubscriptionPlan
+  status    SubscriptionStatus
+  startDate DateTime
+  endDate   DateTime
+  autoRenew Boolean            @default(true)
 
   // Payment info
   stripeSubscriptionId String? @unique
   stripeCustomerId     String?
   amount               Float
-  currency             String @default("USD")
+  currency             String  @default("USD")
 
   @@map("subscriptions")
 }
@@ -270,10 +269,10 @@ model Notification {
   message String
   data    Json? // Additional data as JSON
 
-  isRead   Boolean @default(false)
-  readAt   DateTime?
-  isSent   Boolean @default(false)
-  sentAt   DateTime?
+  isRead Boolean   @default(false)
+  readAt DateTime?
+  isSent Boolean   @default(false)
+  sentAt DateTime?
 
   @@map("notifications")
 }

@@ -213,7 +213,7 @@ psql -d hantibink_dev -c "GRANT ALL PRIVILEGES ON DATABASE hantibink_dev TO hant
 ```bash
 # Reset and regenerate
 npm run db:reset
-npm run db:setup
+npm run setup:dev
 ```
 
 ### Performance Tips

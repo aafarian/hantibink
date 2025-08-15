@@ -15,7 +15,7 @@ const rateLimit = require('express-rate-limit');
 const logger = require('./utils/logger');
 const { errorHandler } = require('./middleware/errorHandler');
 const notFoundHandler = require('./middleware/notFoundHandler');
-const { connectDatabase } = require('./config/database');
+const { connectDatabase, gracefulShutdown: dbGracefulShutdown } = require('./config/database');
 
 // Import routes
 const healthRoutes = require('./routes/health');
@@ -170,8 +170,7 @@ const gracefulShutdown = async (signal) => {
 
     try {
       // Close database connections
-      const { gracefulShutdown: dbShutdown } = require('./config/database');
-      await dbShutdown();
+      await dbGracefulShutdown();
 
       logger.info('✅ Graceful shutdown completed');
       process.exit(0);

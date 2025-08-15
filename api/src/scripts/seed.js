@@ -64,9 +64,8 @@ async function seedDatabase() {
       const sampleUsers = [
         {
           email: 'ani@example.com',
-          password: '$2a$10$example.hash.for.development', // This should be properly hashed
+          password: '$2a$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', // "password" hashed
           name: 'Ani',
-          age: 25,
           birthDate: new Date('1999-01-15'),
           gender: 'FEMALE',
           interestedIn: ['MALE'],
@@ -79,9 +78,8 @@ async function seedDatabase() {
         },
         {
           email: 'saro@example.com',
-          password: '$2a$10$example.hash.for.development',
+          password: '$2a$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', // "password" hashed
           name: 'Saro',
-          age: 28,
           birthDate: new Date('1996-05-20'),
           gender: 'MALE',
           interestedIn: ['FEMALE'],

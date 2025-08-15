@@ -33,7 +33,10 @@ async function runMigrations() {
 
 // Run if called directly
 if (require.main === module) {
-  runMigrations();
+  runMigrations().catch((error) => {
+    logger.error('Migration failed:', error);
+    process.exit(1);
+  });
 }
 
 module.exports = { runMigrations };
