@@ -10,11 +10,13 @@ services:
       - NODE_ENV=production
       - PORT=3000
       - HOST=0.0.0.0
-      - DATABASE_URL=postgresql://hantibink:password@postgres:5432/hantibink
+      - DATABASE_URL=postgresql://hantibink_user:hantibink_password@postgres:5432/hantibink_prod?schema=public
       - REDIS_URL=redis://redis:6379
     depends_on:
-      - postgres
-      - redis
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
     restart: unless-stopped
     volumes:
       - ./api/logs:/app/logs
@@ -25,15 +27,20 @@ services:
   postgres:
     image: postgres:15-alpine
     environment:
-      - POSTGRES_DB=hantibink
-      - POSTGRES_USER=hantibink
-      - POSTGRES_PASSWORD=password
+      - POSTGRES_DB=hantibink_prod
+      - POSTGRES_USER=hantibink_user
+      - POSTGRES_PASSWORD=hantibink_password
     volumes:
       - postgres_data:/var/lib/postgresql/data
       - ./api/database/init.sql:/docker-entrypoint-initdb.d/init.sql
     ports:
       - "5432:5432"
     restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U hantibink_user -d hantibink_prod"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
     networks:
       - hantibink-network
 
@@ -45,6 +52,11 @@ services:
     volumes:
       - redis_data:/data
     restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
     networks:
       - hantibink-network
 
