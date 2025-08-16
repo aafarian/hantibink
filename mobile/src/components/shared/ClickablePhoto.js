@@ -33,14 +33,6 @@ const ClickablePhoto = ({
   const currentPhotoIndex = photos.length > 0 ? photoIndex : 0;
 
   const handlePress = () => {
-    console.log('🔍 ClickablePhoto Debug:', {
-      photoIndex: photoIndex,
-      currentPhotoIndex: currentPhotoIndex,
-      photosLength: photos.length,
-      allPhotosLength: allPhotos.length,
-      photoUrl: typeof photo === 'string' ? photo.slice(-20) : photo?.url?.slice(-20),
-    });
-
     openPhotoViewer({
       photos: allPhotos,
       initialIndex: currentPhotoIndex,

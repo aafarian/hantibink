@@ -38,7 +38,6 @@ export const PhotoViewerProvider = ({ children }) => {
 
   // Close photo viewer
   const closePhotoViewer = useCallback(() => {
-    console.log('🔐 Closing PhotoViewer via closePhotoViewer function');
     setPhotoViewerOpen(false);
     setPhotoViewerIntentionallyOpen(false);
     photoViewerRef.current?.close();
@@ -53,16 +52,8 @@ export const PhotoViewerProvider = ({ children }) => {
   // Handle hardware back button
   useEffect(() => {
     const backAction = () => {
-      console.log(
-        '🔙 BackHandler: PhotoViewer open:',
-        photoViewerOpen,
-        'ProfileSheet open:',
-        profileSheetOpen
-      );
-
       // Close PhotoViewer if it's open (state-based, reliable)
       if (photoViewerOpen) {
-        console.log('🔙 Closing photo viewer');
         closePhotoViewer();
         return true; // Prevent default back behavior
       }
@@ -110,7 +101,6 @@ export const PhotoViewerProvider = ({ children }) => {
       // Set intentionallyOpen after a longer delay to avoid spurious onClose during opening
       setTimeout(() => {
         setPhotoViewerIntentionallyOpen(true);
-        console.log('🔐 Setting intentionallyOpen to true after delay');
       }, 200);
     }, 50);
   };
