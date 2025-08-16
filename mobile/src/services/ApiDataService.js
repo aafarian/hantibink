@@ -19,6 +19,8 @@ class ApiDataService {
 
       if (response.success) {
         Logger.success('✅ User profile loaded from API');
+        // Fix: Return response.data.data instead of response.data
+        // because the API wraps responses in {success, message, data}
         return response.data.data;
       } else {
         Logger.error('❌ Failed to get user profile from API:', response.message);

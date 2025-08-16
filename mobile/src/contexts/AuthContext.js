@@ -194,7 +194,7 @@ export const AuthProvider = ({ children }) => {
           Logger.info('📸 Uploading photos before account creation...');
 
           // Generate a temporary userId for photo upload path
-          const tempUserId = `temp_${Date.now()}_${Math.random().toString(36).substring(2, 11)}`;
+          const tempUserId = `temp_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
 
           for (let i = 0; i < userData.photos.length; i++) {
             const photo = userData.photos[i];
