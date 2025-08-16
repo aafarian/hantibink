@@ -20,7 +20,7 @@ const ProfileDetailsScreen = ({ navigation, route }) => {
 
   // Get data from previous steps
   const step2Data = route?.params?.step2Data || {};
-  const photos = step2Data.photos || [];
+  const _photos = step2Data.photos || [];
 
   // Handle form data changes
   const handleFormDataChange = newFormData => {
@@ -52,7 +52,7 @@ const ProfileDetailsScreen = ({ navigation, route }) => {
       const allUserData = {
         ...step2Data, // Contains name, email, password, birthDate, gender, interestedIn, location, photos
         ...currentFormData, // Contains bio, education, profession, etc.
-        photos, // Photos from step 2
+        // Photos are already included in step2Data, no need to add them again
       };
 
       // Register user

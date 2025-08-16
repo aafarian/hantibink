@@ -39,11 +39,18 @@ const mapSmokingPreference = (smoking) => {
   }
   
   // Normalize case and handle UI variations
-  const normalizedValue = smoking.toLowerCase().replace('sometimes', 'socially');
+  const normalizedValue = smoking.toLowerCase();
   
-  // Return the normalized value directly to match validation schema
-  const validValues = ['never', 'socially', 'regularly'];
-  return validValues.includes(normalizedValue) ? normalizedValue : null;
+  // Map mobile values to database enum values
+  const mapping = {
+    'never': 'never',
+    'sometimes': 'occasionally', 
+    'socially': 'occasionally',
+    'occasionally': 'occasionally',
+    'regularly': 'regularly',
+  };
+  
+  return mapping[normalizedValue] || null;
 };
 
 /**

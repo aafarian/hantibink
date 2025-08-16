@@ -138,15 +138,15 @@ const registerSchema = Joi.object({
     }),
   
   smoking: Joi.string()
-    .valid('never', 'socially', 'regularly')
+    .valid('never', 'occasionally', 'regularly')
     .optional()
     .allow(null, '')
     .messages({
-      'any.only': 'Smoking preference must be never, socially, or regularly',
+      'any.only': 'Smoking preference must be never, occasionally, or regularly',
     }),
   
   drinking: Joi.string()
-    .valid('never', 'socially', 'regularly')
+    .valid('never', 'occasionally', 'regularly')
     .optional()
     .allow(null, '')
     .messages({
@@ -320,15 +320,15 @@ const profileUpdateSchema = Joi.object({
     }),
   
   smoking: Joi.string()
-    .valid('never', 'socially', 'regularly')
+    .valid('never', 'occasionally', 'regularly')
     .optional()
     .allow(null, '')
     .messages({
-      'any.only': 'Smoking preference must be never, socially, or regularly',
+      'any.only': 'Smoking preference must be never, occasionally, or regularly',
     }),
   
   drinking: Joi.string()
-    .valid('never', 'socially', 'regularly')
+    .valid('never', 'occasionally', 'regularly')
     .optional()
     .allow(null, '')
     .messages({

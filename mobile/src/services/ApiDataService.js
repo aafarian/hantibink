@@ -103,8 +103,9 @@ class ApiDataService {
 
   /**
    * Get user preferences from API
+   * Note: userId parameter is not used since API uses JWT for user identification
    */
-  static async getUserPreferences(userId = null) {
+  static async getUserPreferences() {
     try {
       Logger.info('⚙️ Getting user preferences from API...');
 
@@ -125,8 +126,9 @@ class ApiDataService {
 
   /**
    * Update user preferences via API
+   * Note: userId parameter is not used since API uses JWT for user identification
    */
-  static async updateUserPreferences(userId, preferences) {
+  static async updateUserPreferences(preferences) {
     try {
       Logger.info('⚙️ Updating user preferences via API...');
 
@@ -299,7 +301,7 @@ class ApiDataService {
   /**
    * Get user matches (placeholder)
    */
-  static async getUserMatches(userId) {
+  static async getUserMatches(_userId) {
     Logger.info('💕 getUserMatches - Coming in PR #8: Matching Algorithm');
     return [];
   }
@@ -307,7 +309,7 @@ class ApiDataService {
   /**
    * Like a user (placeholder)
    */
-  static async likeUser(userId, targetUserId) {
+  static async likeUser(_userId, _targetUserId) {
     Logger.info('👍 likeUser - Coming in PR #8: Matching Algorithm');
     return false;
   }
@@ -315,7 +317,7 @@ class ApiDataService {
   /**
    * Pass on a user (placeholder)
    */
-  static async passUser(userId, targetUserId) {
+  static async passUser(_userId, _targetUserId) {
     Logger.info('👎 passUser - Coming in PR #8: Matching Algorithm');
     return false;
   }
@@ -323,7 +325,7 @@ class ApiDataService {
   /**
    * Get messages (placeholder)
    */
-  static async getMessages(userId, matchId) {
+  static async getMessages(_userId, _matchId) {
     Logger.info('💬 getMessages - Coming in PR #10: Real-time Chat');
     return [];
   }
@@ -331,7 +333,7 @@ class ApiDataService {
   /**
    * Send message (placeholder)
    */
-  static async sendMessage(userId, matchId, message) {
+  static async sendMessage(_userId, _matchId, _message) {
     Logger.info('📤 sendMessage - Coming in PR #10: Real-time Chat');
     return false;
   }

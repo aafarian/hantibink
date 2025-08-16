@@ -100,6 +100,7 @@ const ProfileEditScreen = ({ navigation }) => {
       const currentFormData = profileFormRef.current?.getFormData();
       if (!currentFormData) {
         showError('Please fill in the form');
+        setSaving(false);
         return;
       }
 
@@ -108,6 +109,7 @@ const ProfileEditScreen = ({ navigation }) => {
       if (!validation?.isValid) {
         const firstError = Object.values(validation.errors)[0];
         showError(firstError || 'Please check your input');
+        setSaving(false);
         return;
       }
 

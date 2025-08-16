@@ -14,7 +14,7 @@ import BottomSheet, { BottomSheetView } from '@gorhom/bottom-sheet';
 import { PanGestureHandler, State } from 'react-native-gesture-handler';
 import Logger from '../../utils/logger';
 
-const { width: screenWidth, height: screenHeight } = Dimensions.get('window');
+const { height: screenHeight } = Dimensions.get('window');
 const statusBarHeight = Platform.OS === 'android' ? StatusBar.currentHeight || 24 : 44;
 const availableHeight = screenHeight - statusBarHeight;
 
@@ -80,7 +80,7 @@ const PhotoViewer = forwardRef(
     // Handle swipe gestures for photo navigation and sheet closing
     const onGestureEvent = useCallback(
       event => {
-        const { translationX, translationY, state, velocityX, velocityY } = event.nativeEvent;
+        const { translationX, translationY, state, velocityY } = event.nativeEvent;
 
         if (state === State.END) {
           const HORIZONTAL_THRESHOLD = 50;
@@ -130,7 +130,7 @@ const PhotoViewer = forwardRef(
       [handlePrevious, handleNext, handleClose]
     );
 
-    const handleSetMain = useCallback(() => {
+    const _handleSetMain = useCallback(() => {
       onSetMain?.(currentPhotoIndex);
       handleClose();
     }, [currentPhotoIndex, onSetMain, handleClose]);
