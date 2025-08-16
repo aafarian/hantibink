@@ -271,8 +271,84 @@ const profileUpdateSchema = Joi.object({
   bio: Joi.string()
     .max(500)
     .optional()
+    .allow(null, '')
     .messages({
       'string.max': 'Bio cannot exceed 500 characters',
+    }),
+  
+  education: Joi.string()
+    .max(100)
+    .optional()
+    .allow(null, '')
+    .messages({
+      'string.max': 'Education cannot exceed 100 characters',
+    }),
+  
+  profession: Joi.string()
+    .max(100)
+    .optional()
+    .allow(null, '')
+    .messages({
+      'string.max': 'Profession cannot exceed 100 characters',
+    }),
+  
+  height: Joi.string()
+    .max(20)
+    .optional()
+    .allow(null, '')
+    .messages({
+      'string.max': 'Height cannot exceed 20 characters',
+    }),
+  
+  relationshipType: Joi.alternatives()
+    .try(
+      Joi.string().valid('casual', 'serious', 'marriage', 'friendship', 'hookups', 'not-sure'),
+      Joi.array().items(Joi.string().valid('casual', 'serious', 'marriage', 'friendship', 'hookups', 'not-sure'))
+    )
+    .optional()
+    .allow(null)
+    .messages({
+      'any.only': 'Relationship type must be casual, serious, marriage, friendship, hookups, or not-sure',
+    }),
+  
+  religion: Joi.string()
+    .max(50)
+    .optional()
+    .allow(null, '')
+    .messages({
+      'string.max': 'Religion cannot exceed 50 characters',
+    }),
+  
+  smoking: Joi.string()
+    .valid('never', 'socially', 'regularly')
+    .optional()
+    .allow(null, '')
+    .messages({
+      'any.only': 'Smoking preference must be never, socially, or regularly',
+    }),
+  
+  drinking: Joi.string()
+    .valid('never', 'socially', 'regularly')
+    .optional()
+    .allow(null, '')
+    .messages({
+      'any.only': 'Drinking preference must be never, socially, or regularly',
+    }),
+  
+  travel: Joi.string()
+    .max(200)
+    .optional()
+    .allow(null, '')
+    .messages({
+      'string.max': 'Travel preferences cannot exceed 200 characters',
+    }),
+  
+  pets: Joi.string()
+    .max(200)
+    .optional()
+    .allow(null, '')
+    .messages({
+      'string.max': 'Pet information cannot exceed 200 characters',
     }),
   
   interestedIn: Joi.array()
@@ -293,11 +369,9 @@ const profileUpdateSchema = Joi.object({
   
   photos: Joi.array()
     .items(Joi.string().uri())
-    .min(1)
     .max(6)
     .optional()
     .messages({
-      'array.min': 'At least one photo is required',
       'array.max': 'Maximum 6 photos allowed',
     }),
   
@@ -305,8 +379,10 @@ const profileUpdateSchema = Joi.object({
     .items(Joi.string().max(50))
     .max(10)
     .optional()
+    .default([])
     .messages({
       'array.max': 'Maximum 10 interests allowed',
+      'string.max': 'Each interest cannot exceed 50 characters',
     }),
 });
 

@@ -3,7 +3,14 @@ const logger = require('../utils/logger');
 const { authenticateJWT } = require('../middleware/auth');
 const { validate } = require('../utils/validation');
 const { profileUpdateSchema } = require('../utils/validation');
-const { getUserProfile, updateUserProfile } = require('../services/authService');
+const { 
+  getUserProfile, 
+  updateUserProfile, 
+  addUserPhoto, 
+  deleteUserPhoto, 
+  reorderUserPhotos, 
+  setMainPhoto 
+} = require('../services/authService');
 
 const router = express.Router();
 
@@ -18,8 +25,10 @@ router.get('/', (req, res) => {
     availableEndpoints: [
       'GET /profile - Get user profile',
       'PUT /profile - Update user profile',
-      'POST /upload-photo - Upload profile photo',
-      'DELETE /photo/:id - Delete profile photo',
+      'POST /photos - Add profile photo',
+      'DELETE /photos/:id - Delete profile photo',
+      'PUT /photos/reorder - Reorder photos',
+      'PUT /photos/:id/main - Set main photo',
       'GET /preferences - Get user preferences',
       'PUT /preferences - Update user preferences',
       'DELETE /account - Delete user account',
@@ -94,29 +103,127 @@ router.put('/profile', authenticateJWT, validate(profileUpdateSchema), async (re
 });
 
 /**
- * @route   POST /api/users/upload-photo
- * @desc    Upload profile photo
+ * @route   POST /api/users/photos
+ * @desc    Add profile photo
  * @access  Private
  */
-router.post('/upload-photo', authenticateJWT, async (req, res) => {
-  res.json({
-    message: 'Upload photo endpoint',
-    endpoint: 'POST /api/users/upload-photo',
-    status: 'Coming soon - will integrate with Firebase Storage',
-  });
+router.post('/photos', authenticateJWT, async (req, res) => {
+  try {
+    const { photoUrl, isMain } = req.body;
+
+    if (!photoUrl) {
+      return res.status(400).json({
+        success: false,
+        error: 'Validation failed',
+        message: 'Photo URL is required',
+      });
+    }
+
+    const updatedProfile = await addUserPhoto(req.user.id, photoUrl, isMain);
+
+    res.json({
+      success: true,
+      message: 'Photo added successfully',
+      data: updatedProfile,
+    });
+  } catch (error) {
+    logger.error('❌ Add photo error:', error);
+    
+    res.status(400).json({
+      success: false,
+      error: 'Photo upload failed',
+      message: error.message,
+    });
+  }
 });
 
 /**
- * @route   DELETE /api/users/photo/:id
+ * @route   DELETE /api/users/photos/:id
  * @desc    Delete profile photo
  * @access  Private
  */
-router.delete('/photo/:id', authenticateJWT, async (req, res) => {
-  res.json({
-    message: 'Delete photo endpoint',
-    endpoint: 'DELETE /api/users/photo/:id',
-    status: 'Coming soon - will integrate with Firebase Storage',
-  });
+router.delete('/photos/:id', authenticateJWT, async (req, res) => {
+  try {
+    const { id: photoId } = req.params;
+
+    const updatedProfile = await deleteUserPhoto(req.user.id, photoId);
+
+    res.json({
+      success: true,
+      message: 'Photo deleted successfully',
+      data: updatedProfile,
+    });
+  } catch (error) {
+    logger.error('❌ Delete photo error:', error);
+    
+    res.status(400).json({
+      success: false,
+      error: 'Photo deletion failed',
+      message: error.message,
+    });
+  }
+});
+
+/**
+ * @route   PUT /api/users/photos/reorder
+ * @desc    Reorder profile photos
+ * @access  Private
+ */
+router.put('/photos/reorder', authenticateJWT, async (req, res) => {
+  try {
+    const { photoIds } = req.body;
+
+    if (!Array.isArray(photoIds)) {
+      return res.status(400).json({
+        success: false,
+        error: 'Validation failed',
+        message: 'photoIds must be an array',
+      });
+    }
+
+    const updatedProfile = await reorderUserPhotos(req.user.id, photoIds);
+
+    res.json({
+      success: true,
+      message: 'Photos reordered successfully',
+      data: updatedProfile,
+    });
+  } catch (error) {
+    logger.error('❌ Reorder photos error:', error);
+    
+    res.status(400).json({
+      success: false,
+      error: 'Photo reordering failed',
+      message: error.message,
+    });
+  }
+});
+
+/**
+ * @route   PUT /api/users/photos/:id/main
+ * @desc    Set photo as main profile photo
+ * @access  Private
+ */
+router.put('/photos/:id/main', authenticateJWT, async (req, res) => {
+  try {
+    const { id: photoId } = req.params;
+
+    const updatedProfile = await setMainPhoto(req.user.id, photoId);
+
+    res.json({
+      success: true,
+      message: 'Main photo set successfully',
+      data: updatedProfile,
+    });
+  } catch (error) {
+    logger.error('❌ Set main photo error:', error);
+    
+    res.status(400).json({
+      success: false,
+      error: 'Set main photo failed',
+      message: error.message,
+    });
+  }
 });
 
 /**

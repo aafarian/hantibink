@@ -1,7 +1,7 @@
 const bcrypt = require('bcryptjs');
 const { PrismaClient } = require('@prisma/client');
 const { generateTokenPair, verifyToken } = require('../utils/jwt');
-const { createFirebaseUser, verifyIdToken } = require('../config/firebase');
+const { verifyIdToken } = require('../config/firebase');
 const logger = require('../utils/logger');
 
 const prisma = new PrismaClient();
@@ -34,30 +34,32 @@ const mapRelationshipType = (relationshipType) => {
  * Map mobile smoking preference to database enum values
  */
 const mapSmokingPreference = (smoking) => {
-  if (!smoking) {return null;}
+  if (!smoking) {
+    return null;
+  }
   
-  const mapping = {
-    'never': 'NEVER',
-    'socially': 'OCCASIONALLY', // Map socially to occasionally
-    'regularly': 'REGULARLY',
-  };
+  // Normalize case and handle UI variations
+  const normalizedValue = smoking.toLowerCase().replace('sometimes', 'socially');
   
-  return mapping[smoking] || null;
+  // Return the normalized value directly to match validation schema
+  const validValues = ['never', 'socially', 'regularly'];
+  return validValues.includes(normalizedValue) ? normalizedValue : null;
 };
 
 /**
  * Map mobile drinking preference to database enum values
  */
 const mapDrinkingPreference = (drinking) => {
-  if (!drinking) {return null;}
+  if (!drinking) {
+    return null;
+  }
   
-  const mapping = {
-    'never': 'NEVER',
-    'socially': 'SOCIALLY',
-    'regularly': 'REGULARLY',
-  };
+  // Normalize case
+  const normalizedValue = drinking.toLowerCase();
   
-  return mapping[drinking] || null;
+  // Return the normalized value directly to match validation schema
+  const validValues = ['never', 'socially', 'regularly'];
+  return validValues.includes(normalizedValue) ? normalizedValue : null;
 };
 
 /**
@@ -423,11 +425,15 @@ const updateUserProfile = async (userId, updateData) => {
   try {
     const { photos, interests, ...userData } = updateData;
 
-    // Update user data
+    // Update user data with proper mapping
     const user = await prisma.user.update({
       where: { id: userId },
       data: {
         ...userData,
+        // Apply mapping functions for enum fields
+        relationshipType: userData.relationshipType ? mapRelationshipType(userData.relationshipType) : undefined,
+        smoking: userData.smoking ? mapSmokingPreference(userData.smoking) : undefined,
+        drinking: userData.drinking ? mapDrinkingPreference(userData.drinking) : undefined,
         latitude: updateData.location?.latitude,
         longitude: updateData.location?.longitude,
         address: updateData.location?.address,
@@ -520,6 +526,205 @@ const updateUserProfile = async (userId, updateData) => {
   }
 };
 
+/**
+ * Add photo to user profile
+ */
+const addUserPhoto = async (userId, photoUrl, isMain = false) => {
+  try {
+    // Get current photo count
+    const photoCount = await prisma.photo.count({
+      where: { userId },
+    });
+
+    // Limit to 6 photos max
+    if (photoCount >= 6) {
+      throw new Error('Maximum 6 photos allowed');
+    }
+
+    // If this is the first photo or explicitly set as main, make it main
+    const shouldBeMain = isMain || photoCount === 0;
+
+    await prisma.$transaction(async (tx) => {
+      // If setting as main, remove main flag from other photos
+      if (shouldBeMain) {
+        await tx.photo.updateMany({
+          where: { userId, isMain: true },
+          data: { isMain: false },
+        });
+      }
+
+      // Create the new photo
+      const newPhoto = await tx.photo.create({
+        data: {
+          userId,
+          url: photoUrl,
+          order: photoCount,
+          isMain: shouldBeMain,
+        },
+      });
+
+      // Update user's main photo if this is the main photo
+      if (shouldBeMain) {
+        await tx.user.update({
+          where: { id: userId },
+          data: { mainPhotoId: newPhoto.id },
+        });
+      }
+
+      return newPhoto;
+    });
+
+    logger.info(`✅ Photo added for user ${userId}: ${shouldBeMain ? 'main' : 'additional'}`);
+    return await getUserProfile(userId);
+  } catch (error) {
+    logger.error('❌ Add photo error:', error);
+    throw error;
+  }
+};
+
+/**
+ * Delete photo from user profile
+ */
+const deleteUserPhoto = async (userId, photoId) => {
+  try {
+    const photo = await prisma.photo.findFirst({
+      where: { id: photoId, userId },
+    });
+
+    if (!photo) {
+      throw new Error('Photo not found');
+    }
+
+    await prisma.$transaction(async (tx) => {
+      // Delete the photo
+      await tx.photo.delete({
+        where: { id: photoId },
+      });
+
+      // If this was the main photo, set another photo as main
+      if (photo.isMain) {
+        const nextMainPhoto = await tx.photo.findFirst({
+          where: { userId },
+          orderBy: { order: 'asc' },
+        });
+
+        if (nextMainPhoto) {
+          await tx.photo.update({
+            where: { id: nextMainPhoto.id },
+            data: { isMain: true },
+          });
+
+          await tx.user.update({
+            where: { id: userId },
+            data: { mainPhotoId: nextMainPhoto.id },
+          });
+        } else {
+          // No photos left, clear main photo
+          await tx.user.update({
+            where: { id: userId },
+            data: { mainPhotoId: null },
+          });
+        }
+      }
+
+      // Reorder remaining photos
+      const remainingPhotos = await tx.photo.findMany({
+        where: { userId },
+        orderBy: { order: 'asc' },
+      });
+
+      for (let i = 0; i < remainingPhotos.length; i++) {
+        await tx.photo.update({
+          where: { id: remainingPhotos[i].id },
+          data: { order: i },
+        });
+      }
+    });
+
+    logger.info(`✅ Photo deleted for user ${userId}: ${photoId}`);
+    return await getUserProfile(userId);
+  } catch (error) {
+    logger.error('❌ Delete photo error:', error);
+    throw error;
+  }
+};
+
+/**
+ * Reorder user photos
+ */
+const reorderUserPhotos = async (userId, photoIds) => {
+  try {
+    await prisma.$transaction(async (tx) => {
+      for (let i = 0; i < photoIds.length; i++) {
+        const photoId = photoIds[i];
+        
+        // Verify photo belongs to user
+        const photo = await tx.photo.findFirst({
+          where: { id: photoId, userId },
+        });
+
+        if (!photo) {
+          throw new Error(`Photo ${photoId} not found or doesn't belong to user`);
+        }
+
+        // Update order
+        await tx.photo.update({
+          where: { id: photoId },
+          data: { order: i },
+        });
+      }
+    });
+
+    logger.info(`✅ Photos reordered for user ${userId}`);
+    return await getUserProfile(userId);
+  } catch (error) {
+    logger.error('❌ Reorder photos error:', error);
+    throw error;
+  }
+};
+
+/**
+ * Set main photo
+ */
+const setMainPhoto = async (userId, photoId) => {
+  try {
+    await prisma.$transaction(async (tx) => {
+      // Verify photo belongs to user
+      const photo = await tx.photo.findFirst({
+        where: { id: photoId, userId },
+      });
+
+      if (!photo) {
+        throw new Error('Photo not found or doesn\'t belong to user');
+      }
+
+      // Remove main flag from all photos
+      await tx.photo.updateMany({
+        where: { userId, isMain: true },
+        data: { isMain: false },
+      });
+
+      // Set this photo as main
+      await tx.photo.update({
+        where: { id: photoId },
+        data: { isMain: true },
+      });
+
+      // Update user's main photo
+      await tx.user.update({
+        where: { id: userId },
+        data: { mainPhotoId: photoId },
+      });
+    });
+
+    logger.info(`✅ Main photo set for user ${userId}: ${photoId}`);
+    return await getUserProfile(userId);
+  } catch (error) {
+    logger.error('❌ Set main photo error:', error);
+    throw error;
+  }
+};
+
 module.exports = {
   registerUser,
   loginUser,
@@ -527,4 +732,8 @@ module.exports = {
   refreshTokens,
   getUserProfile,
   updateUserProfile,
+  addUserPhoto,
+  deleteUserPhoto,
+  reorderUserPhotos,
+  setMainPhoto,
 };

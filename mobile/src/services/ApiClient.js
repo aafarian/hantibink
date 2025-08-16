@@ -260,6 +260,46 @@ class ApiClient {
     return response;
   }
 
+  // ============ PHOTO MANAGEMENT METHODS ============
+
+  /**
+   * Add photo to user profile
+   */
+  async addPhoto(photoUrl, isMain = false) {
+    return this.request('/users/photos', {
+      method: 'POST',
+      body: JSON.stringify({ photoUrl, isMain }),
+    });
+  }
+
+  /**
+   * Delete photo from user profile
+   */
+  async deletePhoto(photoId) {
+    return this.request(`/users/photos/${photoId}`, {
+      method: 'DELETE',
+    });
+  }
+
+  /**
+   * Reorder user photos
+   */
+  async reorderPhotos(photoIds) {
+    return this.request('/users/photos/reorder', {
+      method: 'PUT',
+      body: JSON.stringify({ photoIds }),
+    });
+  }
+
+  /**
+   * Set main photo
+   */
+  async setMainPhoto(photoId) {
+    return this.request(`/users/photos/${photoId}/main`, {
+      method: 'PUT',
+    });
+  }
+
   // ============ USER ENDPOINTS ============
 
   /**
