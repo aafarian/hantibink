@@ -194,7 +194,7 @@ class ApiClient {
     });
 
     if (response.success) {
-      const { tokens } = response.data;
+      const { tokens } = response.data.data;
       if (tokens && tokens.accessToken && tokens.refreshToken) {
         await this.setTokens(tokens.accessToken, tokens.refreshToken);
       } else {
@@ -215,7 +215,7 @@ class ApiClient {
     });
 
     if (response.success) {
-      const { tokens } = response.data;
+      const { tokens } = response.data.data;
       if (tokens && tokens.accessToken && tokens.refreshToken) {
         await this.setTokens(tokens.accessToken, tokens.refreshToken);
       } else {
@@ -236,7 +236,7 @@ class ApiClient {
     });
 
     if (response.success) {
-      const { tokens } = response.data;
+      const { tokens } = response.data.data;
       if (tokens && tokens.accessToken && tokens.refreshToken) {
         await this.setTokens(tokens.accessToken, tokens.refreshToken);
       } else {
