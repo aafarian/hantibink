@@ -1,9 +1,18 @@
-import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, TextInput, TouchableOpacity, Platform } from 'react-native';
+import React, { useState, useEffect, useRef } from 'react';
+import {
+  View,
+  Text,
+  StyleSheet,
+  TextInput,
+  TouchableOpacity,
+  Platform,
+  KeyboardAvoidingView,
+  ScrollView,
+} from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { MaterialIcons } from '@expo/vector-icons';
 import DateTimePicker from '@react-native-community/datetimepicker';
-import { KeyboardAwareScrollView } from 'react-native-keyboard-aware-scroll-view';
+
 import { useAuth } from '../../contexts/AuthContext';
 import { useLocation } from '../../contexts/LocationContext';
 import { useToast } from '../../contexts/ToastContext';
@@ -30,9 +39,25 @@ const SimpleRegisterScreen = ({ navigation }) => {
   const [loading, setLoading] = useState(false);
   const [selectedLocation, setSelectedLocation] = useState(null);
 
+  // Refs for text inputs to enable auto-advance
+  const scrollViewRef = useRef(null);
+  const nameRef = useRef(null);
+  const emailRef = useRef(null);
+  const passwordRef = useRef(null);
+  const confirmPasswordRef = useRef(null);
+
   const { checkEmailExists } = useAuth();
   const { location } = useLocation();
   const { showError } = useToast();
+
+  // Helper function to focus next field
+  const focusField = fieldRef => {
+    setTimeout(() => {
+      if (fieldRef.current) {
+        fieldRef.current.focus();
+      }
+    }, 100);
+  };
 
   // Initialize selectedLocation if context already has a location
   useEffect(() => {
@@ -185,173 +210,199 @@ const SimpleRegisterScreen = ({ navigation }) => {
 
   return (
     <SafeAreaView style={styles.container}>
-      <KeyboardAwareScrollView
+      <KeyboardAvoidingView
         style={styles.container}
-        contentContainerStyle={styles.scrollContent}
-        enableOnAndroid={true}
-        extraScrollHeight={20}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        keyboardVerticalOffset={Platform.OS === 'ios' ? 90 : 0}
       >
-        <View style={styles.header}>
-          <TouchableOpacity style={styles.backButton} onPress={() => navigation.goBack()}>
-            <MaterialIcons name="arrow-back" size={24} color="#333" />
-          </TouchableOpacity>
-          <Text style={styles.title}>Step 1: Basic Info</Text>
-          <View style={styles.placeholder} />
-        </View>
-
-        <View style={styles.form}>
-          {/* Name */}
-          <View style={styles.fieldContainer}>
-            <Text style={styles.label}>Full Name *</Text>
-            <TextInput
-              style={styles.input}
-              placeholder="Enter your full name"
-              value={formData.name}
-              onChangeText={text => updateField('name', text)}
-              autoCapitalize="words"
-            />
+        <ScrollView
+          ref={scrollViewRef}
+          style={styles.container}
+          contentContainerStyle={styles.scrollContent}
+          keyboardShouldPersistTaps="handled"
+          showsVerticalScrollIndicator={false}
+        >
+          <View style={styles.header}>
+            <TouchableOpacity style={styles.backButton} onPress={() => navigation.goBack()}>
+              <MaterialIcons name="arrow-back" size={24} color="#333" />
+            </TouchableOpacity>
+            <Text style={styles.title}>Step 1: Basic Info</Text>
+            <View style={styles.placeholder} />
           </View>
 
-          {/* Email */}
-          <View style={styles.fieldContainer}>
-            <Text style={styles.label}>Email Address *</Text>
-            <TextInput
-              style={styles.input}
-              placeholder="Enter your email"
-              value={formData.email}
-              onChangeText={text => updateField('email', text)}
-              keyboardType="email-address"
-              autoCapitalize="none"
-              autoCorrect={false}
-            />
-          </View>
-
-          {/* Password */}
-          <View style={styles.fieldContainer}>
-            <Text style={styles.label}>Password *</Text>
-            <View style={styles.passwordContainer}>
+          <View style={styles.form}>
+            {/* Name */}
+            <View style={styles.fieldContainer}>
+              <Text style={styles.label}>Full Name *</Text>
               <TextInput
-                style={styles.passwordInput}
-                placeholder="Enter your password"
-                value={formData.password}
-                onChangeText={text => updateField('password', text)}
-                secureTextEntry={!showPassword}
-                autoCapitalize="none"
+                ref={nameRef}
+                style={styles.input}
+                placeholder="Enter your full name"
+                value={formData.name}
+                onChangeText={text => updateField('name', text)}
+                autoCapitalize="words"
+                returnKeyType="next"
+                onSubmitEditing={() => focusField(emailRef)}
+                blurOnSubmit={false}
               />
-              <TouchableOpacity
-                onPress={() => setShowPassword(!showPassword)}
-                style={styles.eyeButton}
-              >
-                <MaterialIcons
-                  name={showPassword ? 'visibility' : 'visibility-off'}
-                  size={24}
-                  color="#666"
+            </View>
+
+            {/* Email */}
+            <View style={styles.fieldContainer}>
+              <Text style={styles.label}>Email Address *</Text>
+              <TextInput
+                ref={emailRef}
+                style={styles.input}
+                placeholder="Enter your email"
+                value={formData.email}
+                onChangeText={text => updateField('email', text)}
+                keyboardType="email-address"
+                autoCapitalize="none"
+                autoCorrect={false}
+                returnKeyType="next"
+                onSubmitEditing={() => focusField(passwordRef)}
+                blurOnSubmit={false}
+              />
+            </View>
+
+            {/* Password */}
+            <View style={styles.fieldContainer}>
+              <Text style={styles.label}>Password *</Text>
+              <View style={styles.passwordContainer}>
+                <TextInput
+                  ref={passwordRef}
+                  style={styles.passwordInput}
+                  placeholder="Enter your password"
+                  value={formData.password}
+                  onChangeText={text => updateField('password', text)}
+                  secureTextEntry={!showPassword}
+                  autoCapitalize="none"
+                  returnKeyType="next"
+                  onSubmitEditing={() => focusField(confirmPasswordRef)}
+                  blurOnSubmit={false}
                 />
+                <TouchableOpacity
+                  onPress={() => setShowPassword(!showPassword)}
+                  style={styles.eyeButton}
+                >
+                  <MaterialIcons
+                    name={showPassword ? 'visibility' : 'visibility-off'}
+                    size={24}
+                    color="#666"
+                  />
+                </TouchableOpacity>
+              </View>
+            </View>
+
+            {/* Confirm Password */}
+            <View style={styles.fieldContainer}>
+              <Text style={styles.label}>Confirm Password *</Text>
+              <View style={styles.passwordContainer}>
+                <TextInput
+                  ref={confirmPasswordRef}
+                  style={styles.passwordInput}
+                  placeholder="Confirm your password"
+                  value={formData.confirmPassword}
+                  onChangeText={text => updateField('confirmPassword', text)}
+                  secureTextEntry={!showConfirmPassword}
+                  autoCapitalize="none"
+                  returnKeyType="done"
+                  onSubmitEditing={() => confirmPasswordRef.current?.blur()}
+                  blurOnSubmit={true}
+                />
+                <TouchableOpacity
+                  onPress={() => setShowConfirmPassword(!showConfirmPassword)}
+                  style={styles.eyeButton}
+                >
+                  <MaterialIcons
+                    name={showConfirmPassword ? 'visibility' : 'visibility-off'}
+                    size={24}
+                    color="#666"
+                  />
+                </TouchableOpacity>
+              </View>
+            </View>
+
+            {/* Birth Date */}
+            <View style={styles.fieldContainer}>
+              <Text style={styles.label}>Birthday *</Text>
+              <TouchableOpacity style={styles.dateButton} onPress={() => setShowDatePicker(true)}>
+                <Text style={[styles.dateText, !formData.birthDate && styles.placeholderText]}>
+                  {formData.birthDate
+                    ? new Date(formData.birthDate).toLocaleDateString()
+                    : 'Select your birthday'}
+                </Text>
+                <MaterialIcons name="calendar-today" size={20} color="#666" />
+              </TouchableOpacity>
+              {formData.age && <Text style={styles.ageText}>Age: {formData.age}</Text>}
+            </View>
+
+            {/* Location */}
+            <View style={styles.fieldContainer}>
+              <Text style={styles.label}>Location *</Text>
+              <LocationPicker
+                currentLocation={selectedLocation || ''}
+                placeholder="Select your location"
+                required={true}
+                onLocationSelected={locationText => {
+                  setSelectedLocation(locationText);
+                  Logger.info('📍 Location selected in registration:', locationText);
+                }}
+              />
+              {/* Debug info */}
+              {__DEV__ && (
+                <Text style={[styles.selectedText, { fontSize: 10, color: '#999' }]}>
+                  Debug: selectedLocation = "{selectedLocation}" | context location ={' '}
+                  {location
+                    ? JSON.stringify({
+                        selected: location.selected,
+                        primary: location.primary,
+                      })
+                    : 'null'}
+                </Text>
+              )}
+            </View>
+
+            {/* Gender */}
+            <View style={styles.fieldContainer}>
+              <Text style={styles.label}>Gender *</Text>
+              <TouchableOpacity
+                style={styles.selectionButton}
+                onPress={() => setShowGenderPicker(true)}
+              >
+                <Text style={[styles.selectionText, !formData.gender && styles.placeholderText]}>
+                  {formData.gender
+                    ? genderOptions.find(opt => opt.id === formData.gender)?.label ||
+                      formData.gender
+                    : 'Select your gender'}
+                </Text>
+                <MaterialIcons name="keyboard-arrow-down" size={24} color="#666" />
+              </TouchableOpacity>
+            </View>
+
+            {/* Interested In */}
+            <View style={styles.fieldContainer}>
+              <Text style={styles.label}>Interested In *</Text>
+              <TouchableOpacity
+                style={styles.selectionButton}
+                onPress={() => setShowInterestedInPicker(true)}
+              >
+                <Text
+                  style={[styles.selectionText, !formData.interestedIn && styles.placeholderText]}
+                >
+                  {formData.interestedIn
+                    ? interestedInOptions.find(opt => opt.id === formData.interestedIn)?.label ||
+                      formData.interestedIn
+                    : "Select who you're interested in"}
+                </Text>
+                <MaterialIcons name="keyboard-arrow-down" size={24} color="#666" />
               </TouchableOpacity>
             </View>
           </View>
+        </ScrollView>
 
-          {/* Confirm Password */}
-          <View style={styles.fieldContainer}>
-            <Text style={styles.label}>Confirm Password *</Text>
-            <View style={styles.passwordContainer}>
-              <TextInput
-                style={styles.passwordInput}
-                placeholder="Confirm your password"
-                value={formData.confirmPassword}
-                onChangeText={text => updateField('confirmPassword', text)}
-                secureTextEntry={!showConfirmPassword}
-                autoCapitalize="none"
-              />
-              <TouchableOpacity
-                onPress={() => setShowConfirmPassword(!showConfirmPassword)}
-                style={styles.eyeButton}
-              >
-                <MaterialIcons
-                  name={showConfirmPassword ? 'visibility' : 'visibility-off'}
-                  size={24}
-                  color="#666"
-                />
-              </TouchableOpacity>
-            </View>
-          </View>
-
-          {/* Birth Date */}
-          <View style={styles.fieldContainer}>
-            <Text style={styles.label}>Birthday *</Text>
-            <TouchableOpacity style={styles.dateButton} onPress={() => setShowDatePicker(true)}>
-              <Text style={[styles.dateText, !formData.birthDate && styles.placeholderText]}>
-                {formData.birthDate
-                  ? new Date(formData.birthDate).toLocaleDateString()
-                  : 'Select your birthday'}
-              </Text>
-              <MaterialIcons name="calendar-today" size={20} color="#666" />
-            </TouchableOpacity>
-            {formData.age && <Text style={styles.ageText}>Age: {formData.age}</Text>}
-          </View>
-
-          {/* Location */}
-          <View style={styles.fieldContainer}>
-            <Text style={styles.label}>Location *</Text>
-            <LocationPicker
-              currentLocation={selectedLocation || ''}
-              placeholder="Select your location"
-              required={true}
-              onLocationSelected={locationText => {
-                setSelectedLocation(locationText);
-                Logger.info('📍 Location selected in registration:', locationText);
-              }}
-            />
-            {/* Debug info */}
-            {__DEV__ && (
-              <Text style={[styles.selectedText, { fontSize: 10, color: '#999' }]}>
-                Debug: selectedLocation = "{selectedLocation}" | context location ={' '}
-                {location
-                  ? JSON.stringify({
-                      selected: location.selected,
-                      primary: location.primary,
-                    })
-                  : 'null'}
-              </Text>
-            )}
-          </View>
-
-          {/* Gender */}
-          <View style={styles.fieldContainer}>
-            <Text style={styles.label}>Gender *</Text>
-            <TouchableOpacity
-              style={styles.selectionButton}
-              onPress={() => setShowGenderPicker(true)}
-            >
-              <Text style={[styles.selectionText, !formData.gender && styles.placeholderText]}>
-                {formData.gender
-                  ? genderOptions.find(opt => opt.id === formData.gender)?.label || formData.gender
-                  : 'Select your gender'}
-              </Text>
-              <MaterialIcons name="keyboard-arrow-down" size={24} color="#666" />
-            </TouchableOpacity>
-          </View>
-
-          {/* Interested In */}
-          <View style={styles.fieldContainer}>
-            <Text style={styles.label}>Interested In *</Text>
-            <TouchableOpacity
-              style={styles.selectionButton}
-              onPress={() => setShowInterestedInPicker(true)}
-            >
-              <Text
-                style={[styles.selectionText, !formData.interestedIn && styles.placeholderText]}
-              >
-                {formData.interestedIn
-                  ? interestedInOptions.find(opt => opt.id === formData.interestedIn)?.label ||
-                    formData.interestedIn
-                  : "Select who you're interested in"}
-              </Text>
-              <MaterialIcons name="keyboard-arrow-down" size={24} color="#666" />
-            </TouchableOpacity>
-          </View>
-
-          {/* Next Button */}
+        {/* Sticky Next Button */}
+        <View style={styles.stickyButtonContainer}>
           <TouchableOpacity
             style={[styles.registerButton, loading && styles.registerButtonDisabled]}
             onPress={handleNext}
@@ -361,56 +412,56 @@ const SimpleRegisterScreen = ({ navigation }) => {
               {loading ? 'Validating...' : 'Next: Add Photos'}
             </Text>
           </TouchableOpacity>
+
+          <View style={styles.footer}>
+            <Text style={styles.footerText}>Already have an account? </Text>
+            <TouchableOpacity onPress={() => navigation.navigate('Login')}>
+              <Text style={styles.footerLink}>Sign In</Text>
+            </TouchableOpacity>
+          </View>
         </View>
 
-        <View style={styles.footer}>
-          <Text style={styles.footerText}>Already have an account? </Text>
-          <TouchableOpacity onPress={() => navigation.navigate('Login')}>
-            <Text style={styles.footerLink}>Sign In</Text>
-          </TouchableOpacity>
-        </View>
-      </KeyboardAwareScrollView>
+        {/* Date Picker Modal */}
+        {showDatePicker && (
+          <DateTimePicker
+            testID="dateTimePicker"
+            value={formData.birthDate ? new Date(formData.birthDate) : new Date()}
+            mode="date"
+            is24Hour={true}
+            display={Platform.OS === 'ios' ? 'spinner' : 'default'}
+            onChange={handleDateChange}
+            maximumDate={new Date()}
+          />
+        )}
 
-      {/* Date Picker Modal */}
-      {showDatePicker && (
-        <DateTimePicker
-          testID="dateTimePicker"
-          value={formData.birthDate ? new Date(formData.birthDate) : new Date()}
-          mode="date"
-          is24Hour={true}
-          display={Platform.OS === 'ios' ? 'spinner' : 'default'}
-          onChange={handleDateChange}
-          maximumDate={new Date()}
+        {/* Gender Selection Modal */}
+        <SelectionPanel
+          visible={showGenderPicker}
+          onClose={() => setShowGenderPicker(false)}
+          title="Select Gender"
+          options={genderOptions}
+          selectedValue={formData.gender}
+          onSelect={value => {
+            updateField('gender', value);
+            setShowGenderPicker(false);
+          }}
+          placeholder="Select your gender"
         />
-      )}
 
-      {/* Gender Selection Modal */}
-      <SelectionPanel
-        visible={showGenderPicker}
-        onClose={() => setShowGenderPicker(false)}
-        title="Select Gender"
-        options={genderOptions}
-        selectedValue={formData.gender}
-        onSelect={value => {
-          updateField('gender', value);
-          setShowGenderPicker(false);
-        }}
-        placeholder="Select your gender"
-      />
-
-      {/* Interested In Selection Modal */}
-      <SelectionPanel
-        visible={showInterestedInPicker}
-        onClose={() => setShowInterestedInPicker(false)}
-        title="Interested In"
-        options={interestedInOptions}
-        selectedValue={formData.interestedIn}
-        onSelect={value => {
-          updateField('interestedIn', value);
-          setShowInterestedInPicker(false);
-        }}
-        placeholder="Select who you're interested in"
-      />
+        {/* Interested In Selection Modal */}
+        <SelectionPanel
+          visible={showInterestedInPicker}
+          onClose={() => setShowInterestedInPicker(false)}
+          title="Interested In"
+          options={interestedInOptions}
+          selectedValue={formData.interestedIn}
+          onSelect={value => {
+            updateField('interestedIn', value);
+            setShowInterestedInPicker(false);
+          }}
+          placeholder="Select who you're interested in"
+        />
+      </KeyboardAvoidingView>
     </SafeAreaView>
   );
 };
@@ -479,12 +530,20 @@ const styles = StyleSheet.create({
   eyeButton: {
     padding: 16,
   },
+  stickyButtonContainer: {
+    backgroundColor: '#f8f9fa',
+    paddingHorizontal: 20,
+    paddingVertical: 15,
+    paddingBottom: 30,
+    borderTopWidth: 1,
+    borderTopColor: '#e0e0e0',
+  },
   registerButton: {
     backgroundColor: '#FF6B6B',
     borderRadius: 12,
     paddingVertical: 16,
     alignItems: 'center',
-    marginTop: 20,
+    marginBottom: 10,
   },
   registerButtonDisabled: {
     backgroundColor: '#FFB6B6',

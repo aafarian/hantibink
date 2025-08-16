@@ -46,6 +46,8 @@ const renderTabIcon = (route, focused, color, size, unreadCount) => {
     iconName = focused ? 'heart' : 'heart-outline';
   } else if (route.name === 'Messages') {
     iconName = focused ? 'chatbubbles' : 'chatbubbles-outline';
+  } else if (route.name === 'API Test') {
+    iconName = focused ? 'flask' : 'flask-outline';
   }
 
   // Add badge for Messages tab if there are unread conversations

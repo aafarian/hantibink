@@ -44,6 +44,8 @@ router.get('/', (req, res) => {
  */
 router.post('/register', validate(registerSchema), async (req, res) => {
   try {
+
+    
     const result = await registerUser(req.body);
     
     res.status(201).json({

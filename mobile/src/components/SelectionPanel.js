@@ -22,8 +22,10 @@ const SelectionPanel = ({
   onSelect,
   multiSelect = false,
   placeholder: _placeholder = 'Select an option',
+  initialScrollIndex = 0,
 }) => {
   const slideAnim = useRef(new Animated.Value(300)).current;
+  const scrollViewRef = useRef(null);
 
   useEffect(() => {
     if (visible) {
@@ -32,6 +34,16 @@ const SelectionPanel = ({
         duration: 300,
         useNativeDriver: true,
       }).start();
+
+      // Scroll to initial position after a short delay
+      if (initialScrollIndex > 0) {
+        setTimeout(() => {
+          scrollViewRef.current?.scrollTo({
+            y: initialScrollIndex * 50, // Assuming each option is ~50px high
+            animated: true,
+          });
+        }, 100);
+      }
     } else {
       Animated.timing(slideAnim, {
         toValue: 300,
@@ -39,7 +51,7 @@ const SelectionPanel = ({
         useNativeDriver: true,
       }).start();
     }
-  }, [visible, slideAnim]);
+  }, [visible, slideAnim, initialScrollIndex]);
   const handleSelect = option => {
     if (multiSelect) {
       // For multi-select, toggle the selection
@@ -101,7 +113,11 @@ const SelectionPanel = ({
             </View>
 
             {/* Options */}
-            <ScrollView style={styles.optionsContainer} showsVerticalScrollIndicator={false}>
+            <ScrollView
+              ref={scrollViewRef}
+              style={styles.optionsContainer}
+              showsVerticalScrollIndicator={false}
+            >
               {options.map((option, index) => {
                 // Handle both string options and object options {id, label}
                 const optionKey = `option-${index}`; // Use index for stable, unique React keys
