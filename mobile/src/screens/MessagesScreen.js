@@ -9,7 +9,7 @@ import {
   TextInput,
   Animated,
 } from 'react-native';
-import { ChatKeyboardWrapper } from '../components/KeyboardAwareWrapper';
+import { ChatKeyboardWrapper } from '../components/KeyboardAvoidWrapper';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../contexts/AuthContext';
 import { useToast } from '../contexts/ToastContext';

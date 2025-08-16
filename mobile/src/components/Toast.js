@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { View, Text, StyleSheet, Animated, TouchableOpacity } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -13,6 +13,24 @@ const Toast = ({
 }) => {
   const insets = useSafeAreaInsets();
   const [slideAnim] = useState(new Animated.Value(-100));
+  const onHideRef = useRef(onHide);
+  const timerRef = useRef(null);
+
+  // Keep onHide reference fresh
+  useEffect(() => {
+    onHideRef.current = onHide;
+  }, [onHide]);
+
+  const hideToast = useCallback(() => {
+    Animated.timing(slideAnim, {
+      toValue: -100,
+      duration: 300,
+      useNativeDriver: true,
+    }).start(() => {
+      // Use ref to avoid stale closure
+      onHideRef.current?.();
+    });
+  }, [slideAnim]);
 
   useEffect(() => {
     if (visible) {
@@ -24,23 +42,18 @@ const Toast = ({
       }).start();
 
       // Auto hide after duration
-      const timer = setTimeout(() => {
+      timerRef.current = setTimeout(() => {
         hideToast();
       }, duration);
 
-      return () => clearTimeout(timer);
+      return () => {
+        if (timerRef.current) {
+          clearTimeout(timerRef.current);
+          timerRef.current = null;
+        }
+      };
     }
   }, [visible, duration, slideAnim, hideToast]);
-
-  const hideToast = React.useCallback(() => {
-    Animated.timing(slideAnim, {
-      toValue: -100,
-      duration: 300,
-      useNativeDriver: true,
-    }).start(() => {
-      onHide();
-    });
-  }, [slideAnim, onHide]);
 
   const getToastStyle = () => {
     switch (type) {

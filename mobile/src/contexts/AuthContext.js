@@ -11,13 +11,21 @@ import { uploadImageToFirebase } from '../utils/imageUpload';
 const transformApiProfileToFirebaseFormat = apiProfile => {
   if (!apiProfile) return null;
 
-  // Transform photos from API format to Firebase format
-  const photos = apiProfile.photos ? apiProfile.photos.map(photo => photo.url) : [];
+  // Transform photos - keep photo objects with IDs for management operations
+  // but ensure they have the expected structure
+  const photos = apiProfile.photos
+    ? apiProfile.photos.map(photo => ({
+        id: photo.id,
+        url: photo.url,
+        isMain: photo.isMain || false,
+        order: photo.order || 0,
+      }))
+    : [];
 
   // Transform other fields as needed
   return {
     ...apiProfile,
-    photos, // Array of URL strings instead of objects
+    photos, // Array of photo objects with IDs
     // Add any other field transformations here
   };
 };

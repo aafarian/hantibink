@@ -13,6 +13,7 @@ import LocationPromptModal from '../components/LocationPromptModal';
 
 // Import screens
 import ProfileScreen from '../screens/ProfileScreen';
+import ProfileEditScreen from '../screens/ProfileEditScreen';
 import PeopleScreen from '../screens/PeopleScreen';
 import FilterScreen from '../screens/FilterScreen';
 import LikedYouScreen from '../screens/LikedYouScreen';
@@ -112,6 +113,34 @@ const PeopleStack = () => {
   );
 };
 
+const ProfileStack = () => {
+  return (
+    <Stack.Navigator>
+      <Stack.Screen
+        name="ProfileMain"
+        component={ProfileScreen}
+        options={{
+          title: 'My Profile',
+          headerStyle: {
+            backgroundColor: '#FF6B6B',
+          },
+          headerTintColor: '#fff',
+          headerTitleStyle: {
+            fontWeight: 'bold',
+          },
+        }}
+      />
+      <Stack.Screen
+        name="ProfileEdit"
+        component={ProfileEditScreen}
+        options={{
+          headerShown: false, // ProfileEditScreen has its own header
+        }}
+      />
+    </Stack.Navigator>
+  );
+};
+
 const MainNavigator = () => {
   const insets = useSafeAreaInsets();
   const { loading } = useAuth();
@@ -149,7 +178,11 @@ const MainNavigator = () => {
         },
       })}
     >
-      <Tab.Screen name="Profile" component={ProfileScreen} options={{ title: 'My Profile' }} />
+      <Tab.Screen
+        name="Profile"
+        component={ProfileStack}
+        options={{ headerShown: false, title: 'My Profile' }}
+      />
       <Tab.Screen name="People" component={PeopleStack} options={{ headerShown: false }} />
       <Tab.Screen name="Liked You" component={LikedYouScreen} options={{ title: 'Liked You' }} />
       <Tab.Screen name="Messages" component={MessagesScreen} options={{ title: 'Messages' }} />

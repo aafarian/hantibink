@@ -99,28 +99,6 @@ class ApiDataService {
     }
   }
 
-  /**
-   * Login with Firebase token via API
-   */
-  static async loginWithFirebase(idToken) {
-    try {
-      Logger.info('🔥 Logging in with Firebase token via API...');
-
-      const response = await apiClient.loginWithFirebase(idToken);
-
-      if (response.success) {
-        Logger.success('✅ Firebase login successful via API');
-        return response.data.data;
-      } else {
-        Logger.error('❌ Failed to login with Firebase via API:', response.message);
-        throw new Error(response.message || 'Firebase login failed');
-      }
-    } catch (error) {
-      Logger.error('❌ Error logging in with Firebase via API:', error);
-      throw error;
-    }
-  }
-
   // ============ PREFERENCES METHODS ============
 
   /**
@@ -223,6 +201,96 @@ class ApiDataService {
       Logger.success('✅ Logged out from API');
     } catch (error) {
       Logger.error('❌ Error logging out from API:', error);
+    }
+  }
+
+  // ============ PHOTO MANAGEMENT METHODS ============
+
+  /**
+   * Add photo to user profile
+   */
+  static async addUserPhoto(photoUrl, isMain = false) {
+    try {
+      Logger.info('📸 Adding photo to user profile via API...');
+
+      const response = await apiClient.addPhoto(photoUrl, isMain);
+
+      if (response.success) {
+        Logger.success('✅ Photo added via API');
+        return response.data.data;
+      } else {
+        Logger.error('❌ Failed to add photo via API:', response.message);
+        throw new Error(response.message || 'Photo upload failed');
+      }
+    } catch (error) {
+      Logger.error('❌ Error adding photo via API:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Delete photo from user profile
+   */
+  static async deleteUserPhoto(photoId) {
+    try {
+      Logger.info('🗑️ Deleting photo from user profile via API...');
+
+      const response = await apiClient.deletePhoto(photoId);
+
+      if (response.success) {
+        Logger.success('✅ Photo deleted via API');
+        return response.data.data;
+      } else {
+        Logger.error('❌ Failed to delete photo via API:', response.message);
+        throw new Error(response.message || 'Photo deletion failed');
+      }
+    } catch (error) {
+      Logger.error('❌ Error deleting photo via API:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Reorder user photos
+   */
+  static async reorderUserPhotos(photoIds) {
+    try {
+      Logger.info('🔄 Reordering user photos via API...');
+
+      const response = await apiClient.reorderPhotos(photoIds);
+
+      if (response.success) {
+        Logger.success('✅ Photos reordered via API');
+        return response.data.data;
+      } else {
+        Logger.error('❌ Failed to reorder photos via API:', response.message);
+        throw new Error(response.message || 'Photo reordering failed');
+      }
+    } catch (error) {
+      Logger.error('❌ Error reordering photos via API:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Set main photo
+   */
+  static async setMainPhoto(photoId) {
+    try {
+      Logger.info('⭐ Setting main photo via API...');
+
+      const response = await apiClient.setMainPhoto(photoId);
+
+      if (response.success) {
+        Logger.success('✅ Main photo set via API');
+        return response.data.data;
+      } else {
+        Logger.error('❌ Failed to set main photo via API:', response.message);
+        throw new Error(response.message || 'Set main photo failed');
+      }
+    } catch (error) {
+      Logger.error('❌ Error setting main photo via API:', error);
+      throw error;
     }
   }
 

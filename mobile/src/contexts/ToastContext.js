@@ -42,8 +42,11 @@ export const ToastProvider = ({ children }) => {
     // Auto-remove if no duration specified
     if (!options.persistent) {
       const timeoutId = setTimeout(() => {
-        hideToast(id);
-        timeoutsRef.current.delete(id); // Clean up timeout reference
+        // Use setTimeout to defer the state update
+        setTimeout(() => {
+          hideToast(id);
+          timeoutsRef.current.delete(id); // Clean up timeout reference
+        }, 0);
       }, options.duration || 4000);
 
       timeoutsRef.current.set(id, timeoutId); // Store timeout for cleanup
