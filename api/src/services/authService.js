@@ -71,7 +71,7 @@ const registerUser = async (userData) => {
     } = userData;
     
     // Debug: Log the incoming registration data
-    console.log('✅ Required registration data:', {
+    logger.debug('✅ Required registration data:', {
       name: !!name,
       email: !!email,
       password: !!password,
@@ -81,7 +81,7 @@ const registerUser = async (userData) => {
       locationText: !!locationText,
       location: !!location,
     });
-    console.log('🔹 Optional profile data (Step 3):', {
+    logger.debug('🔹 Optional profile data (Step 3):', {
       bio: bio || null,
       education: education || null,
       profession: profession || null,
@@ -111,7 +111,7 @@ const registerUser = async (userData) => {
 
     // Convert gender and interestedIn to enum values
     const genderEnum = gender.toUpperCase();
-    const interestedInEnum = interestedIn.map(g => g.toUpperCase());
+    const interestedInEnum = Array.isArray(interestedIn) ? interestedIn.map(g => g.toUpperCase()) : [];
 
     // Using PostgreSQL + JWT authentication (no Firebase Auth)
     const firebaseUid = null;

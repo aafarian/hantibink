@@ -37,7 +37,7 @@ router.get('/profile', authenticateJWT, async (req, res) => {
     const profile = await getUserProfile(req.user.id);
     
     // Debug: Log all profile fields being returned
-    console.log('📊 Profile API returning all fields:', {
+    logger.debug('📊 Profile API returning all fields:', {
       location: profile.location,
       bio: profile.bio,
       education: profile.education,
