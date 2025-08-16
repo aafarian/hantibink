@@ -19,7 +19,7 @@ class ApiDataService {
 
       if (response.success) {
         Logger.success('✅ User profile loaded from API');
-        return response.data;
+        return response.data.data;
       } else {
         Logger.error('❌ Failed to get user profile from API:', response.message);
         return null;
@@ -66,7 +66,7 @@ class ApiDataService {
 
       if (response.success) {
         Logger.success('✅ User registered via API');
-        return response.data;
+        return response.data.data;
       } else {
         Logger.error('❌ Failed to register user via API:', response.message);
         throw new Error(response.message || 'Registration failed');
@@ -88,7 +88,7 @@ class ApiDataService {
 
       if (response.success) {
         Logger.success('✅ User logged in via API');
-        return response.data;
+        return response.data.data;
       } else {
         Logger.error('❌ Failed to login user via API:', response.message);
         throw new Error(response.message || 'Login failed');
