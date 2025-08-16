@@ -1,16 +1,26 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
-import {
-  createUserWithEmailAndPassword,
-  signInWithEmailAndPassword,
-  signOut,
-  onAuthStateChanged,
-  updateProfile,
-  sendPasswordResetEmail,
-  // fetchSignInMethodsForEmail, // Currently unused but keeping for potential future use
-} from 'firebase/auth';
-import { doc, setDoc, getDoc, updateDoc } from 'firebase/firestore';
-import { auth, db } from '../config/firebase';
+import ApiDataService from '../services/ApiDataService';
+import apiClient from '../services/ApiClient';
 import Logger from '../utils/logger';
+import { uploadImageToFirebase } from '../utils/imageUpload';
+
+/**
+ * Transform API profile format to Firebase format
+ * Ensures compatibility with existing UI components
+ */
+const transformApiProfileToFirebaseFormat = apiProfile => {
+  if (!apiProfile) return null;
+
+  // Transform photos from API format to Firebase format
+  const photos = apiProfile.photos ? apiProfile.photos.map(photo => photo.url) : [];
+
+  // Transform other fields as needed
+  return {
+    ...apiProfile,
+    photos, // Array of URL strings instead of objects
+    // Add any other field transformations here
+  };
+};
 
 const AuthContext = createContext();
 
@@ -27,287 +37,395 @@ export const AuthProvider = ({ children }) => {
   const [loading, setLoading] = useState(true);
   const [userProfile, setUserProfile] = useState(null);
 
-  // Listen for authentication state changes
+  // Initialize API client and check for existing session
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, async authUser => {
-      setUser(authUser);
+    const initializeAuth = async () => {
+      try {
+        Logger.info('🚀 Initializing Hybrid Auth (API-based)...');
 
-      if (authUser) {
-        // Fetch user profile from Firestore
-        try {
-          const userDoc = await getDoc(doc(db, 'users', authUser.uid));
-          if (userDoc.exists()) {
-            setUserProfile(userDoc.data());
-            Logger.auth('User profile loaded from Firestore');
+        // Initialize API client
+        await ApiDataService.initialize();
+
+        // Check if user is already authenticated
+        if (apiClient.isAuthenticated()) {
+          Logger.info('🔑 Found existing API session, loading user profile...');
+
+          // Load user profile from API
+          const profile = await ApiDataService.getUserProfile();
+          if (profile) {
+            // Transform profile data to match Firebase format
+            const transformedProfile = transformApiProfileToFirebaseFormat(profile);
+
+            // Create user object compatible with existing interface
+            setUser({
+              uid: profile.id,
+              email: profile.email,
+              displayName: profile.name,
+            });
+            setUserProfile(transformedProfile);
+            Logger.auth('✅ User session restored from API');
           } else {
-            Logger.warn('No user profile found in Firestore');
+            Logger.warn('⚠️ API session exists but no profile found');
+            await apiClient.clearTokens();
           }
-        } catch (error) {
-          Logger.error('Error fetching user profile:', error);
+        } else {
+          Logger.info('ℹ️ No existing API session found');
         }
-      } else {
-        setUserProfile(null);
-        Logger.auth('User signed out');
+      } catch (error) {
+        Logger.error('❌ Error initializing hybrid auth:', error);
+        await apiClient.clearTokens();
+      } finally {
+        setLoading(false);
       }
+    };
 
-      setLoading(false);
-    });
-
-    return unsubscribe;
+    initializeAuth();
   }, []);
 
-  // Function to refresh user profile (for location updates)
+  // ============ PROFILE METHODS ============
+
+  /**
+   * Refresh user profile from API
+   * Maintains compatibility with existing interface
+   */
   const refreshUserProfile = async () => {
     Logger.info('🔄 refreshUserProfile called, user uid:', user?.uid);
 
-    if (user?.uid) {
+    if (user?.uid && apiClient.isAuthenticated()) {
       try {
-        const userDoc = await getDoc(doc(db, 'users', user.uid));
-        if (userDoc.exists()) {
-          const profileData = userDoc.data();
-          Logger.info('🔄 Profile data from Firestore:', {
-            photosCount: profileData.photos?.length || 0,
-            hasPhotos: !!profileData.photos?.length,
+        const profile = await ApiDataService.getUserProfile();
+        if (profile) {
+          const transformedProfile = transformApiProfileToFirebaseFormat(profile);
+          Logger.info('🔄 Profile data from API:', {
+            photosCount: transformedProfile.photos?.length || 0,
+            hasPhotos: !!transformedProfile.photos?.length,
           });
-          setUserProfile(profileData);
-          Logger.auth('User profile refreshed');
-          return profileData;
+          setUserProfile(transformedProfile);
+          Logger.auth('✅ User profile refreshed from API');
+          return transformedProfile;
         } else {
-          Logger.warn('User document does not exist in Firestore');
+          Logger.warn('⚠️ User profile not found in API');
         }
       } catch (error) {
-        Logger.error('Error refreshing user profile:', error);
+        Logger.error('❌ Error refreshing user profile from API:', error);
       }
     } else {
-      Logger.warn('refreshUserProfile called but no user.uid available');
+      Logger.warn('⚠️ refreshUserProfile called but user not authenticated with API');
     }
     return null;
   };
 
-  // Function to refresh user profile with specific userId (for registration flow)
+  /**
+   * Refresh user profile by ID (for backward compatibility)
+   */
   const refreshUserProfileWithId = async userId => {
     Logger.info('🔄 refreshUserProfileWithId called for userId:', userId);
 
+    if (apiClient.isAuthenticated()) {
+      try {
+        const profile = await ApiDataService.getUserProfile();
+        if (profile) {
+          const transformedProfile = transformApiProfileToFirebaseFormat(profile);
+          Logger.info('🔄 Profile data from API (by ID):', {
+            photosCount: transformedProfile.photos?.length || 0,
+            hasPhotos: !!transformedProfile.photos?.length,
+          });
+          setUserProfile(transformedProfile);
+          Logger.auth('✅ User profile refreshed with ID from API');
+          return { success: true, photosCount: transformedProfile.photos?.length || 0 };
+        } else {
+          Logger.warn('⚠️ User profile not found in API');
+          return { success: false };
+        }
+      } catch (error) {
+        Logger.error('❌ Error refreshing user profile by ID from API:', error);
+        return { success: false };
+      }
+    } else {
+      Logger.warn('⚠️ refreshUserProfileWithId called but user not authenticated with API');
+      return { success: false };
+    }
+  };
+
+  /**
+   * Update user profile via API
+   */
+  const updateUserProfile = async profileData => {
     try {
-      const userDoc = await getDoc(doc(db, 'users', userId));
-      if (userDoc.exists()) {
-        const profileData = userDoc.data();
-        Logger.info('🔄 Profile data from Firestore (by ID):', {
-          photosCount: profileData.photos?.length || 0,
-          hasPhotos: !!profileData.photos?.length,
-        });
-        setUserProfile(profileData);
-        Logger.auth('User profile refreshed with ID');
-        return profileData;
+      Logger.info('📝 Updating user profile via API...');
+
+      if (apiClient.isAuthenticated()) {
+        const success = await ApiDataService.updateUserProfile(user?.uid, profileData);
+
+        if (success) {
+          // Refresh profile to get updated data
+          await refreshUserProfile();
+          Logger.success('✅ User profile updated via API');
+          return { success: true };
+        } else {
+          Logger.error('❌ Failed to update user profile via API');
+          return { success: false, error: 'Update failed' };
+        }
       } else {
-        Logger.warn('User document does not exist in Firestore for ID:', userId);
+        Logger.warn('⚠️ User not authenticated with API');
+        return { success: false, error: 'Not authenticated' };
       }
     } catch (error) {
-      Logger.error('Error refreshing user profile with ID:', error);
-    }
-    return null;
-  };
-
-  // Mark onboarding as complete
-  const completeOnboarding = async () => {
-    if (user?.uid) {
-      const updatedProfile = {
-        ...userProfile,
-        hasCompletedOnboarding: true,
-        onboardingStep: 4, // Completed all steps
-      };
-      await updateDoc(doc(db, 'users', user.uid), {
-        hasCompletedOnboarding: true,
-        onboardingStep: 4,
-      });
-      setUserProfile(updatedProfile);
-      Logger.auth('Onboarding completed');
+      Logger.error('❌ Error updating user profile:', error);
+      return { success: false, error: error.message };
     }
   };
 
-  // Check if email already exists (simplified - no temp user creation)
-  const checkEmailExists = async email => {
-    try {
-      Logger.info('🔍 Checking if email exists:', email);
+  // ============ AUTHENTICATION METHODS ============
 
-      // For now, we'll skip the email check and handle duplicates during registration
-      // This prevents creating temporary users that trigger auth state changes
-      Logger.info('📧 Email check skipped - will handle duplicates during registration');
-      return false;
-    } catch (error) {
-      Logger.error('Error checking email:', error);
-      return false;
-    }
-  };
-
-  // Register new user
+  /**
+   * Register new user via API
+   * Maintains compatibility with existing interface
+   */
   const register = async userData => {
     try {
-      Logger.auth('Registering user:', userData.email);
+      setLoading(true);
+      Logger.info('📝 Registering user via API...');
 
-      const userCredential = await createUserWithEmailAndPassword(
-        auth,
-        userData.email,
-        userData.password
-      );
-      const registeredUser = userCredential.user;
-
-      // Update display name
-      await updateProfile(registeredUser, {
-        displayName: userData.name,
-      });
-
-      // Create user profile in Firestore with enhanced structure
-      const newUserProfile = {
-        id: registeredUser.uid,
-        email: registeredUser.email,
-        name: userData.name,
-        age: userData.age,
-        birthDate: userData.birthDate,
-        gender: userData.gender,
-        bio: userData.bio,
-        photos: userData.photos,
-        mainPhoto: userData.mainPhoto,
-        location: userData.location,
-        armenianLanguage: userData.armenianLanguage,
-        profession: userData.profession,
-        education: userData.education,
-        religion: userData.religion,
-        height: userData.height,
-        smoking: userData.smoking,
-        drinking: userData.drinking,
-        pets: userData.pets,
-        travel: userData.travel,
-        interests: userData.interests,
-        hobbies: userData.hobbies,
-        preferences: userData.preferences,
-        settings: userData.settings,
-        isActive: userData.isActive,
-        isPremium: userData.isPremium,
-        profileViews: userData.profileViews,
-        totalLikes: userData.totalLikes,
-        totalMatches: userData.totalMatches,
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
-        lastActive: new Date().toISOString(),
-      };
-
-      // Remove undefined values before saving to Firestore (including nested objects)
-      const cleanObject = obj => {
-        if (obj === null || typeof obj !== 'object') {
-          return obj;
-        }
-
-        if (Array.isArray(obj)) {
-          return obj.filter(item => item !== undefined).map(cleanObject);
-        }
-
-        return Object.fromEntries(
-          Object.entries(obj)
-            .filter(([_key, value]) => value !== undefined)
-            .map(([key, value]) => [key, cleanObject(value)])
-        );
-      };
-
-      // Process images after user is created (upload local images to Firebase Storage)
+      // Upload photos first if provided
+      const uploadedPhotoUrls = [];
       if (userData.photos && userData.photos.length > 0) {
         try {
-          const { processImageUris } = await import('../utils/imageUpload');
-          Logger.info('Processing images after user creation...');
-          const uploadedPhotos = await processImageUris(userData.photos, registeredUser.uid);
-          newUserProfile.photos = uploadedPhotos;
-          newUserProfile.mainPhoto = uploadedPhotos[0] || null;
-          Logger.success('Images uploaded successfully');
-        } catch (imageError) {
-          Logger.error('Error uploading images:', imageError);
-          // Continue with registration even if image upload fails
-          newUserProfile.photos = [];
-          newUserProfile.mainPhoto = null;
+          Logger.info('📸 Uploading photos before account creation...');
+
+          // Generate a temporary userId for photo upload path
+          const tempUserId = `temp_${Date.now()}_${Math.random().toString(36).substring(2, 11)}`;
+
+          for (let i = 0; i < userData.photos.length; i++) {
+            const photo = userData.photos[i];
+            Logger.info(`📸 Uploading photo ${i + 1} of ${userData.photos.length}...`);
+
+            const downloadURL = await uploadImageToFirebase(
+              photo.uri,
+              tempUserId,
+              'profile-photos'
+            );
+            uploadedPhotoUrls.push(downloadURL);
+            Logger.success(`✅ Uploaded photo ${i + 1}: ${downloadURL}`);
+          }
+
+          Logger.success(`✅ All ${uploadedPhotoUrls.length} photos uploaded successfully`);
+        } catch (photoError) {
+          Logger.error('❌ Failed to upload photos before registration:', photoError);
+          throw new Error('Photo upload failed. Please try again.');
         }
       }
 
-      // Add onboarding tracking to profile
-      newUserProfile.hasCompletedOnboarding = false;
-      newUserProfile.onboardingStep = 1; // Start at basic info step
-
-      const cleanUserProfile = cleanObject(newUserProfile);
-
-      Logger.firebase('Saving user profile to Firestore');
-      await setDoc(doc(db, 'users', registeredUser.uid), cleanUserProfile);
-      Logger.firebase('User profile saved successfully');
-
-      // Note: Don't set user state manually here to avoid race conditions
-      // The onAuthStateChanged listener will automatically pick up the new user
-      // and load the profile from Firestore
-
-      return { success: true, user: registeredUser, profile: cleanUserProfile };
-    } catch (error) {
-      Logger.error('Registration error:', error);
-      Logger.error('Error code:', error.code);
-      Logger.error('Error message:', error.message);
-      return { success: false, error: error.message, errorCode: error.code };
-    }
-  };
-
-  // Login user
-  const login = async (email, password) => {
-    try {
-      Logger.auth('Attempting login for:', email);
-      const userCredential = await signInWithEmailAndPassword(auth, email, password);
-      Logger.auth('Login successful for:', email);
-      return { success: true, user: userCredential.user };
-    } catch (error) {
-      Logger.error('Login error:', error);
-      Logger.error('Login error code:', error.code);
-      Logger.error('Login error message:', error.message);
-      return { success: false, error: error.message, errorCode: error.code };
-    }
-  };
-
-  // Logout user
-  const logout = async () => {
-    try {
-      await signOut(auth);
-      return { success: true };
-    } catch (error) {
-      Logger.error('Logout error:', error);
-      return { success: false, error: error.message };
-    }
-  };
-
-  // Reset password
-  const resetPassword = async email => {
-    try {
-      await sendPasswordResetEmail(auth, email);
-      return { success: true };
-    } catch (error) {
-      Logger.error('Password reset error:', error);
-      return { success: false, error: error.message };
-    }
-  };
-
-  // Update user profile
-  const updateUserProfile = async updates => {
-    if (!user) {
-      return { success: false, error: 'No user logged in' };
-    }
-
-    try {
-      const updatedProfile = {
-        ...userProfile,
-        ...updates,
-        updatedAt: new Date().toISOString(),
+      // Transform data to match API format
+      const apiUserData = {
+        name: userData.name,
+        email: userData.email,
+        password: userData.password,
+        birthDate: userData.birthDate,
+        // Convert gender: 'man' -> 'male', 'woman' -> 'female', 'non-binary' -> 'non-binary'
+        gender:
+          userData.gender === 'man'
+            ? 'male'
+            : userData.gender === 'woman'
+              ? 'female'
+              : userData.gender === 'non-binary'
+                ? 'non-binary'
+                : userData.gender === 'other'
+                  ? 'non-binary' // map 'other' to 'non-binary'
+                  : 'male', // default fallback
+        // Convert interestedIn: 'men' -> ['male'], 'women' -> ['female'], 'everyone' -> ['male', 'female']
+        interestedIn:
+          userData.interestedIn === 'men'
+            ? ['male']
+            : userData.interestedIn === 'women'
+              ? ['female']
+              : userData.interestedIn === 'everyone'
+                ? ['male', 'female']
+                : ['female'], // default fallback
+        // Use uploaded photo URLs
+        photos: uploadedPhotoUrls,
+        // Extract coordinates from userData.coordinates (coordinates object)
+        location: {
+          latitude: userData.coordinates?.latitude,
+          longitude: userData.coordinates?.longitude,
+        },
+        // Include location text for display (userData.location is the text string)
+        locationText: userData.location,
+        // Include all profile detail fields
+        bio: userData.bio || null,
+        education: userData.education || null,
+        profession: userData.profession || null,
+        height: userData.height || null,
+        relationshipType: Array.isArray(userData.relationshipType)
+          ? userData.relationshipType
+          : userData.relationshipType
+            ? [userData.relationshipType]
+            : [],
+        religion: userData.religion || null,
+        smoking: userData.smoking || null,
+        drinking: userData.drinking || null,
+        travel: userData.travel || null,
+        pets: userData.pets || null,
+        interests: Array.isArray(userData.interests) ? userData.interests : [],
       };
 
-      await setDoc(doc(db, 'users', user.uid), updatedProfile, { merge: true });
-      setUserProfile(updatedProfile);
+      const result = await ApiDataService.registerUser(apiUserData);
 
-      return { success: true, profile: updatedProfile };
+      if (result) {
+        const userId = result.user.id;
+        Logger.success('✅ User registered successfully via API:', userId);
+
+        // Set user data compatible with existing interface
+        setUser({
+          uid: result.user.id,
+          email: result.user.email,
+          displayName: result.user.name,
+        });
+
+        // Load fresh profile from API to get photos
+        try {
+          Logger.info('🔄 Loading fresh profile after registration to get photos...');
+          const freshProfile = await ApiDataService.getUserProfile();
+          if (freshProfile) {
+            const transformedProfile = transformApiProfileToFirebaseFormat(freshProfile);
+            setUserProfile(transformedProfile);
+            Logger.success('✅ Fresh profile loaded with photos:', {
+              photosCount: transformedProfile.photos?.length || 0,
+            });
+          } else {
+            // Fallback to registration data
+            const transformedProfile = transformApiProfileToFirebaseFormat(result.user);
+            setUserProfile(transformedProfile);
+            Logger.warn('⚠️ Could not load fresh profile, using registration data');
+          }
+        } catch (error) {
+          Logger.error('❌ Failed to load fresh profile:', error);
+          // Fallback to registration data
+          const transformedProfile = transformApiProfileToFirebaseFormat(result.user);
+          setUserProfile(transformedProfile);
+        }
+
+        Logger.success('✅ User registered via API');
+        return { success: true, user: { uid: result.user.id, ...result.user } };
+      }
     } catch (error) {
-      Logger.error('Profile update error:', error);
+      Logger.error('❌ API registration failed:', error);
+      return { success: false, error: error.message };
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  /**
+   * Login user via API
+   * Maintains compatibility with existing interface
+   */
+  const login = async (email, password) => {
+    try {
+      setLoading(true);
+      Logger.info('🔐 Logging in via API...');
+
+      const result = await ApiDataService.loginUser(email, password);
+
+      if (result) {
+        // Set user data compatible with existing interface
+        const transformedProfile = transformApiProfileToFirebaseFormat(result.user);
+        setUser({
+          uid: result.user.id,
+          email: result.user.email,
+          displayName: result.user.name,
+        });
+        setUserProfile(transformedProfile);
+
+        Logger.success('✅ User logged in via API');
+        return { success: true };
+      }
+    } catch (error) {
+      Logger.error('❌ API login failed:', error);
+
+      // Return error in format expected by existing screens
+      if (error.message.includes('Invalid email or password')) {
+        return { success: false, errorCode: 'auth/wrong-password', error: error.message };
+      } else if (error.message.includes('email')) {
+        return { success: false, errorCode: 'auth/invalid-email', error: error.message };
+      } else {
+        return { success: false, error: error.message };
+      }
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  /**
+   * Logout user
+   */
+  const logout = async () => {
+    try {
+      Logger.info('👋 Logging out from API...');
+
+      // Logout from API
+      await ApiDataService.logout();
+
+      // Clear state
+      setUser(null);
+      setUserProfile(null);
+
+      Logger.success('✅ User logged out successfully');
+      return { success: true };
+    } catch (error) {
+      Logger.error('❌ Logout error:', error);
       return { success: false, error: error.message };
     }
   };
+
+  /**
+   * Reset password (placeholder - needs API endpoint)
+   */
+  const resetPassword = async email => {
+    try {
+      Logger.info('📧 Password reset requested for:', email);
+      // TODO: Implement password reset API endpoint
+      Logger.warn('⚠️ Password reset not yet implemented in API');
+      return { success: false, error: 'Password reset not yet available' };
+    } catch (error) {
+      Logger.error('❌ Password reset error:', error);
+      return { success: false, error: error.message };
+    }
+  };
+
+  /**
+   * Complete onboarding (placeholder)
+   */
+  const completeOnboarding = async () => {
+    try {
+      Logger.info('✅ Completing onboarding...');
+      // TODO: Update onboarding status via API
+      Logger.warn('⚠️ Onboarding completion not yet implemented in API');
+      return { success: true };
+    } catch (error) {
+      Logger.error('❌ Complete onboarding error:', error);
+      return { success: false, error: error.message };
+    }
+  };
+
+  /**
+   * Check if email exists (placeholder)
+   */
+  const checkEmailExists = async email => {
+    try {
+      Logger.info('📧 Checking if email exists:', email);
+      // TODO: Implement email check API endpoint
+      Logger.warn(
+        '⚠️ Email check not yet implemented in API - will handle duplicates during registration'
+      );
+      return false; // Assume email doesn't exist for now
+    } catch (error) {
+      Logger.error('❌ Email check error:', error);
+      return false;
+    }
+  };
+
+  // ============ CONTEXT VALUE ============
 
   const value = {
     user,
