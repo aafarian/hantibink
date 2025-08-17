@@ -25,11 +25,9 @@ const ProfileForm = forwardRef(
       onDataChange,
       showPhotosSection = false,
       photosComponent = null,
-      mode = 'edit', // 'registration' | 'edit'
       excludeFields = [], // Fields to exclude from rendering
       style,
       children, // Additional custom content
-      onScrollControlChange, // Callback to control scroll enable/disable
     },
     ref
   ) => {
