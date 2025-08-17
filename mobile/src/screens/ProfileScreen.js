@@ -116,219 +116,242 @@ const ProfileScreen = ({ navigation }) => {
   }
 
   return (
-    <ScrollView style={styles.container}>
-      {/* Main Profile Photo */}
-      <View style={styles.mainPhotoSection}>
-        {userProfile.photos && userProfile.photos.length > 0 ? (
-          <TouchableOpacity
-            style={styles.mainPhotoContainer}
-            onPress={() => navigation.navigate('ProfileEdit')}
-            activeOpacity={0.8}
-          >
-            {/* Blurred Background */}
-            <Image
-              source={{ uri: userProfile.photos[0].url || userProfile.photos[0] }}
-              style={styles.blurredBackground}
-              blurRadius={20}
-            />
-            {/* Dark Overlay for better contrast */}
-            <View style={styles.backgroundOverlay} />
+    <View style={styles.container}>
+      <ScrollView style={styles.scrollView}>
+        {/* Main Profile Photo */}
+        <View style={styles.mainPhotoSection}>
+          {userProfile.photos && userProfile.photos.length > 0 ? (
+            <TouchableOpacity
+              style={styles.mainPhotoContainer}
+              onPress={() => navigation.navigate('ProfileEdit')}
+              activeOpacity={0.8}
+            >
+              {/* Blurred Background */}
+              <Image
+                source={{ uri: userProfile.photos[0].url || userProfile.photos[0] }}
+                style={styles.blurredBackground}
+                blurRadius={20}
+              />
+              {/* Dark Overlay for better contrast */}
+              <View style={styles.backgroundOverlay} />
 
-            {/* Main Photo */}
-            <Image
-              source={{ uri: userProfile.photos[0].url || userProfile.photos[0] }}
-              style={styles.mainPhoto}
-            />
-            <View style={styles.editPill}>
-              <Text style={styles.editPillText}>Edit Photos</Text>
-            </View>
-          </TouchableOpacity>
-        ) : (
-          <TouchableOpacity
-            style={styles.emptyPhotoContainer}
-            onPress={() => navigation.navigate('ProfileEdit')}
-            activeOpacity={0.8}
-          >
-            <Ionicons name="camera-outline" size={60} color="#ccc" />
-            <Text style={styles.emptyPhotoText}>Add Photos</Text>
-            <View style={styles.editPill}>
-              <Text style={styles.editPillText}>Edit Profile</Text>
-            </View>
-          </TouchableOpacity>
-        )}
-      </View>
-
-      {/* Profile Info */}
-      <View style={styles.infoSection}>
-        <Text style={styles.sectionTitle}>Basic Info</Text>
-
-        <View style={styles.infoRow}>
-          <Ionicons name="person" size={20} color="#FF6B6B" />
-          <Text style={styles.infoText}>
-            {userProfile.name}
-            {userProfile.age ? `, ${userProfile.age}` : ''}
-          </Text>
+              {/* Main Photo */}
+              <Image
+                source={{ uri: userProfile.photos[0].url || userProfile.photos[0] }}
+                style={styles.mainPhoto}
+              />
+              <View style={styles.editPill}>
+                <Text style={styles.editPillText}>Edit Photos</Text>
+              </View>
+            </TouchableOpacity>
+          ) : (
+            <TouchableOpacity
+              style={styles.emptyPhotoContainer}
+              onPress={() => navigation.navigate('ProfileEdit')}
+              activeOpacity={0.8}
+            >
+              <Ionicons name="camera-outline" size={60} color="#ccc" />
+              <Text style={styles.emptyPhotoText}>Add Photos</Text>
+              <View style={styles.editPill}>
+                <Text style={styles.editPillText}>Edit Profile</Text>
+              </View>
+            </TouchableOpacity>
+          )}
         </View>
 
-        <View style={styles.infoRow}>
-          <Ionicons name="location" size={20} color="#FF6B6B" />
-          <Text style={styles.infoText}>{userProfile.location || 'Location not set'}</Text>
-        </View>
+        {/* Profile Completion Guidance */}
+        {(!userProfile.photos || userProfile.photos.length === 0 || !userProfile.bio) && (
+          <View style={styles.guidanceContainer}>
+            <Ionicons name="sparkles" size={24} color="#FF6B6B" />
+            <View style={styles.guidanceTextContainer}>
+              <Text style={styles.guidanceTitle}>Complete your profile!</Text>
+              <Text style={styles.guidanceSubtitle}>
+                {!userProfile.photos || userProfile.photos.length === 0
+                  ? 'Add photos and details to start matching with others'
+                  : 'Add bio and details to attract better matches'}
+              </Text>
+            </View>
+            <TouchableOpacity
+              style={styles.guidanceButton}
+              onPress={() => navigation.navigate('ProfileEdit')}
+            >
+              <Text style={styles.guidanceButtonText}>Edit Profile</Text>
+            </TouchableOpacity>
+          </View>
+        )}
 
-        {userProfile.profession && (
+        {/* Profile Info */}
+        <View style={styles.infoSection}>
+          <Text style={styles.sectionTitle}>Basic Info</Text>
+
           <View style={styles.infoRow}>
-            <Ionicons name="briefcase" size={20} color="#FF6B6B" />
-            <Text style={styles.infoText}>{userProfile.profession}</Text>
-          </View>
-        )}
-
-        {userProfile.education && (
-          <View style={styles.infoRow}>
-            <Ionicons name="school" size={20} color="#FF6B6B" />
-            <Text style={styles.infoText}>{userProfile.education}</Text>
-          </View>
-        )}
-
-        {userProfile.height && (
-          <View style={styles.infoRow}>
-            <Ionicons name="resize" size={20} color="#FF6B6B" />
-            <Text style={styles.infoText}>{userProfile.height}</Text>
-          </View>
-        )}
-
-        {userProfile.bio && (
-          <View style={styles.bioSection}>
-            <Text style={styles.bioTitle}>About Me</Text>
-            <Text style={styles.bioText}>{userProfile.bio}</Text>
-          </View>
-        )}
-
-        {userProfile.relationshipType && (
-          <View style={styles.infoSection}>
-            <Text style={styles.bioTitle}>Looking For</Text>
+            <Ionicons name="person" size={20} color="#FF6B6B" />
             <Text style={styles.infoText}>
-              {(() => {
-                const relationshipType = Array.isArray(userProfile.relationshipType)
-                  ? userProfile.relationshipType[0]
-                  : userProfile.relationshipType;
-
-                if (typeof relationshipType !== 'string') return relationshipType;
-
-                // Handle both camelCase and UPPER_CASE formats
-                return relationshipType
-                  .toLowerCase()
-                  .replace(/_/g, ' ')
-                  .replace(/\b\w/g, l => l.toUpperCase());
-              })()}
+              {userProfile.name}
+              {userProfile.age ? `, ${userProfile.age}` : ''}
             </Text>
           </View>
-        )}
 
-        <View style={styles.interestsSection}>
-          <Text style={styles.interestsTitle}>Interests</Text>
-          <View style={styles.interestsContainer}>
-            {userProfile.interests && userProfile.interests.length > 0 ? (
-              Array.isArray(userProfile.interests) ? (
-                userProfile.interests.map((interest, index) => {
-                  const interestName =
-                    typeof interest === 'object'
-                      ? interest.interest?.name || interest.name
-                      : interest;
-                  return (
-                    <View key={index} style={styles.interestTag}>
-                      <Text style={styles.interestText}>{interestName}</Text>
-                    </View>
-                  );
-                })
+          <View style={styles.infoRow}>
+            <Ionicons name="location" size={20} color="#FF6B6B" />
+            <Text style={styles.infoText}>{userProfile.location || 'Location not set'}</Text>
+          </View>
+
+          {userProfile.profession && (
+            <View style={styles.infoRow}>
+              <Ionicons name="briefcase" size={20} color="#FF6B6B" />
+              <Text style={styles.infoText}>{userProfile.profession}</Text>
+            </View>
+          )}
+
+          {userProfile.education && (
+            <View style={styles.infoRow}>
+              <Ionicons name="school" size={20} color="#FF6B6B" />
+              <Text style={styles.infoText}>{userProfile.education}</Text>
+            </View>
+          )}
+
+          {userProfile.height && (
+            <View style={styles.infoRow}>
+              <Ionicons name="resize" size={20} color="#FF6B6B" />
+              <Text style={styles.infoText}>{userProfile.height}</Text>
+            </View>
+          )}
+
+          {userProfile.bio && (
+            <View style={styles.bioSection}>
+              <Text style={styles.bioTitle}>About Me</Text>
+              <Text style={styles.bioText}>{userProfile.bio}</Text>
+            </View>
+          )}
+
+          {userProfile.relationshipType && (
+            <View style={styles.infoSection}>
+              <Text style={styles.bioTitle}>Looking For</Text>
+              <Text style={styles.infoText}>
+                {(() => {
+                  const relationshipType = Array.isArray(userProfile.relationshipType)
+                    ? userProfile.relationshipType[0]
+                    : userProfile.relationshipType;
+
+                  if (typeof relationshipType !== 'string') return relationshipType;
+
+                  // Handle both camelCase and UPPER_CASE formats
+                  return relationshipType
+                    .toLowerCase()
+                    .replace(/_/g, ' ')
+                    .replace(/\b\w/g, l => l.toUpperCase());
+                })()}
+              </Text>
+            </View>
+          )}
+
+          <View style={styles.interestsSection}>
+            <Text style={styles.interestsTitle}>Interests</Text>
+            <View style={styles.interestsContainer}>
+              {userProfile.interests && userProfile.interests.length > 0 ? (
+                Array.isArray(userProfile.interests) ? (
+                  userProfile.interests.map((interest, index) => {
+                    const interestName =
+                      typeof interest === 'object'
+                        ? interest.interest?.name || interest.name
+                        : interest;
+                    return (
+                      <View key={index} style={styles.interestTag}>
+                        <Text style={styles.interestText}>{interestName}</Text>
+                      </View>
+                    );
+                  })
+                ) : (
+                  <Text style={styles.bioText}>{userProfile.interests}</Text>
+                )
               ) : (
-                <Text style={styles.bioText}>{userProfile.interests}</Text>
-              )
-            ) : (
-              <Text style={styles.emptyText}>No interests added yet</Text>
-            )}
+                <Text style={styles.emptyText}>No interests added yet</Text>
+              )}
+            </View>
           </View>
         </View>
-      </View>
 
-      {/* Lifestyle Section */}
-      {(userProfile.religion ||
-        userProfile.smoking ||
-        userProfile.drinking ||
-        userProfile.travel ||
-        userProfile.pets) && (
-        <View style={styles.infoSection}>
-          <Text style={styles.sectionTitle}>Lifestyle</Text>
+        {/* Lifestyle Section */}
+        {(userProfile.religion ||
+          userProfile.smoking ||
+          userProfile.drinking ||
+          userProfile.travel ||
+          userProfile.pets) && (
+          <View style={styles.infoSection}>
+            <Text style={styles.sectionTitle}>Lifestyle</Text>
 
-          {userProfile.religion && (
-            <View style={styles.infoRow}>
-              <Ionicons name="star" size={20} color="#FF6B6B" />
-              <Text style={styles.infoText}>{userProfile.religion}</Text>
-            </View>
-          )}
+            {userProfile.religion && (
+              <View style={styles.infoRow}>
+                <Ionicons name="star" size={20} color="#FF6B6B" />
+                <Text style={styles.infoText}>{userProfile.religion}</Text>
+              </View>
+            )}
 
-          {userProfile.smoking && (
-            <View style={styles.infoRow}>
-              <Ionicons name="ban" size={20} color="#FF6B6B" />
-              <Text style={styles.infoText}>Smoking: {userProfile.smoking}</Text>
-            </View>
-          )}
+            {userProfile.smoking && (
+              <View style={styles.infoRow}>
+                <Ionicons name="ban" size={20} color="#FF6B6B" />
+                <Text style={styles.infoText}>Smoking: {userProfile.smoking}</Text>
+              </View>
+            )}
 
-          {userProfile.drinking && (
-            <View style={styles.infoRow}>
-              <Ionicons name="wine" size={20} color="#FF6B6B" />
-              <Text style={styles.infoText}>Drinking: {userProfile.drinking}</Text>
-            </View>
-          )}
+            {userProfile.drinking && (
+              <View style={styles.infoRow}>
+                <Ionicons name="wine" size={20} color="#FF6B6B" />
+                <Text style={styles.infoText}>Drinking: {userProfile.drinking}</Text>
+              </View>
+            )}
 
-          {userProfile.travel && (
-            <View style={styles.infoRow}>
-              <Ionicons name="airplane" size={20} color="#FF6B6B" />
-              <Text style={styles.infoText}>{userProfile.travel}</Text>
-            </View>
-          )}
+            {userProfile.travel && (
+              <View style={styles.infoRow}>
+                <Ionicons name="airplane" size={20} color="#FF6B6B" />
+                <Text style={styles.infoText}>{userProfile.travel}</Text>
+              </View>
+            )}
 
-          {userProfile.pets && (
-            <View style={styles.infoRow}>
-              <Ionicons name="paw" size={20} color="#FF6B6B" />
-              <Text style={styles.infoText}>{userProfile.pets}</Text>
-            </View>
-          )}
+            {userProfile.pets && (
+              <View style={styles.infoRow}>
+                <Ionicons name="paw" size={20} color="#FF6B6B" />
+                <Text style={styles.infoText}>{userProfile.pets}</Text>
+              </View>
+            )}
+          </View>
+        )}
+
+        {/* Settings */}
+        <View style={styles.settingsSection}>
+          <Text style={styles.sectionTitle}>Settings</Text>
+
+          <TouchableOpacity
+            style={styles.settingItem}
+            onPress={() => navigation.navigate('ProfileEdit')}
+          >
+            <Ionicons name="settings" size={20} color="#FF6B6B" />
+            <Text style={styles.settingText}>Edit Profile</Text>
+            <Ionicons name="chevron-forward" size={20} color="#ccc" />
+          </TouchableOpacity>
+
+          <TouchableOpacity style={styles.settingItem}>
+            <Ionicons name="filter" size={20} color="#FF6B6B" />
+            <Text style={styles.settingText}>Preferences</Text>
+            <Ionicons name="chevron-forward" size={20} color="#ccc" />
+          </TouchableOpacity>
+
+          <TouchableOpacity style={styles.settingItem}>
+            <Ionicons name="notifications" size={20} color="#FF6B6B" />
+            <Text style={styles.settingText}>Notifications</Text>
+            <Ionicons name="chevron-forward" size={20} color="#ccc" />
+          </TouchableOpacity>
+
+          <TouchableOpacity style={styles.logoutButton} onPress={handleLogout}>
+            <Ionicons name="log-out-outline" size={20} color="#FF6B6B" />
+            <Text style={styles.logoutText}>Logout</Text>
+          </TouchableOpacity>
         </View>
-      )}
 
-      {/* Settings */}
-      <View style={styles.settingsSection}>
-        <Text style={styles.sectionTitle}>Settings</Text>
-
-        <TouchableOpacity
-          style={styles.settingItem}
-          onPress={() => navigation.navigate('ProfileEdit')}
-        >
-          <Ionicons name="settings" size={20} color="#FF6B6B" />
-          <Text style={styles.settingText}>Edit Profile</Text>
-          <Ionicons name="chevron-forward" size={20} color="#ccc" />
-        </TouchableOpacity>
-
-        <TouchableOpacity style={styles.settingItem}>
-          <Ionicons name="filter" size={20} color="#FF6B6B" />
-          <Text style={styles.settingText}>Preferences</Text>
-          <Ionicons name="chevron-forward" size={20} color="#ccc" />
-        </TouchableOpacity>
-
-        <TouchableOpacity style={styles.settingItem}>
-          <Ionicons name="notifications" size={20} color="#FF6B6B" />
-          <Text style={styles.settingText}>Notifications</Text>
-          <Ionicons name="chevron-forward" size={20} color="#ccc" />
-        </TouchableOpacity>
-
-        <TouchableOpacity style={styles.logoutButton} onPress={handleLogout}>
-          <Ionicons name="log-out-outline" size={20} color="#FF6B6B" />
-          <Text style={styles.logoutText}>Logout</Text>
-        </TouchableOpacity>
-      </View>
-
-      {/* Edit functionality moved to ProfileEditScreen */}
-    </ScrollView>
+        {/* Edit functionality moved to ProfileEditScreen */}
+      </ScrollView>
+    </View>
   );
 };
 
@@ -336,6 +359,9 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#f8f9fa',
+  },
+  scrollView: {
+    flex: 1,
   },
 
   mainPhotoSection: {
@@ -526,6 +552,44 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontSize: 16,
     fontWeight: '500',
+  },
+  // Guidance styles
+  guidanceContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#FFF0F5',
+    margin: 20,
+    padding: 16,
+    borderRadius: 12,
+    borderLeftWidth: 4,
+    borderLeftColor: '#FF6B6B',
+  },
+  guidanceTextContainer: {
+    flex: 1,
+    marginLeft: 12,
+  },
+  guidanceTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#FF6B6B',
+    marginBottom: 4,
+  },
+  guidanceSubtitle: {
+    fontSize: 14,
+    color: '#FF8A95',
+    lineHeight: 20,
+  },
+  guidanceButton: {
+    backgroundColor: '#FF6B6B',
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 8,
+    marginLeft: 12,
+  },
+  guidanceButtonText: {
+    color: '#fff',
+    fontSize: 14,
+    fontWeight: '600',
   },
 });
 

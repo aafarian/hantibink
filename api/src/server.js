@@ -10,21 +10,31 @@ const helmet = require('helmet');
 const morgan = require('morgan');
 const compression = require('compression');
 const rateLimit = require('express-rate-limit');
+const { createServer } = require('http');
+const { Server } = require('socket.io');
 
 // Import configurations and middleware
 const logger = require('./utils/logger');
 const { errorHandler } = require('./middleware/errorHandler');
 const notFoundHandler = require('./middleware/notFoundHandler');
-const { connectDatabase, gracefulShutdown: dbGracefulShutdown } = require('./config/database');
+const {
+  connectDatabase,
+  gracefulShutdown: dbGracefulShutdown,
+} = require('./config/database');
 const { initializeFirebase } = require('./config/firebase');
 
 // Import routes
 const healthRoutes = require('./routes/health');
 const authRoutes = require('./routes/auth');
 const userRoutes = require('./routes/users');
+const discoveryRoutes = require('./routes/discovery');
+const actionsRoutes = require('./routes/actions');
+const matchesRoutes = require('./routes/matches');
+const messagesRoutes = require('./routes/messages');
 
-// Initialize Express app
+// Initialize Express app and HTTP server
 const app = express();
+const httpServer = createServer(app);
 
 // Get configuration from environment
 const PORT = process.env.PORT || 3000;
@@ -134,6 +144,18 @@ apiRouter.use('/auth', authRoutes);
 // User routes (protected)
 apiRouter.use('/users', userRoutes);
 
+// Discovery routes (protected)
+apiRouter.use('/discovery', discoveryRoutes);
+
+// Action routes (protected)
+apiRouter.use('/actions', actionsRoutes);
+
+// Match routes (protected)
+apiRouter.use('/matches', matchesRoutes);
+
+// Message routes (protected)
+apiRouter.use('/messages', messagesRoutes);
+
 // Mount API router
 app.use('/api/v1', apiRouter);
 app.use('/api', apiRouter); // Fallback for simpler paths
@@ -204,8 +226,97 @@ async function startServer() {
       logger.warn('🔧 Continuing without Firebase - JWT authentication only');
     }
 
+    // Initialize Socket.IO
+    const io = new Server(httpServer, {
+      cors: {
+        origin: process.env.CORS_ORIGIN?.split(',') || [
+          'http://localhost:8081',
+          'exp://192.168.68.67:8081',
+        ],
+        methods: ['GET', 'POST'],
+        credentials: true,
+      },
+    });
+
+    // Socket.IO connection handling
+    io.on('connection', (socket) => {
+      logger.info(`🔌 User connected: ${socket.id}`);
+      logger.info(`🔌 Total connected sockets: ${io.engine.clientsCount}`);
+
+      // Handle user joining their personal room
+      socket.on('join-user-room', (userId) => {
+        socket.join(`user:${userId}`);
+        logger.info(`👤 User ${userId} joined their room`);
+      });
+
+      // Handle joining match rooms for messaging
+      socket.on('join-match-room', (matchId) => {
+        socket.join(`match:${matchId}`);
+        logger.info(
+          `💬 Socket ${socket.id} joined match room: match:${matchId}`,
+        );
+        logger.info(
+          `💬 Room match:${matchId} now has ${io.sockets.adapter.rooms.get(`match:${matchId}`)?.size || 0} sockets`,
+        );
+      });
+
+      // Handle leaving match rooms
+      socket.on('leave-match-room', (matchId) => {
+        socket.leave(`match:${matchId}`);
+        logger.info(`👋 Socket ${socket.id} left match room: ${matchId}`);
+      });
+
+      // Handle typing indicators
+      socket.on('typing-start', (data) => {
+        const { matchId, userId, userName } = data;
+        logger.info(
+          `⌨️ Received typing-start from ${userId} in match ${matchId}`,
+        );
+        socket.to(`match:${matchId}`).emit('user-typing', {
+          matchId,
+          userId,
+          userName,
+          isTyping: true,
+        });
+        logger.info(
+          `⌨️ User ${userId} started typing in match ${matchId} - event sent to room`,
+        );
+      });
+
+      socket.on('typing-stop', (data) => {
+        const { matchId, userId } = data;
+        socket.to(`match:${matchId}`).emit('user-typing', {
+          matchId,
+          userId,
+          isTyping: false,
+        });
+        logger.info(`⌨️ User ${userId} stopped typing in match ${matchId}`);
+      });
+
+      // Handle online status updates
+      socket.on('update-online-status', (data) => {
+        const { userId, isOnline } = data;
+        // Broadcast to all user's match rooms
+        socket.broadcast.emit('user-online-status', {
+          userId,
+          isOnline,
+          timestamp: new Date(),
+        });
+        logger.info(`🟢 User ${userId} online status: ${isOnline}`);
+      });
+
+      socket.on('disconnect', () => {
+        logger.info(`🔌 User disconnected: ${socket.id}`);
+        // TODO: Update user's online status to offline
+        // Could emit offline status to all their match rooms
+      });
+    });
+
+    // Make io available to routes
+    app.set('io', io);
+
     // Start server
-    const server = app.listen(PORT, HOST, () => {
+    const server = httpServer.listen(PORT, HOST, () => {
       logger.info('🚀 Hantibink API Server started');
       logger.info(`📍 Environment: ${NODE_ENV}`);
       logger.info(`🌐 Server running at http://${HOST}:${PORT}`);

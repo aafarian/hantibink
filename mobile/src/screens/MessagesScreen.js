@@ -9,6 +9,8 @@ import {
   TextInput,
   Animated,
 } from 'react-native';
+import { useNavigation } from '@react-navigation/native';
+
 import { ChatKeyboardWrapper } from '../components/KeyboardAvoidWrapper';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../contexts/AuthContext';
@@ -16,12 +18,14 @@ import { useToast } from '../contexts/ToastContext';
 // Unread count now handled globally in UnreadContext
 import { useFeatureFlags } from '../contexts/FeatureFlagsContext';
 import { useMatchesWithProfiles } from '../hooks/useMatches';
+import { useUnread } from '../contexts/UnreadContext';
 import { LoadingScreen } from '../components/LoadingScreen';
 import { ErrorScreen, EmptyState } from '../components/ErrorScreen';
+import SocketService from '../services/SocketService';
 import { MatchCard } from '../components/MatchCard';
 import { theme } from '../styles/theme';
 import { commonStyles } from '../styles/commonStyles';
-import DataService from '../services/DataService';
+import ApiDataService from '../services/ApiDataService';
 import Logger from '../utils/logger';
 import { handleErrorWithToast } from '../utils/errorHandler';
 import { getUserProfilePhoto, getUserDisplayName } from '../utils/profileHelpers';
@@ -32,6 +36,40 @@ const MessagesScreen = () => {
   const { hasFeature, FEATURES, isPremium, togglePremiumForTesting } = useFeatureFlags();
   // Unread count now handled globally in UnreadContext
   const { conversations, loading, error, refresh } = useMatchesWithProfiles();
+  const { conversations: unreadConversations } = useUnread();
+  const navigation = useNavigation();
+
+  // Merge real-time data from UnreadContext with profile data from useMatchesWithProfiles
+  const [mergedConversations, setMergedConversations] = useState([]);
+
+  useEffect(() => {
+    if (!conversations?.length) {
+      setMergedConversations([]);
+      return;
+    }
+
+    const merged = conversations.map(conv => {
+      // Find matching conversation in UnreadContext for real-time data
+      const unreadConv = unreadConversations?.find(
+        uc => uc.id === conv.matchId || uc.matchId === conv.matchId
+      );
+
+      if (unreadConv) {
+        return {
+          ...conv,
+          lastMessage: unreadConv.lastMessage?.content || conv.lastMessage,
+          lastMessageTime: unreadConv.lastMessage?.timestamp || conv.lastMessageTime,
+          unreadCount: unreadConv.unreadCount || 0,
+          isTyping: unreadConv.isTyping || false,
+          typingUser: unreadConv.typingUser || null,
+        };
+      }
+
+      return conv;
+    });
+
+    setMergedConversations(merged);
+  }, [conversations, unreadConversations]);
 
   // Note: We don't auto-mark conversations as viewed here to preserve unread counts
   // Conversations should only be marked as viewed when user actually opens them
@@ -44,6 +82,7 @@ const MessagesScreen = () => {
   // Typing indicators
   const [typingUsers, setTypingUsers] = useState([]);
   const [isCurrentUserTyping, setIsCurrentUserTyping] = useState(false);
+  const [onlineUsers, setOnlineUsers] = useState(new Set());
   const typingTimeoutRef = useRef(null);
 
   // Animation for typing dots
@@ -54,12 +93,27 @@ const MessagesScreen = () => {
   // Ref for auto-scrolling to bottom
   const flatListRef = useRef(null);
 
+  // Listen for tab press to reset conversation view
+  useEffect(() => {
+    const parent = navigation.getParent();
+    if (!parent) return;
+
+    const unsubscribe = parent.addListener('tabPress', e => {
+      // Only reset if this is the Messages tab being pressed
+      if (e.target?.includes('Messages') && selectedConversation) {
+        setSelectedConversation(null);
+      }
+    });
+
+    return unsubscribe;
+  }, [navigation, selectedConversation]);
+
   // Handle typing indicator logic
   const handleTypingStart = async () => {
     if (!selectedConversation?.matchId || isCurrentUserTyping) return;
 
     try {
-      await DataService.setTypingStatus(selectedConversation.matchId, user.uid, true);
+      SocketService.startTyping(selectedConversation.matchId, user.uid, user.displayName || 'User');
       setIsCurrentUserTyping(true);
     } catch (err) {
       Logger.error('Error setting typing status:', err);
@@ -70,7 +124,7 @@ const MessagesScreen = () => {
     if (!selectedConversation?.matchId || !isCurrentUserTyping) return;
 
     try {
-      await DataService.setTypingStatus(selectedConversation.matchId, user.uid, false);
+      SocketService.stopTyping(selectedConversation.matchId, user.uid);
       setIsCurrentUserTyping(false);
     } catch (err) {
       Logger.error('Error clearing typing status:', err);
@@ -144,13 +198,15 @@ const MessagesScreen = () => {
       return;
     }
 
-    const unsubscribe = DataService.subscribeToTypingStatus(
-      selectedConversation.matchId,
-      user.uid,
-      typingUsersList => {
-        setTypingUsers(typingUsersList);
-      }
-    );
+    // TODO: Implement typing status via WebSocket in future PR
+    const unsubscribe = null;
+    // const unsubscribe = DataService.subscribeToTypingStatus(
+    //   selectedConversation.matchId,
+    //   user.uid,
+    //   typingUsersList => {
+    //     setTypingUsers(typingUsersList);
+    //   }
+    // );
 
     return () => {
       if (unsubscribe) unsubscribe();
@@ -166,29 +222,90 @@ const MessagesScreen = () => {
 
     Logger.info(`Setting up real-time listener for match: ${selectedConversation.matchId}`);
 
-    // Mark conversation as viewed when opening (clears unread badge)
-    DataService.markConversationAsViewed(selectedConversation.matchId, user.uid);
+    // Mark messages as read when opening conversation
+    ApiDataService.markMessagesAsRead(selectedConversation.matchId);
 
-    // Mark messages as read when opening conversation (for detailed read receipts)
-    DataService.markMessagesAsRead(selectedConversation.matchId, user.uid);
-
-    const unsubscribe = DataService.subscribeToMessages(selectedConversation.matchId, messages => {
-      const previousCount = realTimeMessages.length;
-      setRealTimeMessages(messages);
-      Logger.info(`Received ${messages.length} real-time messages`);
-
-      // Auto-scroll to bottom when new messages arrive
-      if (messages.length > previousCount && flatListRef.current) {
-        setTimeout(() => {
-          flatListRef.current?.scrollToEnd({ animated: true });
-        }, 100);
+    // Load initial messages
+    const loadMessages = async () => {
+      try {
+        const messages = await ApiDataService.getMessages(selectedConversation.matchId);
+        setRealTimeMessages(messages);
+      } catch (err) {
+        Logger.error('Error loading messages:', err);
       }
+    };
 
-      // Mark as read when new messages arrive (if user is actively viewing)
-      if (messages.length > 0) {
-        DataService.markMessagesAsRead(selectedConversation.matchId, user.uid);
+    loadMessages();
+
+    // Join the match room for real-time messaging
+    SocketService.joinMatchRoom(selectedConversation.matchId);
+
+    // Set up real-time message listener
+    Logger.info('🔗 Setting up real-time message listeners...');
+    const unsubscribeMessages = SocketService.onMessage((eventType, data) => {
+      if (eventType === 'new-message' && data.matchId === selectedConversation.matchId) {
+        Logger.info('📩 Real-time message received in MessagesScreen:', data);
+        setRealTimeMessages(prev => {
+          // Check if message already exists (including temp messages) to prevent duplicates
+          const exists = prev.some(
+            msg =>
+              msg.id === data.message.id ||
+              (msg.id.startsWith('temp-') &&
+                msg.content === data.message.content &&
+                msg.senderId === data.message.senderId)
+          );
+          if (!exists) {
+            return [...prev, data.message].sort(
+              (a, b) => new Date(a.timestamp) - new Date(b.timestamp)
+            );
+          }
+          return prev;
+        });
+      } else if (eventType === 'messages-read' && data.matchId === selectedConversation.matchId) {
+        Logger.info('👁️ Messages marked as read:', data);
+        // Update read status of messages sent by current user
+        setRealTimeMessages(prev =>
+          prev.map(msg => ({
+            ...msg,
+            isRead: msg.senderId === user.uid ? true : msg.isRead, // Only update our own messages
+          }))
+        );
+      } else if (eventType === 'user-typing' && data.matchId === selectedConversation.matchId) {
+        Logger.info('⌨️ User typing status changed:', data);
+        if (data.userId !== user.uid) {
+          // Don't show our own typing
+          setTypingUsers(prev => {
+            if (data.isTyping) {
+              return [...prev.filter(u => u.userId !== data.userId), data];
+            } else {
+              return prev.filter(u => u.userId !== data.userId);
+            }
+          });
+        }
       }
     });
+
+    // Set up match listener for online status
+    const unsubscribeMatch = SocketService.onMatch((eventType, data) => {
+      if (eventType === 'user-online-status') {
+        Logger.info('🟢 User online status changed:', data);
+        setOnlineUsers(prev => {
+          const newSet = new Set(prev);
+          if (data.isOnline) {
+            newSet.add(data.userId);
+          } else {
+            newSet.delete(data.userId);
+          }
+          return newSet;
+        });
+      }
+    });
+
+    const unsubscribe = () => {
+      SocketService.leaveMatchRoom(selectedConversation.matchId);
+      unsubscribeMessages();
+      unsubscribeMatch();
+    };
 
     // Cleanup listener when conversation changes or component unmounts
     return () => {
@@ -197,7 +314,7 @@ const MessagesScreen = () => {
         unsubscribe();
       }
     };
-  }, [selectedConversation?.matchId, user.uid, realTimeMessages.length]);
+  }, [selectedConversation?.matchId, user.uid]);
 
   const sendMessage = async () => {
     if (!messageText.trim() || !selectedConversation || sendingMessage) {
@@ -214,19 +331,45 @@ const MessagesScreen = () => {
     }
     handleTypingStop();
 
+    // Add message to local state immediately for instant feedback
+    const tempMessage = {
+      id: `temp-${Date.now()}`,
+      content: messageToSend,
+      senderId: user.uid,
+      timestamp: new Date(),
+      isDelivered: false,
+      isRead: false,
+      isSending: true,
+    };
+
+    setRealTimeMessages(prev => [...prev, tempMessage]);
+
     try {
-      const result = await DataService.sendMessage(
-        selectedConversation.matchId,
-        user.uid,
-        messageToSend
-      );
+      const result = await ApiDataService.sendMessage(selectedConversation.matchId, messageToSend);
 
       if (result.success) {
         Logger.info('Message sent successfully:', messageToSend);
 
-        // Auto-scroll to bottom after sending
+        // Replace temp message with real message from server
+        setRealTimeMessages(prev => {
+          const tempIndex = prev.findIndex(msg => msg.id === tempMessage.id);
+          if (tempIndex !== -1) {
+            const newMessages = [...prev];
+            newMessages[tempIndex] = { ...result.data, isSending: false };
+            return newMessages;
+          }
+          // If temp message not found (maybe already replaced by WebSocket), just add if not exists
+          const exists = prev.some(msg => msg.id === result.data.id);
+          return exists
+            ? prev
+            : [...prev, { ...result.data, isSending: false }].sort(
+                (a, b) => new Date(a.timestamp) - new Date(b.timestamp)
+              );
+        });
+
+        // Auto-scroll to top (newest message) after sending
         setTimeout(() => {
-          flatListRef.current?.scrollToEnd({ animated: true });
+          flatListRef.current?.scrollToOffset({ offset: 0, animated: true });
         }, 100);
       } else {
         throw new Error(result.error);
@@ -234,6 +377,9 @@ const MessagesScreen = () => {
     } catch (e) {
       handleErrorWithToast(e, 'Failed to send message. Please try again.', showError);
       setMessageText(messageToSend); // Restore message text on error
+
+      // Remove temp message on error
+      setRealTimeMessages(prev => prev.filter(msg => msg.id !== tempMessage.id));
     } finally {
       setSendingMessage(false);
     }
@@ -244,12 +390,13 @@ const MessagesScreen = () => {
       match={item}
       onPress={() => {
         // Mark conversation as viewed when selected
-        DataService.markConversationAsViewed(item.matchId, user.uid);
+
+        ApiDataService.markMessagesAsRead(item.matchId);
         setSelectedConversation(item);
       }}
       onMessagePress={() => {
         // Mark conversation as viewed when selected
-        DataService.markConversationAsViewed(item.matchId, user.uid);
+        ApiDataService.markMessagesAsRead(item.matchId);
         setSelectedConversation(item);
       }}
       showMessageButton={false}
@@ -278,11 +425,11 @@ const MessagesScreen = () => {
     }
 
     const isOwnMessage = item.senderId === user.uid;
-    const isSending = item.status === 'sending';
+    const _isSending = item.status === 'sending';
 
     // Check if message has been read by the other user (for read receipts)
     const otherUserId = selectedConversation?.otherUserId;
-    const isRead = item.readBy && otherUserId && item.readBy.includes(otherUserId);
+    const _isRead = item.readBy && otherUserId && item.readBy.includes(otherUserId);
 
     return (
       <View
@@ -295,7 +442,7 @@ const MessagesScreen = () => {
               isOwnMessage ? styles.ownMessageText : styles.otherMessageText,
             ]}
           >
-            {item.text}
+            {item.content || item.text}
           </Text>
         </View>
 
@@ -321,10 +468,12 @@ const MessagesScreen = () => {
           {/* Status indicator for own messages - Premium Feature */}
           {isOwnMessage && hasFeature(FEATURES.READ_RECEIPTS) && (
             <View style={styles.messageStatus}>
-              {isSending ? (
+              {item.isSending ? (
                 <Ionicons name="time-outline" size={12} color="#999" />
-              ) : isRead ? (
+              ) : item.isRead ? (
                 <Ionicons name="checkmark-done" size={12} color="#4ECDC4" />
+              ) : item.isDelivered ? (
+                <Ionicons name="checkmark-done" size={12} color="#999" />
               ) : (
                 <Ionicons name="checkmark" size={12} color="#999" />
               )}
@@ -359,11 +508,24 @@ const MessagesScreen = () => {
             }}
             style={styles.chatHeaderPhoto}
           />
+
           <View style={styles.chatHeaderInfo}>
-            <Text style={styles.chatHeaderName}>
-              {getUserDisplayName(selectedConversation.otherUser)}
+            <View style={styles.chatHeaderNameContainer}>
+              <Text style={styles.chatHeaderName}>
+                {getUserDisplayName(selectedConversation.otherUser)}
+              </Text>
+              {hasFeature(FEATURES.PREMIUM) &&
+                onlineUsers.has(selectedConversation.otherUser.id) && (
+                  <View style={styles.onlineDot} />
+                )}
+            </View>
+            <Text style={styles.chatHeaderStatus}>
+              {hasFeature(FEATURES.PREMIUM) && onlineUsers.has(selectedConversation.otherUser.id)
+                ? 'Online now'
+                : typingUsers.length > 0
+                  ? 'Typing...'
+                  : 'Matched recently'}
             </Text>
-            <Text style={styles.chatHeaderStatus}>Matched recently</Text>
           </View>
         </View>
 
@@ -373,15 +535,21 @@ const MessagesScreen = () => {
             ref={flatListRef}
             style={styles.messagesList}
             data={[
-              ...realTimeMessages,
               ...(typingUsers.length > 0 ? [{ id: 'typing-indicator', isTyping: true }] : []),
+              ...realTimeMessages.slice().reverse(),
             ]}
             renderItem={renderMessage}
-            keyExtractor={item => item.id}
-            inverted={false}
+            keyExtractor={(item, index) => {
+              if (item.isTyping) return 'typing-indicator';
+              if (item.id) return `msg-${item.id}`;
+              return `fallback-${index}-${Date.now()}`;
+            }}
+            inverted={true}
             showsVerticalScrollIndicator={false}
-            onContentSizeChange={() => flatListRef.current?.scrollToEnd({ animated: false })}
-            onLayout={() => flatListRef.current?.scrollToEnd({ animated: false })}
+            onContentSizeChange={() =>
+              flatListRef.current?.scrollToOffset({ offset: 0, animated: false })
+            }
+            onLayout={() => flatListRef.current?.scrollToOffset({ offset: 0, animated: false })}
           />
         </View>
 
@@ -430,7 +598,7 @@ const MessagesScreen = () => {
       )}
 
       <FlatList
-        data={conversations}
+        data={mergedConversations}
         renderItem={renderConversation}
         keyExtractor={item => item.matchId}
         ListEmptyComponent={
@@ -465,10 +633,23 @@ const styles = StyleSheet.create({
   chatHeaderInfo: {
     flex: 1,
   },
+  chatHeaderNameContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
   chatHeaderName: {
     fontSize: 16,
     fontWeight: 'bold',
     color: '#fff',
+    marginRight: 6,
+  },
+  onlineDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: '#4ECDC4',
+    borderWidth: 1,
+    borderColor: '#fff',
   },
   chatHeaderStatus: {
     fontSize: 12,

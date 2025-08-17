@@ -141,6 +141,27 @@ const ProfileStack = () => {
   );
 };
 
+const MessagesStack = () => {
+  return (
+    <Stack.Navigator>
+      <Stack.Screen
+        name="MessagesList"
+        component={MessagesScreen}
+        options={{
+          title: 'Messages',
+          headerStyle: {
+            backgroundColor: '#FF6B6B',
+          },
+          headerTintColor: '#fff',
+          headerTitleStyle: {
+            fontWeight: 'bold',
+          },
+        }}
+      />
+    </Stack.Navigator>
+  );
+};
+
 const MainNavigator = () => {
   const insets = useSafeAreaInsets();
   const { loading } = useAuth();
@@ -185,7 +206,7 @@ const MainNavigator = () => {
       />
       <Tab.Screen name="People" component={PeopleStack} options={{ headerShown: false }} />
       <Tab.Screen name="Liked You" component={LikedYouScreen} options={{ title: 'Liked You' }} />
-      <Tab.Screen name="Messages" component={MessagesScreen} options={{ title: 'Messages' }} />
+      <Tab.Screen name="Messages" component={MessagesStack} options={{ headerShown: false }} />
     </Tab.Navigator>
   );
 };

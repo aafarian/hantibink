@@ -28,6 +28,7 @@ class ApiClient {
       }
     } catch (error) {
       Logger.error('❌ Failed to initialize API client:', error);
+      // Don't throw error here - just log it and continue
     }
   }
 
@@ -63,6 +64,58 @@ class ApiClient {
     } catch (error) {
       Logger.error('❌ Failed to clear tokens:', error);
     }
+  }
+
+  // ============ HTTP METHODS ============
+
+  /**
+   * GET request
+   */
+  async get(endpoint, options = {}) {
+    return this.request(endpoint, { method: 'GET', ...options });
+  }
+
+  /**
+   * POST request
+   */
+  async post(endpoint, data = null, options = {}) {
+    return this.request(endpoint, {
+      method: 'POST',
+      body: data ? JSON.stringify(data) : undefined,
+      headers: { 'Content-Type': 'application/json', ...options.headers },
+      ...options,
+    });
+  }
+
+  /**
+   * PUT request
+   */
+  async put(endpoint, data = null, options = {}) {
+    return this.request(endpoint, {
+      method: 'PUT',
+      body: data ? JSON.stringify(data) : undefined,
+      headers: { 'Content-Type': 'application/json', ...options.headers },
+      ...options,
+    });
+  }
+
+  /**
+   * DELETE request
+   */
+  async delete(endpoint, options = {}) {
+    return this.request(endpoint, { method: 'DELETE', ...options });
+  }
+
+  /**
+   * PATCH request
+   */
+  async patch(endpoint, data = null, options = {}) {
+    return this.request(endpoint, {
+      method: 'PATCH',
+      body: data ? JSON.stringify(data) : undefined,
+      headers: { 'Content-Type': 'application/json', ...options.headers },
+      ...options,
+    });
   }
 
   /**
@@ -132,6 +185,20 @@ class ApiClient {
         }
       }
 
+      // Handle rate limiting (429)
+      if (response.status === 429) {
+        const retryAfter = data.retryAfter || 60; // seconds
+        Logger.warn(`⏰ Rate limited. Retry after ${retryAfter}s. Endpoint: ${endpoint}`);
+        return {
+          success: false,
+          error: data.error || 'Rate limited - too many requests',
+          message: data.message || 'Too many requests, please wait',
+          status: response.status,
+          rateLimited: true,
+          retryAfter,
+        };
+      }
+
       // Handle other errors
       Logger.error(`❌ API Error: ${response.status} ${endpoint}`, data);
       return {
@@ -166,18 +233,35 @@ class ApiClient {
       });
 
       if (response.success) {
-        const { accessToken, refreshToken } = response.data;
+        const { accessToken, refreshToken } = response.data || {};
+
+        if (!accessToken) {
+          Logger.error('❌ No accessToken in refresh response:', response);
+          // Don't clear tokens here - might be a temporary server issue
+          return { success: false, error: 'No access token in response' };
+        }
+
         await this.setTokens(accessToken, refreshToken || this.refreshToken);
         Logger.success('🔄 Token refreshed successfully');
         return { success: true };
       } else {
-        Logger.error('❌ Token refresh failed');
-        await this.clearTokens();
+        Logger.error('❌ Token refresh failed:', response.message);
+        // Clear tokens only on auth failures, not network issues
+        if (
+          response.status === 401 ||
+          response.message?.includes('invalid') ||
+          response.message?.includes('expired')
+        ) {
+          await this.clearTokens();
+        }
         return { success: false, error: 'Token refresh failed' };
       }
     } catch (error) {
       Logger.error('❌ Token refresh error:', error);
-      await this.clearTokens();
+      // Don't clear tokens on network errors - only on auth failures
+      if (error.message?.includes('401') || error.message?.includes('Unauthorized')) {
+        await this.clearTokens();
+      }
       return { success: false, error: error.message };
     }
   }

@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import ApiDataService from '../services/ApiDataService';
 import apiClient from '../services/ApiClient';
+import SocketService from '../services/SocketService';
 import Logger from '../utils/logger';
 import { uploadImageToFirebase } from '../utils/imageUpload';
 
@@ -71,7 +72,12 @@ export const AuthProvider = ({ children }) => {
               displayName: profile.name,
             });
             setUserProfile(transformedProfile);
-            Logger.auth('✅ User session restored from API');
+
+            // Connect to WebSocket for session restoration
+            SocketService.connect(profile.id);
+            SocketService.updateOnlineStatus(profile.id, true);
+
+            Logger.success('✅ User session restored from API');
           } else {
             Logger.warn('⚠️ API session exists but no profile found');
             await apiClient.clearTokens();
@@ -81,7 +87,8 @@ export const AuthProvider = ({ children }) => {
         }
       } catch (error) {
         Logger.error('❌ Error initializing hybrid auth:', error);
-        await apiClient.clearTokens();
+        // Don't clear tokens here - let user try to login if needed
+        // await apiClient.clearTokens();
       } finally {
         setLoading(false);
       }
@@ -313,6 +320,12 @@ export const AuthProvider = ({ children }) => {
           setUserProfile(transformedProfile);
         }
 
+        // Connect to WebSocket for real-time features
+        SocketService.connect(result.user.id);
+
+        // Update online status
+        SocketService.updateOnlineStatus(result.user.id, true);
+
         Logger.success('✅ User registered via API');
         return { success: true, user: { uid: result.user.id, ...result.user } };
       }
@@ -343,10 +356,29 @@ export const AuthProvider = ({ children }) => {
           email: result.user.email,
           displayName: result.user.name,
         });
+        // Ensure existing users have completed onboarding flag set
+        if (
+          transformedProfile &&
+          !Object.prototype.hasOwnProperty.call(transformedProfile, 'hasCompletedOnboarding')
+        ) {
+          Logger.info('🔄 Setting hasCompletedOnboarding for existing user...');
+          transformedProfile.hasCompletedOnboarding = true;
+        }
+
         setUserProfile(transformedProfile);
+
+        // Connect to WebSocket for real-time features
+        SocketService.connect(result.user.id);
+
+        // Update online status
+        SocketService.updateOnlineStatus(result.user.id, true);
 
         Logger.success('✅ User logged in via API');
         return { success: true };
+      } else {
+        // API didn't return a result - treat as login failure
+        Logger.error('❌ API login failed: No result returned');
+        return { success: false, error: 'Login failed. Please try again.' };
       }
     } catch (error) {
       Logger.error('❌ API login failed:', error);
@@ -373,6 +405,12 @@ export const AuthProvider = ({ children }) => {
 
       // Logout from API
       await ApiDataService.logout();
+
+      // Update offline status and disconnect WebSocket
+      if (user?.uid) {
+        SocketService.updateOnlineStatus(user.uid, false);
+      }
+      SocketService.disconnect();
 
       // Clear state
       setUser(null);
@@ -439,7 +477,9 @@ export const AuthProvider = ({ children }) => {
     user,
     userProfile,
     loading,
+
     register,
+
     completeOnboarding,
     login,
     logout,

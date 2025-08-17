@@ -95,7 +95,9 @@ class ApiDataService {
       }
     } catch (error) {
       Logger.error('❌ Error logging in user via API:', error);
-      throw error;
+      // Throw a clean error message without the "Error: " prefix
+      const cleanMessage = error.message || 'Login failed';
+      throw new Error(cleanMessage);
     }
   }
 
@@ -296,46 +298,312 @@ class ApiDataService {
     }
   }
 
-  // ============ PLACEHOLDER METHODS (for future implementation) ============
+  // ============ DISCOVERY METHODS ============
 
   /**
-   * Get user matches (placeholder)
+   * Get users for discovery/swiping
    */
-  static async getUserMatches(_userId) {
-    Logger.info('💕 getUserMatches - Coming in PR #8: Matching Algorithm');
-    return [];
+  static async getUsersForDiscovery(options = {}) {
+    try {
+      Logger.info('🔍 Getting users for discovery from API...');
+
+      const { limit = 20, excludeIds = [] } = options;
+
+      const queryParams = new URLSearchParams({
+        limit: limit.toString(),
+      });
+
+      if (excludeIds.length > 0) {
+        queryParams.append('excludeIds', excludeIds.join(','));
+      }
+
+      const response = await apiClient.get(`/discovery/users?${queryParams}`);
+
+      if (response.success) {
+        Logger.success('✅ Discovery users loaded from API');
+        return response.data?.data || response.data || [];
+      } else {
+        Logger.error('❌ Failed to get discovery users from API:', response.message);
+        return [];
+      }
+    } catch (error) {
+      Logger.error('❌ Error getting discovery users from API:', error);
+      return [];
+    }
+  }
+
+  // ============ ACTION METHODS ============
+
+  /**
+   * Like a user
+   */
+  static async likeUser(targetUserId) {
+    try {
+      Logger.info('👍 Liking user via API...');
+
+      const response = await apiClient.post('/actions/like', { targetUserId });
+
+      if (response.success) {
+        Logger.success('✅ User liked via API');
+        return response.data;
+      } else {
+        Logger.error('❌ Failed to like user via API:', response.message);
+        throw new Error(response.message || 'Like failed');
+      }
+    } catch (error) {
+      Logger.error('❌ Error liking user via API:', error);
+      // Handle specific error cases more gracefully
+      if (error.message?.includes('already acted')) {
+        throw new Error('You have already swiped on this person');
+      }
+      throw new Error(error.message || 'Like failed');
+    }
   }
 
   /**
-   * Like a user (placeholder)
+   * Pass on a user
    */
-  static async likeUser(_userId, _targetUserId) {
-    Logger.info('👍 likeUser - Coming in PR #8: Matching Algorithm');
-    return false;
+  static async passUser(targetUserId) {
+    try {
+      Logger.info('👎 Passing on user via API...');
+
+      const response = await apiClient.post('/actions/pass', { targetUserId });
+
+      if (response.success) {
+        Logger.success('✅ User passed via API');
+        return response.data;
+      } else {
+        Logger.error('❌ Failed to pass user via API:', response.message);
+        throw new Error(response.message || 'Pass failed');
+      }
+    } catch (error) {
+      Logger.error('❌ Error passing on user via API:', error);
+      throw error;
+    }
   }
 
   /**
-   * Pass on a user (placeholder)
+   * Super like a user (premium feature)
    */
-  static async passUser(_userId, _targetUserId) {
-    Logger.info('👎 passUser - Coming in PR #8: Matching Algorithm');
-    return false;
+  static async superLikeUser(targetUserId) {
+    try {
+      Logger.info('💫 Super liking user via API...');
+
+      const response = await apiClient.post('/actions/super-like', { targetUserId });
+
+      if (response.success) {
+        Logger.success('✅ User super liked via API');
+        return response.data;
+      } else {
+        Logger.error('❌ Failed to super like user via API:', response.message);
+        throw new Error(response.message || 'Super like failed');
+      }
+    } catch (error) {
+      Logger.error('❌ Error super liking user via API:', error);
+      throw error;
+    }
   }
 
   /**
-   * Get messages (placeholder)
+   * Get user action history
    */
-  static async getMessages(_userId, _matchId) {
-    Logger.info('💬 getMessages - Coming in PR #10: Real-time Chat');
-    return [];
+  static async getUserActions(options = {}) {
+    try {
+      Logger.info('📋 Getting user actions from API...');
+
+      const { limit = 50, offset = 0 } = options;
+      const queryParams = new URLSearchParams({
+        limit: limit.toString(),
+        offset: offset.toString(),
+      });
+
+      const response = await apiClient.get(`/actions/history?${queryParams}`);
+
+      if (response.success) {
+        Logger.success('✅ User actions loaded from API');
+        Logger.info('User actions loaded:', response.data);
+        return response.data?.data || response.data || [];
+      } else {
+        Logger.error('❌ Failed to get user actions from API:', response.message);
+        return [];
+      }
+    } catch (error) {
+      Logger.error('❌ Error getting user actions from API:', error);
+      return [];
+    }
+  }
+
+  // ============ MATCH METHODS ============
+
+  /**
+   * Get user matches
+   */
+  static async getUserMatches(options = {}) {
+    try {
+      Logger.info('💕 Getting user matches from API...');
+
+      const { limit = 50, offset = 0 } = options;
+      const queryParams = new URLSearchParams({
+        limit: limit.toString(),
+        offset: offset.toString(),
+      });
+
+      const response = await apiClient.get(`/matches/list?${queryParams}`);
+
+      if (response.success) {
+        Logger.success('✅ User matches loaded from API');
+        return response.data?.data || response.data || [];
+      } else {
+        Logger.error('❌ Failed to get user matches from API:', response.message || response.error);
+        throw new Error(response.message || response.error || 'Failed to get matches');
+      }
+    } catch (error) {
+      Logger.error('❌ Error getting user matches from API:', error);
+      // Add more debugging info
+      if (error.response) {
+        Logger.error('API response details:', error.response.status, error.response.data);
+      }
+      throw new Error(error.message || 'Unknown error');
+    }
   }
 
   /**
-   * Send message (placeholder)
+   * Get match details
    */
-  static async sendMessage(_userId, _matchId, _message) {
-    Logger.info('📤 sendMessage - Coming in PR #10: Real-time Chat');
-    return false;
+  static async getMatchDetails(matchId) {
+    try {
+      Logger.info('💕 Getting match details from API...');
+
+      const response = await apiClient.get(`/matches/${matchId}`);
+
+      if (response.success) {
+        Logger.success('✅ Match details loaded from API');
+        return response.data;
+      } else {
+        Logger.error('❌ Failed to get match details from API:', response.message);
+        return null;
+      }
+    } catch (error) {
+      Logger.error('❌ Error getting match details from API:', error);
+      return null;
+    }
+  }
+
+  /**
+   * Deactivate a match (unmatch)
+   */
+  static async deactivateMatch(matchId) {
+    try {
+      Logger.info('💔 Deactivating match via API...');
+
+      const response = await apiClient.delete(`/matches/${matchId}`);
+
+      if (response.success) {
+        Logger.success('✅ Match deactivated via API');
+        return response.data;
+      } else {
+        Logger.error('❌ Failed to deactivate match via API:', response.message);
+        throw new Error(response.message || 'Match deactivation failed');
+      }
+    } catch (error) {
+      Logger.error('❌ Error deactivating match via API:', error);
+      throw error;
+    }
+  }
+
+  // ============ MESSAGE METHODS ============
+
+  /**
+   * Get messages for a match
+   */
+  static async getMessages(matchId, options = {}) {
+    try {
+      Logger.info('💬 Getting messages from API...');
+
+      const { limit = 50, offset = 0 } = options;
+      const queryParams = new URLSearchParams({
+        limit: limit.toString(),
+        offset: offset.toString(),
+      });
+
+      const response = await apiClient.get(`/messages/${matchId}?${queryParams}`);
+
+      if (response.success) {
+        Logger.success('✅ Messages loaded from API');
+        return response.data?.data || response.data || [];
+      } else {
+        Logger.error('❌ Failed to get messages from API:', response.message);
+        return [];
+      }
+    } catch (error) {
+      Logger.error('❌ Error getting messages from API:', error);
+      return [];
+    }
+  }
+
+  /**
+   * Send a message
+   */
+  static async sendMessage(matchId, content, messageType = 'TEXT') {
+    try {
+      Logger.info('📤 Sending message via API...');
+
+      const response = await apiClient.post(`/messages/${matchId}`, {
+        content,
+        messageType,
+      });
+
+      if (response.success) {
+        Logger.success('✅ Message sent via API');
+        return response.data;
+      } else {
+        Logger.error('❌ Failed to send message via API:', response.message);
+        throw new Error(response.message || 'Message sending failed');
+      }
+    } catch (error) {
+      Logger.error('❌ Error sending message via API:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Mark messages as read
+   */
+  static async markMessagesAsRead(matchId, messageIds = []) {
+    try {
+      Logger.info('👁️ Marking messages as read via API...');
+
+      const response = await apiClient.put(`/messages/${matchId}/read`, {
+        messageIds,
+      });
+
+      if (response.success) {
+        Logger.success('✅ Messages marked as read via API');
+        return response.data;
+      } else {
+        Logger.error('❌ Failed to mark messages as read via API:', response.message);
+        return false;
+      }
+    } catch (error) {
+      Logger.error('❌ Error marking messages as read via API:', error);
+      return false;
+    }
+  }
+
+  // ============ UTILITY METHODS ============
+
+  /**
+   * Calculate unread count for messages (client-side helper)
+   */
+  static getUnreadCount(messages, currentUserId) {
+    try {
+      return messages.filter(msg => {
+        return msg.senderId !== currentUserId && !msg.isRead;
+      }).length;
+    } catch (error) {
+      Logger.error('❌ Error calculating unread count:', error);
+      return 0;
+    }
   }
 }
 

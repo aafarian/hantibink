@@ -152,8 +152,8 @@ const ProfileForm = forwardRef(
               )}
             </Text>
             <TextInput
-              ref={ref => {
-                textRefs.current[field.key] = ref;
+              ref={textRef => {
+                textRefs.current[field.key] = textRef;
               }}
               style={[styles.textInput, field.multiline && styles.textArea]}
               value={formData[field.key]}

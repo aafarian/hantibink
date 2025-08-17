@@ -6,11 +6,12 @@ import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../../contexts/AuthContext';
 import { useToast } from '../../contexts/ToastContext';
 import ProfileForm from '../../components/profile/ProfileForm';
+import ApiDataService from '../../services/ApiDataService';
 import Logger from '../../utils/logger';
 
 const ProfileDetailsScreen = ({ navigation, route }) => {
-  const { register, refreshUserProfileWithId } = useAuth();
-  const { showError } = useToast();
+  const { register, completeRegistration, refreshUserProfileWithId, user } = useAuth();
+  const { showError, showSuccess } = useToast();
 
   const [loading, setLoading] = useState(false);
   const [, _setFormData] = useState({});
@@ -21,22 +22,23 @@ const ProfileDetailsScreen = ({ navigation, route }) => {
   // Get data from previous steps
   const step2Data = route?.params?.step2Data || {};
   const _photos = step2Data.photos || [];
+  const isOnboarding = route?.params?.isOnboarding || false;
 
   // Handle form data changes
   const handleFormDataChange = newFormData => {
     _setFormData(newFormData);
   };
 
-  // Create account
+  // Create account or complete onboarding
   const createAccount = async () => {
     try {
       setLoading(true);
-      Logger.info('🔐 Starting account creation with all collected data');
 
       // Get form data from the ProfileForm component
       const currentFormData = profileFormRef.current?.getFormData();
       if (!currentFormData) {
         showError('Please fill in the form');
+        setLoading(false);
         return;
       }
 
@@ -45,28 +47,60 @@ const ProfileDetailsScreen = ({ navigation, route }) => {
       if (!validation?.isValid) {
         const firstError = Object.values(validation.errors)[0];
         showError(firstError || 'Please check your input');
+        setLoading(false);
         return;
       }
 
-      // Combine all registration data
-      const allUserData = {
-        ...step2Data, // Contains name, email, password, birthDate, gender, interestedIn, location, photos
-        ...currentFormData, // Contains bio, education, profession, etc.
-        // Photos are already included in step2Data, no need to add them again
-      };
+      if (isOnboarding && user?.uid) {
+        // Update existing account with profile details
+        Logger.info('🔄 Completing onboarding - updating profile details...');
 
-      // Register user
-      const result = await register(allUserData);
+        const success = await ApiDataService.updateUserProfile(currentFormData);
 
-      if (result.success) {
-        // Refresh profile to ensure all data is loaded
-        await refreshUserProfileWithId(result.user.uid);
-        Logger.success('🎉 Registration complete! User signed in and ready to use app');
+        if (success) {
+          // Mark onboarding as complete
+          await ApiDataService.updateUserProfile({
+            hasCompletedOnboarding: true,
+            onboardingStep: 0,
+          });
+
+          // Complete registration and log user in
+          const completionResult = await completeRegistration(user?.uid || route.params?.userId);
+
+          if (completionResult.success) {
+            showSuccess('Profile completed! Welcome to Hantibink! 🎉');
+            Logger.success('✅ Onboarding completed successfully');
+            // Navigation to main app happens automatically when user is set in context
+          } else {
+            showError('Failed to complete registration. Please try again.');
+          }
+        } else {
+          showError('Failed to update profile. Please try again.');
+        }
       } else {
-        showError(result.error || 'Registration failed');
+        // Legacy full registration flow
+        Logger.info('🔐 Starting account creation with all collected data');
+
+        // Combine all registration data
+        const allUserData = {
+          ...step2Data, // Contains name, email, password, birthDate, gender, interestedIn, location, photos
+          ...currentFormData, // Contains bio, education, profession, etc.
+          // Photos are already included in step2Data, no need to add them again
+        };
+
+        // Register user
+        const result = await register(allUserData);
+
+        if (result.success) {
+          // Refresh profile to ensure all data is loaded
+          await refreshUserProfileWithId(result.user.uid);
+          Logger.success('🎉 Registration complete! User signed in and ready to use app');
+        } else {
+          showError(result.error || 'Registration failed');
+        }
       }
     } catch (error) {
-      Logger.error('❌ Account creation failed:', error);
+      Logger.error('❌ Account creation/onboarding failed:', error);
       showError(error.message || 'Account creation failed');
     } finally {
       setLoading(false);
@@ -107,7 +141,9 @@ const ProfileDetailsScreen = ({ navigation, route }) => {
           {loading ? (
             <ActivityIndicator size="small" color="#fff" />
           ) : (
-            <Text style={styles.createButtonText}>Create Account</Text>
+            <Text style={styles.createButtonText}>
+              {isOnboarding ? 'Complete Profile' : 'Create Account'}
+            </Text>
           )}
         </TouchableOpacity>
       </View>

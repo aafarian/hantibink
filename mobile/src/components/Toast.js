@@ -8,6 +8,7 @@ const Toast = ({
   type = 'info', // 'success', 'error', 'warning', 'info'
   visible,
   onHide,
+  autoHide = true,
   duration = 4000,
   action = null, // { text: 'Retry', onPress: () => {} }
 }) => {
@@ -41,10 +42,12 @@ const Toast = ({
         useNativeDriver: true,
       }).start();
 
-      // Auto hide after duration
-      timerRef.current = setTimeout(() => {
-        hideToast();
-      }, duration);
+      // Auto hide after duration only if autoHide is true
+      if (autoHide) {
+        timerRef.current = setTimeout(() => {
+          hideToast();
+        }, duration);
+      }
 
       return () => {
         if (timerRef.current) {
@@ -53,7 +56,7 @@ const Toast = ({
         }
       };
     }
-  }, [visible, duration, slideAnim, hideToast]);
+  }, [visible, autoHide, duration, hideToast, slideAnim]);
 
   const getToastStyle = () => {
     switch (type) {
