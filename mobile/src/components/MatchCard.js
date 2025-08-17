@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, Text, TouchableOpacity, Image } from 'react-native';
+import { View, Text, TouchableOpacity } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { theme } from '../styles/theme';
 import {
@@ -8,6 +8,8 @@ import {
   getUserAge,
   getUserLocation,
 } from '../utils/profileHelpers';
+import ClickablePhoto from './shared/ClickablePhoto';
+import { usePhotoViewer } from '../contexts/PhotoViewerContext';
 
 export const MatchCard = ({
   match,
@@ -20,10 +22,53 @@ export const MatchCard = ({
 }) => {
   const user = match.otherUser || match;
   const profilePhotoUrl = getUserProfilePhoto(user);
+  const { openProfileSheet } = usePhotoViewer();
+
+  const profileActionButtons = onMessagePress
+    ? [
+        {
+          icon: 'chatbubble',
+          label: 'Message',
+          onPress: onMessagePress,
+          style: { backgroundColor: '#FF6B6B' },
+        },
+      ]
+    : [];
+
+  const handlePhotoPress = () => {
+    openProfileSheet({
+      profile: user,
+      actionButtons: profileActionButtons,
+    });
+  };
+
+  const handleCardPress = () => {
+    if (onPress) {
+      onPress();
+    } else {
+      // If no onPress provided, show profile by default
+      openProfileSheet({
+        profile: user,
+        actionButtons: profileActionButtons,
+      });
+    }
+  };
 
   return (
-    <TouchableOpacity style={[styles.container, style]} onPress={onPress} activeOpacity={0.7}>
-      <Image source={{ uri: profilePhotoUrl }} style={styles.photo} />
+    <TouchableOpacity
+      style={[styles.container, style]}
+      onPress={handleCardPress}
+      activeOpacity={0.7}
+    >
+      <ClickablePhoto
+        photo={profilePhotoUrl}
+        photos={user.photos || [profilePhotoUrl]}
+        size={60}
+        borderRadius={30}
+        showExpandIcon={false}
+        onPress={handlePhotoPress}
+        style={styles.photo}
+      />
 
       <View style={styles.info}>
         <Text style={styles.name}>

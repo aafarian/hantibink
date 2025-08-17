@@ -99,34 +99,13 @@ class ApiDataService {
     }
   }
 
-  /**
-   * Login with Firebase token via API
-   */
-  static async loginWithFirebase(idToken) {
-    try {
-      Logger.info('🔥 Logging in with Firebase token via API...');
-
-      const response = await apiClient.loginWithFirebase(idToken);
-
-      if (response.success) {
-        Logger.success('✅ Firebase login successful via API');
-        return response.data.data;
-      } else {
-        Logger.error('❌ Failed to login with Firebase via API:', response.message);
-        throw new Error(response.message || 'Firebase login failed');
-      }
-    } catch (error) {
-      Logger.error('❌ Error logging in with Firebase via API:', error);
-      throw error;
-    }
-  }
-
   // ============ PREFERENCES METHODS ============
 
   /**
    * Get user preferences from API
+   * Note: userId parameter is not used since API uses JWT for user identification
    */
-  static async getUserPreferences(userId = null) {
+  static async getUserPreferences() {
     try {
       Logger.info('⚙️ Getting user preferences from API...');
 
@@ -147,8 +126,9 @@ class ApiDataService {
 
   /**
    * Update user preferences via API
+   * Note: userId parameter is not used since API uses JWT for user identification
    */
-  static async updateUserPreferences(userId, preferences) {
+  static async updateUserPreferences(preferences) {
     try {
       Logger.info('⚙️ Updating user preferences via API...');
 
@@ -226,12 +206,102 @@ class ApiDataService {
     }
   }
 
+  // ============ PHOTO MANAGEMENT METHODS ============
+
+  /**
+   * Add photo to user profile
+   */
+  static async addUserPhoto(photoUrl, isMain = false) {
+    try {
+      Logger.info('📸 Adding photo to user profile via API...');
+
+      const response = await apiClient.addPhoto(photoUrl, isMain);
+
+      if (response.success) {
+        Logger.success('✅ Photo added via API');
+        return response.data.data;
+      } else {
+        Logger.error('❌ Failed to add photo via API:', response.message);
+        throw new Error(response.message || 'Photo upload failed');
+      }
+    } catch (error) {
+      Logger.error('❌ Error adding photo via API:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Delete photo from user profile
+   */
+  static async deleteUserPhoto(photoId) {
+    try {
+      Logger.info('🗑️ Deleting photo from user profile via API...');
+
+      const response = await apiClient.deletePhoto(photoId);
+
+      if (response.success) {
+        Logger.success('✅ Photo deleted via API');
+        return response.data.data;
+      } else {
+        Logger.error('❌ Failed to delete photo via API:', response.message);
+        throw new Error(response.message || 'Photo deletion failed');
+      }
+    } catch (error) {
+      Logger.error('❌ Error deleting photo via API:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Reorder user photos
+   */
+  static async reorderUserPhotos(photoIds) {
+    try {
+      Logger.info('🔄 Reordering user photos via API...');
+
+      const response = await apiClient.reorderPhotos(photoIds);
+
+      if (response.success) {
+        Logger.success('✅ Photos reordered via API');
+        return response.data.data;
+      } else {
+        Logger.error('❌ Failed to reorder photos via API:', response.message);
+        throw new Error(response.message || 'Photo reordering failed');
+      }
+    } catch (error) {
+      Logger.error('❌ Error reordering photos via API:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Set main photo
+   */
+  static async setMainPhoto(photoId) {
+    try {
+      Logger.info('⭐ Setting main photo via API...');
+
+      const response = await apiClient.setMainPhoto(photoId);
+
+      if (response.success) {
+        Logger.success('✅ Main photo set via API');
+        return response.data.data;
+      } else {
+        Logger.error('❌ Failed to set main photo via API:', response.message);
+        throw new Error(response.message || 'Set main photo failed');
+      }
+    } catch (error) {
+      Logger.error('❌ Error setting main photo via API:', error);
+      throw error;
+    }
+  }
+
   // ============ PLACEHOLDER METHODS (for future implementation) ============
 
   /**
    * Get user matches (placeholder)
    */
-  static async getUserMatches(userId) {
+  static async getUserMatches(_userId) {
     Logger.info('💕 getUserMatches - Coming in PR #8: Matching Algorithm');
     return [];
   }
@@ -239,7 +309,7 @@ class ApiDataService {
   /**
    * Like a user (placeholder)
    */
-  static async likeUser(userId, targetUserId) {
+  static async likeUser(_userId, _targetUserId) {
     Logger.info('👍 likeUser - Coming in PR #8: Matching Algorithm');
     return false;
   }
@@ -247,7 +317,7 @@ class ApiDataService {
   /**
    * Pass on a user (placeholder)
    */
-  static async passUser(userId, targetUserId) {
+  static async passUser(_userId, _targetUserId) {
     Logger.info('👎 passUser - Coming in PR #8: Matching Algorithm');
     return false;
   }
@@ -255,7 +325,7 @@ class ApiDataService {
   /**
    * Get messages (placeholder)
    */
-  static async getMessages(userId, matchId) {
+  static async getMessages(_userId, _matchId) {
     Logger.info('💬 getMessages - Coming in PR #10: Real-time Chat');
     return [];
   }
@@ -263,7 +333,7 @@ class ApiDataService {
   /**
    * Send message (placeholder)
    */
-  static async sendMessage(userId, matchId, message) {
+  static async sendMessage(_userId, _matchId, _message) {
     Logger.info('📤 sendMessage - Coming in PR #10: Real-time Chat');
     return false;
   }

@@ -1,10 +1,8 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Image } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, ScrollView } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { useAuth } from '../../contexts/AuthContext';
 
 const OnboardingScreen = ({ navigation }) => {
-  const { userProfile } = useAuth();
   const [currentStep, setCurrentStep] = useState(0);
 
   const steps = [

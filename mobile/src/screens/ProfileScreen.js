@@ -1,41 +1,33 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
   StyleSheet,
   ScrollView,
   TouchableOpacity,
-  Image,
-  ActivityIndicator,
-  Modal,
-  TextInput,
   AppState,
   Alert,
+  Image,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import * as ImagePicker from 'expo-image-picker';
 import { useAuth } from '../contexts/AuthContext';
 import Logger from '../utils/logger';
 import { useToast } from '../contexts/ToastContext';
 import { LoadingScreen } from '../components/LoadingScreen';
+
 // import { theme } from '../styles/theme';
 // import { commonStyles } from '../styles/commonStyles';
-import DataService from '../services/DataService';
-import { handleError } from '../utils/errorHandler';
-import { uploadImageToFirebase } from '../utils/imageUpload';
+// Removed Firebase dependencies - now using API-based AuthContext
 
-const ProfileScreen = () => {
+const ProfileScreen = ({ navigation }) => {
   const { logout, user, userProfile: authUserProfile, refreshUserProfile } = useAuth();
   const { showSuccess, showError } = useToast();
   const [userProfile, setUserProfile] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [saving, setSaving] = useState(false);
-  const [editModalVisible, setEditModalVisible] = useState(false);
-  const [editForm, setEditForm] = useState({});
 
   useEffect(() => {
     if (authUserProfile) {
-      // Use the profile from AuthContext (which includes location updates)
+      // Use the profile from AuthContext (API-based)
       Logger.info(
         '📊 ProfileScreen got authUserProfile with',
         authUserProfile.photos?.length || 0,
@@ -43,12 +35,10 @@ const ProfileScreen = () => {
       );
       setUserProfile(authUserProfile);
       setLoading(false);
-    } else if (user?.uid) {
-      // Fallback to loading from DataService if AuthContext doesn't have profile
-      loadUserProfile();
+    } else {
+      setLoading(false);
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [user, authUserProfile]);
+  }, [authUserProfile]);
 
   // Refresh profile when app comes to foreground (to get location updates)
   useEffect(() => {
@@ -63,88 +53,10 @@ const ProfileScreen = () => {
     return () => subscription?.remove();
   }, [user, refreshUserProfile]);
 
-  const loadUserProfile = useCallback(async () => {
-    try {
-      setLoading(true);
-      if (user?.uid) {
-        const profile = await DataService.getUserProfile(user.uid);
-        if (profile) {
-          setUserProfile(profile);
-        } else {
-          // Fallback to default profile if none exists
-          setUserProfile({
-            name: user.displayName || 'User',
-            age: null,
-            bio: 'Tell us about yourself...',
-            photos: [],
-            location: 'Location not set',
-            interests: [],
-          });
-        }
-      }
-    } catch (error) {
-      const errorInfo = handleError(error, 'Failed to load profile');
-      showError(errorInfo.message, {
-        action: { text: 'Retry', onPress: loadUserProfile },
-      });
-    } finally {
-      setLoading(false);
-    }
-  }, [user, showError]);
+  // Removed old Firebase-based profile loading and editing functions
+  // Now using API-based AuthContext and ProfileEditScreen
 
-  const saveUserProfile = async updatedProfile => {
-    try {
-      setSaving(true);
-      if (user?.uid) {
-        const success = await DataService.updateUserProfile(user.uid, updatedProfile);
-        if (success) {
-          setUserProfile(updatedProfile);
-          showSuccess('Profile updated successfully! ✨');
-          Logger.success('Profile updated successfully');
-        } else {
-          const errorInfo = handleError(new Error('Save failed'), 'Failed to save profile');
-          showError(errorInfo.message, {
-            action: { text: 'Retry', onPress: () => saveUserProfile(updatedProfile) },
-          });
-        }
-      }
-    } catch (error) {
-      const errorInfo = handleError(error, 'Failed to save profile');
-      showError(errorInfo.message, {
-        action: { text: 'Retry', onPress: () => saveUserProfile(updatedProfile) },
-      });
-    } finally {
-      setSaving(false);
-    }
-  };
-
-  const openEditModal = () => {
-    setEditForm({
-      name: userProfile?.name || '',
-      bio: userProfile?.bio || '',
-      location: userProfile?.location || '',
-    });
-    setEditModalVisible(true);
-  };
-
-  const closeEditModal = () => {
-    setEditModalVisible(false);
-    setEditForm({});
-  };
-
-  const saveProfileEdits = async () => {
-    try {
-      setSaving(true);
-      const updatedProfile = { ...userProfile, ...editForm };
-      await saveUserProfile(updatedProfile);
-      closeEditModal();
-    } catch (error) {
-      Logger.error('Error saving profile edits:', error);
-      showError('Failed to save changes. Please try again.');
-    } finally {
-      setSaving(false);
-    }
-  };
+  // Profile editing is now handled by ProfileEditScreen
 
   const handleLogout = async () => {
     // Show proper confirmation dialog for destructive action
@@ -165,8 +77,7 @@ const ProfileScreen = () => {
     try {
       Logger.info('🚪 User confirmed logout...');
 
-      // Show loading state briefly
-      setSaving(true);
+      // Logout via API-based AuthContext
 
       const result = await logout();
 
@@ -175,87 +86,19 @@ const ProfileScreen = () => {
         Logger.success('✅ User logged out successfully');
       } else {
         Logger.error('❌ Logout failed:', result.error);
-        const errorInfo = handleError(
-          new Error(result.error || 'Logout failed'),
-          'Failed to logout'
-        );
-        showError(errorInfo.message, {
+        showError(result.error || 'Failed to logout', {
           action: { text: 'Try Again', onPress: performLogout },
         });
       }
     } catch (error) {
       Logger.error('❌ Logout error:', error);
-      const errorInfo = handleError(error, 'Failed to logout');
-      showError(errorInfo.message, {
+      showError(error.message || 'Failed to logout', {
         action: { text: 'Try Again', onPress: performLogout },
       });
-    } finally {
-      setSaving(false);
     }
   };
 
-  const pickImage = async () => {
-    if (saving) return; // Prevent multiple uploads
-
-    const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
-
-    if (status !== 'granted') {
-      showError('Please grant permission to access your photo library');
-      return;
-    }
-
-    try {
-      setSaving(true);
-      Logger.info('📸 Opening image picker from profile...');
-
-      const currentPhotos = userProfile?.photos || [];
-      const remainingSlots = 6 - currentPhotos.length;
-
-      if (remainingSlots <= 0) {
-        showError('You can upload up to 6 photos');
-        setSaving(false);
-        return;
-      }
-
-      const result = await ImagePicker.launchImageLibraryAsync({
-        mediaTypes: ImagePicker.MediaTypeOptions.Images,
-        allowsMultipleSelection: true,
-        selectionLimit: remainingSlots,
-        allowsEditing: false, // Disable editing for multi-select
-        quality: 0.8,
-        exif: false,
-      });
-
-      Logger.info('📸 Profile image picker result:', result);
-
-      if (!result.canceled && result.assets && result.assets.length > 0 && userProfile) {
-        Logger.info(`📸 Uploading ${result.assets.length} images...`);
-
-        // Upload all selected images
-        const uploadPromises = result.assets.map(asset =>
-          uploadImageToFirebase(asset.uri, user.uid)
-        );
-
-        const cloudUrls = await Promise.all(uploadPromises);
-
-        const newPhotos = [...currentPhotos, ...cloudUrls];
-        const updatedProfile = {
-          ...userProfile,
-          photos: newPhotos,
-          mainPhoto: userProfile.mainPhoto || cloudUrls[0], // Set first photo as main if no main photo
-        };
-
-        await saveUserProfile(updatedProfile);
-
-        showSuccess(`${result.assets.length} image(s) uploaded successfully!`);
-      }
-    } catch (error) {
-      Logger.error('Error uploading images:', error);
-      showError('Failed to upload images. Please try again.');
-    } finally {
-      setSaving(false);
-    }
-  };
+  // Photo management is now handled by ProfileEditScreen
 
   if (loading) {
     return <LoadingScreen message="Loading profile..." />;
@@ -265,7 +108,7 @@ const ProfileScreen = () => {
     return (
       <View style={[styles.container, styles.centered]}>
         <Text style={styles.errorText}>Failed to load profile</Text>
-        <TouchableOpacity style={styles.retryButton} onPress={loadUserProfile}>
+        <TouchableOpacity style={styles.retryButton} onPress={refreshUserProfile}>
           <Text style={styles.retryButtonText}>Retry</Text>
         </TouchableOpacity>
       </View>
@@ -274,30 +117,45 @@ const ProfileScreen = () => {
 
   return (
     <ScrollView style={styles.container}>
-      {saving && <ActivityIndicator size="small" color="#fff" style={styles.savingIndicator} />}
+      {/* Main Profile Photo */}
+      <View style={styles.mainPhotoSection}>
+        {userProfile.photos && userProfile.photos.length > 0 ? (
+          <TouchableOpacity
+            style={styles.mainPhotoContainer}
+            onPress={() => navigation.navigate('ProfileEdit')}
+            activeOpacity={0.8}
+          >
+            {/* Blurred Background */}
+            <Image
+              source={{ uri: userProfile.photos[0].url || userProfile.photos[0] }}
+              style={styles.blurredBackground}
+              blurRadius={20}
+            />
+            {/* Dark Overlay for better contrast */}
+            <View style={styles.backgroundOverlay} />
 
-      {/* Profile Photos */}
-      <View style={styles.photoSection}>
-        <Text style={styles.sectionTitle}>Photos</Text>
-        <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-          {(userProfile.photos || []).map((photo, index) => (
-            <Image key={index} source={{ uri: photo }} style={styles.profilePhoto} />
-          ))}
-          <TouchableOpacity style={styles.addPhotoButton} onPress={pickImage} disabled={saving}>
-            {saving ? (
-              <ActivityIndicator size="small" color="#FF6B6B" />
-            ) : (
-              <>
-                <Ionicons name="add" size={30} color="#FF6B6B" />
-                <Text style={styles.addPhotoText}>
-                  {userProfile?.photos?.length === 0
-                    ? 'Add Photos'
-                    : `Add More (${6 - (userProfile?.photos?.length || 0)} left)`}
-                </Text>
-              </>
-            )}
+            {/* Main Photo */}
+            <Image
+              source={{ uri: userProfile.photos[0].url || userProfile.photos[0] }}
+              style={styles.mainPhoto}
+            />
+            <View style={styles.editPill}>
+              <Text style={styles.editPillText}>Edit Photos</Text>
+            </View>
           </TouchableOpacity>
-        </ScrollView>
+        ) : (
+          <TouchableOpacity
+            style={styles.emptyPhotoContainer}
+            onPress={() => navigation.navigate('ProfileEdit')}
+            activeOpacity={0.8}
+          >
+            <Ionicons name="camera-outline" size={60} color="#ccc" />
+            <Text style={styles.emptyPhotoText}>Add Photos</Text>
+            <View style={styles.editPill}>
+              <Text style={styles.editPillText}>Edit Profile</Text>
+            </View>
+          </TouchableOpacity>
+        )}
       </View>
 
       {/* Profile Info */}
@@ -317,24 +175,72 @@ const ProfileScreen = () => {
           <Text style={styles.infoText}>{userProfile.location || 'Location not set'}</Text>
         </View>
 
-        <View style={styles.bioSection}>
-          <Text style={styles.bioTitle}>About Me</Text>
-          <Text style={styles.bioText}>{userProfile.bio}</Text>
-        </View>
+        {userProfile.profession && (
+          <View style={styles.infoRow}>
+            <Ionicons name="briefcase" size={20} color="#FF6B6B" />
+            <Text style={styles.infoText}>{userProfile.profession}</Text>
+          </View>
+        )}
+
+        {userProfile.education && (
+          <View style={styles.infoRow}>
+            <Ionicons name="school" size={20} color="#FF6B6B" />
+            <Text style={styles.infoText}>{userProfile.education}</Text>
+          </View>
+        )}
+
+        {userProfile.height && (
+          <View style={styles.infoRow}>
+            <Ionicons name="resize" size={20} color="#FF6B6B" />
+            <Text style={styles.infoText}>{userProfile.height}</Text>
+          </View>
+        )}
+
+        {userProfile.bio && (
+          <View style={styles.bioSection}>
+            <Text style={styles.bioTitle}>About Me</Text>
+            <Text style={styles.bioText}>{userProfile.bio}</Text>
+          </View>
+        )}
+
+        {userProfile.relationshipType && (
+          <View style={styles.infoSection}>
+            <Text style={styles.bioTitle}>Looking For</Text>
+            <Text style={styles.infoText}>
+              {(() => {
+                const relationshipType = Array.isArray(userProfile.relationshipType)
+                  ? userProfile.relationshipType[0]
+                  : userProfile.relationshipType;
+
+                if (typeof relationshipType !== 'string') return relationshipType;
+
+                // Handle both camelCase and UPPER_CASE formats
+                return relationshipType
+                  .toLowerCase()
+                  .replace(/_/g, ' ')
+                  .replace(/\b\w/g, l => l.toUpperCase());
+              })()}
+            </Text>
+          </View>
+        )}
 
         <View style={styles.interestsSection}>
           <Text style={styles.interestsTitle}>Interests</Text>
           <View style={styles.interestsContainer}>
-            {userProfile.interests ? (
+            {userProfile.interests && userProfile.interests.length > 0 ? (
               Array.isArray(userProfile.interests) ? (
-                // Handle array format (old format)
-                userProfile.interests.map((interest, index) => (
-                  <View key={index} style={styles.interestTag}>
-                    <Text style={styles.interestText}>{interest}</Text>
-                  </View>
-                ))
+                userProfile.interests.map((interest, index) => {
+                  const interestName =
+                    typeof interest === 'object'
+                      ? interest.interest?.name || interest.name
+                      : interest;
+                  return (
+                    <View key={index} style={styles.interestTag}>
+                      <Text style={styles.interestText}>{interestName}</Text>
+                    </View>
+                  );
+                })
               ) : (
-                // Handle string format (new format)
                 <Text style={styles.bioText}>{userProfile.interests}</Text>
               )
             ) : (
@@ -344,11 +250,60 @@ const ProfileScreen = () => {
         </View>
       </View>
 
+      {/* Lifestyle Section */}
+      {(userProfile.religion ||
+        userProfile.smoking ||
+        userProfile.drinking ||
+        userProfile.travel ||
+        userProfile.pets) && (
+        <View style={styles.infoSection}>
+          <Text style={styles.sectionTitle}>Lifestyle</Text>
+
+          {userProfile.religion && (
+            <View style={styles.infoRow}>
+              <Ionicons name="star" size={20} color="#FF6B6B" />
+              <Text style={styles.infoText}>{userProfile.religion}</Text>
+            </View>
+          )}
+
+          {userProfile.smoking && (
+            <View style={styles.infoRow}>
+              <Ionicons name="ban" size={20} color="#FF6B6B" />
+              <Text style={styles.infoText}>Smoking: {userProfile.smoking}</Text>
+            </View>
+          )}
+
+          {userProfile.drinking && (
+            <View style={styles.infoRow}>
+              <Ionicons name="wine" size={20} color="#FF6B6B" />
+              <Text style={styles.infoText}>Drinking: {userProfile.drinking}</Text>
+            </View>
+          )}
+
+          {userProfile.travel && (
+            <View style={styles.infoRow}>
+              <Ionicons name="airplane" size={20} color="#FF6B6B" />
+              <Text style={styles.infoText}>{userProfile.travel}</Text>
+            </View>
+          )}
+
+          {userProfile.pets && (
+            <View style={styles.infoRow}>
+              <Ionicons name="paw" size={20} color="#FF6B6B" />
+              <Text style={styles.infoText}>{userProfile.pets}</Text>
+            </View>
+          )}
+        </View>
+      )}
+
       {/* Settings */}
       <View style={styles.settingsSection}>
         <Text style={styles.sectionTitle}>Settings</Text>
 
-        <TouchableOpacity style={styles.settingItem} onPress={openEditModal}>
+        <TouchableOpacity
+          style={styles.settingItem}
+          onPress={() => navigation.navigate('ProfileEdit')}
+        >
           <Ionicons name="settings" size={20} color="#FF6B6B" />
           <Text style={styles.settingText}>Edit Profile</Text>
           <Ionicons name="chevron-forward" size={20} color="#ccc" />
@@ -372,56 +327,7 @@ const ProfileScreen = () => {
         </TouchableOpacity>
       </View>
 
-      {/* Edit Profile Modal */}
-      <Modal visible={editModalVisible} animationType="slide" presentationStyle="pageSheet">
-        <View style={styles.modalContainer}>
-          <View style={styles.modalHeader}>
-            <TouchableOpacity onPress={closeEditModal}>
-              <Text style={styles.modalCancelText}>Cancel</Text>
-            </TouchableOpacity>
-            <Text style={styles.modalTitle}>Edit Profile</Text>
-            <TouchableOpacity onPress={saveProfileEdits} disabled={saving}>
-              <Text style={[styles.modalSaveText, saving && styles.disabledText]}>
-                {saving ? 'Saving...' : 'Save'}
-              </Text>
-            </TouchableOpacity>
-          </View>
-
-          <ScrollView style={styles.modalContent}>
-            <View style={styles.formField}>
-              <Text style={styles.fieldLabel}>Name</Text>
-              <TextInput
-                style={styles.textInput}
-                value={editForm.name}
-                onChangeText={text => setEditForm(prev => ({ ...prev, name: text }))}
-                placeholder="Enter your name"
-              />
-            </View>
-
-            <View style={styles.formField}>
-              <Text style={styles.fieldLabel}>Bio</Text>
-              <TextInput
-                style={[styles.textInput, styles.textAreaInput]}
-                value={editForm.bio}
-                onChangeText={text => setEditForm(prev => ({ ...prev, bio: text }))}
-                placeholder="Tell us about yourself..."
-                multiline
-                numberOfLines={4}
-              />
-            </View>
-
-            <View style={styles.formField}>
-              <Text style={styles.fieldLabel}>Location</Text>
-              <TextInput
-                style={styles.textInput}
-                value={editForm.location}
-                onChangeText={text => setEditForm(prev => ({ ...prev, location: text }))}
-                placeholder="Enter your location"
-              />
-            </View>
-          </ScrollView>
-        </View>
-      </Modal>
+      {/* Edit functionality moved to ProfileEditScreen */}
     </ScrollView>
   );
 };
@@ -432,38 +338,80 @@ const styles = StyleSheet.create({
     backgroundColor: '#f8f9fa',
   },
 
-  photoSection: {
-    padding: 20,
+  mainPhotoSection: {
     backgroundColor: '#fff',
     marginBottom: 10,
+    alignItems: 'center',
+    overflow: 'hidden',
+  },
+  mainPhotoContainer: {
+    position: 'relative',
+    alignItems: 'center',
+    justifyContent: 'center',
+    width: '100%',
+    height: 300,
+  },
+  blurredBackground: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    width: '100%',
+    height: '100%',
+    resizeMode: 'cover',
+  },
+  backgroundOverlay: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: 'rgba(0, 0, 0, 0.3)',
+  },
+  mainPhoto: {
+    width: 200,
+    height: 250,
+    borderRadius: 12,
+    zIndex: 2,
+  },
+  editPill: {
+    position: 'absolute',
+    top: 20,
+    right: 20,
+    backgroundColor: 'rgba(0,0,0,0.7)',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 20,
+    zIndex: 3,
+  },
+  editPillText: {
+    color: '#fff',
+    fontSize: 12,
+    fontWeight: '600',
+  },
+  emptyPhotoContainer: {
+    width: 200,
+    height: 250,
+    borderRadius: 12,
+    borderWidth: 2,
+    borderColor: '#ddd',
+    borderStyle: 'dashed',
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: '#f8f9fa',
+    position: 'relative',
+  },
+  emptyPhotoText: {
+    fontSize: 16,
+    color: '#999',
+    marginTop: 10,
   },
   sectionTitle: {
     fontSize: 18,
     fontWeight: 'bold',
     marginBottom: 15,
     color: '#333',
-  },
-  profilePhoto: {
-    width: 100,
-    height: 100,
-    borderRadius: 50,
-    marginRight: 10,
-  },
-  addPhotoButton: {
-    width: 100,
-    height: 100,
-    borderRadius: 50,
-    borderWidth: 2,
-    borderColor: '#FF6B6B',
-    borderStyle: 'dashed',
-    justifyContent: 'center',
-    alignItems: 'center',
-    backgroundColor: '#f8f9fa',
-  },
-  addPhotoText: {
-    color: '#FF6B6B',
-    fontSize: 12,
-    marginTop: 5,
   },
   infoSection: {
     padding: 20,
@@ -519,6 +467,11 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontSize: 12,
   },
+  emptyText: {
+    fontSize: 14,
+    color: '#999',
+    fontStyle: 'italic',
+  },
   settingsSection: {
     padding: 20,
     backgroundColor: '#fff',
@@ -573,69 +526,6 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontSize: 16,
     fontWeight: '500',
-  },
-  savingIndicator: {
-    marginLeft: 10,
-  },
-  emptyText: {
-    color: '#999',
-    fontSize: 14,
-    fontStyle: 'italic',
-  },
-  modalContainer: {
-    flex: 1,
-    backgroundColor: '#f8f9fa',
-  },
-  modalHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    padding: 16,
-    backgroundColor: '#fff',
-    borderBottomWidth: 1,
-    borderBottomColor: '#e0e0e0',
-  },
-  modalTitle: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    color: '#333',
-  },
-  modalCancelText: {
-    fontSize: 16,
-    color: '#666',
-  },
-  modalSaveText: {
-    fontSize: 16,
-    color: '#FF6B6B',
-    fontWeight: '600',
-  },
-  disabledText: {
-    opacity: 0.5,
-  },
-  modalContent: {
-    flex: 1,
-    padding: 16,
-  },
-  formField: {
-    marginBottom: 20,
-  },
-  fieldLabel: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#333',
-    marginBottom: 8,
-  },
-  textInput: {
-    borderWidth: 1,
-    borderColor: '#ddd',
-    borderRadius: 8,
-    padding: 12,
-    fontSize: 16,
-    backgroundColor: '#fff',
-  },
-  textAreaInput: {
-    height: 100,
-    textAlignVertical: 'top',
   },
 });
 
