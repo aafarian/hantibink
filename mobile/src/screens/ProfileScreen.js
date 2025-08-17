@@ -207,8 +207,19 @@ const ProfileScreen = ({ navigation }) => {
           <View style={styles.infoSection}>
             <Text style={styles.bioTitle}>Looking For</Text>
             <Text style={styles.infoText}>
-              {userProfile.relationshipType.charAt(0).toUpperCase() +
-                userProfile.relationshipType.slice(1).replace(/([A-Z])/g, ' $1')}
+              {(() => {
+                const relationshipType = Array.isArray(userProfile.relationshipType)
+                  ? userProfile.relationshipType[0]
+                  : userProfile.relationshipType;
+
+                if (typeof relationshipType !== 'string') return relationshipType;
+
+                // Handle both camelCase and UPPER_CASE formats
+                return relationshipType
+                  .toLowerCase()
+                  .replace(/_/g, ' ')
+                  .replace(/\b\w/g, l => l.toUpperCase());
+              })()}
             </Text>
           </View>
         )}

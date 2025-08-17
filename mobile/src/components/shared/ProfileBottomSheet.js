@@ -4,7 +4,6 @@ import {
   Text,
   StyleSheet,
   TouchableOpacity,
-  ScrollView,
   Dimensions,
   StatusBar,
   Platform,
@@ -13,7 +12,7 @@ import { Ionicons } from '@expo/vector-icons';
 import BottomSheet, { BottomSheetView, BottomSheetScrollView } from '@gorhom/bottom-sheet';
 import ProfilePhotoGrid from '../profile/ProfilePhotoGrid';
 
-const { width: screenWidth, height: screenHeight } = Dimensions.get('window');
+const { height: screenHeight } = Dimensions.get('window');
 const statusBarHeight = Platform.OS === 'android' ? StatusBar.currentHeight || 24 : 44;
 const availableHeight = screenHeight - statusBarHeight;
 
@@ -132,7 +131,11 @@ const ProfileBottomSheet = forwardRef(
                 {profile.relationshipType && (
                   <View style={styles.infoItem}>
                     <Ionicons name="heart-outline" size={16} color="#666" />
-                    <Text style={styles.infoText}>{profile.relationshipType}</Text>
+                    <Text style={styles.infoText}>
+                      {Array.isArray(profile.relationshipType)
+                        ? profile.relationshipType.join(', ')
+                        : profile.relationshipType}
+                    </Text>
                   </View>
                 )}
 

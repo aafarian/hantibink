@@ -24,14 +24,16 @@ export const MatchCard = ({
   const profilePhotoUrl = getUserProfilePhoto(user);
   const { openProfileSheet } = usePhotoViewer();
 
-  const profileActionButtons = [
-    {
-      icon: 'chatbubble',
-      label: 'Message',
-      onPress: onMessagePress,
-      style: { backgroundColor: '#FF6B6B' },
-    },
-  ];
+  const profileActionButtons = onMessagePress
+    ? [
+        {
+          icon: 'chatbubble',
+          label: 'Message',
+          onPress: onMessagePress,
+          style: { backgroundColor: '#FF6B6B' },
+        },
+      ]
+    : [];
 
   const handlePhotoPress = () => {
     openProfileSheet({
