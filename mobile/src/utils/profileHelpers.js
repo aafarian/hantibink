@@ -15,12 +15,30 @@ export const getUserProfilePhoto = user => {
     return user.mainPhoto;
   }
 
-  // Priority 2: First photo in photos array (their actual uploaded photos)
+  // Priority 2: Main photo from photos array (isMain: true)
   if (user?.photos && Array.isArray(user.photos) && user.photos.length > 0) {
-    // Filter out empty/null photos and return first valid one
-    const validPhotos = user.photos.filter(photo => photo && photo.trim());
+    // First, look for the main photo
+    const mainPhoto = user.photos.find(photo => {
+      if (!photo) return false;
+      return photo.isMain === true;
+    });
+
+    if (mainPhoto) {
+      const photoUrl = typeof mainPhoto === 'object' ? mainPhoto.url : mainPhoto;
+      if (photoUrl && typeof photoUrl === 'string' && photoUrl.trim()) {
+        return photoUrl;
+      }
+    }
+
+    // Fallback: First valid photo if no main photo is set
+    const validPhotos = user.photos.filter(photo => {
+      if (!photo) return false;
+      const photoUrl = typeof photo === 'object' ? photo.url : photo;
+      return photoUrl && typeof photoUrl === 'string' && photoUrl.trim();
+    });
     if (validPhotos.length > 0) {
-      return validPhotos[0];
+      const firstPhoto = validPhotos[0];
+      return typeof firstPhoto === 'object' ? firstPhoto.url : firstPhoto;
     }
   }
 
@@ -42,7 +60,12 @@ export const userHasPhotos = user => {
   if (user?.mainPhoto && user.mainPhoto.trim()) return true;
   if (user?.photo && user.photo.trim()) return true;
   if (user?.photos && Array.isArray(user.photos)) {
-    return user.photos.some(photo => photo && photo.trim());
+    return user.photos.some(photo => {
+      if (!photo) return false;
+      // Handle both photo objects (from API) and photo strings (from Firebase)
+      const photoUrl = typeof photo === 'object' ? photo.url : photo;
+      return photoUrl && typeof photoUrl === 'string' && photoUrl.trim();
+    });
   }
   return false;
 };

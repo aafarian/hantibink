@@ -12,6 +12,8 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { MaterialIcons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
 import { useToast } from '../../contexts/ToastContext';
+import { useAuth } from '../../contexts/AuthContext';
+import ApiDataService from '../../services/ApiDataService';
 import Logger from '../../utils/logger';
 
 const { width } = Dimensions.get('window');
@@ -20,10 +22,12 @@ const photoSize = (width - 60) / 3; // 3 photos per row with spacing
 const PhotoSelectionScreen = ({ navigation, route }) => {
   const [photos, setPhotos] = useState([]);
   const [loading, setLoading] = useState(false);
-  const { showError } = useToast();
+  const { showError, showSuccess } = useToast();
+  const { user } = useAuth();
 
   // Get data from Step 1 (passed via navigation params)
   const step1Data = route?.params?.step1Data || {};
+  const isOnboarding = route?.params?.isOnboarding || false;
 
   const pickImages = async () => {
     try {
@@ -89,21 +93,48 @@ const PhotoSelectionScreen = ({ navigation, route }) => {
 
     setLoading(true);
     try {
-      Logger.info(
-        `🔄 Step 2 complete - proceeding to profile details with ${photos.length} photos`
-      );
+      if (isOnboarding && user?.uid) {
+        // Upload photos to existing account
+        Logger.info(`📸 Uploading ${photos.length} photos to existing account...`);
 
-      // Prepare data for Step 3
-      const step2Data = {
-        ...step1Data,
-        photos: photos,
-      };
+        for (let i = 0; i < photos.length; i++) {
+          const photo = photos[i];
+          const isMain = i === 0; // First photo is main
 
-      // Navigate to Step 3 with all collected data
-      navigation.navigate('ProfileDetails', { step2Data });
+          try {
+            await ApiDataService.addUserPhoto(photo.uri, isMain);
+            Logger.info(`✅ Photo ${i + 1}/${photos.length} uploaded`);
+          } catch (photoError) {
+            Logger.error(`❌ Failed to upload photo ${i + 1}:`, photoError);
+            // Continue with other photos
+          }
+        }
+
+        showSuccess("Photos uploaded! Let's complete your profile");
+        Logger.success('✅ All photos processed for onboarding');
+
+        // Navigate to final profile details step
+        navigation.navigate('ProfileDetails', {
+          isOnboarding: true,
+          userId: route.params?.userId, // Pass user ID for onboarding
+          step2Data: { photos }, // Keep for compatibility
+        });
+      } else {
+        // Legacy flow - pass data to next step
+        Logger.info(
+          `🔄 Step 2 complete - proceeding to profile details with ${photos.length} photos`
+        );
+
+        const step2Data = {
+          ...step1Data,
+          photos: photos,
+        };
+
+        navigation.navigate('ProfileDetails', { step2Data });
+      }
     } catch (error) {
       Logger.error('❌ Step 2 error:', error);
-      showError('An unexpected error occurred. Please try again.');
+      showError('Failed to upload photos. Please try again.');
     } finally {
       setLoading(false);
     }

@@ -21,6 +21,7 @@ import SelectionPanel from '../../components/SelectionPanel';
 import Logger from '../../utils/logger';
 
 const SimpleRegisterScreen = ({ navigation }) => {
+  const { register } = useAuth();
   const [formData, setFormData] = useState({
     email: '',
     password: '',
@@ -38,6 +39,7 @@ const SimpleRegisterScreen = ({ navigation }) => {
   const [showInterestedInPicker, setShowInterestedInPicker] = useState(false);
   const [loading, setLoading] = useState(false);
   const [selectedLocation, setSelectedLocation] = useState(null);
+  const [fieldErrors, setFieldErrors] = useState({}); // Track field-specific errors
 
   // Refs for text inputs to enable auto-advance
   const scrollViewRef = useRef(null);
@@ -48,7 +50,7 @@ const SimpleRegisterScreen = ({ navigation }) => {
 
   const { checkEmailExists } = useAuth();
   const { location } = useLocation();
-  const { showError } = useToast();
+  const { showError, showSuccess } = useToast();
 
   // Helper function to focus next field
   const focusField = fieldRef => {
@@ -87,6 +89,10 @@ const SimpleRegisterScreen = ({ navigation }) => {
 
   const updateField = (field, value) => {
     setFormData(prev => ({ ...prev, [field]: value }));
+    // Clear error when user starts typing
+    if (fieldErrors[field]) {
+      setFieldErrors(prev => ({ ...prev, [field]: null }));
+    }
   };
 
   const calculateAge = birthDate => {
@@ -103,7 +109,7 @@ const SimpleRegisterScreen = ({ navigation }) => {
   };
 
   const handleDateChange = (event, selectedDate) => {
-    setShowDatePicker(false);
+    // Don't close modal automatically - only update the value
     if (selectedDate) {
       const age = calculateAge(selectedDate);
       updateField('birthDate', selectedDate.toISOString());
@@ -113,10 +119,12 @@ const SimpleRegisterScreen = ({ navigation }) => {
 
   const validateEmail = async email => {
     if (!email) {
+      setFieldErrors(prev => ({ ...prev, email: 'Email is required' }));
       showError('Email is required');
       return false;
     }
     if (!/^[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}$/i.test(email)) {
+      setFieldErrors(prev => ({ ...prev, email: 'Please enter a valid email address' }));
       showError('Please enter a valid email address');
       return false;
     }
@@ -124,6 +132,7 @@ const SimpleRegisterScreen = ({ navigation }) => {
     // Check if email already exists
     const emailExists = await checkEmailExists(email);
     if (emailExists) {
+      setFieldErrors(prev => ({ ...prev, email: 'An account with this email already exists' }));
       showError('An account with this email already exists. Please sign in instead.');
       return false;
     }
@@ -132,55 +141,65 @@ const SimpleRegisterScreen = ({ navigation }) => {
   };
 
   const validateForm = async () => {
+    let hasErrors = false;
+    const errors = {};
+
     // Email validation
     const emailValid = await validateEmail(formData.email);
-    if (!emailValid) return false;
+    if (!emailValid) hasErrors = true;
 
     // Password validation
     if (!formData.password) {
+      errors.password = 'Password is required';
       showError('Password is required');
-      return false;
-    }
-    if (formData.password.length < 6) {
+      hasErrors = true;
+    } else if (formData.password.length < 6) {
+      errors.password = 'Password must be at least 6 characters';
       showError('Password must be at least 6 characters');
-      return false;
-    }
-    if (formData.password !== formData.confirmPassword) {
+      hasErrors = true;
+    } else if (formData.password !== formData.confirmPassword) {
+      errors.confirmPassword = 'Passwords do not match';
       showError('Passwords do not match');
-      return false;
+      hasErrors = true;
     }
 
     // Name validation
     if (!formData.name.trim()) {
+      errors.name = 'Name is required';
       showError('Name is required');
-      return false;
+      hasErrors = true;
     }
 
     // Age validation
     if (!formData.age || formData.age < 18) {
+      errors.birthDate = 'You must be at least 18 years old';
       showError('You must be at least 18 years old');
-      return false;
+      hasErrors = true;
     }
 
     // Gender validation
     if (!formData.gender) {
+      errors.gender = 'Please select your gender';
       showError('Please select your gender');
-      return false;
+      hasErrors = true;
     }
 
     // Interested in validation
     if (!formData.interestedIn) {
+      errors.interestedIn = "Please select who you're interested in";
       showError("Please select who you're interested in");
-      return false;
+      hasErrors = true;
     }
 
     // Location validation
     if (!selectedLocation) {
+      errors.location = 'Please select your location';
       showError('Please select your location');
-      return false;
+      hasErrors = true;
     }
 
-    return true;
+    setFieldErrors(errors);
+    return !hasErrors;
   };
 
   const handleNext = async () => {
@@ -188,21 +207,49 @@ const SimpleRegisterScreen = ({ navigation }) => {
 
     setLoading(true);
     try {
-      Logger.info('🔄 Step 1 complete - proceeding to photo selection');
+      Logger.info('🔄 Creating account with basic info...');
 
-      // Prepare data for next step
-      const step1Data = {
-        ...formData,
-        location: location, // Full location object for coordinates/details
-        locationText: selectedLocation, // Human-readable location text
-        createdAt: new Date().toISOString(),
+      // Create account immediately with minimal required data
+      const userData = {
+        email: formData.email,
+        password: formData.password,
+        name: formData.name,
+        birthDate: formData.birthDate,
+        gender: formData.gender,
+        interestedIn: formData.interestedIn,
+        location: String(selectedLocation || 'Pasadena, California'),
+        coordinates: {
+          latitude: Number(location && location.latitude ? location.latitude : 34.16),
+          longitude: Number(location && location.longitude ? location.longitude : -118.07),
+          address: String(selectedLocation || 'Pasadena, California'),
+        },
+        bio: '', // Empty for now
+        hasCompletedOnboarding: false, // Mark as incomplete
+        onboardingStep: 2, // Next step is photos
       };
 
-      // Navigate to Step 2 with data
-      navigation.navigate('PhotoSelection', { step1Data });
+      // Debug log to see what we're sending
+      Logger.info('🔍 Registration data being sent:', {
+        location: userData.location,
+        coordinates: userData.coordinates,
+        selectedLocation,
+        contextLocation: location,
+      });
+
+      // Register user via API (normal login flow)
+      const result = await register(userData);
+
+      if (result.success) {
+        Logger.success('✅ Account created successfully');
+        showSuccess("Welcome to Hantibink! Let's complete your profile");
+        // Navigation to main app happens automatically via AuthContext
+      } else {
+        Logger.error('❌ Registration failed:', result.error);
+        showError(result.error || 'Failed to create account. Please try again.');
+      }
     } catch (error) {
-      Logger.error('❌ Step 1 error:', error);
-      showError('An unexpected error occurred. Please try again.');
+      Logger.error('❌ Account creation error:', error);
+      showError('Failed to create account. Please try again.');
     } finally {
       setLoading(false);
     }
@@ -236,7 +283,7 @@ const SimpleRegisterScreen = ({ navigation }) => {
               <Text style={styles.label}>Full Name *</Text>
               <TextInput
                 ref={nameRef}
-                style={styles.input}
+                style={[styles.input, fieldErrors.name && styles.inputError]}
                 placeholder="Enter your full name"
                 value={formData.name}
                 onChangeText={text => updateField('name', text)}
@@ -245,6 +292,7 @@ const SimpleRegisterScreen = ({ navigation }) => {
                 onSubmitEditing={() => focusField(emailRef)}
                 blurOnSubmit={false}
               />
+              {fieldErrors.name && <Text style={styles.errorText}>{fieldErrors.name}</Text>}
             </View>
 
             {/* Email */}
@@ -252,7 +300,7 @@ const SimpleRegisterScreen = ({ navigation }) => {
               <Text style={styles.label}>Email Address *</Text>
               <TextInput
                 ref={emailRef}
-                style={styles.input}
+                style={[styles.input, fieldErrors.email && styles.inputError]}
                 placeholder="Enter your email"
                 value={formData.email}
                 onChangeText={text => updateField('email', text)}
@@ -263,6 +311,7 @@ const SimpleRegisterScreen = ({ navigation }) => {
                 onSubmitEditing={() => focusField(passwordRef)}
                 blurOnSubmit={false}
               />
+              {fieldErrors.email && <Text style={styles.errorText}>{fieldErrors.email}</Text>}
             </View>
 
             {/* Password */}
@@ -271,7 +320,7 @@ const SimpleRegisterScreen = ({ navigation }) => {
               <View style={styles.passwordContainer}>
                 <TextInput
                   ref={passwordRef}
-                  style={styles.passwordInput}
+                  style={[styles.passwordInput, fieldErrors.password && styles.inputError]}
                   placeholder="Enter your password"
                   value={formData.password}
                   onChangeText={text => updateField('password', text)}
@@ -292,6 +341,7 @@ const SimpleRegisterScreen = ({ navigation }) => {
                   />
                 </TouchableOpacity>
               </View>
+              {fieldErrors.password && <Text style={styles.errorText}>{fieldErrors.password}</Text>}
             </View>
 
             {/* Confirm Password */}
@@ -334,7 +384,6 @@ const SimpleRegisterScreen = ({ navigation }) => {
                 </Text>
                 <MaterialIcons name="calendar-today" size={20} color="#666" />
               </TouchableOpacity>
-              {formData.age && <Text style={styles.ageText}>Age: {formData.age}</Text>}
             </View>
 
             {/* Location */}
@@ -349,18 +398,6 @@ const SimpleRegisterScreen = ({ navigation }) => {
                   Logger.info('📍 Location selected in registration:', locationText);
                 }}
               />
-              {/* Debug info */}
-              {__DEV__ && (
-                <Text style={[styles.selectedText, { fontSize: 10, color: '#999' }]}>
-                  Debug: selectedLocation = "{selectedLocation}" | context location ={' '}
-                  {location
-                    ? JSON.stringify({
-                        selected: location.selected,
-                        primary: location.primary,
-                      })
-                    : 'null'}
-                </Text>
-              )}
             </View>
 
             {/* Gender */}
@@ -399,27 +436,26 @@ const SimpleRegisterScreen = ({ navigation }) => {
               </TouchableOpacity>
             </View>
           </View>
-        </ScrollView>
-
-        {/* Sticky Next Button */}
-        <View style={styles.stickyButtonContainer}>
-          <TouchableOpacity
-            style={[styles.registerButton, loading && styles.registerButtonDisabled]}
-            onPress={handleNext}
-            disabled={loading}
-          >
-            <Text style={styles.registerButtonText}>
-              {loading ? 'Validating...' : 'Next: Add Photos'}
-            </Text>
-          </TouchableOpacity>
-
-          <View style={styles.footer}>
-            <Text style={styles.footerText}>Already have an account? </Text>
-            <TouchableOpacity onPress={() => navigation.navigate('Login')}>
-              <Text style={styles.footerLink}>Sign In</Text>
+          {/* Register Button */}
+          <View style={styles.buttonContainer}>
+            <TouchableOpacity
+              style={[styles.registerButton, loading && styles.registerButtonDisabled]}
+              onPress={handleNext}
+              disabled={loading}
+            >
+              <Text style={styles.registerButtonText}>
+                {loading ? 'Creating Account...' : 'Create Account & Continue'}
+              </Text>
             </TouchableOpacity>
+
+            <View style={styles.footer}>
+              <Text style={styles.footerText}>Already have an account? </Text>
+              <TouchableOpacity onPress={() => navigation.navigate('Login')}>
+                <Text style={styles.footerLink}>Sign In</Text>
+              </TouchableOpacity>
+            </View>
           </View>
-        </View>
+        </ScrollView>
 
         {/* Date Picker Modal */}
         {showDatePicker && (
@@ -428,9 +464,13 @@ const SimpleRegisterScreen = ({ navigation }) => {
             value={formData.birthDate ? new Date(formData.birthDate) : new Date()}
             mode="date"
             is24Hour={true}
-            display={Platform.OS === 'ios' ? 'spinner' : 'default'}
-            onChange={handleDateChange}
+            display="spinner"
+            onChange={(event, selectedDate) => {
+              setShowDatePicker(false);
+              handleDateChange(event, selectedDate);
+            }}
             maximumDate={new Date()}
+            minimumDate={new Date(1940, 0, 1)}
           />
         )}
 
@@ -530,14 +570,12 @@ const styles = StyleSheet.create({
   eyeButton: {
     padding: 16,
   },
-  stickyButtonContainer: {
-    backgroundColor: '#f8f9fa',
+  buttonContainer: {
     paddingHorizontal: 20,
-    paddingVertical: 15,
+    paddingVertical: 20,
     paddingBottom: 30,
-    borderTopWidth: 1,
-    borderTopColor: '#e0e0e0',
   },
+
   registerButton: {
     backgroundColor: '#FF6B6B',
     borderRadius: 12,
@@ -586,18 +624,7 @@ const styles = StyleSheet.create({
   placeholderText: {
     color: '#999',
   },
-  ageText: {
-    marginTop: 8,
-    fontSize: 14,
-    color: '#666',
-    fontStyle: 'italic',
-  },
-  selectedText: {
-    marginTop: 8,
-    fontSize: 14,
-    color: '#FF6B6B',
-    fontWeight: '600',
-  },
+
   selectionButton: {
     backgroundColor: '#fff',
     borderRadius: 12,
@@ -612,6 +639,16 @@ const styles = StyleSheet.create({
   selectionText: {
     fontSize: 16,
     color: '#333',
+  },
+  inputError: {
+    borderColor: '#FF6B6B',
+    backgroundColor: '#FFF5F5',
+  },
+  errorText: {
+    color: '#FF6B6B',
+    fontSize: 12,
+    marginTop: 4,
+    marginLeft: 4,
   },
 });
 

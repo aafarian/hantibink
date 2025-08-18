@@ -2,7 +2,7 @@ import React, { useState, useCallback } from 'react';
 import { useFocusEffect } from '@react-navigation/native';
 import { useAuth } from '../contexts/AuthContext';
 import { useAsyncOperation } from './useAsyncOperation';
-import DataService from '../services/DataService';
+import ApiDataService from '../services/ApiDataService';
 import Logger from '../utils/logger';
 
 export const useMatches = () => {
@@ -14,7 +14,7 @@ export const useMatches = () => {
   const loadMatches = useCallback(async () => {
     if (!user?.uid) return { success: false, error: 'No user logged in' };
 
-    const result = await execute(() => DataService.getUserMatches(user.uid), {
+    const result = await execute(() => ApiDataService.getUserMatches(), {
       loadingMessage: `Loading matches for user: ${user.uid}`,
       errorMessage: 'Failed to load matches',
       successMessage: 'Matches loaded successfully',
@@ -28,13 +28,19 @@ export const useMatches = () => {
     return result;
   }, [user, execute]);
 
-  // Load matches when screen comes into focus
+  // Load matches when screen comes into focus (with throttling)
   useFocusEffect(
     React.useCallback(() => {
       if (user?.uid) {
-        loadMatches();
+        // Only reload if it's been more than 30 seconds since last refresh
+        const now = new Date();
+        if (!lastRefresh || now - lastRefresh > 30000) {
+          loadMatches();
+        } else {
+          Logger.info('⏰ Skipping matches reload (too recent)');
+        }
       }
-    }, [user, loadMatches])
+    }, [user, loadMatches, lastRefresh])
   );
 
   const refreshMatches = () => {
@@ -63,28 +69,25 @@ export const useMatchesWithProfiles = () => {
     const result = await execute(
       async () => {
         // Get matches
-        const matches = await DataService.getUserMatches(user.uid);
+        const matches = await ApiDataService.getUserMatches();
 
-        // Get profiles for each match
+        // Transform API matches to expected format
         const conversationsWithProfiles = await Promise.all(
-          matches.map(async match => {
-            const otherUserId = match.users.find(id => id !== user.uid);
-            const otherUserProfile = await DataService.getUserProfile(otherUserId);
-
+          (Array.isArray(matches) ? matches : []).map(async match => {
             // Load messages for this match
-            const messages = await DataService.getMessages(match.id);
+            const messages = await ApiDataService.getMessages(match.id);
 
-            // Calculate unread count
-            const unreadCount = DataService.getUnreadCount(messages, match, user.uid);
+            // Calculate unread count using API method
+            const unreadCount = ApiDataService.getUnreadCount(messages, user.uid);
 
             return {
               matchId: match.id,
               match: match,
-              otherUser: otherUserProfile,
-              otherUserId: otherUserId,
+              otherUser: match.otherUser,
+              otherUserId: match.otherUser.id,
               messages: messages,
-              lastMessage: match.lastMessage,
-              lastMessageTime: match.lastMessageTime,
+              lastMessage: match.lastMessage?.content || null,
+              lastMessageTime: match.lastMessage?.timestamp || null,
               unreadCount: unreadCount,
             };
           })
@@ -122,14 +125,24 @@ export const useMatchesWithProfiles = () => {
     return result;
   }, [user, execute]);
 
-  // Load matches when screen comes into focus
+  // Load matches when screen comes into focus (throttled)
+  const [lastProfileRefresh, setLastProfileRefresh] = useState(null);
   useFocusEffect(
     React.useCallback(() => {
       if (user?.uid) {
-        loadMatchesWithProfiles();
+        // Only reload if it's been more than 30 seconds since last refresh
+        const now = new Date();
+        if (!lastProfileRefresh || now - lastProfileRefresh > 30000) {
+          loadMatchesWithProfiles().then(() => setLastProfileRefresh(new Date()));
+        } else {
+          Logger.info('⏰ Skipping matches with profiles reload (too recent)');
+        }
       }
-    }, [user, loadMatchesWithProfiles])
+    }, [user, loadMatchesWithProfiles, lastProfileRefresh])
   );
+
+  // Real-time updates will be handled by subscribing to UnreadContext changes
+  // This avoids conflicts with multiple WebSocket listeners
 
   return {
     conversations,

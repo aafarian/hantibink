@@ -17,7 +17,7 @@ import { useToast } from '../contexts/ToastContext';
 import { useTabNavigation } from '../hooks/useTabNavigation';
 import { useAsyncOperation } from '../hooks/useAsyncOperation';
 import { LoadingScreen } from '../components/LoadingScreen';
-import DataService from '../services/DataService';
+import ApiDataService from '../services/ApiDataService';
 import Logger from '../utils/logger';
 import { handleError } from '../utils/errorHandler';
 import { getUserProfilePhoto } from '../utils/profileHelpers';
@@ -47,10 +47,25 @@ const PeopleScreen = ({ navigation }) => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user?.uid]); // Only re-run when user ID changes (callbacks excluded to prevent infinite loops)
 
+  // Handle skipping invalid profiles
+  useEffect(() => {
+    if (currentIndex < profiles.length) {
+      const profile = profiles[currentIndex];
+      if (profile && (!profile.name || typeof profile.age !== 'number')) {
+        Logger.warn('Skipping invalid profile at index:', currentIndex);
+        // Use a timeout to avoid immediate state update during render
+        const timer = setTimeout(() => {
+          nextCard();
+        }, 100);
+        return () => clearTimeout(timer);
+      }
+    }
+  }, [currentIndex, profiles, nextCard]);
+
   const loadUserActions = useCallback(async () => {
     try {
       if (user?.uid) {
-        const actions = await DataService.getUserActions(user.uid);
+        const actions = await ApiDataService.getUserActions();
         Logger.info('User actions loaded:', actions.length);
       }
     } catch (error) {
@@ -64,18 +79,33 @@ const PeopleScreen = ({ navigation }) => {
     const result = await execute(
       async () => {
         // Get already processed user IDs (liked or passed)
-        const actions = await DataService.getUserActions(user.uid);
-        const processedUserIds = actions.map(action => action.targetUserId);
+        const actions = await ApiDataService.getUserActions();
+        const processedUserIds = Array.isArray(actions)
+          ? actions.map(action => action.receiverId)
+          : [];
 
-        // Get fresh users from Firebase
-        const users = await DataService.getUsersForSwiping(user.uid, processedUserIds);
+        // Get fresh users for discovery
+        const users = await ApiDataService.getUsersForDiscovery({
+          excludeIds: processedUserIds,
+        });
+
+        Logger.info('Raw users from API:', users);
+
+        // Ensure users is an array
+        const safeUsers = Array.isArray(users) ? users : [];
 
         // For now, show all users (later we can add photo filtering)
-        // const usersWithPhotos = users.filter(
+        // const usersWithPhotos = safeUsers.filter(
         //   mappedUser => mappedUser.photos && mappedUser.photos.length > 0 && mappedUser.mainPhoto
         // );
 
-        return users;
+        // Filter out users with missing required data
+        const validUsers = safeUsers.filter(
+          safeUser => safeUser && safeUser.id && safeUser.name && typeof safeUser.age === 'number'
+        );
+
+        Logger.info(`Filtered ${safeUsers.length} users -> ${validUsers.length} valid users`);
+        return validUsers;
       },
       {
         loadingMessage: 'Loading profiles for swiping',
@@ -102,7 +132,7 @@ const PeopleScreen = ({ navigation }) => {
       setActionLoading(true);
 
       try {
-        const result = await DataService.saveLikeAction(user.uid, currentProfile.id, 'like');
+        const result = await ApiDataService.likeUser(currentProfile.id);
         if (result.success) {
           Logger.success(`Liked ${currentProfile.name}`);
 
@@ -137,7 +167,7 @@ const PeopleScreen = ({ navigation }) => {
       setActionLoading(true);
 
       try {
-        const result = await DataService.saveLikeAction(user.uid, currentProfile.id, 'pass');
+        const result = await ApiDataService.passUser(currentProfile.id);
         if (result.success) {
           Logger.success(`Passed on ${currentProfile.name}`);
           nextCard();
@@ -153,7 +183,7 @@ const PeopleScreen = ({ navigation }) => {
     }
   };
 
-  const nextCard = () => {
+  const nextCard = useCallback(() => {
     if (currentIndex < profiles.length - 1) {
       setCurrentIndex(currentIndex + 1);
       position.setValue({ x: 0, y: 0 });
@@ -161,7 +191,7 @@ const PeopleScreen = ({ navigation }) => {
       // Load more profiles when we run out
       loadProfiles();
     }
-  };
+  }, [currentIndex, profiles, loadProfiles, position]);
 
   const onGestureEvent = Animated.event(
     [{ nativeEvent: { translationX: position.x, translationY: position.y } }],
@@ -222,6 +252,20 @@ const PeopleScreen = ({ navigation }) => {
     }
 
     const profile = profiles[currentIndex];
+
+    // Safety check for invalid profile data
+    if (!profile || !profile.name || typeof profile.age !== 'number') {
+      Logger.warn('Invalid profile data at index:', currentIndex, profile);
+      // Don't call nextCard here as it causes re-render loops
+      // Instead, return a placeholder and handle skipping via useEffect at component level
+      return (
+        <View style={styles.noMoreCards}>
+          <ActivityIndicator size="large" color="#FF6B6B" />
+          <Text style={styles.noMoreCardsText}>Loading next profile...</Text>
+        </View>
+      );
+    }
+
     const rotate = position.x.interpolate({
       inputRange: [-width / 2, 0, width / 2],
       outputRange: ['-10deg', '0deg', '10deg'],
@@ -289,6 +333,25 @@ const PeopleScreen = ({ navigation }) => {
     );
   };
 
+  // Check if user has photos before allowing swiping
+  if (!userProfile?.photos || userProfile.photos.length === 0) {
+    return (
+      <View style={styles.noPhotosContainer}>
+        <Ionicons name="camera-outline" size={80} color="#ccc" />
+        <Text style={styles.noPhotosTitle}>Add photos to start swiping!</Text>
+        <Text style={styles.noPhotosSubtitle}>
+          You need at least one photo to be visible to others and start discovering matches.
+        </Text>
+        <TouchableOpacity
+          style={styles.addPhotosButton}
+          onPress={() => navigation.navigate('Profile', { screen: 'ProfileMain' })}
+        >
+          <Text style={styles.addPhotosButtonText}>Add Photos</Text>
+        </TouchableOpacity>
+      </View>
+    );
+  }
+
   return (
     <View style={styles.container}>
       {/* Filter Button */}
@@ -313,19 +376,31 @@ const PeopleScreen = ({ navigation }) => {
         onPress={async () => {
           if (profiles.length > 0) {
             const testUser = profiles[currentIndex];
-            Logger.info('🧪 Testing match creation with:', testUser.name);
+            Logger.info('🧪 Testing match creation with:', testUser.name, 'ID:', testUser.id);
+            showError('Testing like for ' + testUser.name); // Visual feedback
 
-            // Simulate the other user liking us first
-            await DataService.saveLikeAction(testUser.id, user.uid, 'like');
-            Logger.info('🧪 Simulated reverse like');
+            // Test like functionality - this should create a match if implemented
+            try {
+              const result = await ApiDataService.likeUser(testUser.id);
+              Logger.info('🧪 Like result:', result);
 
-            // Now our like should create a match
-            const result = await DataService.saveLikeAction(user.uid, testUser.id, 'like');
-            if (result.isMatch) {
-              setMatchedUser(testUser);
-              setShowMatchModal(true);
-              Logger.success('🧪 Test match created!');
+              if (result && result.isMatch) {
+                setMatchedUser(testUser);
+                setShowMatchModal(true);
+                Logger.success('🧪 Test match created!');
+                showSuccess('Match created with ' + testUser.name + '!');
+              } else {
+                Logger.info('🧪 Test like sent (no match)');
+                showSuccess('Like sent to ' + testUser.name);
+                // Move to next profile after like
+                nextCard();
+              }
+            } catch (error) {
+              Logger.error('🧪 Test like failed:', error.message);
+              showError('Failed: ' + error.message);
             }
+          } else {
+            showError('No profiles available to test');
           }
         }}
       >
@@ -716,6 +791,40 @@ const styles = StyleSheet.create({
   testButtonText: {
     color: '#fff',
     fontSize: 12,
+  },
+  // No photos styles
+  noPhotosContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 40,
+    backgroundColor: '#f8f9fa',
+  },
+  noPhotosTitle: {
+    fontSize: 24,
+    fontWeight: 'bold',
+    color: '#333',
+    marginTop: 20,
+    textAlign: 'center',
+  },
+  noPhotosSubtitle: {
+    fontSize: 16,
+    color: '#666',
+    marginTop: 12,
+    marginBottom: 30,
+    textAlign: 'center',
+    lineHeight: 24,
+  },
+  addPhotosButton: {
+    backgroundColor: '#FF6B6B',
+    paddingHorizontal: 30,
+    paddingVertical: 15,
+    borderRadius: 25,
+  },
+  addPhotosButtonText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: 'bold',
   },
 });
 

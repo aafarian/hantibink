@@ -1,3 +1,17 @@
+/**
+ * ⚠️ DEPRECATED: Firebase Data Service
+ *
+ * This service has been DEPRECATED and replaced by ApiDataService.
+ *
+ * ❌ DO NOT USE THIS SERVICE FOR NEW FEATURES
+ * ✅ Use ApiDataService instead: import ApiDataService from './ApiDataService'
+ *
+ * This file is kept for reference only and will be removed in a future PR.
+ * All methods have been migrated to the API-based service.
+ *
+ * Migration completed in PR #7: Firebase-to-API Migration
+ */
+
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { db } from '../config/firebase';
 import {

@@ -79,7 +79,9 @@ export const MatchCard = ({
           <>
             {/* Show latest message and timestamp for conversation list */}
             <Text style={styles.lastMessage} numberOfLines={1}>
-              {match.lastMessage || 'Start a conversation...'}
+              {match.isTyping
+                ? `${match.typingUser || 'User'} is typing...`
+                : match.lastMessage || 'Start a conversation...'}
             </Text>
             <Text style={styles.lastMessageTime} numberOfLines={1}>
               {match.lastMessageTime

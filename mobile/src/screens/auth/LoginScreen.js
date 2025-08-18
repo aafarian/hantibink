@@ -4,6 +4,7 @@ import { StaticKeyboardWrapper } from '../../components/KeyboardAwareWrapper';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../../contexts/AuthContext';
 import { useToast } from '../../contexts/ToastContext';
+import Logger from '../../utils/logger';
 
 const LoginScreen = ({ navigation }) => {
   const [email, setEmail] = useState('');
@@ -12,7 +13,7 @@ const LoginScreen = ({ navigation }) => {
   const [showPassword, setShowPassword] = useState(false);
 
   const { login } = useAuth();
-  const { showError } = useToast();
+  const { showError, showSuccess } = useToast();
 
   const handleLogin = async () => {
     if (!email || !password) {
@@ -21,20 +22,30 @@ const LoginScreen = ({ navigation }) => {
     }
 
     setLoading(true);
-    const result = await login(email, password);
-    setLoading(false);
 
-    if (!result.success) {
-      // Handle specific login errors
-      if (result.errorCode === 'auth/user-not-found') {
-        showError('No account exists with this email address.');
-      } else if (result.errorCode === 'auth/wrong-password') {
-        showError('The password you entered is incorrect.');
-      } else if (result.errorCode === 'auth/invalid-email') {
-        showError('Please enter a valid email address.');
+    try {
+      const result = await login(email, password);
+
+      if (!result || !result.success) {
+        // Handle specific login errors
+        if (result?.errorCode === 'auth/user-not-found') {
+          showError('No account exists with this email address.');
+        } else if (result?.errorCode === 'auth/wrong-password') {
+          showError('The password you entered is incorrect.');
+        } else if (result?.errorCode === 'auth/invalid-email') {
+          showError('Please enter a valid email address.');
+        } else {
+          showError(result?.error || 'Login failed. Please try again.');
+        }
       } else {
-        showError(result.error || 'Login failed. Please try again.');
+        showSuccess('Welcome back!');
       }
+    } catch (error) {
+      // Safety net for any unexpected errors
+      Logger.error('Login error:', error);
+      showError('Login failed. Please try again.');
+    } finally {
+      setLoading(false);
     }
     // AppNavigator will handle navigation based on user's onboarding status
   };

@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useRef, useEffect } from 'react';
+import React, { createContext, useContext, useState } from 'react';
 import Toast from '../components/Toast';
 
 const ToastContext = createContext();
@@ -14,16 +14,6 @@ export const useToast = () => {
 export const ToastProvider = ({ children }) => {
   const [toasts, setToasts] = useState([]);
   const [counter, setCounter] = useState(0);
-  const timeoutsRef = useRef(new Map()); // Store timeout IDs for cleanup
-
-  // Cleanup timeouts on unmount
-  useEffect(() => {
-    const timeouts = timeoutsRef.current;
-    return () => {
-      timeouts.forEach(timeoutId => clearTimeout(timeoutId));
-      timeouts.clear();
-    };
-  }, []);
 
   const showToast = (message, type = 'info', options = {}) => {
     const id = `${Date.now()}-${counter}`;
@@ -34,36 +24,18 @@ export const ToastProvider = ({ children }) => {
       message,
       type,
       visible: true,
+      autoHide: !options.persistent, // Let Toast component handle timing
+      duration: options.duration || 4000,
       ...options,
     };
 
     setToasts(prev => [...prev, toast]);
-
-    // Auto-remove if no duration specified
-    if (!options.persistent) {
-      const timeoutId = setTimeout(() => {
-        // Use setTimeout to defer the state update
-        setTimeout(() => {
-          hideToast(id);
-          timeoutsRef.current.delete(id); // Clean up timeout reference
-        }, 0);
-      }, options.duration || 4000);
-
-      timeoutsRef.current.set(id, timeoutId); // Store timeout for cleanup
-    }
 
     return id;
   };
 
   const hideToast = id => {
     setToasts(prev => prev.filter(toast => toast.id !== id));
-
-    // Clear timeout if it exists
-    const timeoutId = timeoutsRef.current.get(id);
-    if (timeoutId) {
-      clearTimeout(timeoutId);
-      timeoutsRef.current.delete(id);
-    }
   };
 
   const showSuccess = (message, options = {}) => {
@@ -101,6 +73,7 @@ export const ToastProvider = ({ children }) => {
           type={toast.type}
           visible={toast.visible}
           onHide={() => hideToast(toast.id)}
+          autoHide={toast.autoHide}
           duration={toast.duration}
           action={toast.action}
         />
