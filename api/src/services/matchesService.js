@@ -214,7 +214,7 @@ const deactivateMatch = async (matchId, userId) => {
  * Calculate age from birth date
  */
 const calculateAge = (birthDate) => {
-  if (!birthDate) {return null;}
+  if (!birthDate) { return null; }
 
   const today = new Date();
   const birth = new Date(birthDate);

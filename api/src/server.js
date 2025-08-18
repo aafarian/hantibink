@@ -294,21 +294,35 @@ async function startServer() {
       });
 
       // Handle online status updates
-      socket.on('update-online-status', (data) => {
-        const { userId, isOnline } = data;
-        // Broadcast to all user's match rooms
-        socket.broadcast.emit('user-online-status', {
-          userId,
-          isOnline,
-          timestamp: new Date(),
-        });
-        logger.info(`🟢 User ${userId} online status: ${isOnline}`);
+      socket.on('update-online-status', async (data) => {
+        const { userId, isOnline, matchIds } = data;
+        
+        // Only broadcast to specific match rooms if matchIds provided
+        if (matchIds && Array.isArray(matchIds)) {
+          // Broadcast only to user's match rooms
+          matchIds.forEach(matchId => {
+            socket.to(`match:${matchId}`).emit('user-online-status', {
+              userId,
+              isOnline,
+              timestamp: new Date(),
+            });
+          });
+          logger.info(`🟢 User ${userId} online status: ${isOnline} (sent to ${matchIds.length} matches)`);
+        } else {
+          // Fallback: broadcast to user's personal room only
+          socket.to(`user:${userId}`).emit('user-online-status', {
+            userId,
+            isOnline,
+            timestamp: new Date(),
+          });
+          logger.info(`🟢 User ${userId} online status: ${isOnline} (sent to user room only)`);
+        }
       });
 
       socket.on('disconnect', () => {
         logger.info(`🔌 User disconnected: ${socket.id}`);
-        // TODO: Update user's online status to offline
-        // Could emit offline status to all their match rooms
+        // Note: Client should handle sending offline status before disconnect
+        // Server cannot determine which user this socket belonged to without additional tracking
       });
     });
 

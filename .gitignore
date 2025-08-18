@@ -42,3 +42,6 @@ yarn-error.*
 
 # typescript
 *.tsbuildinfo
+
+CODEBASE_ANALYSIS.md
+COMPREHENSIVE_FIXES_PROMPT.md

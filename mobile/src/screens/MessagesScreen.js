@@ -51,7 +51,7 @@ const MessagesScreen = () => {
     const merged = conversations.map(conv => {
       // Find matching conversation in UnreadContext for real-time data
       const unreadConv = unreadConversations?.find(
-        uc => uc.id === conv.matchId || uc.matchId === conv.matchId
+        uc => uc.id === conv.matchId || uc.matchId === conv.id
       );
 
       if (unreadConv) {

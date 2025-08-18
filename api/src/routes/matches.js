@@ -47,11 +47,19 @@ router.get('/list', authenticateJWT, async (req, res) => {
   } catch (error) {
     logger.error('❌ Get user matches error:', error);
     
-    res.status(500).json({
-      success: false,
-      error: 'Failed to get matches',
-      message: error.message,
-    });
+    if (error.message === 'Unauthorized') {
+      res.status(401).json({
+        success: false,
+        error: 'Unauthorized',
+        message: 'You need to be logged in to access matches',
+      });
+    } else {
+      res.status(500).json({
+        success: false,
+        error: 'Failed to get matches',
+        message: error.message,
+      });
+    }
   }
 });
 
@@ -82,11 +90,31 @@ router.get('/:matchId', authenticateJWT, async (req, res) => {
   } catch (error) {
     logger.error('❌ Get match details error:', error);
     
-    res.status(500).json({
-      success: false,
-      error: 'Failed to get match details',
-      message: error.message,
-    });
+    if (error.message === 'Unauthorized access to match') {
+      res.status(403).json({
+        success: false,
+        error: 'Forbidden',
+        message: 'You don\'t have access to this match',
+      });
+    } else if (error.message === 'Match not found') {
+      res.status(404).json({
+        success: false,
+        error: 'Not Found',
+        message: 'Match not found',
+      });
+    } else if (error.message === 'Match is no longer active') {
+      res.status(410).json({
+        success: false,
+        error: 'Gone',
+        message: 'This match is no longer active',
+      });
+    } else {
+      res.status(500).json({
+        success: false,
+        error: 'Failed to get match details',
+        message: error.message,
+      });
+    }
   }
 });
 
@@ -109,11 +137,25 @@ router.delete('/:matchId', authenticateJWT, async (req, res) => {
   } catch (error) {
     logger.error('❌ Deactivate match error:', error);
     
-    res.status(400).json({
-      success: false,
-      error: 'Failed to deactivate match',
-      message: error.message,
-    });
+    if (error.message === 'Match not found') {
+      res.status(404).json({
+        success: false,
+        error: 'Not Found',
+        message: 'Match not found',
+      });
+    } else if (error.message === 'Unauthorized access to match') {
+      res.status(403).json({
+        success: false,
+        error: 'Forbidden',
+        message: 'You don\'t have access to this match',
+      });
+    } else {
+      res.status(400).json({
+        success: false,
+        error: 'Failed to deactivate match',
+        message: error.message,
+      });
+    }
   }
 });
 

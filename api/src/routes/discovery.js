@@ -35,7 +35,7 @@ router.get('/users', authenticateJWT, async (req, res) => {
       : (excludeIds ? excludeIds.split(',') : []);
     
     const users = await getUsersForDiscovery(req.user.id, {
-      limit: parseInt(limit),
+      limit: parseInt(limit) || 20,
       excludeIds: excludeUserIds,
     });
     

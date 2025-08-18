@@ -159,10 +159,6 @@ const LikedYouScreen = () => {
 };
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#f8f9fa',
-  },
   section: {
     backgroundColor: '#fff',
     marginBottom: 10,
@@ -187,51 +183,6 @@ const styles = StyleSheet.create({
   likeCount: {
     fontSize: 16,
     color: '#4ECDC4',
-    marginLeft: 5,
-  },
-  matchCard: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    padding: 15,
-    backgroundColor: '#f8f9fa',
-    borderRadius: 15,
-    marginBottom: 10,
-  },
-  matchPhoto: {
-    width: 60,
-    height: 60,
-    borderRadius: 30,
-    marginRight: 15,
-  },
-  matchInfo: {
-    flex: 1,
-  },
-  matchName: {
-    fontSize: 16,
-    fontWeight: 'bold',
-    color: '#333',
-    marginBottom: 5,
-  },
-  matchLocation: {
-    fontSize: 14,
-    color: '#666',
-    marginBottom: 5,
-  },
-  matchBio: {
-    fontSize: 12,
-    color: '#999',
-  },
-  messageButton: {
-    backgroundColor: '#FF6B6B',
-    paddingHorizontal: 15,
-    paddingVertical: 8,
-    borderRadius: 20,
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  messageButtonText: {
-    color: '#fff',
-    fontSize: 12,
     marginLeft: 5,
   },
   likeCard: {
@@ -301,15 +252,6 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: '#999',
     textAlign: 'center',
-  },
-  centered: {
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  loadingText: {
-    marginTop: 10,
-    fontSize: 16,
-    color: '#666',
   },
 });
 

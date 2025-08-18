@@ -47,6 +47,21 @@ const PeopleScreen = ({ navigation }) => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user?.uid]); // Only re-run when user ID changes (callbacks excluded to prevent infinite loops)
 
+  // Handle skipping invalid profiles
+  useEffect(() => {
+    if (currentIndex < profiles.length) {
+      const profile = profiles[currentIndex];
+      if (profile && (!profile.name || typeof profile.age !== 'number')) {
+        Logger.warn('Skipping invalid profile at index:', currentIndex);
+        // Use a timeout to avoid immediate state update during render
+        const timer = setTimeout(() => {
+          nextCard();
+        }, 100);
+        return () => clearTimeout(timer);
+      }
+    }
+  }, [currentIndex, profiles, nextCard]);
+
   const loadUserActions = useCallback(async () => {
     try {
       if (user?.uid) {
@@ -168,7 +183,7 @@ const PeopleScreen = ({ navigation }) => {
     }
   };
 
-  const nextCard = () => {
+  const nextCard = useCallback(() => {
     if (currentIndex < profiles.length - 1) {
       setCurrentIndex(currentIndex + 1);
       position.setValue({ x: 0, y: 0 });
@@ -176,7 +191,7 @@ const PeopleScreen = ({ navigation }) => {
       // Load more profiles when we run out
       loadProfiles();
     }
-  };
+  }, [currentIndex, profiles, loadProfiles, position]);
 
   const onGestureEvent = Animated.event(
     [{ nativeEvent: { translationX: position.x, translationY: position.y } }],
@@ -241,9 +256,14 @@ const PeopleScreen = ({ navigation }) => {
     // Safety check for invalid profile data
     if (!profile || !profile.name || typeof profile.age !== 'number') {
       Logger.warn('Invalid profile data at index:', currentIndex, profile);
-      // Skip to next profile
-      nextCard();
-      return null;
+      // Don't call nextCard here as it causes re-render loops
+      // Instead, return a placeholder and handle skipping via useEffect at component level
+      return (
+        <View style={styles.noMoreCards}>
+          <ActivityIndicator size="large" color="#FF6B6B" />
+          <Text style={styles.noMoreCardsText}>Loading next profile...</Text>
+        </View>
+      );
     }
 
     const rotate = position.x.interpolate({
@@ -356,22 +376,31 @@ const PeopleScreen = ({ navigation }) => {
         onPress={async () => {
           if (profiles.length > 0) {
             const testUser = profiles[currentIndex];
-            Logger.info('🧪 Testing match creation with:', testUser.name);
+            Logger.info('🧪 Testing match creation with:', testUser.name, 'ID:', testUser.id);
+            showError('Testing like for ' + testUser.name); // Visual feedback
 
             // Test like functionality - this should create a match if implemented
             try {
               const result = await ApiDataService.likeUser(testUser.id);
-              if (result.isMatch) {
+              Logger.info('🧪 Like result:', result);
+
+              if (result && result.isMatch) {
                 setMatchedUser(testUser);
                 setShowMatchModal(true);
                 Logger.success('🧪 Test match created!');
+                showSuccess('Match created with ' + testUser.name + '!');
               } else {
                 Logger.info('🧪 Test like sent (no match)');
+                showSuccess('Like sent to ' + testUser.name);
+                // Move to next profile after like
+                nextCard();
               }
             } catch (error) {
-              Logger.warn('🧪 Test like failed:', error.message);
-              showError(error.message);
+              Logger.error('🧪 Test like failed:', error.message);
+              showError('Failed: ' + error.message);
             }
+          } else {
+            showError('No profiles available to test');
           }
         }}
       >

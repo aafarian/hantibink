@@ -421,7 +421,6 @@ class ApiDataService {
 
       if (response.success) {
         Logger.success('✅ User actions loaded from API');
-        Logger.info('User actions loaded:', response.data);
         return response.data?.data || response.data || [];
       } else {
         Logger.error('❌ Failed to get user actions from API:', response.message);

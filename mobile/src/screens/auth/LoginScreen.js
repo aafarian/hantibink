@@ -4,6 +4,7 @@ import { StaticKeyboardWrapper } from '../../components/KeyboardAwareWrapper';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../../contexts/AuthContext';
 import { useToast } from '../../contexts/ToastContext';
+import Logger from '../../utils/logger';
 
 const LoginScreen = ({ navigation }) => {
   const [email, setEmail] = useState('');
@@ -41,7 +42,7 @@ const LoginScreen = ({ navigation }) => {
       }
     } catch (error) {
       // Safety net for any unexpected errors
-      console.error('Login error:', error);
+      Logger.error('Login error:', error);
       showError('Login failed. Please try again.');
     } finally {
       setLoading(false);
