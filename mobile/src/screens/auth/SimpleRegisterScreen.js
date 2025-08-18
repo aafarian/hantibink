@@ -157,6 +157,10 @@ const SimpleRegisterScreen = ({ navigation }) => {
       errors.password = 'Password must be at least 6 characters';
       showError('Password must be at least 6 characters');
       hasErrors = true;
+    } else if (formData.password !== formData.confirmPassword) {
+      errors.confirmPassword = 'Passwords do not match';
+      showError('Passwords do not match');
+      hasErrors = true;
     }
 
     // Name validation

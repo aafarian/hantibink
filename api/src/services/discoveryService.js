@@ -1,7 +1,7 @@
-const { PrismaClient } = require('@prisma/client');
+const { getPrismaClient } = require('../config/database');
 const logger = require('../utils/logger');
 
-const prisma = new PrismaClient();
+const prisma = getPrismaClient();
 
 /**
  * Get users for discovery/swiping
@@ -23,11 +23,11 @@ const getUsersForDiscovery = async (currentUserId, options = {}) => {
       ...new Set([...processedUserIds, ...excludeIds, currentUserId]),
     ];
 
-    logger.info(
+    logger.debug(
       `User ${currentUserId} has acted on ${processedUserIds.length} users:`,
       processedUserIds,
     );
-    logger.info(`Total excluded IDs: ${allExcludedIds.length}`);
+    logger.debug(`Total excluded IDs: ${allExcludedIds.length}`);
 
     // Get current user's preferences for filtering
     const currentUser = await prisma.user.findUnique({

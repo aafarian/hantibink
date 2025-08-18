@@ -47,6 +47,9 @@ class SocketService {
   setupEventListeners() {
     if (!this.socket) return;
 
+    // Remove existing listeners to prevent duplicates
+    this.socket.removeAllListeners();
+
     this.socket.on('connect', () => {
       this.isConnected = true;
       Logger.success(`🔌 Connected to WebSocket server. Socket ID: ${this.socket.id}`);

@@ -63,13 +63,15 @@ export const UnreadProvider = ({ children }) => {
             // Update the specific conversation with the new message
             setConversations(prev => {
               const updated = prev.map(conv => {
-                if (conv.id === data.matchId) {
+                if (conv.matchId === data.matchId) {
                   const existingMessage = conv.messages?.find(msg => msg.id === data.message.id);
                   if (!existingMessage) {
+                    // Only increment unread count if message is from the other user
+                    const shouldIncrementUnread = data.message.senderId !== user?.uid;
                     return {
                       ...conv,
                       messages: [...(conv.messages || []), data.message],
-                      unreadCount: conv.unreadCount + 1,
+                      unreadCount: shouldIncrementUnread ? conv.unreadCount + 1 : conv.unreadCount,
                       lastMessage: data.message,
                       lastActivity: new Date(data.message.timestamp),
                     };
@@ -90,7 +92,7 @@ export const UnreadProvider = ({ children }) => {
             // Reset unread count when messages are marked as read
             setConversations(prev => {
               const updated = prev.map(conv => {
-                if (conv.id === data.matchId) {
+                if (conv.matchId === data.matchId) {
                   return {
                     ...conv,
                     unreadCount: 0,
