@@ -40,6 +40,7 @@ const LikedYouScreen = () => {
   const [showUpgradeModal, setShowUpgradeModal] = useState(false);
   const [showMatchModal, setShowMatchModal] = useState(false);
   const [matchedUser, setMatchedUser] = useState(null);
+  const [pendingMatchToast, setPendingMatchToast] = useState(false);
 
   // Fetch users who liked the current user
   const fetchWhoLikedMe = useCallback(async () => {
@@ -123,12 +124,8 @@ const LikedYouScreen = () => {
 
           // Show toast after state update using setTimeout to avoid the warning
           if (data.reason === 'matched') {
-            // Don't show the toast if we're showing the match modal
-            if (!showMatchModal) {
-              setTimeout(() => {
-                showSuccess("It's a match! 🎉 Check your messages to start chatting!");
-              }, 0);
-            }
+            // Set flag to show toast later instead of checking showMatchModal directly
+            setPendingMatchToast(true);
           }
 
           // If the removed user was selected, close the modal
@@ -178,7 +175,15 @@ const LikedYouScreen = () => {
       unsubscribe();
       unsubscribeMatch();
     };
-  }, [user?.uid, selectedUser, showSuccess, showInfo, showMatchModal]);
+  }, [user?.uid, selectedUser, showSuccess, showInfo]);
+
+  // Handle pending match toast separately
+  useEffect(() => {
+    if (pendingMatchToast && !showMatchModal) {
+      showSuccess("It's a match! 🎉 Check your messages to start chatting!");
+      setPendingMatchToast(false);
+    }
+  }, [pendingMatchToast, showMatchModal, showSuccess]);
 
   const handleRefresh = async () => {
     setRefreshing(true);
@@ -208,10 +213,8 @@ const LikedYouScreen = () => {
             name: profile.name,
             photo: profile.mainPhoto,
           });
-          // Longer delay to ensure the detail modal fully closes first
-          setTimeout(() => {
-            setShowMatchModal(true);
-          }, 300);
+          // Show match modal immediately without delay
+          setShowMatchModal(true);
         } else {
           showSuccess('Like sent back! 💘');
         }

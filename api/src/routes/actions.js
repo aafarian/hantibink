@@ -6,6 +6,7 @@ const {
   passUser,
   getUserActions,
   undoLastAction,
+  getWhoLikedMe,
 } = require('../services/actionsService');
 
 const router = express.Router();
@@ -206,7 +207,6 @@ router.get('/history', authenticateJWT, async (req, res) => {
 router.get('/who-liked-me', authenticateJWT, async (req, res) => {
   try {
     const { limit = 20, offset = 0 } = req.query;
-    const { getWhoLikedMe } = require('../services/actionsService');
     
     const likers = await getWhoLikedMe(req.user.id, {
       limit: parseInt(limit) || 20,

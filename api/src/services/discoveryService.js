@@ -92,6 +92,7 @@ const getUsersForDiscovery = async (currentUserId, options = {}) => {
         longitude: true,
         birthDate: true,
         isPremium: true,
+        gender: true,
         interests: {
           include: {
             interest: true,
@@ -111,7 +112,7 @@ const getUsersForDiscovery = async (currentUserId, options = {}) => {
       // Match user's interested in preferences
       gender: { in: currentUser.interestedIn },
       // Also filter by those interested in current user's gender
-      interestedIn: { hasSome: await getUserGender(currentUserId) },
+      interestedIn: { hasSome: [currentUser.gender] },
     };
 
     // Apply age filter
@@ -147,7 +148,7 @@ const getUsersForDiscovery = async (currentUserId, options = {}) => {
           },
         },
       },
-      take: limit * 3, // Get more initially to filter by distance
+      take: Math.min(limit * 3, 1000), // Get more initially to filter by distance (max 1000)
       orderBy: [
         // Premium users boost (if current user is also premium)
         ...(currentUser.isPremium ? [{ isPremium: 'desc' }] : []),

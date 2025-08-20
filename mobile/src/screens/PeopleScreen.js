@@ -72,7 +72,7 @@ const PeopleScreen = ({ navigation }) => {
     return () => {
       unsubscribe();
     };
-  }, [user?.uid, showMatchModal, showSuccess]);
+  }, [user?.uid, showMatchModal]);
 
   // Handle skipping invalid profiles
   useEffect(() => {

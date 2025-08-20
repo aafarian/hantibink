@@ -10,6 +10,7 @@ import ProfileForm from '../components/profile/ProfileForm';
 import PhotoManager from '../components/profile/PhotoManager';
 import Logger from '../utils/logger';
 import ApiDataService from '../services/ApiDataService';
+import { theme } from '../styles/theme';
 
 const ProfileEditScreen = ({ navigation }) => {
   const { user, userProfile, refreshUserProfile } = useAuth();
@@ -219,7 +220,7 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     height: 50, // Generous height to cover status bar area
-    backgroundColor: '#FF6B6B',
+    backgroundColor: theme.colors.primary,
     zIndex: -1, // Behind other content
   },
   header: {
@@ -248,7 +249,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   floatingSaveButton: {
-    backgroundColor: '#FF6B6B',
+    backgroundColor: theme.colors.primary,
     paddingHorizontal: 32,
     paddingVertical: 16,
     borderRadius: 25,

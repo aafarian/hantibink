@@ -23,7 +23,7 @@ const authLimiter = rateLimit({
   max: process.env.NODE_ENV === 'development' ? 50 : 10, // 50 attempts in dev, 10 in prod
   message: {
     error: 'Too many authentication attempts, please try again later',
-    retryAfter: 60,
+    retryAfter: process.env.NODE_ENV === 'development' ? 60 : 300,
   },
   standardHeaders: true,
   legacyHeaders: false,

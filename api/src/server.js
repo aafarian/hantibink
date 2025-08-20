@@ -100,12 +100,21 @@ const limiter = rateLimit({
   standardHeaders: true, // Return rate limit info in the `RateLimit-*` headers
   legacyHeaders: false, // Disable the `X-RateLimit-*` headers
   skip: (req) => {
-    // Skip rate limiting for health checks and auth endpoints in dev
+    // Skip rate limiting for health checks
     const skipPaths = ['/health', '/api/health'];
-    if (isDevelopment) {
-      skipPaths.push('/api/auth/login', '/api/auth/register', '/api/auth/refresh');
+    
+    // Use exact matching or startsWith for security
+    if (skipPaths.some(path => req.path === path)) {
+      return true;
     }
-    return skipPaths.some(path => req.path.includes(path));
+    
+    // For auth endpoints in development, use startsWith for proper matching
+    if (isDevelopment) {
+      const authPaths = ['/api/auth/login', '/api/auth/register', '/api/auth/refresh'];
+      return authPaths.some(path => req.path === path);
+    }
+    
+    return false;
   },
 });
 

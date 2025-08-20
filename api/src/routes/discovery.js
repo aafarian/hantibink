@@ -93,11 +93,28 @@ router.post('/users/filters', authenticateJWT, async (req, res) => {
       excludeIds = [] 
     } = req.body;
     
+    // Create a copy of filters to avoid mutation
+    const validatedFilters = { ...filters };
+    
     // Validate filter values
-    if (filters.ageRange) {
-      const { min, max } = filters.ageRange;
-      if (min < 18) {filters.ageRange.min = 18;}
-      if (max > 100) {filters.ageRange.max = 100;}
+    if (validatedFilters.ageRange) {
+      const { min, max } = validatedFilters.ageRange;
+      validatedFilters.ageRange = { ...validatedFilters.ageRange };
+      
+      if (min < 18) {
+        return res.status(400).json({
+          success: false,
+          error: 'Invalid age range',
+          message: 'Minimum age must be at least 18',
+        });
+      }
+      if (max > 100) {
+        return res.status(400).json({
+          success: false,
+          error: 'Invalid age range',
+          message: 'Maximum age cannot exceed 100',
+        });
+      }
       if (min > max) {
         return res.status(400).json({
           success: false,
@@ -107,14 +124,18 @@ router.post('/users/filters', authenticateJWT, async (req, res) => {
       }
     }
     
-    if (filters.maxDistance && filters.maxDistance < 1) {
-      filters.maxDistance = 1;
+    if (validatedFilters.maxDistance && validatedFilters.maxDistance < 1) {
+      return res.status(400).json({
+        success: false,
+        error: 'Invalid distance',
+        message: 'Maximum distance must be at least 1',
+      });
     }
     
     const users = await getUsersForDiscovery(req.user.id, {
       limit,
       excludeIds,
-      filters,
+      filters: validatedFilters,
     });
     
     res.json({
@@ -123,7 +144,7 @@ router.post('/users/filters', authenticateJWT, async (req, res) => {
       data: users,
       meta: {
         count: users.length,
-        appliedFilters: filters,
+        appliedFilters: validatedFilters,
       },
     });
   } catch (error) {
