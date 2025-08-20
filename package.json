@@ -26,6 +26,7 @@
     "clean:all": "rm -rf node_modules mobile/node_modules api/node_modules && npm run install:all",
     "doctor": "cd mobile && npx expo-doctor",
     "dev": "concurrently \"npm run mobile\" \"npm run api\"",
+    "dev:tunnel": "concurrently \"cd mobile && npm run start:tunnel\" \"npm run api\"",
     "test:all": "cd mobile && npm test && cd ../api && npm test",
     "docker:build": "docker-compose build",
     "docker:up": "docker-compose up -d",

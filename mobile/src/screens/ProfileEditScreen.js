@@ -161,6 +161,8 @@ const ProfileEditScreen = ({ navigation }) => {
   return (
     <GestureHandlerRootView style={styles.container}>
       <SafeAreaView style={styles.safeArea} edges={['top']}>
+        {/* Status bar background */}
+        <View style={styles.statusBarBackground} />
         {/* Header */}
         <View style={styles.header}>
           <TouchableOpacity onPress={() => navigation.goBack()}>
@@ -210,6 +212,15 @@ const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
     backgroundColor: '#f8f9fa',
+  },
+  statusBarBackground: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    height: 50, // Generous height to cover status bar area
+    backgroundColor: '#FF6B6B',
+    zIndex: -1, // Behind other content
   },
   header: {
     flexDirection: 'row',

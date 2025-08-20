@@ -8,7 +8,6 @@ import {
   Image,
   Animated,
   ActivityIndicator,
-  Modal,
 } from 'react-native';
 import { PanGestureHandler, State } from 'react-native-gesture-handler';
 import { Ionicons } from '@expo/vector-icons';
@@ -18,6 +17,8 @@ import { useTabNavigation } from '../hooks/useTabNavigation';
 import { useAsyncOperation } from '../hooks/useAsyncOperation';
 import { LoadingScreen } from '../components/LoadingScreen';
 import ApiDataService from '../services/ApiDataService';
+import SocketService from '../services/SocketService';
+import MatchModal from '../components/MatchModal';
 import Logger from '../utils/logger';
 import { handleError } from '../utils/errorHandler';
 import { getUserProfilePhoto } from '../utils/profileHelpers';
@@ -46,6 +47,32 @@ const PeopleScreen = ({ navigation }) => {
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user?.uid]); // Only re-run when user ID changes (callbacks excluded to prevent infinite loops)
+
+  // Listen for real-time match events from Socket.IO
+  useEffect(() => {
+    if (!user?.uid) return;
+
+    const unsubscribe = SocketService.onMatch((event, data) => {
+      if (event === 'new-match' && data) {
+        Logger.info('New match received in PeopleScreen:', data);
+
+        // If we're not already showing a match modal, show this one
+        if (!showMatchModal && data.matchedUser) {
+          // Simplify the matched user data for the modal
+          setMatchedUser({
+            id: data.matchedUser.id,
+            name: data.matchedUser.name,
+            photo: data.matchedUser.mainPhoto || null,
+          });
+          setShowMatchModal(true);
+        }
+      }
+    });
+
+    return () => {
+      unsubscribe();
+    };
+  }, [user?.uid, showMatchModal, showSuccess]);
 
   // Handle skipping invalid profiles
   useEffect(() => {
@@ -89,8 +116,6 @@ const PeopleScreen = ({ navigation }) => {
           excludeIds: processedUserIds,
         });
 
-        Logger.info('Raw users from API:', users);
-
         // Ensure users is an array
         const safeUsers = Array.isArray(users) ? users : [];
 
@@ -99,12 +124,43 @@ const PeopleScreen = ({ navigation }) => {
         //   mappedUser => mappedUser.photos && mappedUser.photos.length > 0 && mappedUser.mainPhoto
         // );
 
-        // Filter out users with missing required data
-        const validUsers = safeUsers.filter(
-          safeUser => safeUser && safeUser.id && safeUser.name && typeof safeUser.age === 'number'
-        );
+        // Filter out users with missing required data and normalize photo URLs
+        const validUsers = safeUsers
+          .filter(
+            safeUser => safeUser && safeUser.id && safeUser.name && typeof safeUser.age === 'number'
+          )
+          .map(userData => {
+            // Extract photo URLs as strings, not objects
+            let mainPhotoUrl = null;
+            let photoUrls = [];
 
-        Logger.info(`Filtered ${safeUsers.length} users -> ${validUsers.length} valid users`);
+            if (userData.photos && Array.isArray(userData.photos)) {
+              photoUrls = userData.photos
+                .map(photo => {
+                  if (typeof photo === 'string') return photo;
+                  if (photo && typeof photo === 'object' && photo.url) return photo.url;
+                  return null;
+                })
+                .filter(Boolean);
+
+              mainPhotoUrl = photoUrls[0] || null;
+            }
+
+            // Also check if there's a mainPhoto field
+            if (!mainPhotoUrl && userData.mainPhoto) {
+              mainPhotoUrl =
+                typeof userData.mainPhoto === 'string'
+                  ? userData.mainPhoto
+                  : userData.mainPhoto?.url || null;
+            }
+
+            return {
+              ...userData,
+              photos: photoUrls,
+              mainPhoto: mainPhotoUrl,
+            };
+          });
+
         return validUsers;
       },
       {
@@ -138,9 +194,13 @@ const PeopleScreen = ({ navigation }) => {
 
           // Check if this created a match
           if (result.isMatch) {
-            setMatchedUser(currentProfile);
+            // Simplify the matched user data for the modal
+            setMatchedUser({
+              id: currentProfile.id,
+              name: currentProfile.name,
+              photo: currentProfile.mainPhoto || currentProfile.photos?.[0] || null,
+            });
             setShowMatchModal(true);
-            showSuccess(`It's a match with ${currentProfile.name}! 💕`);
           }
 
           nextCard();
@@ -370,7 +430,7 @@ const PeopleScreen = ({ navigation }) => {
         <Ionicons name="filter" size={24} color="#FF6B6B" />
       </TouchableOpacity>
 
-      {/* Test Button - Remove after testing */}
+      {/* Test Button - Keep for development/testing */}
       <TouchableOpacity
         style={styles.testButton}
         onPress={async () => {
@@ -440,72 +500,25 @@ const PeopleScreen = ({ navigation }) => {
       </View>
 
       {/* Match Modal */}
-      <Modal
+      <MatchModal
         visible={showMatchModal}
-        animationType="fade"
-        transparent={true}
-        onRequestClose={() => setShowMatchModal(false)}
-      >
-        <View style={styles.matchModalOverlay}>
-          <View style={styles.matchModalContent}>
-            <View style={styles.matchModalHeader}>
-              <Text style={styles.matchModalTitle}>It's a Match! 🎉</Text>
-              <Text style={styles.matchModalSubtitle}>
-                You and {matchedUser?.name} liked each other
-              </Text>
-            </View>
-
-            <View style={styles.matchedUsersContainer}>
-              <View style={styles.matchedUserCard}>
-                <Image
-                  source={{
-                    uri:
-                      userProfile?.mainPhoto ||
-                      userProfile?.photos?.[0] ||
-                      'https://via.placeholder.com/100',
-                  }}
-                  style={styles.matchedUserPhoto}
-                />
-                <Text style={styles.matchedUserName}>You</Text>
-              </View>
-
-              <View style={styles.heartIcon}>
-                <Ionicons name="heart" size={40} color="#FF6B6B" />
-              </View>
-
-              <View style={styles.matchedUserCard}>
-                <Image
-                  source={{ uri: getUserProfilePhoto(matchedUser) }}
-                  style={styles.matchedUserPhoto}
-                />
-                <Text style={styles.matchedUserName}>{matchedUser?.name}</Text>
-              </View>
-            </View>
-
-            <View style={styles.matchModalActions}>
-              <TouchableOpacity
-                style={styles.continueSwipingButton}
-                onPress={() => setShowMatchModal(false)}
-              >
-                <Text style={styles.continueSwipingText}>Keep Swiping</Text>
-              </TouchableOpacity>
-
-              <TouchableOpacity
-                style={styles.sendMessageButton}
-                onPress={() => {
-                  setShowMatchModal(false);
-                  const navResult = navigateToMessages();
-                  if (!navResult.success) {
-                    showError('Failed to open messages. Please go to the Messages tab manually.');
-                  }
-                }}
-              >
-                <Text style={styles.sendMessageText}>Send Message</Text>
-              </TouchableOpacity>
-            </View>
-          </View>
-        </View>
-      </Modal>
+        onClose={() => {
+          setShowMatchModal(false);
+          setMatchedUser(null);
+        }}
+        currentUserPhoto={
+          userProfile?.mainPhoto || userProfile?.photos?.[0]?.url || userProfile?.photos?.[0]
+        }
+        currentUserName={userProfile?.name || user?.displayName}
+        matchedUserPhoto={matchedUser?.photo}
+        matchedUserName={matchedUser?.name}
+        onSendMessage={() => {
+          navigateToMessages();
+        }}
+        onKeepSwiping={() => {
+          // Just close, the modal handles it
+        }}
+      />
     </View>
   );
 };
@@ -663,91 +676,6 @@ const styles = StyleSheet.create({
   },
   disabledButton: {
     opacity: 0.5,
-  },
-  matchModalOverlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.8)',
-    justifyContent: 'center',
-    alignItems: 'center',
-    padding: 20,
-  },
-  matchModalContent: {
-    backgroundColor: '#fff',
-    borderRadius: 20,
-    padding: 30,
-    alignItems: 'center',
-    maxWidth: 350,
-    width: '100%',
-  },
-  matchModalHeader: {
-    alignItems: 'center',
-    marginBottom: 30,
-  },
-  matchModalTitle: {
-    fontSize: 28,
-    fontWeight: 'bold',
-    color: '#FF6B6B',
-    marginBottom: 10,
-  },
-  matchModalSubtitle: {
-    fontSize: 16,
-    color: '#666',
-    textAlign: 'center',
-  },
-  matchedUsersContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: 40,
-    width: '100%',
-  },
-  matchedUserCard: {
-    alignItems: 'center',
-    flex: 1,
-  },
-  matchedUserPhoto: {
-    width: 80,
-    height: 80,
-    borderRadius: 40,
-    marginBottom: 10,
-  },
-  matchedUserName: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#333',
-  },
-  heartIcon: {
-    paddingHorizontal: 20,
-  },
-  matchModalActions: {
-    flexDirection: 'row',
-    gap: 15,
-    width: '100%',
-  },
-  continueSwipingButton: {
-    flex: 1,
-    borderWidth: 2,
-    borderColor: '#FF6B6B',
-    borderRadius: 25,
-    paddingVertical: 12,
-    alignItems: 'center',
-  },
-  continueSwipingText: {
-    color: '#FF6B6B',
-    fontSize: 16,
-    fontWeight: '600',
-  },
-  sendMessageButton: {
-    flex: 1,
-    backgroundColor: '#FF6B6B',
-    borderRadius: 25,
-    paddingVertical: 12,
-    alignItems: 'center',
-  },
-  sendMessageText: {
-    color: '#fff',
-    fontSize: 16,
-    fontWeight: '600',
   },
   noMoreCards: {
     alignItems: 'center',

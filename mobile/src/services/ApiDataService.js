@@ -343,9 +343,17 @@ class ApiDataService {
 
       const response = await apiClient.post('/actions/like', { targetUserId });
 
-      if (response.success) {
+      if (response.success && response.data) {
         Logger.success('✅ User liked via API');
-        return response.data;
+        // Extract the actual data from the nested structure
+        const result = response.data.data || response.data;
+        Logger.info('Like result:', result);
+        return {
+          success: true,
+          isMatch: result.isMatch || false,
+          match: result.match || null,
+          action: result.action,
+        };
       } else {
         Logger.error('❌ Failed to like user via API:', response.message);
         throw new Error(response.message || 'Like failed');
@@ -369,9 +377,15 @@ class ApiDataService {
 
       const response = await apiClient.post('/actions/pass', { targetUserId });
 
-      if (response.success) {
+      if (response.success && response.data) {
         Logger.success('✅ User passed via API');
-        return response.data;
+        // Extract the actual data from the nested structure
+        const result = response.data.data || response.data;
+        return {
+          success: true,
+          action: result.action,
+          isMatch: false,
+        };
       } else {
         Logger.error('❌ Failed to pass user via API:', response.message);
         throw new Error(response.message || 'Pass failed');

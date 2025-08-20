@@ -83,7 +83,10 @@ router.post('/pass', authenticateJWT, async (req, res) => {
       });
     }
 
-    const result = await passUser(req.user.id, targetUserId);
+    // Get Socket.IO instance from app
+    const io = req.app.get('io');
+
+    const result = await passUser(req.user.id, targetUserId, io);
 
     res.json({
       success: true,
@@ -190,6 +193,37 @@ router.get('/history', authenticateJWT, async (req, res) => {
     res.status(500).json({
       success: false,
       error: 'Failed to get action history',
+      message: error.message,
+    });
+  }
+});
+
+/**
+ * @route   GET /api/actions/who-liked-me
+ * @desc    Get users who liked the current user
+ * @access  Private
+ */
+router.get('/who-liked-me', authenticateJWT, async (req, res) => {
+  try {
+    const { limit = 20, offset = 0 } = req.query;
+    const { getWhoLikedMe } = require('../services/actionsService');
+    
+    const likers = await getWhoLikedMe(req.user.id, {
+      limit: parseInt(limit) || 20,
+      offset: parseInt(offset) || 0,
+    });
+
+    res.json({
+      success: true,
+      message: 'Retrieved users who liked you',
+      data: likers,
+    });
+  } catch (error) {
+    logger.error('❌ Get who liked me error:', error);
+
+    res.status(500).json({
+      success: false,
+      error: 'Failed to get who liked you',
       message: error.message,
     });
   }
