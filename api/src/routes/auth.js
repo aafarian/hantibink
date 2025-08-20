@@ -1,4 +1,5 @@
 const express = require('express');
+const rateLimit = require('express-rate-limit');
 const logger = require('../utils/logger');
 const { validate } = require('../utils/validation');
 const {
@@ -15,6 +16,19 @@ const {
 } = require('../services/authService');
 
 const router = express.Router();
+
+// Create a more lenient rate limiter for auth endpoints
+const authLimiter = rateLimit({
+  windowMs: process.env.NODE_ENV === 'development' ? 1 * 60 * 1000 : 5 * 60 * 1000, // 1 min for dev, 5 min for prod
+  max: process.env.NODE_ENV === 'development' ? 50 : 10, // 50 attempts in dev, 10 in prod
+  message: {
+    error: 'Too many authentication attempts, please try again later',
+    retryAfter: process.env.NODE_ENV === 'development' ? 60 : 300,
+  },
+  standardHeaders: true,
+  legacyHeaders: false,
+  skipSuccessfulRequests: true, // Don't count successful requests
+});
 
 /**
  * @route   GET /api/auth
@@ -42,7 +56,7 @@ router.get('/', (req, res) => {
  * @desc    Register a new user
  * @access  Public
  */
-router.post('/register', validate(registerSchema), async (req, res) => {
+router.post('/register', authLimiter, validate(registerSchema), async (req, res) => {
   try {
 
     
@@ -69,7 +83,7 @@ router.post('/register', validate(registerSchema), async (req, res) => {
  * @desc    Login user with email and password
  * @access  Public
  */
-router.post('/login', validate(loginSchema), async (req, res) => {
+router.post('/login', authLimiter, validate(loginSchema), async (req, res) => {
   try {
     const { email, password } = req.body;
     const result = await loginUser(email, password);

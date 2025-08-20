@@ -86,26 +86,44 @@ const corsOptions = {
 
 app.use(cors(corsOptions));
 
-// Rate limiting
+// Rate limiting - more relaxed for development
+const isDevelopment = NODE_ENV === 'development';
 const limiter = rateLimit({
-  windowMs: parseInt(process.env.RATE_LIMIT_WINDOW_MS) || 15 * 60 * 1000, // 15 minutes
-  max: parseInt(process.env.RATE_LIMIT_MAX_REQUESTS) || 100, // limit each IP to 100 requests per windowMs
+  windowMs: parseInt(process.env.RATE_LIMIT_WINDOW_MS) || (isDevelopment ? 1 * 60 * 1000 : 15 * 60 * 1000), // 1 minute for dev, 15 minutes for prod
+  max: parseInt(process.env.RATE_LIMIT_MAX_REQUESTS) || (isDevelopment ? 500 : 200), // 500 requests per window in dev, 200 in prod
   message: {
-    error: 'Too many requests from this IP, please try again later.',
+    error: 'Too many requests, please wait',
     retryAfter: Math.ceil(
-      (parseInt(process.env.RATE_LIMIT_WINDOW_MS) || 15 * 60 * 1000) / 1000,
+      (parseInt(process.env.RATE_LIMIT_WINDOW_MS) || (isDevelopment ? 1 * 60 * 1000 : 15 * 60 * 1000)) / 1000,
     ),
   },
   standardHeaders: true, // Return rate limit info in the `RateLimit-*` headers
   legacyHeaders: false, // Disable the `X-RateLimit-*` headers
   skip: (req) => {
     // Skip rate limiting for health checks
-    return req.path === '/health' || req.path === '/api/health';
+    const skipPaths = ['/health', '/api/health'];
+    
+    // Use exact matching or startsWith for security
+    if (skipPaths.some(path => req.path === path)) {
+      return true;
+    }
+    
+    // For auth endpoints in development, use startsWith for proper matching
+    if (isDevelopment) {
+      const authPaths = ['/api/auth/login', '/api/auth/register', '/api/auth/refresh'];
+      return authPaths.some(path => req.path === path);
+    }
+    
+    return false;
   },
 });
 
+// Only apply rate limiting if not explicitly disabled
 if (process.env.ENABLE_RATE_LIMITING !== 'false') {
   app.use(limiter);
+  logger.info(`Rate limiting enabled: ${isDevelopment ? 'Development' : 'Production'} mode - ${isDevelopment ? '500 req/min' : '200 req/15min'}`);
+} else {
+  logger.info('Rate limiting is disabled');
 }
 
 // ===== GENERAL MIDDLEWARE =====

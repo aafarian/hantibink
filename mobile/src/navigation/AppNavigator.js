@@ -190,13 +190,6 @@ const MainNavigator = () => {
           paddingTop: 5,
           height: Platform.OS === 'android' ? 60 + insets.bottom : 60,
         },
-        headerStyle: {
-          backgroundColor: '#FF6B6B',
-        },
-        headerTintColor: '#fff',
-        headerTitleStyle: {
-          fontWeight: 'bold',
-        },
       })}
     >
       <Tab.Screen
@@ -205,7 +198,20 @@ const MainNavigator = () => {
         options={{ headerShown: false, title: 'My Profile' }}
       />
       <Tab.Screen name="People" component={PeopleStack} options={{ headerShown: false }} />
-      <Tab.Screen name="Liked You" component={LikedYouScreen} options={{ title: 'Liked You' }} />
+      <Tab.Screen
+        name="Liked You"
+        component={LikedYouScreen}
+        options={{
+          title: 'Liked You',
+          headerStyle: {
+            backgroundColor: '#FF6B6B',
+          },
+          headerTintColor: '#fff',
+          headerTitleStyle: {
+            fontWeight: 'bold',
+          },
+        }}
+      />
       <Tab.Screen name="Messages" component={MessagesStack} options={{ headerShown: false }} />
     </Tab.Navigator>
   );

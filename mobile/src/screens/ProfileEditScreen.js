@@ -10,6 +10,7 @@ import ProfileForm from '../components/profile/ProfileForm';
 import PhotoManager from '../components/profile/PhotoManager';
 import Logger from '../utils/logger';
 import ApiDataService from '../services/ApiDataService';
+import { theme } from '../styles/theme';
 
 const ProfileEditScreen = ({ navigation }) => {
   const { user, userProfile, refreshUserProfile } = useAuth();
@@ -161,6 +162,8 @@ const ProfileEditScreen = ({ navigation }) => {
   return (
     <GestureHandlerRootView style={styles.container}>
       <SafeAreaView style={styles.safeArea} edges={['top']}>
+        {/* Status bar background */}
+        <View style={styles.statusBarBackground} />
         {/* Header */}
         <View style={styles.header}>
           <TouchableOpacity onPress={() => navigation.goBack()}>
@@ -211,6 +214,15 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#f8f9fa',
   },
+  statusBarBackground: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    height: 50, // Generous height to cover status bar area
+    backgroundColor: theme.colors.primary,
+    zIndex: -1, // Behind other content
+  },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -237,7 +249,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   floatingSaveButton: {
-    backgroundColor: '#FF6B6B',
+    backgroundColor: theme.colors.primary,
     paddingHorizontal: 32,
     paddingVertical: 16,
     borderRadius: 25,

@@ -14,6 +14,7 @@ class SocketService {
     this.messageListeners = new Set();
     this.matchListeners = new Set();
     this.connectionListeners = new Set();
+    this.likedYouListeners = new Set();
   }
 
   /**
@@ -95,6 +96,12 @@ class SocketService {
       this.matchListeners.forEach(callback => callback('new-match', data));
     });
 
+    // Liked You update events
+    this.socket.on('liked-you-update', data => {
+      Logger.info('💘 Liked You update received via WebSocket:', data);
+      this.likedYouListeners.forEach(callback => callback('liked-you-update', data));
+    });
+
     // Read receipt events
     this.socket.on('messages-read', data => {
       Logger.info('👁️ Messages read via WebSocket:', data);
@@ -168,6 +175,14 @@ class SocketService {
   }
 
   /**
+   * Add liked-you update listener
+   */
+  onLikedYouUpdate(callback) {
+    this.likedYouListeners.add(callback);
+    return () => this.likedYouListeners.delete(callback);
+  }
+
+  /**
    * Emit typing start event
    */
   startTyping(matchId, userId, userName) {
@@ -214,6 +229,7 @@ class SocketService {
       this.messageListeners.clear();
       this.matchListeners.clear();
       this.connectionListeners.clear();
+      this.likedYouListeners.clear();
     }
   }
 

@@ -49,73 +49,107 @@ const likeUser = async (
     let isMatch = false;
     let match = null;
 
-    // If both users liked each other, create a match
     if (reverseAction && reverseAction.action === 'LIKE') {
-      isMatch = true;
-
-      // Check if match already exists
-      const existingMatch = await prisma.match.findFirst({
-        where: {
-          OR: [
-            { user1Id: senderId, user2Id: receiverId },
-            { user1Id: receiverId, user2Id: senderId },
-          ],
+      // It's a match! Create match record
+      match = await prisma.match.create({
+        data: {
+          user1Id: senderId < receiverId ? senderId : receiverId,
+          user2Id: senderId < receiverId ? receiverId : senderId,
+        },
+        include: {
+          user1: {
+            select: {
+              id: true,
+              name: true,
+              photos: {
+                where: { isMain: true },
+                select: { url: true },
+              },
+            },
+          },
+          user2: {
+            select: {
+              id: true,
+              name: true,
+              photos: {
+                where: { isMain: true },
+                select: { url: true },
+              },
+            },
+          },
         },
       });
 
-      if (!existingMatch) {
-        // Create new match (ensure consistent ordering)
-        const [user1Id, user2Id] = [senderId, receiverId].sort();
+      isMatch = true;
 
-        match = await prisma.match.create({
-          data: {
-            user1Id,
-            user2Id,
-            isActive: true,
-          },
+      // Increment match counts for both users
+      await prisma.user.updateMany({
+        where: { id: { in: [senderId, receiverId] } },
+        data: { totalMatches: { increment: 1 } },
+      });
+
+      // Send real-time notification if Socket.IO is available
+      if (io) {
+        // Notify BOTH users about the new match
+        const matchData = {
+          matchId: match.id,
+          timestamp: new Date(),
+        };
+        
+        // Prepare matched user data with proper structure
+        // Extract photo URLs as strings, not objects
+        const user1Photos = match.user1.photos ? 
+          match.user1.photos.map(p => typeof p === 'string' ? p : p.url).filter(Boolean) : [];
+        const user2Photos = match.user2.photos ? 
+          match.user2.photos.map(p => typeof p === 'string' ? p : p.url).filter(Boolean) : [];
+        
+        const user1Data = {
+          id: match.user1.id,
+          name: match.user1.name,
+          photos: user1Photos,
+          mainPhoto: user1Photos[0] || null,
+        };
+        
+        const user2Data = {
+          id: match.user2.id,
+          name: match.user2.name,
+          photos: user2Photos,
+          mainPhoto: user2Photos[0] || null,
+        };
+        
+        // Notify the receiver (the person who was just liked back)
+        io.to(`user:${receiverId}`).emit('new-match', {
+          ...matchData,
+          matchedUser: match.user1Id === receiverId ? user2Data : user1Data,
+          message: 'You have a new match! 🎉',
+        });
+        
+        // Notify the sender (the person who just liked)
+        io.to(`user:${senderId}`).emit('new-match', {
+          ...matchData,
+          matchedUser: match.user1Id === senderId ? user2Data : user1Data,
+          message: "It's a match! 🎉",
+        });
+        
+        // Also emit an event to update the "Liked You" screen
+        io.to(`user:${senderId}`).emit('liked-you-update', {
+          action: 'remove',
+          userId: receiverId,
+          reason: 'matched',
         });
 
-        logger.info(
-          `🎉 New match created: ${match.id} between ${user1Id} and ${user2Id}`,
-        );
-
-        // Emit WebSocket events for new match
-        if (io) {
-          // Get user details for notifications
-          const [user1, user2] = await Promise.all([
-            prisma.user.findUnique({
-              where: { id: user1Id },
-              select: { id: true, name: true, photos: true },
-            }),
-            prisma.user.findUnique({
-              where: { id: user2Id },
-              select: { id: true, name: true, photos: true },
-            }),
-          ]);
-
-          // Emit to both users' personal rooms
-          io.to(`user:${user1Id}`).emit('new-match', {
-            matchId: match.id,
-            user: user2,
-            timestamp: match.createdAt,
-          });
-
-          io.to(`user:${user2Id}`).emit('new-match', {
-            matchId: match.id,
-            user: user1,
-            timestamp: match.createdAt,
-          });
-
-          logger.info(`📡 Real-time match events sent for match ${match.id}`);
-        }
-      } else {
-        match = existingMatch;
-        logger.info(`Match already exists: ${existingMatch.id}`);
+        logger.info(`Real-time match notifications sent to users ${senderId} and ${receiverId}`);
       }
     }
 
+    // Increment total likes for receiver
+    await prisma.user.update({
+      where: { id: receiverId },
+      data: { totalLikes: { increment: 1 } },
+    });
+
     logger.info(
-      `${actionType} action saved: ${senderId} -> ${receiverId}, isMatch: ${isMatch}`,
+      `${actionType} action created: ${senderId} -> ${receiverId}${isMatch ? ' (MATCH!)' : ''}`,
     );
 
     return {
@@ -133,7 +167,7 @@ const likeUser = async (
 /**
  * Pass on a user
  */
-const passUser = async (senderId, receiverId) => {
+const passUser = async (senderId, receiverId, io = null) => {
   try {
     // Check if action already exists
     const existingAction = await prisma.userAction.findUnique({
@@ -157,6 +191,15 @@ const passUser = async (senderId, receiverId) => {
         action: 'PASS',
       },
     });
+
+    // If Socket.IO is available, emit an event to update the "Liked You" screen
+    if (io) {
+      io.to(`user:${senderId}`).emit('liked-you-update', {
+        action: 'remove',
+        userId: receiverId,
+        reason: 'passed',
+      });
+    }
 
     logger.info(`Pass action saved: ${senderId} -> ${receiverId}`);
 
@@ -197,7 +240,6 @@ const getUserActions = async (userId, options = {}) => {
       skip: offset,
     });
 
-    logger.info(`Retrieved ${actions.length} actions for user ${userId}`);
     return actions;
   } catch (error) {
     logger.error('❌ Error getting user actions:', error);
@@ -210,19 +252,26 @@ const getUserActions = async (userId, options = {}) => {
  */
 const undoLastAction = async (userId) => {
   try {
-    // Get the most recent action
+    // Get the last action
     const lastAction = await prisma.userAction.findFirst({
       where: { senderId: userId },
       orderBy: { createdAt: 'desc' },
     });
 
     if (!lastAction) {
-      throw new Error('No actions to undo');
+      throw new Error('No action to undo');
     }
 
-    // If this was a like that created a match, we need to handle the match
+    // Check if it's recent enough to undo (e.g., within 5 minutes)
+    const actionAge = Date.now() - lastAction.createdAt.getTime();
+    const maxUndoTime = 5 * 60 * 1000; // 5 minutes
+
+    if (actionAge > maxUndoTime) {
+      throw new Error('Too late to undo this action');
+    }
+
+    // If it was a LIKE that created a match, we need to deactivate the match
     if (lastAction.action === 'LIKE') {
-      // Check if there's a match between these users
       const match = await prisma.match.findFirst({
         where: {
           OR: [
@@ -234,7 +283,7 @@ const undoLastAction = async (userId) => {
       });
 
       if (match) {
-        // Check if the other user also liked (if so, this undo would break the match)
+        // Check if there was a reverse like
         const reverseAction = await prisma.userAction.findUnique({
           where: {
             senderId_receiverId: {
@@ -268,7 +317,103 @@ const undoLastAction = async (userId) => {
       undoneAction: lastAction,
     };
   } catch (error) {
-    logger.error('❌ Error undoing last action:', error);
+    logger.error('❌ Error undoing action:', error);
+    throw error;
+  }
+};
+
+/**
+ * Get users who liked the current user (for "Liked You" feature)
+ */
+const getWhoLikedMe = async (userId, options = {}) => {
+  try {
+    const { limit = 20, offset = 0 } = options;
+
+    // First, get all users who liked the current user
+    const likers = await prisma.userAction.findMany({
+      where: {
+        receiverId: userId,
+        action: { in: ['LIKE', 'SUPER_LIKE'] },
+      },
+      include: {
+        sender: {
+          select: {
+            id: true,
+            name: true,
+            bio: true,
+            birthDate: true,
+            location: true,
+            photos: {
+              orderBy: { order: 'asc' },
+              select: {
+                id: true,
+                url: true,
+                isMain: true,
+                order: true,
+              },
+            },
+            interests: {
+              include: {
+                interest: true,
+              },
+            },
+          },
+        },
+      },
+      orderBy: { createdAt: 'desc' },
+      take: limit,
+      skip: offset,
+    });
+
+    // Filter out users the current user has already acted on
+    const currentUserActions = await prisma.userAction.findMany({
+      where: {
+        senderId: userId,
+        receiverId: {
+          in: likers.map(l => l.senderId),
+        },
+      },
+      select: {
+        receiverId: true,
+      },
+    });
+
+    const actedOnUserIds = new Set(currentUserActions.map(a => a.receiverId));
+    
+    // Filter out users we've already acted on
+    const filteredLikers = likers.filter(liker => !actedOnUserIds.has(liker.senderId));
+
+    // Transform the data to include age calculation and format
+    const transformedLikers = filteredLikers.map((action) => {
+      const birthDate = action.sender.birthDate;
+      let age = null;
+      if (birthDate) {
+        const today = new Date();
+        const birth = new Date(birthDate);
+        age = today.getFullYear() - birth.getFullYear();
+        const monthDiff = today.getMonth() - birth.getMonth();
+        if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birth.getDate())) {
+          age--;
+        }
+      }
+
+      return {
+        actionId: action.id,
+        actionType: action.action,
+        likedAt: action.createdAt,
+        user: {
+          ...action.sender,
+          age,
+          interests: action.sender.interests.map(ui => ui.interest.name),
+        },
+      };
+    });
+
+    logger.info(`Retrieved ${transformedLikers.length} users who liked user ${userId}`);
+
+    return transformedLikers;
+  } catch (error) {
+    logger.error('❌ Error getting who liked me:', error);
     throw error;
   }
 };
@@ -278,4 +423,5 @@ module.exports = {
   passUser,
   getUserActions,
   undoLastAction,
+  getWhoLikedMe,
 };
