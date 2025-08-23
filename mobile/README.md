@@ -27,17 +27,40 @@ npm run web        # Web browser (for testing)
 
 ### Environment Variables
 
-Copy `.env.example` to `.env` and fill in your values:
+The app uses different environment files for different contexts:
+
+#### Development (Local API)
 
 ```bash
-cp .env.example .env
+cp .env.example .env.development
+# Edit .env.development with your local API URL (usually http://localhost:3000)
 ```
+
+#### Production API Testing
+
+```bash
+cp .env.production.example .env.production
+# Edit .env.production with your Cloud Run API URL
+# This file is gitignored and should NEVER be committed!
+
+# To test with production API:
+npm run start:prod-api         # Uses production API
+npm run start:prod-api:tunnel  # Uses production API with tunnel
+```
+
+**Important**:
+
+- `.env.production` contains sensitive production URLs and should NEVER be committed
+- The scripts will warn you if `.env.production` is missing
+- Use `.env.production.example` as a template
 
 Required variables:
 
 - `EXPO_PUBLIC_FIREBASE_API_KEY`
 - `EXPO_PUBLIC_FIREBASE_AUTH_DOMAIN`
 - `EXPO_PUBLIC_FIREBASE_PROJECT_ID`
+- `EXPO_PUBLIC_API_URL` - Your API endpoint
+- `EXPO_PUBLIC_SOCKET_URL` - WebSocket endpoint
 - And other Firebase config values
 
 ### Available Scripts
