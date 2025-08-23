@@ -37,10 +37,6 @@ jobs:
       - name: Build Docker image
         working-directory: ./api
         run: |
-          # Install dependencies and generate lock file
-          npm install
-          npx prisma generate
-          
           # Create optimized Dockerfile
           cat > Dockerfile.ci << 'EOF'
           FROM node:18-slim
@@ -49,12 +45,12 @@ jobs:
           
           WORKDIR /app
           
-          # Copy package files first
-          COPY package*.json ./
+          # Copy package.json and prisma schema
+          COPY package.json ./
           COPY prisma ./prisma/
           
-          # Install production dependencies
-          RUN npm ci --omit=dev
+          # Install production dependencies (npm install is more forgiving than npm ci)
+          RUN npm install --omit=dev
           
           # Generate Prisma client in container
           RUN npx prisma generate
