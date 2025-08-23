@@ -2,8 +2,8 @@ import Constants from 'expo-constants';
 
 const ENV = {
   dev: {
-    apiUrl: process.env.EXPO_PUBLIC_API_URL || 'http://192.168.68.67:3000',
-    socketUrl: process.env.EXPO_PUBLIC_SOCKET_URL || 'http://192.168.68.67:3000',
+    apiUrl: process.env.EXPO_PUBLIC_API_URL || 'http://localhost:3000',
+    socketUrl: process.env.EXPO_PUBLIC_SOCKET_URL || 'http://localhost:3000',
   },
   staging: {
     apiUrl: process.env.EXPO_PUBLIC_API_URL || 'https://staging-api.hantibink.com',
