@@ -1,5 +1,4 @@
 import express from 'express';
-import bodyParser from 'body-parser';
 
 /**
  * Create a test Express app with the given routes
@@ -8,8 +7,8 @@ export const createTestApp = (router, basePath = '') => {
   const app = express();
   
   // Add middleware
-  app.use(bodyParser.json());
-  app.use(bodyParser.urlencoded({ extended: true }));
+  app.use(express.json());
+  app.use(express.urlencoded({ extended: true }));
   
   // Add routes
   if (basePath) {
@@ -18,11 +17,12 @@ export const createTestApp = (router, basePath = '') => {
     app.use(router);
   }
   
-  // Error handler
+  // Error handler (matches main app format)
   app.use((err, req, res, next) => {
-    res.status(err.status || 500).json({
-      success: false,
-      error: err.message || 'Internal server error',
+    const statusCode = err.statusCode || err.status || 500;
+    res.status(statusCode).json({
+      status: statusCode >= 500 ? 'error' : 'fail',
+      message: err.message || 'Internal server error',
     });
   });
   

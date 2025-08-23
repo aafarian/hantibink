@@ -34,7 +34,7 @@
     "test:coverage": "cd api && npm run test:coverage",
     "test:ui": "cd api && npm run test:ui",
     "test:api": "cd api && npm test",
-    "test:mobile": "cd mobile && npm test",
+    "test:mobile": "echo 'No mobile tests configured yet'",
     "test:all": "npm run test:api",
     "test:all:coverage": "cd api && npm run test:coverage",
     "test:ci": "cd api && npm run test:ci",

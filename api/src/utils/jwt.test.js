@@ -1,7 +1,5 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
-
-// Don't mock jsonwebtoken - test the real implementation
-const { generateTokenPair, verifyAccessToken, verifyRefreshToken } = require('./jwt.js');
+import { generateTokenPair, verifyAccessToken, verifyRefreshToken } from './jwt.js';
 
 describe('JWT Utils', () => {
   beforeEach(() => {
@@ -31,7 +29,10 @@ describe('JWT Utils', () => {
       const result = generateTokenPair(payload);
       expect(result).toHaveProperty('accessToken');
       
-      process.env.JWT_SECRET = originalSecret;
+      // Only restore if it was previously defined
+      if (originalSecret !== undefined) {
+        process.env.JWT_SECRET = originalSecret;
+      }
     });
   });
 
@@ -94,8 +95,13 @@ describe('JWT Utils', () => {
       expect(() => verifyRefreshToken(undefined)).toThrow();
     });
 
-    it('should handle malformed token', () => {
-      expect(() => verifyAccessToken('malformed')).toThrow();
+    it('should handle malformed token with specific error', () => {
+      // Test with a completely invalid format (not even resembling a JWT)
+      expect(() => verifyAccessToken('not-a-jwt-at-all')).toThrow();
+      
+      // Test with wrong number of segments (JWT should have 3 parts)
+      expect(() => verifyAccessToken('only.two')).toThrow();
+      expect(() => verifyAccessToken('too.many.parts.here')).toThrow();
     });
   });
 });

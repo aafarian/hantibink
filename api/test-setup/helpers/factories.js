@@ -13,8 +13,8 @@ export const userFactory = {
       firebaseUid: faker.string.uuid(),
       name: faker.person.fullName(),
       birthDate,
-      gender: faker.helpers.arrayElement(['MALE', 'FEMALE', 'OTHER']),
-      interestedIn: faker.helpers.arrayElements(['MALE', 'FEMALE'], { min: 1, max: 2 }),
+      gender: faker.helpers.arrayElement(['MALE', 'FEMALE', 'NON_BINARY', 'OTHER']),
+      interestedIn: faker.helpers.arrayElements(['MALE', 'FEMALE', 'NON_BINARY'], { min: 1, max: 2 }),
       bio: faker.lorem.paragraph(),
       profession: faker.person.jobTitle(),
       education: faker.helpers.arrayElement([
@@ -80,7 +80,6 @@ export const photoFactory = {
     url: faker.image.avatar(),
     order: 0,
     isMain: false,
-    isVerified: false,
     ...overrides,
   }),
 
