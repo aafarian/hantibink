@@ -37,8 +37,8 @@ jobs:
       - name: Build Docker image
         working-directory: ./api
         run: |
-          # Generate Prisma client locally to avoid QEMU issues
-          npm ci
+          # Install dependencies and generate lock file
+          npm install
           npx prisma generate
           
           # Create optimized Dockerfile
