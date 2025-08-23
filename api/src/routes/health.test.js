@@ -52,8 +52,17 @@ describe('Health Routes', () => {
       expect(response.status).toBe(200);
       expect(response.body.status).toBe('healthy');
       expect(response.body.checks).toHaveProperty('server');
-      // Database check happens if database is available
-      // We don't mock it as we're testing the actual health check functionality
+      expect(response.body.checks.server.status).toBe('healthy');
+      
+      // Verify database check is included
+      expect(response.body.checks).toHaveProperty('database');
+      expect(response.body.checks.database).toHaveProperty('status');
+      // Database should be healthy since test setup connects to test DB
+      expect(response.body.checks.database.status).toBe('healthy');
+      
+      // Verify other checks are included (even if not implemented)
+      expect(response.body.checks).toHaveProperty('redis');
+      expect(response.body.checks).toHaveProperty('firebase');
     });
   });
 });
