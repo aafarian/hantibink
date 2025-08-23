@@ -26,26 +26,43 @@ hantibink/
 
 - Node.js 18+
 - npm or yarn
+- Docker (for testing and local development)
 - Expo CLI (`npm install -g @expo/cli`)
 - iOS Simulator (Mac) or Android Studio
 
-### Mobile App Development
+### Development (from root directory)
 
 ```bash
-# Navigate to mobile app
-cd mobile
+# Install all dependencies
+npm run install:all
 
-# Install dependencies
-npm install
+# Run both API and Mobile app
+npm run dev
 
-# Start development server
-npm start
+# Run with tunnel (for device testing)
+npm run dev:tunnel
 
-# Run on iOS simulator
-npm run ios
+# Run mobile with production API
+npm run dev:prod-api
+```
 
-# Run on Android emulator
-npm run android
+### Testing (from root directory)
+
+```bash
+# Run API tests (auto-starts test database)
+npm test
+
+# Run tests once
+npm run test:run
+
+# Run with coverage
+npm run test:coverage
+
+# Open test UI
+npm run test:ui
+
+# CI mode (full test suite)
+npm run test:ci
 ```
 
 ## 📱 Tech Stack

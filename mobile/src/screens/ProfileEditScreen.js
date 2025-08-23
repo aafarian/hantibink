@@ -20,6 +20,7 @@ const ProfileEditScreen = ({ navigation }) => {
   const [photos, setPhotos] = useState([]);
   const [saving, setSaving] = useState(false);
   const [hasChanges, setHasChanges] = useState(false);
+  const [hasFormChanges, setHasFormChanges] = useState(false); // Track form changes separately
   const [initialFormData, setInitialFormData] = useState(null);
   const [changedFields, setChangedFields] = useState(new Set());
   const [validationErrors, setValidationErrors] = useState({});
@@ -89,16 +90,19 @@ const ProfileEditScreen = ({ navigation }) => {
 
     setChangedFields(newChangedFields);
 
-    // Overall changes check - only show save button if there are changes AND no errors
-    const hasFormChanges = newChangedFields.size > 0;
+    // Overall changes check - track form changes and validity separately
+    const formHasChanges = newChangedFields.size > 0;
     const hasErrors = Object.keys(currentErrors).length > 0;
 
-    if (hasFormChanges) {
+    if (formHasChanges) {
       Logger.debug('📝 Changed fields:', Array.from(newChangedFields));
     }
 
+    // Track form changes (for discard button)
+    setHasFormChanges(formHasChanges);
+
     // Only enable save if there are changes and no validation errors
-    setHasChanges(hasFormChanges && !hasErrors);
+    setHasChanges(formHasChanges && !hasErrors);
   };
 
   // Handle photo changes
@@ -126,6 +130,7 @@ const ProfileEditScreen = ({ navigation }) => {
       // Clear change tracking
       setChangedFields(new Set());
       setHasChanges(false);
+      setHasFormChanges(false);
       setValidationErrors({});
 
       showSuccess('Changes discarded');
@@ -160,8 +165,11 @@ const ProfileEditScreen = ({ navigation }) => {
       // This is simpler and avoids complex diff tracking issues
       Logger.info('📝 Saving profile with current form data');
 
-      // Update profile via API with all current data
-      const success = await ApiDataService.updateUserProfile(currentFormData);
+      // Transform the form data for API submission
+      const apiData = transformProfileData.toApi(currentFormData);
+
+      // Update profile via API with transformed data
+      const success = await ApiDataService.updateUserProfile(apiData);
 
       if (success) {
         await refreshUserProfile();
@@ -173,6 +181,7 @@ const ProfileEditScreen = ({ navigation }) => {
 
         // Reset changes state since we've saved successfully
         setHasChanges(false);
+        setHasFormChanges(false);
         setChangedFields(new Set());
 
         navigation.goBack();
@@ -222,22 +231,24 @@ const ProfileEditScreen = ({ navigation }) => {
           </TouchableOpacity>
           <Text style={styles.headerTitle}>Edit Profile</Text>
           <View style={styles.headerRight}>
-            {hasChanges && (
+            {hasFormChanges && (
               <View style={styles.headerButtons}>
                 <TouchableOpacity onPress={discardChanges} style={styles.headerDiscardButton}>
                   <Text style={styles.headerDiscardText}>Discard</Text>
                 </TouchableOpacity>
-                <TouchableOpacity
-                  onPress={saveProfile}
-                  disabled={saving}
-                  style={styles.headerSaveButton}
-                >
-                  {saving ? (
-                    <ActivityIndicator size="small" color="#fff" />
-                  ) : (
-                    <Text style={styles.headerSaveText}>Save</Text>
-                  )}
-                </TouchableOpacity>
+                {hasChanges && (
+                  <TouchableOpacity
+                    onPress={saveProfile}
+                    disabled={saving}
+                    style={styles.headerSaveButton}
+                  >
+                    {saving ? (
+                      <ActivityIndicator size="small" color="#fff" />
+                    ) : (
+                      <Text style={styles.headerSaveText}>Save</Text>
+                    )}
+                  </TouchableOpacity>
+                )}
               </View>
             )}
           </View>
@@ -256,18 +267,25 @@ const ProfileEditScreen = ({ navigation }) => {
           style={styles.form}
         >
           {/* Bottom Action Buttons */}
-          {hasChanges && (
-            <View style={styles.bottomButtonsContainer}>
-              <TouchableOpacity style={styles.discardButton} onPress={discardChanges}>
+          {hasFormChanges && (
+            <View
+              style={[styles.bottomButtonsContainer, !hasChanges && styles.singleButtonContainer]}
+            >
+              <TouchableOpacity
+                style={[styles.discardButton, !hasChanges && styles.discardButtonFull]}
+                onPress={discardChanges}
+              >
                 <Text style={styles.discardButtonText}>Discard Changes</Text>
               </TouchableOpacity>
-              <TouchableOpacity style={styles.saveButton} onPress={saveProfile} disabled={saving}>
-                {saving ? (
-                  <ActivityIndicator size="small" color="#fff" />
-                ) : (
-                  <Text style={styles.saveButtonText}>Save Changes</Text>
-                )}
-              </TouchableOpacity>
+              {hasChanges && (
+                <TouchableOpacity style={styles.saveButton} onPress={saveProfile} disabled={saving}>
+                  {saving ? (
+                    <ActivityIndicator size="small" color="#fff" />
+                  ) : (
+                    <Text style={styles.saveButtonText}>Save Changes</Text>
+                  )}
+                </TouchableOpacity>
+              )}
             </View>
           )}
         </ProfileForm>
@@ -379,6 +397,14 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: '#fff',
     fontWeight: '600',
+  },
+  singleButtonContainer: {
+    justifyContent: 'center',
+  },
+  discardButtonFull: {
+    flex: 0,
+    width: '60%',
+    alignSelf: 'center',
   },
   form: {
     flex: 1,

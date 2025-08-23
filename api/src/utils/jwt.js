@@ -110,6 +110,10 @@ const extractTokenFromHeader = (authHeader) => {
   return parts[1];
 };
 
+// Additional aliases for test compatibility
+const verifyAccessToken = verifyToken;
+const verifyRefreshToken = verifyToken;
+
 module.exports = {
   generateAccessToken,
   generateRefreshToken,
@@ -117,4 +121,6 @@ module.exports = {
   decodeToken,
   generateTokenPair,
   extractTokenFromHeader,
+  verifyAccessToken,  // Alias for tests
+  verifyRefreshToken, // Alias for tests
 };
