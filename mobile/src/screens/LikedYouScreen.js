@@ -41,6 +41,7 @@ const LikedYouScreen = () => {
   const [showMatchModal, setShowMatchModal] = useState(false);
   const [matchedUser, setMatchedUser] = useState(null);
   const [pendingMatchToast, setPendingMatchToast] = useState(false);
+  const [hasShownUpgradeHint, setHasShownUpgradeHint] = useState(false);
 
   // Fetch users who liked the current user
   const fetchWhoLikedMe = useCallback(async () => {
@@ -81,8 +82,9 @@ const LikedYouScreen = () => {
 
         setIncomingLikes(likes);
 
-        if (likes.length > 0 && !isPremium) {
-          // Subtle nudge for non-premium users
+        if (likes.length > 0 && !isPremium && !hasShownUpgradeHint) {
+          // Subtle nudge for non-premium users - only show once per session
+          setHasShownUpgradeHint(true);
           setTimeout(() => {
             showInfo(`${likes.length} people liked you! Upgrade to see who they are 👀`);
           }, 1000);
@@ -100,13 +102,14 @@ const LikedYouScreen = () => {
     } finally {
       setLoading(false);
     }
-  }, [isPremium, showInfo, showError]);
+  }, [isPremium, showInfo, showError, hasShownUpgradeHint]);
 
   useEffect(() => {
     if (user?.uid) {
       fetchWhoLikedMe();
     }
-  }, [user?.uid, fetchWhoLikedMe]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user?.uid]); // Intentionally exclude fetchWhoLikedMe to prevent infinite loop
 
   // Listen for real-time updates from Socket.IO
   useEffect(() => {
@@ -135,6 +138,13 @@ const LikedYouScreen = () => {
         } else if (data.action === 'add' && data.user) {
           // Add a new like to the list (for future use when someone likes you)
           setIncomingLikes(prev => {
+            // Check if this user already exists in the list
+            const existingLike = prev.find(like => like.id === data.user.id);
+            if (existingLike) {
+              // User already in list, don't add duplicate
+              return prev;
+            }
+
             const newLike = {
               id: data.user.id,
               actionId: data.actionId,
@@ -152,11 +162,17 @@ const LikedYouScreen = () => {
               isNew: true,
             };
 
+            // Only show toast if this is truly a new like
+            if (!existingLike) {
+              // Use setTimeout to avoid React state update warnings
+              setTimeout(() => {
+                showInfo('Someone new liked you! 💕');
+              }, 100);
+            }
+
             // Add to beginning of list to show new likes first
             return [newLike, ...prev];
           });
-
-          showInfo('Someone new liked you! 💕');
         }
       }
     });

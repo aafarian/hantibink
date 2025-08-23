@@ -191,14 +191,51 @@ export const profileFieldsConfig = {
 
 // Helper functions for data transformation
 export const transformProfileData = {
-  // Transform for API submission
-  toApi: formData => ({
-    ...formData,
-    relationshipType: Array.isArray(formData.relationshipType)
-      ? formData.relationshipType[0] || null
-      : formData.relationshipType,
-    interests: Array.isArray(formData.interests) ? formData.interests : [],
-  }),
+  // Transform for API submission - filter out empty values
+  toApi: formData => {
+    const cleaned = {};
+
+    Object.entries(formData).forEach(([key, value]) => {
+      // Skip empty strings, null, undefined
+      if (value === '' || value === null || value === undefined) {
+        return; // Don't include in the cleaned object
+      }
+
+      // For height, keep it as a string (e.g., "5'5\" (165cm)")
+      if (key === 'height') {
+        if (value && value.trim().length > 0) {
+          cleaned[key] = value.trim();
+        }
+        return;
+      }
+
+      // Handle arrays
+      if (Array.isArray(value)) {
+        if (value.length > 0) {
+          cleaned[key] = value;
+        }
+        return;
+      }
+
+      // For strings, only include if they have actual content
+      if (typeof value === 'string' && value.trim().length > 0) {
+        cleaned[key] = value.trim();
+      } else if (typeof value !== 'string') {
+        // Include non-string values (numbers, booleans, etc)
+        cleaned[key] = value;
+      }
+    });
+
+    // Keep relationshipType as an array for multi-select
+    // The API will handle it as needed
+
+    // Ensure interests is always an array if present
+    if (cleaned.interests && !Array.isArray(cleaned.interests)) {
+      cleaned.interests = [];
+    }
+
+    return cleaned;
+  },
 
   // Transform from API response
   fromApi: apiData => ({
@@ -207,11 +244,20 @@ export const transformProfileData = {
     education: apiData.education || '',
     profession: apiData.profession || '',
     height: apiData.height || '',
-    relationshipType: Array.isArray(apiData.relationshipType)
-      ? apiData.relationshipType
-      : apiData.relationshipType
-        ? [apiData.relationshipType]
-        : [],
+    // Handle relationshipType - can be string with commas or array
+    relationshipType: (() => {
+      if (Array.isArray(apiData.relationshipType)) {
+        return apiData.relationshipType;
+      } else if (apiData.relationshipType && typeof apiData.relationshipType === 'string') {
+        // If it contains commas, split into array
+        if (apiData.relationshipType.includes(',')) {
+          return apiData.relationshipType.split(',').map(s => s.trim());
+        }
+        // Single value - still return as array for multi-select field
+        return [apiData.relationshipType];
+      }
+      return [];
+    })(),
     religion: apiData.religion || '',
     smoking: apiData.smoking || '',
     drinking: apiData.drinking || '',

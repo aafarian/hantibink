@@ -1,0 +1,61 @@
+name: EAS Update (Manual)
+
+on:
+  # Disabled automatic updates to preserve EAS build credits
+  # push:
+  #   branches:
+  #     - main
+  #   paths:
+  #     - 'mobile/**'
+  #     - '!mobile/android/**'
+  #     - '!mobile/ios/**'
+  #     - '.github/workflows/mobile-eas-update.yml'
+  workflow_dispatch:  # Manual trigger only via GitHub Actions UI
+
+jobs:
+  update:
+    name: EAS Update
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          cache: 'npm'
+          cache-dependency-path: mobile/package-lock.json
+
+      - name: Install dependencies
+        working-directory: ./mobile
+        run: npm ci
+
+      - name: Setup Expo
+        uses: expo/expo-github-action@v8
+        with:
+          eas-version: latest
+          token: ${{ secrets.EXPO_TOKEN }}
+
+      - name: Publish update to production channel
+        working-directory: ./mobile
+        run: |
+          npx eas update --branch production --message "${{ github.event.head_commit.message }}"
+
+      - name: Create GitHub Release (optional)
+        if: contains(github.event.head_commit.message, '[release]')
+        uses: actions/create-release@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tag_name: mobile-update-${{ github.run_number }}
+          release_name: Mobile Update ${{ github.run_number }}
+          body: |
+            EAS Update published for commit: ${{ github.sha }}
+            
+            Commit message: ${{ github.event.head_commit.message }}
+            
+            This is an over-the-air update for the Hantibink mobile app.
+          draft: false
+          prerelease: false

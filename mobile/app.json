@@ -15,8 +15,10 @@
     "ios": {
       "supportsTablet": true,
       "infoPlist": {
-        "NSLocationWhenInUseUsageDescription": "This app uses location to show you people nearby and improve your dating experience."
-      }
+        "NSLocationWhenInUseUsageDescription": "This app uses location to show you people nearby and improve your dating experience.",
+        "ITSAppUsesNonExemptEncryption": false
+      },
+      "bundleIdentifier": "com.antoafarian.hantibink"
     },
     "android": {
       "adaptiveIcon": {
@@ -47,6 +49,12 @@
       "eas": {
         "projectId": "316f94ce-dca3-4d3d-868a-5885e6704f84"
       }
+    },
+    "runtimeVersion": {
+      "policy": "appVersion"
+    },
+    "updates": {
+      "url": "https://u.expo.dev/316f94ce-dca3-4d3d-868a-5885e6704f84"
     }
   }
 }

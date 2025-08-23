@@ -2,7 +2,13 @@
  * Database configuration and Prisma client initialization
  */
 
-const { PrismaClient } = require('@prisma/client');
+let PrismaClient;
+try {
+  PrismaClient = require('@prisma/client').PrismaClient;
+} catch (error) {
+  console.error('CRITICAL: Failed to load Prisma Client - did you run prisma generate?', error);
+  process.exit(1);
+}
 const logger = require('../utils/logger');
 
 // Global Prisma client instance

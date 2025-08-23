@@ -8,6 +8,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { useToast } from '../contexts/ToastContext';
 import ProfileForm from '../components/profile/ProfileForm';
 import PhotoManager from '../components/profile/PhotoManager';
+import { transformProfileData } from '../components/profile/ProfileFieldsConfig';
 import Logger from '../utils/logger';
 import ApiDataService from '../services/ApiDataService';
 import { theme } from '../styles/theme';
@@ -20,60 +21,84 @@ const ProfileEditScreen = ({ navigation }) => {
   const [saving, setSaving] = useState(false);
   const [hasChanges, setHasChanges] = useState(false);
   const [initialFormData, setInitialFormData] = useState(null);
+  const [changedFields, setChangedFields] = useState(new Set());
+  const [validationErrors, setValidationErrors] = useState({});
 
   // Refs for the form
   const profileFormRef = useRef(null);
 
-  // Initialize photos from profile
+  // Initialize photos from profile - always sync with userProfile
   useEffect(() => {
     if (userProfile?.photos) {
+      // Always update photos when userProfile changes
+      // This ensures photos stay in sync after API updates
       setPhotos(userProfile.photos);
+    } else {
+      setPhotos([]);
     }
-  }, [userProfile]);
+  }, [userProfile?.photos?.length, userProfile]); // Watch photos length to detect changes
 
   // Initialize form data and track when profile loads
   useEffect(() => {
     if (userProfile && !initialFormData) {
-      // Store the initial state of the profile for comparison
-      const initial = {
-        name: userProfile.name || '',
-        bio: userProfile.bio || '',
-        education: userProfile.education || '',
-        profession: userProfile.profession || '',
-        height: userProfile.height?.toString() || '',
-        relationshipType: userProfile.relationshipType || '',
-        smoking: userProfile.smoking || '',
-        drinking: userProfile.drinking || '',
-        travel: userProfile.travel || '',
-        pets: userProfile.pets || '',
-        interests: userProfile.interests || [],
-      };
-      setInitialFormData(initial);
+      // Transform the initial data the same way ProfileForm will
+      // This ensures our comparison is apples-to-apples
+      const transformed = transformProfileData.fromApi(userProfile);
+      setInitialFormData(transformed);
+
+      Logger.debug('🎯 Initial form data set (transformed):', transformed);
     }
   }, [userProfile, initialFormData]);
 
-  // Handle form data changes
-  const handleFormDataChange = newFormData => {
+  // Handle form data changes - track individual field changes and validation
+  const handleFormDataChange = (newFormData, fieldErrors = {}) => {
     if (!initialFormData) return;
 
-    // Check if current form data differs from initial state
-    const hasFormChanges = Object.keys(initialFormData).some(key => {
-      const initial = initialFormData[key];
-      const current = newFormData[key];
+    // Update validation errors with real-time validation
+    const currentErrors = { ...fieldErrors };
 
-      // Handle arrays (like interests)
-      if (Array.isArray(initial) && Array.isArray(current)) {
-        return JSON.stringify(initial.sort()) !== JSON.stringify(current.sort());
+    // Always validate required fields
+    if (!newFormData.name || newFormData.name.trim() === '') {
+      currentErrors.name = 'Name is required';
+    } else if (currentErrors.name) {
+      delete currentErrors.name;
+    }
+
+    setValidationErrors(currentErrors);
+
+    // Track which specific fields have changed
+    const newChangedFields = new Set();
+
+    Object.keys(newFormData).forEach(key => {
+      const initialValue = initialFormData[key];
+      const currentValue = newFormData[key];
+
+      // Compare values (handle arrays specially)
+      let hasChanged = false;
+      if (Array.isArray(initialValue) && Array.isArray(currentValue)) {
+        hasChanged =
+          JSON.stringify([...initialValue].sort()) !== JSON.stringify([...currentValue].sort());
+      } else {
+        hasChanged = JSON.stringify(initialValue) !== JSON.stringify(currentValue);
       }
 
-      // Handle regular values - normalize empty strings and null/undefined
-      const normalizedInitial = initial || '';
-      const normalizedCurrent = current || '';
-
-      return normalizedInitial !== normalizedCurrent;
+      if (hasChanged) {
+        newChangedFields.add(key);
+      }
     });
 
-    setHasChanges(hasFormChanges);
+    setChangedFields(newChangedFields);
+
+    // Overall changes check - only show save button if there are changes AND no errors
+    const hasFormChanges = newChangedFields.size > 0;
+    const hasErrors = Object.keys(currentErrors).length > 0;
+
+    if (hasFormChanges) {
+      Logger.debug('📝 Changed fields:', Array.from(newChangedFields));
+    }
+
+    // Only enable save if there are changes and no validation errors
+    setHasChanges(hasFormChanges && !hasErrors);
   };
 
   // Handle photo changes
@@ -86,10 +111,25 @@ const ProfileEditScreen = ({ navigation }) => {
     showError(message);
   };
 
-  const handlePhotoSuccess = message => {
+  const handlePhotoSuccess = async message => {
     showSuccess(message);
     // Refresh profile to get updated photo data
-    refreshUserProfile();
+    await refreshUserProfile();
+  };
+
+  // Discard changes and reset to initial state
+  const discardChanges = () => {
+    if (profileFormRef.current && initialFormData) {
+      // Reset form to initial data
+      profileFormRef.current.setFormData(initialFormData);
+
+      // Clear change tracking
+      setChangedFields(new Set());
+      setHasChanges(false);
+      setValidationErrors({});
+
+      showSuccess('Changes discarded');
+    }
   };
 
   // Save profile
@@ -100,7 +140,6 @@ const ProfileEditScreen = ({ navigation }) => {
       // Get form data from the ProfileForm component
       const currentFormData = profileFormRef.current?.getFormData();
       if (!currentFormData) {
-        showError('Please fill in the form');
         setSaving(false);
         return;
       }
@@ -108,21 +147,33 @@ const ProfileEditScreen = ({ navigation }) => {
       // Validate form
       const validation = profileFormRef.current?.validateForm();
       if (!validation?.isValid) {
-        const firstError = Object.values(validation.errors)[0];
-        showError(firstError || 'Please check your input');
+        // Set validation errors to be displayed in the form
+        setValidationErrors(validation.errors);
         setSaving(false);
         return;
       }
 
-      // Update profile via API
+      // Clear any validation errors
+      setValidationErrors({});
+
+      // Send all current form data - let the API handle optimization
+      // This is simpler and avoids complex diff tracking issues
+      Logger.info('📝 Saving profile with current form data');
+
+      // Update profile via API with all current data
       const success = await ApiDataService.updateUserProfile(currentFormData);
 
       if (success) {
         await refreshUserProfile();
         showSuccess('Profile updated successfully! ✨');
 
+        // Reset initial form data to match what was just saved
+        // This ensures the next comparison starts fresh
+        setInitialFormData(null); // Force re-initialization on next load
+
         // Reset changes state since we've saved successfully
         setHasChanges(false);
+        setChangedFields(new Set());
 
         navigation.goBack();
       } else {
@@ -166,11 +217,30 @@ const ProfileEditScreen = ({ navigation }) => {
         <View style={styles.statusBarBackground} />
         {/* Header */}
         <View style={styles.header}>
-          <TouchableOpacity onPress={() => navigation.goBack()}>
+          <TouchableOpacity onPress={() => navigation.goBack()} style={styles.headerLeft}>
             <Ionicons name="arrow-back" size={24} color="#333" />
           </TouchableOpacity>
           <Text style={styles.headerTitle}>Edit Profile</Text>
-          <View style={styles.headerPlaceholder} />
+          <View style={styles.headerRight}>
+            {hasChanges && (
+              <View style={styles.headerButtons}>
+                <TouchableOpacity onPress={discardChanges} style={styles.headerDiscardButton}>
+                  <Text style={styles.headerDiscardText}>Discard</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  onPress={saveProfile}
+                  disabled={saving}
+                  style={styles.headerSaveButton}
+                >
+                  {saving ? (
+                    <ActivityIndicator size="small" color="#fff" />
+                  ) : (
+                    <Text style={styles.headerSaveText}>Save</Text>
+                  )}
+                </TouchableOpacity>
+              </View>
+            )}
+          </View>
         </View>
 
         {/* Profile Form */}
@@ -178,28 +248,29 @@ const ProfileEditScreen = ({ navigation }) => {
           ref={profileFormRef}
           initialData={userProfile}
           onDataChange={handleFormDataChange}
+          changedFields={changedFields}
+          validationErrors={validationErrors}
           showPhotosSection={true}
           photosComponent={renderPhotosComponent()}
           mode="edit"
           style={styles.form}
-        />
-
-        {/* Floating Save Button */}
-        {hasChanges && (
-          <View style={styles.floatingSaveContainer}>
-            <TouchableOpacity
-              style={styles.floatingSaveButton}
-              onPress={saveProfile}
-              disabled={saving}
-            >
-              {saving ? (
-                <ActivityIndicator size="small" color="#fff" />
-              ) : (
-                <Text style={styles.floatingSaveText}>Save Changes</Text>
-              )}
-            </TouchableOpacity>
-          </View>
-        )}
+        >
+          {/* Bottom Action Buttons */}
+          {hasChanges && (
+            <View style={styles.bottomButtonsContainer}>
+              <TouchableOpacity style={styles.discardButton} onPress={discardChanges}>
+                <Text style={styles.discardButtonText}>Discard Changes</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={styles.saveButton} onPress={saveProfile} disabled={saving}>
+                {saving ? (
+                  <ActivityIndicator size="small" color="#fff" />
+                ) : (
+                  <Text style={styles.saveButtonText}>Save Changes</Text>
+                )}
+              </TouchableOpacity>
+            </View>
+          )}
+        </ProfileForm>
       </SafeAreaView>
     </GestureHandlerRootView>
   );
@@ -233,35 +304,80 @@ const styles = StyleSheet.create({
     borderBottomColor: '#f0f0f0',
     backgroundColor: '#fff',
   },
+  headerLeft: {
+    marginRight: 16,
+  },
   headerTitle: {
     fontSize: 18,
     fontWeight: 'bold',
     color: '#333',
+    flex: 1,
   },
-  headerPlaceholder: {
-    width: 24, // Same width as back button for symmetry
-  },
-  floatingSaveContainer: {
-    position: 'absolute',
-    bottom: 30,
-    left: 20,
-    right: 20,
+  headerRight: {
+    flexDirection: 'row',
     alignItems: 'center',
   },
-  floatingSaveButton: {
-    backgroundColor: theme.colors.primary,
-    paddingHorizontal: 32,
-    paddingVertical: 16,
-    borderRadius: 25,
-    elevation: 8,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
+  headerButtons: {
+    flexDirection: 'row',
+    gap: 8,
   },
-  floatingSaveText: {
+  headerDiscardButton: {
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 15,
+    borderWidth: 1,
+    borderColor: '#ddd',
+  },
+  headerDiscardText: {
+    fontSize: 13,
+    color: '#666',
+    fontWeight: '500',
+  },
+  headerSaveButton: {
+    backgroundColor: '#4CAF50',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 15,
+    minWidth: 45,
+    alignItems: 'center',
+  },
+  headerSaveText: {
+    fontSize: 13,
     color: '#fff',
+    fontWeight: '600',
+  },
+  bottomButtonsContainer: {
+    flexDirection: 'row',
+    gap: 12,
+    paddingHorizontal: 20,
+    paddingVertical: 20,
+    backgroundColor: '#fff',
+    borderTopWidth: 1,
+    borderTopColor: '#f0f0f0',
+  },
+  discardButton: {
+    flex: 1,
+    paddingVertical: 14,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#ddd',
+    alignItems: 'center',
+  },
+  discardButtonText: {
     fontSize: 16,
+    color: '#666',
+    fontWeight: '600',
+  },
+  saveButton: {
+    flex: 1,
+    backgroundColor: '#4CAF50',
+    paddingVertical: 14,
+    borderRadius: 12,
+    alignItems: 'center',
+  },
+  saveButtonText: {
+    fontSize: 16,
+    color: '#fff',
     fontWeight: '600',
   },
   form: {

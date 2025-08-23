@@ -13,25 +13,35 @@ export const useToast = () => {
 
 export const ToastProvider = ({ children }) => {
   const [toasts, setToasts] = useState([]);
-  const [counter, setCounter] = useState(0);
 
   const showToast = (message, type = 'info', options = {}) => {
-    const id = `${Date.now()}-${counter}`;
-    setCounter(prev => prev + 1);
+    let toastId = null;
 
-    const toast = {
-      id,
-      message,
-      type,
-      visible: true,
-      autoHide: !options.persistent, // Let Toast component handle timing
-      duration: options.duration || 4000,
-      ...options,
-    };
+    // Check if a toast with the same message already exists
+    setToasts(prev => {
+      const existingToast = prev.find(t => t.message === message && t.type === type);
+      if (existingToast && !options.allowDuplicate) {
+        // Don't add duplicate toast
+        toastId = existingToast.id;
+        return prev;
+      }
 
-    setToasts(prev => [...prev, toast]);
+      const id = `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+      toastId = id;
+      const toast = {
+        id,
+        message,
+        type,
+        visible: true,
+        autoHide: !options.persistent, // Let Toast component handle timing
+        duration: options.duration || 4000,
+        ...options,
+      };
 
-    return id;
+      return [...prev, toast];
+    });
+
+    return toastId;
   };
 
   const hideToast = id => {

@@ -8,13 +8,12 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuth } from '../contexts/AuthContext';
 import { useUnread } from '../contexts/UnreadContext';
 import { LocationProvider } from '../contexts/LocationContext';
-import { ToastProvider } from '../contexts/ToastContext';
 import LocationPromptModal from '../components/LocationPromptModal';
 
 // Import screens
 import ProfileScreen from '../screens/ProfileScreen';
 import ProfileEditScreen from '../screens/ProfileEditScreen';
-import PeopleScreen from '../screens/PeopleScreen';
+import PeopleScreenOptimized from '../screens/PeopleScreenOptimized';
 import FilterScreen from '../screens/FilterScreen';
 import LikedYouScreen from '../screens/LikedYouScreen';
 import MessagesScreen from '../screens/MessagesScreen';
@@ -83,7 +82,7 @@ const PeopleStack = () => {
     <Stack.Navigator>
       <Stack.Screen
         name="PeopleMain"
-        component={PeopleScreen}
+        component={PeopleScreenOptimized}
         options={{
           title: 'Discover',
           headerStyle: {
@@ -233,24 +232,22 @@ const AppNavigator = () => {
 
   return (
     <NavigationContainer>
-      <ToastProvider>
-        <LocationProvider>
-          {(() => {
-            if (user && userProfile) {
-              // console.log('🎯 User logged in - showing main app');
-              return (
-                <>
-                  <MainNavigator />
-                  <LocationPromptModal />
-                </>
-              );
-            } else {
-              // console.log('🚪 No user - showing auth flow');
-              return <AuthNavigator />;
-            }
-          })()}
-        </LocationProvider>
-      </ToastProvider>
+      <LocationProvider>
+        {(() => {
+          if (user && userProfile) {
+            // console.log('🎯 User logged in - showing main app');
+            return (
+              <>
+                <MainNavigator />
+                <LocationPromptModal />
+              </>
+            );
+          } else {
+            // console.log('🚪 No user - showing auth flow');
+            return <AuthNavigator />;
+          }
+        })()}
+      </LocationProvider>
     </NavigationContainer>
   );
 };

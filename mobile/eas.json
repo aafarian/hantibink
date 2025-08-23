@@ -1,18 +1,40 @@
 {
   "cli": {
-    "version": ">= 16.17.4",
+    "version": ">= 3.0.0",
     "appVersionSource": "remote"
   },
   "build": {
     "development": {
       "developmentClient": true,
-      "distribution": "internal"
+      "distribution": "internal",
+      "env": {
+        "NODE_ENV": "development"
+      }
     },
     "preview": {
-      "distribution": "internal"
+      "distribution": "internal",
+      "env": {
+        "NODE_ENV": "production",
+        "EXPO_PUBLIC_API_URL": "https://hantibink-api-393816901275.us-central1.run.app",
+        "EXPO_PUBLIC_SOCKET_URL": "wss://hantibink-api-393816901275.us-central1.run.app"
+      },
+      "ios": {
+        "resourceClass": "m-medium"
+      },
+      "android": {
+        "buildType": "apk"
+      }
     },
     "production": {
-      "autoIncrement": true
+      "autoIncrement": true,
+      "env": {
+        "NODE_ENV": "production",
+        "EXPO_PUBLIC_API_URL": "https://hantibink-api-393816901275.us-central1.run.app",
+        "EXPO_PUBLIC_SOCKET_URL": "wss://hantibink-api-393816901275.us-central1.run.app"
+      },
+      "ios": {
+        "resourceClass": "m-medium"
+      }
     }
   },
   "submit": {

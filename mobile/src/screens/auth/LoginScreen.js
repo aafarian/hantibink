@@ -11,13 +11,67 @@ const LoginScreen = ({ navigation }) => {
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
+  const [fieldErrors, setFieldErrors] = useState({});
 
   const { login } = useAuth();
   const { showError, showSuccess } = useToast();
 
+  // Real-time field validation
+  const validateField = (field, value) => {
+    let error = null;
+
+    switch (field) {
+      case 'email':
+        if (!value) {
+          error = 'Email is required';
+        } else if (!/^[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}$/i.test(value)) {
+          error = 'Please enter a valid email address';
+        }
+        break;
+
+      case 'password':
+        if (!value) {
+          error = 'Password is required';
+        }
+        break;
+    }
+
+    if (error) {
+      setFieldErrors(prev => ({ ...prev, [field]: error }));
+    } else {
+      setFieldErrors(prev => ({ ...prev, [field]: null }));
+    }
+  };
+
+  const updateField = (field, value) => {
+    if (field === 'email') setEmail(value);
+    else if (field === 'password') setPassword(value);
+
+    // Clear error when user starts typing
+    if (fieldErrors[field]) {
+      setFieldErrors(prev => ({ ...prev, [field]: null }));
+    }
+  };
+
   const handleLogin = async () => {
-    if (!email || !password) {
-      showError('Please fill in all fields');
+    // Validate all fields
+    let hasErrors = false;
+
+    if (!email) {
+      setFieldErrors(prev => ({ ...prev, email: 'Email is required' }));
+      hasErrors = true;
+    } else if (!/^[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}$/i.test(email)) {
+      setFieldErrors(prev => ({ ...prev, email: 'Please enter a valid email address' }));
+      hasErrors = true;
+    }
+
+    if (!password) {
+      setFieldErrors(prev => ({ ...prev, password: 'Password is required' }));
+      hasErrors = true;
+    }
+
+    if (hasErrors) {
+      showError('Please fix the errors and try again');
       return;
     }
 
@@ -27,14 +81,23 @@ const LoginScreen = ({ navigation }) => {
       const result = await login(email, password);
 
       if (!result || !result.success) {
-        // Handle specific login errors
-        if (result?.errorCode === 'auth/user-not-found') {
-          showError('No account exists with this email address.');
-        } else if (result?.errorCode === 'auth/wrong-password') {
-          showError('The password you entered is incorrect.');
+        // Handle login errors - don't reveal which field is wrong for security
+        if (
+          result?.error?.includes('Invalid email or password') ||
+          result?.errorCode === 'auth/wrong-password' ||
+          result?.errorCode === 'auth/user-not-found'
+        ) {
+          showError('Invalid email or password combination.');
         } else if (result?.errorCode === 'auth/invalid-email') {
           showError('Please enter a valid email address.');
+        } else if (result?.error?.includes('Network') || result?.error?.includes('connect')) {
+          showError('Connection error. Please check your internet and try again.');
+        } else if (result?.error?.includes('server') || result?.error?.includes('500')) {
+          showError('Server error. Please try again later.');
+        } else if (result?.error?.includes('rate') || result?.error?.includes('429')) {
+          showError('Too many login attempts. Please wait a moment and try again.');
         } else {
+          // Generic fallback for any other errors
           showError(result?.error || 'Login failed. Please try again.');
         }
       } else {
@@ -43,7 +106,7 @@ const LoginScreen = ({ navigation }) => {
     } catch (error) {
       // Safety net for any unexpected errors
       Logger.error('Login error:', error);
-      showError('Login failed. Please try again.');
+      showError('Login failed. Please check your connection and try again.');
     } finally {
       setLoading(false);
     }
@@ -63,35 +126,43 @@ const LoginScreen = ({ navigation }) => {
         </View>
 
         <View style={styles.form}>
-          <View style={styles.inputContainer}>
-            <Ionicons name="mail" size={20} color="#FF6B6B" style={styles.inputIcon} />
-            <TextInput
-              style={styles.input}
-              placeholder="Email"
-              value={email}
-              onChangeText={setEmail}
-              keyboardType="email-address"
-              autoCapitalize="none"
-              autoCorrect={false}
-            />
+          <View style={styles.fieldWrapper}>
+            <View style={[styles.inputContainer, fieldErrors.email && styles.inputError]}>
+              <Ionicons name="mail" size={20} color="#FF6B6B" style={styles.inputIcon} />
+              <TextInput
+                style={styles.input}
+                placeholder="Email"
+                value={email}
+                onChangeText={value => updateField('email', value)}
+                onBlur={() => validateField('email', email)}
+                keyboardType="email-address"
+                autoCapitalize="none"
+                autoCorrect={false}
+              />
+            </View>
+            {fieldErrors.email && <Text style={styles.errorText}>{fieldErrors.email}</Text>}
           </View>
 
-          <View style={styles.inputContainer}>
-            <Ionicons name="lock-closed" size={20} color="#FF6B6B" style={styles.inputIcon} />
-            <TextInput
-              style={styles.input}
-              placeholder="Password"
-              value={password}
-              onChangeText={setPassword}
-              secureTextEntry={!showPassword}
-              autoCapitalize="none"
-            />
-            <TouchableOpacity
-              style={styles.passwordToggle}
-              onPress={() => setShowPassword(!showPassword)}
-            >
-              <Ionicons name={showPassword ? 'eye-off' : 'eye'} size={20} color="#666" />
-            </TouchableOpacity>
+          <View style={styles.fieldWrapper}>
+            <View style={[styles.inputContainer, fieldErrors.password && styles.inputError]}>
+              <Ionicons name="lock-closed" size={20} color="#FF6B6B" style={styles.inputIcon} />
+              <TextInput
+                style={styles.input}
+                placeholder="Password"
+                value={password}
+                onChangeText={value => updateField('password', value)}
+                onBlur={() => validateField('password', password)}
+                secureTextEntry={!showPassword}
+                autoCapitalize="none"
+              />
+              <TouchableOpacity
+                style={styles.passwordToggle}
+                onPress={() => setShowPassword(!showPassword)}
+              >
+                <Ionicons name={showPassword ? 'eye-off' : 'eye'} size={20} color="#666" />
+              </TouchableOpacity>
+            </View>
+            {fieldErrors.password && <Text style={styles.errorText}>{fieldErrors.password}</Text>}
           </View>
 
           <TouchableOpacity style={styles.forgotPassword} onPress={handleForgotPassword}>
@@ -162,7 +233,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     backgroundColor: '#fff',
     borderRadius: 12,
-    marginBottom: 16,
     paddingHorizontal: 16,
     paddingVertical: 12,
     borderWidth: 1,
@@ -245,6 +315,19 @@ const styles = StyleSheet.create({
     color: '#FF6B6B',
     fontSize: 14,
     fontWeight: 'bold',
+  },
+  fieldWrapper: {
+    marginBottom: 16,
+  },
+  inputError: {
+    borderColor: '#FF6B6B',
+    backgroundColor: '#FFF5F5',
+  },
+  errorText: {
+    color: '#FF6B6B',
+    fontSize: 12,
+    marginTop: 4,
+    marginLeft: 4,
   },
 });
 

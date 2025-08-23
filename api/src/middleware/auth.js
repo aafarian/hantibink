@@ -1,9 +1,9 @@
 const { verifyToken, extractTokenFromHeader } = require('../utils/jwt');
 const { verifyIdToken } = require('../config/firebase');
-const { PrismaClient } = require('@prisma/client');
 const logger = require('../utils/logger');
+const { getPrismaClient } = require('../config/database');
 
-const prisma = new PrismaClient();
+const prisma = getPrismaClient();
 
 /**
  * JWT Authentication Middleware
@@ -202,7 +202,8 @@ const requireAdmin = async (req, res, next) => {
     }
 
     // Check if user has admin role (you can extend this based on your role system)
-    if (req.user.email !== 'admin@hantibink.com') {
+    const adminEmail = process.env.ADMIN_EMAIL || 'admin@hantibink.com';
+    if (req.user.email !== adminEmail) {
       return res.status(403).json({
         error: 'Access denied',
         message: 'Admin privileges required',

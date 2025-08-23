@@ -332,8 +332,6 @@ export const AuthProvider = ({ children }) => {
     } catch (error) {
       Logger.error('❌ API registration failed:', error);
       return { success: false, error: error.message };
-    } finally {
-      setLoading(false);
     }
   };
 
@@ -391,8 +389,6 @@ export const AuthProvider = ({ children }) => {
       } else {
         return { success: false, error: error.message };
       }
-    } finally {
-      setLoading(false);
     }
   };
 
@@ -460,11 +456,17 @@ export const AuthProvider = ({ children }) => {
   const checkEmailExists = async email => {
     try {
       Logger.info('📧 Checking if email exists:', email);
-      // TODO: Implement email check API endpoint
-      Logger.warn(
-        '⚠️ Email check not yet implemented in API - will handle duplicates during registration'
-      );
-      return false; // Assume email doesn't exist for now
+
+      // Call the API to check if email exists
+      const response = await apiClient.checkEmailExists(email);
+
+      if (response.success) {
+        Logger.info(`📧 Email check result: ${response.data.exists ? 'exists' : 'available'}`);
+        return response.data.exists;
+      } else {
+        Logger.warn('⚠️ Email check failed:', response.message);
+        return false;
+      }
     } catch (error) {
       Logger.error('❌ Email check error:', error);
       return false;

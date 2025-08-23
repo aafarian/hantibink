@@ -3,7 +3,12 @@
  * Main entry point for the backend API
  */
 
-require('dotenv').config();
+console.log('Starting Hantibink API Server...');
+
+// Only load .env file in development
+if (process.env.NODE_ENV !== 'production') {
+  require('dotenv').config();
+}
 const express = require('express');
 const cors = require('cors');
 const helmet = require('helmet');
@@ -38,7 +43,8 @@ const httpServer = createServer(app);
 
 // Get configuration from environment
 const PORT = process.env.PORT || 3000;
-const HOST = process.env.HOST || 'localhost';
+// Cloud Run requires binding to 0.0.0.0
+const HOST = process.env.HOST || '0.0.0.0';
 const NODE_ENV = process.env.NODE_ENV || 'development';
 
 // Trust proxy for accurate IP addresses (important for rate limiting)
@@ -347,15 +353,16 @@ async function startServer() {
     // Make io available to routes
     app.set('io', io);
 
-    // Start server
-    const server = httpServer.listen(PORT, HOST, () => {
+    // Start server - simplified for Cloud Run
+    const server = httpServer.listen(PORT, '0.0.0.0', () => {
+      console.log(`Server started on port ${PORT}`);
       logger.info('🚀 Hantibink API Server started');
       logger.info(`📍 Environment: ${NODE_ENV}`);
-      logger.info(`🌐 Server running at http://${HOST}:${PORT}`);
-      logger.info(`📊 Health check: http://${HOST}:${PORT}/health`);
+      logger.info(`🌐 Server running at http://0.0.0.0:${PORT}`);
+      logger.info(`📊 Health check: http://0.0.0.0:${PORT}/health`);
 
       if (NODE_ENV === 'development') {
-        logger.info(`📖 API Documentation: http://${HOST}:${PORT}/api/docs`);
+        logger.info(`📖 API Documentation: http://0.0.0.0:${PORT}/api/docs`);
       }
     });
 

@@ -195,6 +195,12 @@ const getUsersForDiscovery = async (currentUserId, options = {}) => {
           distance: distance ? Math.round(distance) : null,
           sharedInterestsCount: sharedInterests,
           interests: user.interests.map(ui => ui.interest.name),
+          // Convert relationshipType string back to array if needed
+          relationshipType: user.relationshipType 
+            ? (user.relationshipType.includes(',') 
+              ? user.relationshipType.split(',').map(s => s.trim())
+              : [user.relationshipType])
+            : [],
         };
       });
 

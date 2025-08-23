@@ -1,6 +1,7 @@
 const express = require('express');
 const logger = require('../utils/logger');
 const { authenticateJWT } = require('../middleware/auth');
+const { matchValidation } = require('../middleware/validation');
 const { 
   getUserMatches, 
   getMatchDetails,
@@ -30,7 +31,7 @@ router.get('/', (req, res) => {
  * @desc    Get user matches
  * @access  Private
  */
-router.get('/list', authenticateJWT, async (req, res) => {
+router.get('/list', authenticateJWT, matchValidation.getMatches, async (req, res) => {
   try {
     const { limit = 50, offset = 0 } = req.query;
     
@@ -123,7 +124,7 @@ router.get('/:matchId', authenticateJWT, async (req, res) => {
  * @desc    Deactivate a match (unmatch)
  * @access  Private
  */
-router.delete('/:matchId', authenticateJWT, async (req, res) => {
+router.delete('/:matchId', authenticateJWT, matchValidation.unmatch, async (req, res) => {
   try {
     const { matchId } = req.params;
     
