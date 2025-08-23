@@ -1,4 +1,5 @@
 import React, { createContext, useContext, useState } from 'react';
+import { useAuth } from './AuthContext';
 import Logger from '../utils/logger';
 
 const FeatureFlagsContext = createContext();
@@ -17,13 +18,14 @@ const PREMIUM_FEATURES = {
 };
 
 export const FeatureFlagsProvider = ({ children }) => {
-  // 🚀 TEMPORARY FLAG - Replace this with actual subscription logic later
-  // For now, set to false to test premium gating, true to test features
-  const [isPremiumUser, setIsPremiumUser] = useState(false);
+  const { userProfile } = useAuth();
 
-  // 📝 Future: This will be replaced with actual subscription status
-  // const { user, subscription } = useAuth();
-  // const isPremiumUser = subscription?.status === 'active' && subscription?.plan === 'premium';
+  // Use the actual premium status from user profile, with override for testing
+  const [premiumOverride, setPremiumOverride] = useState(null);
+
+  // If there's a test override, use it; otherwise use the actual profile status
+  const isPremiumUser =
+    premiumOverride !== null ? premiumOverride : userProfile?.isPremium || false;
 
   // Check if a specific premium feature is enabled
   const hasFeature = _featureName => {
@@ -44,11 +46,10 @@ export const FeatureFlagsProvider = ({ children }) => {
 
   // 🧪 Development helper - Remove in production
   const togglePremiumForTesting = () => {
-    setIsPremiumUser(prev => {
-      const newValue = !prev;
-      Logger.info(`🎛️  Premium status toggled to: ${newValue}`);
-      return newValue;
-    });
+    const currentValue = isPremiumUser;
+    const newValue = !currentValue;
+    setPremiumOverride(newValue);
+    Logger.info(`🎛️  Premium status override set to: ${newValue}`);
   };
 
   const value = {

@@ -3,6 +3,8 @@
  * Used across registration, profile editing, and validation
  */
 
+import { parseRelationshipType } from '../../utils/profileDataUtils';
+
 // Education options
 export const educationOptions = [
   'High School',
@@ -245,19 +247,7 @@ export const transformProfileData = {
     profession: apiData.profession || '',
     height: apiData.height || '',
     // Handle relationshipType - can be string with commas or array
-    relationshipType: (() => {
-      if (Array.isArray(apiData.relationshipType)) {
-        return apiData.relationshipType;
-      } else if (apiData.relationshipType && typeof apiData.relationshipType === 'string') {
-        // If it contains commas, split into array
-        if (apiData.relationshipType.includes(',')) {
-          return apiData.relationshipType.split(',').map(s => s.trim());
-        }
-        // Single value - still return as array for multi-select field
-        return [apiData.relationshipType];
-      }
-      return [];
-    })(),
+    relationshipType: parseRelationshipType(apiData.relationshipType),
     religion: apiData.religion || '',
     smoking: apiData.smoking || '',
     drinking: apiData.drinking || '',

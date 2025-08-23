@@ -14,6 +14,7 @@ import { useAuth } from '../contexts/AuthContext';
 import Logger from '../utils/logger';
 import { useToast } from '../contexts/ToastContext';
 import { LoadingScreen } from '../components/LoadingScreen';
+import { capitalizeFirst, formatRelationshipTypes } from '../utils/profileDataUtils';
 
 // import { theme } from '../styles/theme';
 // import { commonStyles } from '../styles/commonStyles';
@@ -301,50 +302,12 @@ const ProfileScreen = ({ navigation }) => {
               <View style={styles.lookingForSection}>
                 <Text style={styles.bioTitle}>Looking For</Text>
                 <View style={styles.lookingForContainer}>
-                  {(() => {
-                    const relationshipType = userProfile.relationshipType;
-                    let formattedTypes = [];
-
-                    // Handle array of relationship types
-                    if (Array.isArray(relationshipType)) {
-                      formattedTypes = relationshipType.map(type =>
-                        type
-                          .toLowerCase()
-                          .replace(/_/g, ' ')
-                          .replace(/\b\w/g, l => l.toUpperCase())
-                      );
-                    }
-                    // If it's a comma-separated string, split and format each part
-                    else if (
-                      typeof relationshipType === 'string' &&
-                      relationshipType.includes(',')
-                    ) {
-                      formattedTypes = relationshipType.split(',').map(type =>
-                        type
-                          .trim()
-                          .toLowerCase()
-                          .replace(/_/g, ' ')
-                          .replace(/\b\w/g, l => l.toUpperCase())
-                      );
-                    }
-                    // Single value string
-                    else if (typeof relationshipType === 'string') {
-                      formattedTypes = [
-                        relationshipType
-                          .toLowerCase()
-                          .replace(/_/g, ' ')
-                          .replace(/\b\w/g, l => l.toUpperCase()),
-                      ];
-                    }
-
-                    // Render each type as a separate tag
-                    return formattedTypes.map((type, index) => (
-                      <View key={index} style={styles.lookingForTag}>
-                        <Ionicons name="heart-outline" size={16} color="#FF6B6B" />
-                        <Text style={styles.lookingForText}>{type}</Text>
-                      </View>
-                    ));
-                  })()}
+                  {formatRelationshipTypes(userProfile.relationshipType).map((type, index) => (
+                    <View key={index} style={styles.lookingForTag}>
+                      <Ionicons name="heart-outline" size={16} color="#FF6B6B" />
+                      <Text style={styles.lookingForText}>{type}</Text>
+                    </View>
+                  ))}
                 </View>
               </View>
             )}
@@ -410,7 +373,7 @@ const ProfileScreen = ({ navigation }) => {
                   <View style={styles.lifestyleContent}>
                     <Text style={styles.lifestyleLabel}>Smoking</Text>
                     <Text style={styles.lifestyleText}>
-                      {userProfile.smoking.charAt(0).toUpperCase() + userProfile.smoking.slice(1)}
+                      {capitalizeFirst(userProfile.smoking) || 'Not specified'}
                     </Text>
                   </View>
                 </View>
@@ -424,7 +387,7 @@ const ProfileScreen = ({ navigation }) => {
                   <View style={styles.lifestyleContent}>
                     <Text style={styles.lifestyleLabel}>Drinking</Text>
                     <Text style={styles.lifestyleText}>
-                      {userProfile.drinking.charAt(0).toUpperCase() + userProfile.drinking.slice(1)}
+                      {capitalizeFirst(userProfile.drinking) || 'Not specified'}
                     </Text>
                   </View>
                 </View>

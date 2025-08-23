@@ -91,7 +91,7 @@ const PhotoManager = ({
           // Add to API and let the refresh handle the state update
           await ApiDataService.addUserPhoto(photoUrl, normalizedPhotos.length === 0);
           // Don't update local state - let the profile refresh handle it
-          await onSuccess?.('Photo added successfully!');
+          onSuccess?.('Photo added successfully!');
         } else {
           // Only update local state in registration mode
           const newPhoto = {
@@ -103,7 +103,7 @@ const PhotoManager = ({
 
           const updatedPhotos = [...normalizedPhotos, newPhoto];
           onPhotosChange?.(updatedPhotos);
-          await onSuccess?.('Photo added successfully!');
+          onSuccess?.('Photo added successfully!');
         }
       }
     } catch (error) {
@@ -125,7 +125,7 @@ const PhotoManager = ({
       if (mode === 'edit' && photo.id && !photo.id.toString().startsWith('temp_')) {
         await ApiDataService.deleteUserPhoto(photo.id);
         // Don't update local state - let the profile refresh handle it
-        await onSuccess?.('Photo deleted successfully!');
+        onSuccess?.('Photo deleted successfully!');
       } else {
         // Only update local state in registration mode or for temp photos
         const updatedPhotos = normalizedPhotos
@@ -138,7 +138,7 @@ const PhotoManager = ({
 
         onPhotosChange?.(updatedPhotos);
         if (mode !== 'edit') {
-          await onSuccess?.('Photo deleted successfully!');
+          onSuccess?.('Photo deleted successfully!');
         }
       }
     } catch (error) {

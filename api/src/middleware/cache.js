@@ -106,10 +106,20 @@ const cleanExpiredCache = () => {
 };
 
 // Run cleanup every minute
-setInterval(cleanExpiredCache, 60 * 1000);
+const cleanupInterval = setInterval(cleanExpiredCache, 60 * 1000);
+
+/**
+ * Cleanup function for graceful shutdown
+ */
+const cleanup = () => {
+  clearInterval(cleanupInterval);
+  cache.clear();
+  logger.info('🧹 Cache middleware cleaned up');
+};
 
 module.exports = {
   cacheMiddleware,
   clearCache,
-  cache
+  cache,
+  cleanup
 };

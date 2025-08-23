@@ -8,6 +8,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuth } from '../contexts/AuthContext';
 import { useUnread } from '../contexts/UnreadContext';
 import { LocationProvider } from '../contexts/LocationContext';
+import { ToastProvider } from '../contexts/ToastContext';
 import LocationPromptModal from '../components/LocationPromptModal';
 
 // Import screens
@@ -232,22 +233,24 @@ const AppNavigator = () => {
 
   return (
     <NavigationContainer>
-      <LocationProvider>
-        {(() => {
-          if (user && userProfile) {
-            // console.log('🎯 User logged in - showing main app');
-            return (
-              <>
-                <MainNavigator />
-                <LocationPromptModal />
-              </>
-            );
-          } else {
-            // console.log('🚪 No user - showing auth flow');
-            return <AuthNavigator />;
-          }
-        })()}
-      </LocationProvider>
+      <ToastProvider>
+        <LocationProvider>
+          {(() => {
+            if (user && userProfile) {
+              // console.log('🎯 User logged in - showing main app');
+              return (
+                <>
+                  <MainNavigator />
+                  <LocationPromptModal />
+                </>
+              );
+            } else {
+              // console.log('🚪 No user - showing auth flow');
+              return <AuthNavigator />;
+            }
+          })()}
+        </LocationProvider>
+      </ToastProvider>
     </NavigationContainer>
   );
 };

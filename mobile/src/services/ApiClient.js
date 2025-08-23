@@ -413,6 +413,7 @@ class ApiClient {
     return this.request('/users/profile', {
       method: 'PUT',
       body: JSON.stringify(profileData),
+      headers: { 'Content-Type': 'application/json' },
     });
   }
 

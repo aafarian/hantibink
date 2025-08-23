@@ -170,7 +170,7 @@ export const AuthProvider = ({ children }) => {
       Logger.info('📝 Updating user profile via API...');
 
       if (apiClient.isAuthenticated()) {
-        const success = await ApiDataService.updateUserProfile(user?.uid, profileData);
+        const success = await ApiDataService.updateUserProfile(profileData);
 
         if (success) {
           // Refresh profile to get updated data
