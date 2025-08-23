@@ -374,14 +374,17 @@ export const AuthProvider = ({ children }) => {
         SocketService.updateOnlineStatus(result.user.id, true);
 
         Logger.success('✅ User logged in via API');
+        setLoading(false); // Stop loading on success
         return { success: true };
       } else {
         // API didn't return a result - treat as login failure
         Logger.error('❌ API login failed: No result returned');
+        setLoading(false); // Stop loading on failure
         return { success: false, error: 'Login failed. Please try again.' };
       }
     } catch (error) {
       Logger.error('❌ API login failed:', error);
+      setLoading(false); // Stop loading on error
 
       // Return error in format expected by existing screens
       if (error.message.includes('Invalid email or password')) {

@@ -14,6 +14,22 @@ class ApiClient {
    */
   async initialize() {
     try {
+      // Check if API URL has changed (environment switch)
+      const storedApiUrl = await AsyncStorage.getItem('currentApiUrl');
+      const currentApiUrl = this.baseURL;
+
+      if (storedApiUrl && storedApiUrl !== currentApiUrl) {
+        Logger.warn('🔄 API URL changed, clearing old tokens');
+        await this.clearTokens();
+        await AsyncStorage.setItem('currentApiUrl', currentApiUrl);
+        return;
+      }
+
+      // Store current API URL if not set
+      if (!storedApiUrl) {
+        await AsyncStorage.setItem('currentApiUrl', currentApiUrl);
+      }
+
       const storedToken = await AsyncStorage.getItem('accessToken');
       const storedRefreshToken = await AsyncStorage.getItem('refreshToken');
 
@@ -59,7 +75,9 @@ class ApiClient {
     try {
       await AsyncStorage.removeItem('accessToken');
       await AsyncStorage.removeItem('refreshToken');
-      Logger.info('🔑 Tokens cleared');
+      // Also remove stored API URL to ensure clean state
+      await AsyncStorage.removeItem('currentApiUrl');
+      Logger.info('🔑 Tokens and API URL cleared');
     } catch (error) {
       Logger.error('❌ Failed to clear tokens:', error);
     }

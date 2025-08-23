@@ -6,6 +6,8 @@
     "start": "expo start",
     "start:clear": "expo start --clear",
     "start:tunnel": "expo start --tunnel --clear",
+    "start:prod-api": "test -f .env.production && cp .env.production .env.development.local || (echo '⚠️  .env.production not found! Copy .env.production.example to .env.production and configure it.' && exit 1); expo start --clear && rm -f .env.development.local",
+    "start:prod-api:tunnel": "test -f .env.production && cp .env.production .env.development.local || (echo '⚠️  .env.production not found! Copy .env.production.example to .env.production and configure it.' && exit 1); expo start --tunnel --clear && rm -f .env.development.local",
     "android": "expo run:android",
     "ios": "expo run:ios",
     "web": "expo start --web",
