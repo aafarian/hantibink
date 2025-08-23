@@ -27,6 +27,8 @@
     "doctor": "cd mobile && npx expo-doctor",
     "dev": "concurrently \"npm run mobile\" \"npm run api\"",
     "dev:tunnel": "concurrently \"cd mobile && npm run start:tunnel\" \"npm run api\"",
+    "dev:prod-api": "cd mobile && npm run start:prod-api:tunnel",
+    "dev:prod-api:local": "cd mobile && npm run start:prod-api",
     "test:all": "cd mobile && npm test && cd ../api && npm test",
     "docker:build": "docker-compose build",
     "docker:up": "docker-compose up -d",
