@@ -1,4 +1,5 @@
-import React, { createContext, useContext, useState } from 'react';
+import React, { createContext, useContext, useState, useMemo } from 'react';
+import { useAuth } from './AuthContext';
 import Logger from '../utils/logger';
 
 const FeatureFlagsContext = createContext();
@@ -17,58 +18,75 @@ const PREMIUM_FEATURES = {
 };
 
 export const FeatureFlagsProvider = ({ children }) => {
-  // 🚀 TEMPORARY FLAG - Replace this with actual subscription logic later
-  // For now, set to false to test premium gating, true to test features
-  const [isPremiumUser, setIsPremiumUser] = useState(false);
+  const { userProfile } = useAuth();
 
-  // 📝 Future: This will be replaced with actual subscription status
-  // const { user, subscription } = useAuth();
-  // const isPremiumUser = subscription?.status === 'active' && subscription?.plan === 'premium';
+  // Use the actual premium status from user profile, with override for testing
+  const [premiumOverride, setPremiumOverride] = useState(null);
 
-  // Check if a specific premium feature is enabled
-  const hasFeature = _featureName => {
-    // 🎯 Future: Could add per-feature subscription tiers here
-    // For now, all premium features require premium subscription
-    // Note: _featureName parameter preserved for API compatibility but not used yet
-    return isPremiumUser;
-  };
+  // Memoize the premium status to prevent unnecessary re-renders
+  const isPremiumUser = useMemo(() => {
+    return premiumOverride !== null ? premiumOverride : userProfile?.isPremium || false;
+  }, [premiumOverride, userProfile?.isPremium]);
 
-  // Get user's premium status
-  const getPremiumStatus = () => ({
-    isPremium: isPremiumUser,
-    // 📝 Future: Add subscription details
-    // plan: subscription?.plan,
-    // expiresAt: subscription?.expiresAt,
-    // features: subscription?.features || [],
-  });
+  // Memoize hasFeature to prevent recreation on every render
+  const hasFeature = useMemo(
+    () => _featureName => {
+      // 🎯 Future: Could add per-feature subscription tiers here
+      // For now, all premium features require premium subscription
+      // Note: _featureName parameter preserved for API compatibility but not used yet
+      return isPremiumUser;
+    },
+    [isPremiumUser]
+  );
+
+  // Memoize premium status object
+  const premiumStatus = useMemo(
+    () => ({
+      isPremium: isPremiumUser,
+      // 📝 Future: Add subscription details
+      // plan: subscription?.plan,
+      // expiresAt: subscription?.expiresAt,
+      // features: subscription?.features || [],
+    }),
+    [isPremiumUser]
+  );
 
   // 🧪 Development helper - Remove in production
-  const togglePremiumForTesting = () => {
-    setIsPremiumUser(prev => {
-      const newValue = !prev;
-      Logger.info(`🎛️  Premium status toggled to: ${newValue}`);
-      return newValue;
-    });
-  };
+  const togglePremiumForTesting = useMemo(
+    () =>
+      __DEV__
+        ? () => {
+            const currentValue = isPremiumUser;
+            const newValue = !currentValue;
+            setPremiumOverride(newValue);
+            Logger.info(`🎛️  Premium status override set to: ${newValue}`);
+          }
+        : undefined,
+    [isPremiumUser]
+  );
 
-  const value = {
-    // Feature checking
-    hasFeature,
+  // Memoize the context value to prevent unnecessary re-renders
+  const value = useMemo(
+    () => ({
+      // Feature checking
+      hasFeature,
 
-    // Premium status
-    isPremium: isPremiumUser,
-    premiumStatus: getPremiumStatus(),
+      // Premium status
+      isPremium: isPremiumUser,
+      premiumStatus,
 
-    // Feature constants (for easy reference)
-    FEATURES: PREMIUM_FEATURES,
+      // Feature constants (for easy reference)
+      FEATURES: PREMIUM_FEATURES,
 
-    // 🧪 Development helpers
-    togglePremiumForTesting: __DEV__ ? togglePremiumForTesting : undefined,
+      // 🧪 Development helpers
+      togglePremiumForTesting,
 
-    // 📝 Future: Premium upgrade actions
-    // upgradePrompt: showUpgradePrompt,
-    // purchasePremium: handlePremiumPurchase,
-  };
+      // 📝 Future: Premium upgrade actions
+      // upgradePrompt: showUpgradePrompt,
+      // purchasePremium: handlePremiumPurchase,
+    }),
+    [hasFeature, isPremiumUser, premiumStatus, togglePremiumForTesting]
+  );
 
   return <FeatureFlagsContext.Provider value={value}>{children}</FeatureFlagsContext.Provider>;
 };

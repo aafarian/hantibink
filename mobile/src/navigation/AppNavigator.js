@@ -14,7 +14,7 @@ import LocationPromptModal from '../components/LocationPromptModal';
 // Import screens
 import ProfileScreen from '../screens/ProfileScreen';
 import ProfileEditScreen from '../screens/ProfileEditScreen';
-import PeopleScreen from '../screens/PeopleScreen';
+import PeopleScreenOptimized from '../screens/PeopleScreenOptimized';
 import FilterScreen from '../screens/FilterScreen';
 import LikedYouScreen from '../screens/LikedYouScreen';
 import MessagesScreen from '../screens/MessagesScreen';
@@ -83,7 +83,7 @@ const PeopleStack = () => {
     <Stack.Navigator>
       <Stack.Screen
         name="PeopleMain"
-        component={PeopleScreen}
+        component={PeopleScreenOptimized}
         options={{
           title: 'Discover',
           headerStyle: {

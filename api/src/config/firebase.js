@@ -29,11 +29,17 @@ const initializeFirebase = () => {
       });
     } else {
       // Production configuration with service account key
-      if (!process.env.FIREBASE_SERVICE_ACCOUNT_KEY) {
-        throw new Error('FIREBASE_SERVICE_ACCOUNT_KEY is required in production');
+      let serviceAccount;
+      
+      // Check for base64 encoded service account first (for Cloud Run)
+      if (process.env.FIREBASE_SERVICE_ACCOUNT_KEY_BASE64) {
+        const decoded = Buffer.from(process.env.FIREBASE_SERVICE_ACCOUNT_KEY_BASE64, 'base64').toString('utf-8');
+        serviceAccount = JSON.parse(decoded);
+      } else if (process.env.FIREBASE_SERVICE_ACCOUNT_KEY) {
+        serviceAccount = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT_KEY);
+      } else {
+        throw new Error('FIREBASE_SERVICE_ACCOUNT_KEY or FIREBASE_SERVICE_ACCOUNT_KEY_BASE64 is required in production');
       }
-
-      const serviceAccount = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT_KEY);
       
       firebaseApp = admin.initializeApp({
         credential: admin.credential.cert(serviceAccount),

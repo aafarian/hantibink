@@ -1,6 +1,7 @@
 const express = require('express');
 const logger = require('../utils/logger');
 const { authenticateJWT } = require('../middleware/auth');
+const { actionValidation } = require('../middleware/validation');
 const {
   likeUser,
   passUser,
@@ -34,17 +35,9 @@ router.get('/', (req, res) => {
  * @desc    Like a user
  * @access  Private
  */
-router.post('/like', authenticateJWT, async (req, res) => {
+router.post('/like', authenticateJWT, actionValidation.like, async (req, res) => {
   try {
     const { targetUserId } = req.body;
-
-    if (!targetUserId) {
-      return res.status(400).json({
-        success: false,
-        error: 'Validation failed',
-        message: 'Target user ID is required',
-      });
-    }
 
     // Get Socket.IO instance from app
     const io = req.app.get('io');
@@ -72,17 +65,9 @@ router.post('/like', authenticateJWT, async (req, res) => {
  * @desc    Pass on a user
  * @access  Private
  */
-router.post('/pass', authenticateJWT, async (req, res) => {
+router.post('/pass', authenticateJWT, actionValidation.pass, async (req, res) => {
   try {
     const { targetUserId } = req.body;
-
-    if (!targetUserId) {
-      return res.status(400).json({
-        success: false,
-        error: 'Validation failed',
-        message: 'Target user ID is required',
-      });
-    }
 
     // Get Socket.IO instance from app
     const io = req.app.get('io');
@@ -110,20 +95,15 @@ router.post('/pass', authenticateJWT, async (req, res) => {
  * @desc    Super like a user (premium feature)
  * @access  Private
  */
-router.post('/super-like', authenticateJWT, async (req, res) => {
+router.post('/super-like', authenticateJWT, actionValidation.superLike, async (req, res) => {
   try {
     const { targetUserId } = req.body;
 
-    if (!targetUserId) {
-      return res.status(400).json({
-        success: false,
-        error: 'Validation failed',
-        message: 'Target user ID is required',
-      });
-    }
+    // Get Socket.IO instance from app
+    const io = req.app.get('io');
 
     // TODO: Check if user has super likes available (premium feature)
-    const result = await likeUser(req.user.id, targetUserId, 'SUPER_LIKE');
+    const result = await likeUser(req.user.id, targetUserId, 'SUPER_LIKE', io);
 
     res.json({
       success: true,
@@ -174,7 +154,7 @@ router.post('/undo', authenticateJWT, async (req, res) => {
  * @desc    Get user action history
  * @access  Private
  */
-router.get('/history', authenticateJWT, async (req, res) => {
+router.get('/history', authenticateJWT, actionValidation.getHistory, async (req, res) => {
   try {
     const { limit = 50, offset = 0 } = req.query;
 
@@ -204,13 +184,13 @@ router.get('/history', authenticateJWT, async (req, res) => {
  * @desc    Get users who liked the current user
  * @access  Private
  */
-router.get('/who-liked-me', authenticateJWT, async (req, res) => {
+router.get('/who-liked-me', authenticateJWT, actionValidation.getWhoLikedMe, async (req, res) => {
   try {
     const { limit = 20, offset = 0 } = req.query;
     
     const likers = await getWhoLikedMe(req.user.id, {
-      limit: parseInt(limit) || 20,
-      offset: parseInt(offset) || 0,
+      limit: parseInt(limit, 10),
+      offset: parseInt(offset, 10),
     });
 
     res.json({

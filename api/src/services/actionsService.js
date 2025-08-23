@@ -13,83 +13,99 @@ const likeUser = async (
   io = null,
 ) => {
   try {
-    // Check if action already exists
-    const existingAction = await prisma.userAction.findUnique({
-      where: {
-        senderId_receiverId: {
+    // Use transaction for all database operations
+    const result = await prisma.$transaction(async (tx) => {
+      // Check if action already exists
+      const existingAction = await tx.userAction.findUnique({
+        where: {
+          senderId_receiverId: {
+            senderId,
+            receiverId,
+          },
+        },
+      });
+
+      if (existingAction) {
+        throw new Error('You have already acted on this user');
+      }
+
+      // Create the like action
+      const action = await tx.userAction.create({
+        data: {
           senderId,
           receiverId,
+          action: actionType,
         },
-      },
-    });
+      });
 
-    if (existingAction) {
-      throw new Error('You have already acted on this user');
-    }
+      // Increment total likes for receiver if it's a LIKE action
+      if (actionType === 'LIKE') {
+        await tx.user.update({
+          where: { id: receiverId },
+          data: { totalLikes: { increment: 1 } },
+        });
+      }
 
-    // Create the like action
-    const action = await prisma.userAction.create({
-      data: {
-        senderId,
-        receiverId,
-        action: actionType,
-      },
-    });
-
-    // Check if this creates a match
-    const reverseAction = await prisma.userAction.findUnique({
-      where: {
-        senderId_receiverId: {
-          senderId: receiverId,
-          receiverId: senderId,
-        },
-      },
-    });
-
-    let isMatch = false;
-    let match = null;
-
-    if (reverseAction && reverseAction.action === 'LIKE') {
-      // It's a match! Create match record
-      match = await prisma.match.create({
-        data: {
-          user1Id: senderId < receiverId ? senderId : receiverId,
-          user2Id: senderId < receiverId ? receiverId : senderId,
-        },
-        include: {
-          user1: {
-            select: {
-              id: true,
-              name: true,
-              photos: {
-                where: { isMain: true },
-                select: { url: true },
-              },
-            },
-          },
-          user2: {
-            select: {
-              id: true,
-              name: true,
-              photos: {
-                where: { isMain: true },
-                select: { url: true },
-              },
-            },
+      // Check if this creates a match
+      const reverseAction = await tx.userAction.findUnique({
+        where: {
+          senderId_receiverId: {
+            senderId: receiverId,
+            receiverId: senderId,
           },
         },
       });
 
-      isMatch = true;
+      let isMatch = false;
+      let match = null;
 
-      // Increment match counts for both users
-      await prisma.user.updateMany({
-        where: { id: { in: [senderId, receiverId] } },
-        data: { totalMatches: { increment: 1 } },
-      });
+      if (reverseAction && reverseAction.action === 'LIKE') {
+        // It's a match! Create match record
+        match = await tx.match.create({
+          data: {
+            user1Id: senderId < receiverId ? senderId : receiverId,
+            user2Id: senderId < receiverId ? receiverId : senderId,
+          },
+          include: {
+            user1: {
+              select: {
+                id: true,
+                name: true,
+                photos: {
+                  where: { isMain: true },
+                  select: { url: true },
+                },
+              },
+            },
+            user2: {
+              select: {
+                id: true,
+                name: true,
+                photos: {
+                  where: { isMain: true },
+                  select: { url: true },
+                },
+              },
+            },
+          },
+        });
 
-      // Send real-time notification if Socket.IO is available
-      if (io) {
+        // Increment match counts for both users
+        await tx.user.updateMany({
+          where: { id: { in: [senderId, receiverId] } },
+          data: { totalMatches: { increment: 1 } },
+        });
+
+        isMatch = true;
+      }
+
+      return { action, match, isMatch };
+    });
+
+    const { action, match, isMatch } = result;
+
+    // Send real-time notification if Socket.IO is available for matches
+    if (isMatch && match && io) {
         // Notify BOTH users about the new match
         const matchData = {
           matchId: match.id,
@@ -138,15 +154,10 @@ const likeUser = async (
           reason: 'matched',
         });
 
-        logger.info(`Real-time match notifications sent to users ${senderId} and ${receiverId}`);
-      }
+      logger.info(`Real-time match notifications sent to users ${senderId} and ${receiverId}`);
     }
 
-    // Increment total likes for receiver
-    await prisma.user.update({
-      where: { id: receiverId },
-      data: { totalLikes: { increment: 1 } },
-    });
+    // Total likes already incremented in the transaction above
 
     logger.info(
       `${actionType} action created: ${senderId} -> ${receiverId}${isMatch ? ' (MATCH!)' : ''}`,
@@ -270,44 +281,59 @@ const undoLastAction = async (userId) => {
       throw new Error('Too late to undo this action');
     }
 
-    // If it was a LIKE that created a match, we need to deactivate the match
-    if (lastAction.action === 'LIKE') {
-      const match = await prisma.match.findFirst({
-        where: {
-          OR: [
-            { user1Id: userId, user2Id: lastAction.receiverId },
-            { user1Id: lastAction.receiverId, user2Id: userId },
-          ],
-          isActive: true,
-        },
-      });
-
-      if (match) {
-        // Check if there was a reverse like
-        const reverseAction = await prisma.userAction.findUnique({
+    // Use transaction to ensure all operations succeed or fail together
+    await prisma.$transaction(async (tx) => {
+      // If it was a LIKE that created a match, we need to deactivate the match
+      if (lastAction.action === 'LIKE') {
+        const match = await tx.match.findFirst({
           where: {
-            senderId_receiverId: {
-              senderId: lastAction.receiverId,
-              receiverId: userId,
-            },
+            OR: [
+              { user1Id: userId, user2Id: lastAction.receiverId },
+              { user1Id: lastAction.receiverId, user2Id: userId },
+            ],
+            isActive: true,
           },
         });
 
-        if (reverseAction && reverseAction.action === 'LIKE') {
-          // This would break a mutual match, need to deactivate the match
-          await prisma.match.update({
-            where: { id: match.id },
-            data: { isActive: false },
+        if (match) {
+          // Check if there was a reverse like
+          const reverseAction = await tx.userAction.findUnique({
+            where: {
+              senderId_receiverId: {
+                senderId: lastAction.receiverId,
+                receiverId: userId,
+              },
+            },
           });
 
-          logger.info(`Match ${match.id} deactivated due to undo action`);
-        }
-      }
-    }
+          if (reverseAction && reverseAction.action === 'LIKE') {
+            // This would break a mutual match, need to deactivate the match
+            await tx.match.update({
+              where: { id: match.id },
+              data: { isActive: false },
+            });
 
-    // Delete the action
-    await prisma.userAction.delete({
-      where: { id: lastAction.id },
+            // Decrement match counts for both users
+            await tx.user.updateMany({
+              where: { id: { in: [userId, lastAction.receiverId] } },
+              data: { totalMatches: { decrement: 1 } },
+            });
+
+            logger.info(`Match ${match.id} deactivated due to undo action`);
+          }
+        }
+
+        // Decrement total likes for receiver
+        await tx.user.update({
+          where: { id: lastAction.receiverId },
+          data: { totalLikes: { decrement: 1 } },
+        });
+      }
+
+      // Delete the action
+      await tx.userAction.delete({
+        where: { id: lastAction.id },
+      });
     });
 
     logger.info(`Action undone: ${lastAction.id} (${lastAction.action})`);

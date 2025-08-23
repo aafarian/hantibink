@@ -1,8 +1,8 @@
 const express = require('express');
 const logger = require('../utils/logger');
 const { authenticateJWT } = require('../middleware/auth');
-const { validate } = require('../utils/validation');
-const { profileUpdateSchema } = require('../utils/validation');
+const { profileValidation } = require('../middleware/validation');
+// Removed caching from profile endpoint as it changes frequently
 const { 
   getUserProfile, 
   updateUserProfile, 
@@ -41,7 +41,7 @@ router.get('/', (req, res) => {
  * @desc    Get current user profile
  * @access  Private
  */
-router.get('/profile', authenticateJWT, async (req, res) => {
+router.get('/profile', authenticateJWT, profileValidation.getProfile, async (req, res) => {
   try {
     const profile = await getUserProfile(req.user.id);
     
@@ -73,7 +73,7 @@ router.get('/profile', authenticateJWT, async (req, res) => {
  * @desc    Update user profile
  * @access  Private
  */
-router.put('/profile', authenticateJWT, validate(profileUpdateSchema), async (req, res) => {
+router.put('/profile', authenticateJWT, profileValidation.updateProfile, async (req, res) => {
   try {
     const updatedProfile = await updateUserProfile(req.user.id, req.body);
     
@@ -85,10 +85,27 @@ router.put('/profile', authenticateJWT, validate(profileUpdateSchema), async (re
   } catch (error) {
     logger.error('❌ Update profile error:', error);
     
-    res.status(400).json({
+    // Provide more specific error messages
+    let statusCode = 400;
+    let errorMessage = 'Profile update failed';
+    let detailMessage = error.message;
+    
+    if (error.message.includes('not found')) {
+      statusCode = 404;
+      errorMessage = 'User not found';
+    } else if (error.message.includes('validation')) {
+      errorMessage = 'Validation error';
+    } else if (error.message.includes('database')) {
+      statusCode = 500;
+      errorMessage = 'Database error';
+      detailMessage = 'Unable to update profile at this time';
+    }
+    
+    res.status(statusCode).json({
       success: false,
-      error: 'Profile update failed',
-      message: error.message,
+      error: errorMessage,
+      message: detailMessage,
+      details: process.env.NODE_ENV === 'development' ? error.stack : undefined,
     });
   }
 });

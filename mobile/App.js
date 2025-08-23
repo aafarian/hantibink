@@ -6,7 +6,7 @@ import { Provider as PaperProvider } from 'react-native-paper';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import ErrorBoundary from './src/components/ErrorBoundary';
 import { AuthProvider } from './src/contexts/AuthContext';
-
+import { ToastProvider } from './src/contexts/ToastContext';
 import { UnreadProvider } from './src/contexts/UnreadContext';
 import { FeatureFlagsProvider } from './src/contexts/FeatureFlagsContext';
 import { PhotoViewerProvider } from './src/contexts/PhotoViewerContext';
@@ -17,18 +17,20 @@ export default function App() {
     <ErrorBoundary>
       <PaperProvider>
         <SafeAreaProvider>
-          <AuthProvider>
-            <FeatureFlagsProvider>
-              <UnreadProvider>
-                <GestureHandlerRootView style={styles.container}>
-                  <StatusBar style="light" backgroundColor="#FF6B6B" translucent={true} />
-                  <PhotoViewerProvider>
-                    <AppNavigator />
-                  </PhotoViewerProvider>
-                </GestureHandlerRootView>
-              </UnreadProvider>
-            </FeatureFlagsProvider>
-          </AuthProvider>
+          <ToastProvider>
+            <AuthProvider>
+              <FeatureFlagsProvider>
+                <UnreadProvider>
+                  <GestureHandlerRootView style={styles.container}>
+                    <StatusBar style="light" backgroundColor="#FF6B6B" translucent={true} />
+                    <PhotoViewerProvider>
+                      <AppNavigator />
+                    </PhotoViewerProvider>
+                  </GestureHandlerRootView>
+                </UnreadProvider>
+              </FeatureFlagsProvider>
+            </AuthProvider>
+          </ToastProvider>
         </SafeAreaProvider>
       </PaperProvider>
     </ErrorBoundary>

@@ -45,3 +45,61 @@ yarn-error.*
 
 CODEBASE_ANALYSIS.md
 COMPREHENSIVE_FIXES_PROMPT.md
+
+# Firebase service accounts
+firebase-service-account.json
+firebase-admin-sdk*.json
+google-services.json
+GoogleService-Info.plist
+api/config/firebase-service-account.json
+
+# Database
+postgres-data/
+*.sqlite
+*.db
+docs/*
+scripts/*
+test-connection.js
+
+# Docker files
+Dockerfile.*
+!Dockerfile
+!Dockerfile.example
+
+# Build artifacts
+android/
+ios/
+
+# Logs
+logs/
+*.log
+
+# API environment files
+api/.env
+api/.env.*
+!api/.env.example
+
+# Mobile environment files  
+mobile/.env
+mobile/.env.*
+!mobile/.env.example
+!mobile/.env.development.example
+!mobile/.env.production.example
+
+# Temporary files
+*.tmp
+.temp/
+*.swp
+*.swo
+
+# IDE
+.vscode/
+.idea/
+
+# Secrets
+*.pem
+*.key
+*.cert
+*.crt
+secrets/
+.secrets/

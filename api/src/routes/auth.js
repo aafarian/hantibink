@@ -1,18 +1,13 @@
 const express = require('express');
 const rateLimit = require('express-rate-limit');
 const logger = require('../utils/logger');
-const { validate } = require('../utils/validation');
-const {
-  registerSchema,
-  loginSchema,
-  firebaseTokenSchema,
-  refreshTokenSchema,
-} = require('../utils/validation');
+const { authValidation } = require('../middleware/validation');
 const {
   registerUser,
   loginUser,
   loginWithFirebase,
   refreshTokens,
+  checkEmailExists,
 } = require('../services/authService');
 
 const router = express.Router();
@@ -56,7 +51,7 @@ router.get('/', (req, res) => {
  * @desc    Register a new user
  * @access  Public
  */
-router.post('/register', authLimiter, validate(registerSchema), async (req, res) => {
+router.post('/register', authLimiter, authValidation.register, async (req, res) => {
   try {
 
     
@@ -79,11 +74,46 @@ router.post('/register', authLimiter, validate(registerSchema), async (req, res)
 });
 
 /**
+ * @route   POST /api/auth/check-email
+ * @desc    Check if email is already registered
+ * @access  Public
+ */
+router.post('/check-email', authLimiter, async (req, res) => {
+  try {
+    const { email } = req.body;
+    
+    if (!email) {
+      return res.status(400).json({
+        success: false,
+        error: 'Email is required',
+      });
+    }
+    
+    // Check if email exists
+    const exists = await checkEmailExists(email);
+    
+    res.json({
+      success: true,
+      exists,
+      available: !exists,
+    });
+  } catch (error) {
+    logger.error('❌ Email check error:', error);
+    
+    res.status(500).json({
+      success: false,
+      error: 'Failed to check email',
+      message: error.message,
+    });
+  }
+});
+
+/**
  * @route   POST /api/auth/login
  * @desc    Login user with email and password
  * @access  Public
  */
-router.post('/login', authLimiter, validate(loginSchema), async (req, res) => {
+router.post('/login', authLimiter, authValidation.login, async (req, res) => {
   try {
     const { email, password } = req.body;
     const result = await loginUser(email, password);
@@ -109,7 +139,7 @@ router.post('/login', authLimiter, validate(loginSchema), async (req, res) => {
  * @desc    Login user with Firebase ID token
  * @access  Public
  */
-router.post('/firebase-login', validate(firebaseTokenSchema), async (req, res) => {
+router.post('/firebase-login', authLimiter, authValidation.firebaseLogin, async (req, res) => {
   try {
     const { idToken } = req.body;
     const result = await loginWithFirebase(idToken);
@@ -135,7 +165,7 @@ router.post('/firebase-login', validate(firebaseTokenSchema), async (req, res) =
  * @desc    Refresh access token
  * @access  Public
  */
-router.post('/refresh', validate(refreshTokenSchema), async (req, res) => {
+router.post('/refresh', authValidation.refreshToken, async (req, res) => {
   try {
     const { refreshToken } = req.body;
     const tokens = await refreshTokens(refreshToken);
@@ -177,9 +207,9 @@ router.post('/logout', (req, res) => {
  */
 router.post('/forgot-password', (req, res) => {
   res.json({
-    message: 'Password reset request endpoint',
+    message: 'Password reset request endpoint!!',
     endpoint: 'POST /api/auth/forgot-password',
-    status: 'Coming soon - will integrate with email service',
+    status: 'Coming soon - will integrate with email service!!',
   });
 });
 

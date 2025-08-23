@@ -5,6 +5,7 @@
 
 import { io } from 'socket.io-client';
 import Logger from '../utils/logger';
+import environment from '../config/environment';
 
 class SocketService {
   constructor() {
@@ -27,7 +28,7 @@ class SocketService {
     }
 
     this.userId = userId;
-    const serverUrl = __DEV__ ? 'http://192.168.68.67:3000' : 'https://your-production-domain.com';
+    const serverUrl = environment.socketUrl;
 
     Logger.info(`🔌 Connecting to WebSocket server: ${serverUrl}`);
 

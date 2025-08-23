@@ -1,6 +1,7 @@
 const express = require('express');
 const logger = require('../utils/logger');
 const { authenticateJWT } = require('../middleware/auth');
+const { messageValidation } = require('../middleware/validation');
 const {
   getMessages,
   sendMessage,
@@ -32,7 +33,7 @@ router.get('/', (req, res) => {
  * @desc    Get messages for a match
  * @access  Private
  */
-router.get('/:matchId', authenticateJWT, async (req, res) => {
+router.get('/:matchId', authenticateJWT, messageValidation.getMessages, async (req, res) => {
   try {
     const { matchId } = req.params;
     const { limit = 50, offset = 0 } = req.query;
@@ -63,7 +64,7 @@ router.get('/:matchId', authenticateJWT, async (req, res) => {
  * @desc    Send a message in a match
  * @access  Private
  */
-router.post('/:matchId', authenticateJWT, async (req, res) => {
+router.post('/:matchId', authenticateJWT, messageValidation.sendMessage, async (req, res) => {
   try {
     const { matchId } = req.params;
     const { content, messageType = 'TEXT' } = req.body;
@@ -110,7 +111,7 @@ router.post('/:matchId', authenticateJWT, async (req, res) => {
  * @desc    Mark messages as read in a match
  * @access  Private
  */
-router.put('/:matchId/read', authenticateJWT, async (req, res) => {
+router.put('/:matchId/read', authenticateJWT, messageValidation.markAsRead, async (req, res) => {
   try {
     const { matchId } = req.params;
     const { messageIds = [] } = req.body;

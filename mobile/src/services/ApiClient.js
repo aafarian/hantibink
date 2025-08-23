@@ -1,11 +1,10 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import Logger from '../utils/logger';
+import environment from '../config/environment';
 
 class ApiClient {
   constructor() {
-    // Use local network IP for development so mobile devices can connect
-    // Replace with your computer's IP address when testing on physical devices
-    this.baseURL = __DEV__ ? 'http://192.168.68.67:3000/api' : 'https://api.hantibink.com/api';
+    this.baseURL = `${environment.apiUrl}/api`;
     this.token = null;
     this.refreshToken = null;
   }
@@ -290,6 +289,18 @@ class ApiClient {
   }
 
   /**
+   * Check if email exists
+   */
+  async checkEmailExists(email) {
+    const response = await this.request('/auth/check-email', {
+      method: 'POST',
+      body: JSON.stringify({ email }),
+    });
+
+    return response;
+  }
+
+  /**
    * Login with email and password
    */
   async login(email, password) {
@@ -402,6 +413,7 @@ class ApiClient {
     return this.request('/users/profile', {
       method: 'PUT',
       body: JSON.stringify(profileData),
+      headers: { 'Content-Type': 'application/json' },
     });
   }
 

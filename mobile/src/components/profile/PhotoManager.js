@@ -88,21 +88,23 @@ const PhotoManager = ({
         const photoUrl = await uploadImageToFirebase(result.assets[0].uri, tempUserId);
 
         if (mode === 'edit') {
-          // Add to API and update local state
+          // Add to API and let the refresh handle the state update
           await ApiDataService.addUserPhoto(photoUrl, normalizedPhotos.length === 0);
+          // Don't update local state - let the profile refresh handle it
+          onSuccess?.('Photo added successfully!');
+        } else {
+          // Only update local state in registration mode
+          const newPhoto = {
+            id: Date.now().toString(),
+            url: photoUrl,
+            isMain: normalizedPhotos.length === 0,
+            order: normalizedPhotos.length,
+          };
+
+          const updatedPhotos = [...normalizedPhotos, newPhoto];
+          onPhotosChange?.(updatedPhotos);
+          onSuccess?.('Photo added successfully!');
         }
-
-        // Update local photos
-        const newPhoto = {
-          id: Date.now().toString(),
-          url: photoUrl,
-          isMain: normalizedPhotos.length === 0,
-          order: normalizedPhotos.length,
-        };
-
-        const updatedPhotos = [...normalizedPhotos, newPhoto];
-        onPhotosChange?.(updatedPhotos);
-        onSuccess?.('Photo added successfully!');
       }
     } catch (error) {
       Logger.error('❌ Error adding photo:', error);
@@ -122,18 +124,23 @@ const PhotoManager = ({
 
       if (mode === 'edit' && photo.id && !photo.id.toString().startsWith('temp_')) {
         await ApiDataService.deleteUserPhoto(photo.id);
+        // Don't update local state - let the profile refresh handle it
+        onSuccess?.('Photo deleted successfully!');
+      } else {
+        // Only update local state in registration mode or for temp photos
+        const updatedPhotos = normalizedPhotos
+          .filter((_, index) => index !== photoIndex)
+          .map((item, index) => ({
+            ...item,
+            isMain: index === 0, // First photo becomes main
+            order: index,
+          }));
+
+        onPhotosChange?.(updatedPhotos);
+        if (mode !== 'edit') {
+          onSuccess?.('Photo deleted successfully!');
+        }
       }
-
-      const updatedPhotos = normalizedPhotos
-        .filter((_, index) => index !== photoIndex)
-        .map((item, index) => ({
-          ...item,
-          isMain: index === 0, // First photo becomes main
-          order: index,
-        }));
-
-      onPhotosChange?.(updatedPhotos);
-      onSuccess?.('Photo deleted successfully!');
     } catch (error) {
       Logger.error('❌ Error deleting photo:', error);
       onError?.('Failed to delete photo');

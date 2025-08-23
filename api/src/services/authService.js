@@ -1,73 +1,14 @@
 const bcrypt = require('bcryptjs');
-const { PrismaClient } = require('@prisma/client');
 const { generateTokenPair, verifyToken } = require('../utils/jwt');
 const { verifyIdToken } = require('../config/firebase');
 const logger = require('../utils/logger');
+const { getPrismaClient } = require('../config/database');
+const { parseRelationshipType, formatHeight } = require('../utils/profileUtils');
 
-const prisma = new PrismaClient();
+const prisma = getPrismaClient();
 
-/**
- * Map mobile relationship type values to database enum values
- */
-const mapRelationshipType = (relationshipType) => {
-  if (!relationshipType) {return null;}
-  
-  // Handle array (multi-select) - take first value
-  const value = Array.isArray(relationshipType) ? relationshipType[0] : relationshipType;
-  
-  if (!value) {return null;}
-  
-  // Map mobile values to database enum values
-  const mapping = {
-    'casual': 'CASUAL',
-    'serious': 'SERIOUS', 
-    'friendship': 'FRIENDSHIP',
-    'marriage': 'MARRIAGE',
-    'hookups': 'CASUAL', // Map hookups to casual
-    'not-sure': null, // Map not-sure to null
-  };
-  
-  return mapping[value] || null;
-};
-
-/**
- * Map mobile smoking preference to database enum values
- */
-const mapSmokingPreference = (smoking) => {
-  if (!smoking) {
-    return null;
-  }
-  
-  // Normalize case and handle UI variations
-  const normalizedValue = smoking.toLowerCase();
-  
-  // Map mobile values to database enum values
-  const mapping = {
-    'never': 'never',
-    'sometimes': 'occasionally', 
-    'socially': 'occasionally',
-    'occasionally': 'occasionally',
-    'regularly': 'regularly',
-  };
-  
-  return mapping[normalizedValue] || null;
-};
-
-/**
- * Map mobile drinking preference to database enum values
- */
-const mapDrinkingPreference = (drinking) => {
-  if (!drinking) {
-    return null;
-  }
-  
-  // Normalize case
-  const normalizedValue = drinking.toLowerCase();
-  
-  // Return the normalized value directly to match validation schema
-  const validValues = ['never', 'socially', 'regularly'];
-  return validValues.includes(normalizedValue) ? normalizedValue : null;
-};
+// No mapping functions needed - Prisma schema now uses flexible String fields
+// that accept any value from the UI dropdowns or custom text
 
 /**
  * Register a new user
@@ -111,7 +52,9 @@ const registerUser = async (userData) => {
     });
 
     if (existingUser) {
-      throw new Error('User already exists with this email');
+      const error = new Error('An account already exists with this email address');
+      error.code = 'EMAIL_ALREADY_EXISTS';
+      throw error;
     }
 
     // Hash password
@@ -119,11 +62,17 @@ const registerUser = async (userData) => {
     const hashedPassword = await bcrypt.hash(password, saltRounds);
 
     // Convert gender and interestedIn to enum values
-    const genderEnum = gender.toUpperCase();
-    const interestedInEnum = Array.isArray(interestedIn) ? interestedIn.map(g => g.toUpperCase()) : [];
+    const genderEnum = gender ? gender.toUpperCase() : 'OTHER';
+    const interestedInEnum = Array.isArray(interestedIn) ? interestedIn.map(g => g.toUpperCase()) : ['MALE', 'FEMALE'];
 
     // Using PostgreSQL + JWT authentication (no Firebase Auth)
     const firebaseUid = null;
+
+    // Handle relationshipType array - join multiple selections
+    let relationshipTypeValue = relationshipType;
+    if (Array.isArray(relationshipTypeValue)) {
+      relationshipTypeValue = relationshipTypeValue.join(', ');
+    }
 
     // Use database transaction for all database operations
     const result = await prisma.$transaction(async (tx) => {
@@ -144,10 +93,10 @@ const registerUser = async (userData) => {
           education: education || null,
           profession: profession || null,
           height: height || null,
-          relationshipType: mapRelationshipType(relationshipType),
+          relationshipType: relationshipTypeValue || null,
           religion: religion || null,
-          smoking: mapSmokingPreference(smoking),
-          drinking: mapDrinkingPreference(drinking),
+          smoking: smoking ? smoking.toLowerCase() : null,
+          drinking: drinking ? drinking.toLowerCase() : null,
           travel: travel || null,
           pets: pets || null,
           isActive: true,
@@ -245,6 +194,12 @@ const registerUser = async (userData) => {
  */
 const loginUser = async (email, password) => {
   try {
+    // Debug prisma client
+    if (!prisma) {
+      logger.error('CRITICAL: Prisma client is undefined in loginUser');
+      throw new Error('Database connection not initialized');
+    }
+    
     // Find user by email
     const user = await prisma.user.findUnique({
       where: { email },
@@ -284,9 +239,17 @@ const loginUser = async (email, password) => {
 
     logger.info(`✅ User logged in successfully: ${user.email}`);
 
+    // Photos are already properly named, no mapping needed
+    const userWithPhotos = {
+      ...user,
+      photos: user.photos || [],
+      // Convert relationshipType string back to array if needed
+      relationshipType: parseRelationshipType(user.relationshipType),
+    };
+
     // Return user data without password
     // eslint-disable-next-line no-unused-vars
-    const { password: _password, ...userWithoutPassword } = user;
+    const { password: _password, ...userWithoutPassword } = userWithPhotos;
     
     return {
       user: userWithoutPassword,
@@ -415,8 +378,16 @@ const getUserProfile = async (userId) => {
     }
 
     // Return user data without password
+    // Map interests to simpler format
+    const userWithInterests = {
+      ...user,
+      interests: user.interests?.map(ui => ui.interest) || [],
+      // Convert relationshipType string back to array if needed
+      relationshipType: parseRelationshipType(user.relationshipType),
+    };
+    
     // eslint-disable-next-line no-unused-vars
-    const { password: _password, ...userWithoutPassword } = user;
+    const { password: _password, ...userWithoutPassword } = userWithInterests;
     
     return userWithoutPassword;
   } catch (error) {
@@ -430,25 +401,55 @@ const getUserProfile = async (userId) => {
  */
 const updateUserProfile = async (userId, updateData) => {
   try {
-    const { photos, interests, ...userData } = updateData;
+    const { photos, interests, location, ...userData } = updateData;
 
-    // Update user data with proper mapping
-    const user = await prisma.user.update({
-      where: { id: userId },
-      data: {
-        ...userData,
-        // Apply mapping functions for enum fields
-        relationshipType: userData.relationshipType ? mapRelationshipType(userData.relationshipType) : undefined,
-        smoking: userData.smoking ? mapSmokingPreference(userData.smoking) : undefined,
-        drinking: userData.drinking ? mapDrinkingPreference(userData.drinking) : undefined,
-        latitude: updateData.location?.latitude,
-        longitude: updateData.location?.longitude,
-        address: updateData.location?.address,
-        city: updateData.location?.city,
-        country: updateData.location?.country,
-        updatedAt: new Date(),
-      },
+    // Build update object with only provided fields
+    const updateObject = {};
+    
+    // Process each field only if it's defined in the update data
+    Object.keys(userData).forEach(key => {
+      if (userData[key] !== undefined) {
+        if (key === 'height') {
+          // Handle height conversion with proper formatting
+          updateObject[key] = formatHeight(userData[key]);
+        } else if (key === 'relationshipType' && Array.isArray(userData[key])) {
+          // Handle relationshipType array - join multiple selections
+          updateObject[key] = userData[key].join(', ');
+        } else if (key === 'smoking' || key === 'drinking') {
+          // Convert to lowercase for database enum compatibility
+          updateObject[key] = userData[key].toLowerCase();
+        } else {
+          // Direct assignment for other fields
+          updateObject[key] = userData[key];
+        }
+      }
     });
+    
+    // Add location fields if location object exists
+    if (location) {
+      if (location.latitude !== undefined) {updateObject.latitude = location.latitude;}
+      if (location.longitude !== undefined) {updateObject.longitude = location.longitude;}
+      if (location.address !== undefined) {updateObject.address = location.address;}
+      if (location.city !== undefined) {updateObject.city = location.city;}
+      if (location.country !== undefined) {updateObject.country = location.country;}
+    }
+    
+    // Always update the updatedAt timestamp
+    updateObject.updatedAt = new Date();
+
+    // Only update if there are fields to update
+    let user;
+    if (Object.keys(updateObject).length > 1) { // > 1 because updatedAt is always there
+      user = await prisma.user.update({
+        where: { id: userId },
+        data: updateObject,
+      });
+    } else {
+      // No fields to update, just get current user
+      user = await prisma.user.findUnique({
+        where: { id: userId },
+      });
+    }
 
     // Update photos if provided (use transaction)
     if (photos && photos.length > 0) {
@@ -732,6 +733,23 @@ const setMainPhoto = async (userId, photoId) => {
   }
 };
 
+/**
+ * Check if email already exists in the database
+ */
+const checkEmailExists = async (email) => {
+  try {
+    const user = await prisma.user.findUnique({
+      where: { email: email.toLowerCase() },
+      select: { id: true },
+    });
+    
+    return !!user;
+  } catch (error) {
+    logger.error('❌ Check email exists error:', error);
+    throw error;
+  }
+};
+
 module.exports = {
   registerUser,
   loginUser,
@@ -743,4 +761,5 @@ module.exports = {
   deleteUserPhoto,
   reorderUserPhotos,
   setMainPhoto,
+  checkEmailExists,
 };

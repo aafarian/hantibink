@@ -23,6 +23,8 @@ const ProfileForm = forwardRef(
     {
       initialData = {},
       onDataChange,
+      changedFields = new Set(), // Fields that have been changed
+      validationErrors = {}, // Validation errors for fields
       showPhotosSection = false,
       photosComponent = null,
       excludeFields = [], // Fields to exclude from rendering
@@ -66,11 +68,39 @@ const ProfileForm = forwardRef(
       setScrollEnabled: enabled => setScrollEnabled(enabled),
     }));
 
+    // Real-time validation for a specific field
+    const validateField = (fieldKey, value) => {
+      const config = profileFieldsConfig.textFields.find(f => f.key === fieldKey);
+
+      // Check required fields
+      if (fieldKey === 'name' && (!value || value.trim() === '')) {
+        return 'Name is required';
+      }
+
+      // Check length limits
+      if (config?.maxLength && value && value.length > config.maxLength) {
+        return `${config.label} cannot exceed ${config.maxLength} characters`;
+      }
+
+      return null; // No error
+    };
+
     // Update form data and notify parent
     const updateFormData = updates => {
       const newData = { ...formData, ...updates };
       setFormData(newData);
-      onDataChange?.(transformProfileData.toApi(newData));
+
+      // Validate changed fields in real-time
+      const newErrors = {};
+      Object.keys(updates).forEach(key => {
+        const error = validateField(key, updates[key]);
+        if (error) {
+          newErrors[key] = error;
+        }
+      });
+
+      // Update parent with both data and validation state
+      onDataChange?.(transformProfileData.toApi(newData), newErrors);
     };
 
     // Helper functions
@@ -142,26 +172,53 @@ const ProfileForm = forwardRef(
         .filter(field => !excludeFields.includes(field.key))
         .map(field => (
           <View key={field.key} style={styles.inputContainer}>
-            <Text style={styles.label}>
-              {field.label}
-              {field.required && <Text style={styles.required}> *</Text>}
-              {field.showCounter && (
-                <Text style={styles.counter}>
-                  ({formData[field.key]?.length || 0}/{field.maxLength})
-                </Text>
+            <View style={styles.labelContainer}>
+              <Text
+                style={[
+                  styles.label,
+                  changedFields.has(field.key) && styles.labelChanged,
+                  validationErrors[field.key] && styles.labelError,
+                ]}
+              >
+                {field.label}
+                {field.required && <Text style={styles.required}> *</Text>}
+                {field.showCounter && (
+                  <Text style={styles.counter}>
+                    ({formData[field.key]?.length || 0}/{field.maxLength})
+                  </Text>
+                )}
+              </Text>
+              {changedFields.has(field.key) && !validationErrors[field.key] && (
+                <View style={styles.changedIndicator}>
+                  <Text style={styles.changedText}>Modified</Text>
+                </View>
               )}
-            </Text>
+            </View>
             <TextInput
               ref={textRef => {
                 textRefs.current[field.key] = textRef;
               }}
-              style={[styles.textInput, field.multiline && styles.textArea]}
+              style={[
+                styles.textInput,
+                field.multiline && styles.textArea,
+                changedFields.has(field.key) &&
+                  !validationErrors[field.key] &&
+                  styles.textInputChanged,
+                validationErrors[field.key] && styles.textInputError,
+              ]}
               value={formData[field.key]}
               onChangeText={value => {
                 const trimmedValue = field.maxLength ? value.slice(0, field.maxLength) : value;
                 updateField(field.key, trimmedValue);
               }}
               placeholder={field.placeholder}
+              placeholderTextColor={
+                validationErrors[field.key]
+                  ? '#FF9999'
+                  : changedFields.has(field.key)
+                    ? '#A5D6A7'
+                    : '#999'
+              }
               multiline={field.multiline}
               numberOfLines={field.numberOfLines}
               textAlignVertical={field.multiline ? 'top' : 'center'}
@@ -174,6 +231,9 @@ const ProfileForm = forwardRef(
               }}
               blurOnSubmit={!field.multiline}
             />
+            {validationErrors[field.key] && (
+              <Text style={styles.errorText}>{validationErrors[field.key]}</Text>
+            )}
           </View>
         ));
     };
@@ -184,13 +244,36 @@ const ProfileForm = forwardRef(
         .map(field => (
           <TouchableOpacity
             key={field.key}
-            style={styles.selectorButton}
+            style={[
+              styles.selectorButton,
+              changedFields.has(field.key) && styles.selectorButtonChanged,
+            ]}
             onPress={() => showSelectionPanel(field.key)}
           >
-            <Text style={styles.label}>{field.label}</Text>
+            <View style={styles.labelContainer}>
+              <Text style={[styles.label, changedFields.has(field.key) && styles.labelChanged]}>
+                {field.label}
+              </Text>
+              {changedFields.has(field.key) && (
+                <View style={styles.changedIndicator}>
+                  <Text style={styles.changedText}>Modified</Text>
+                </View>
+              )}
+            </View>
             <View style={styles.selectorRow}>
-              <Text style={styles.selectorText}>{formData[field.key] || field.placeholder}</Text>
-              <Ionicons name="chevron-forward" size={20} color="#666" />
+              <Text
+                style={[
+                  styles.selectorText,
+                  changedFields.has(field.key) && styles.selectorTextChanged,
+                ]}
+              >
+                {formData[field.key] || field.placeholder}
+              </Text>
+              <Ionicons
+                name="chevron-forward"
+                size={20}
+                color={changedFields.has(field.key) ? '#4CAF50' : '#666'}
+              />
             </View>
           </TouchableOpacity>
         ));
@@ -201,7 +284,18 @@ const ProfileForm = forwardRef(
         .filter(field => !excludeFields.includes(field.key))
         .map(field => (
           <View key={field.key} style={styles.section}>
-            <Text style={styles.sectionTitle}>{field.label}</Text>
+            <View style={styles.labelContainer}>
+              <Text
+                style={[styles.sectionTitle, changedFields.has(field.key) && styles.labelChanged]}
+              >
+                {field.label}
+              </Text>
+              {changedFields.has(field.key) && (
+                <View style={styles.changedIndicator}>
+                  <Text style={styles.changedText}>Modified</Text>
+                </View>
+              )}
+            </View>
             <View style={styles.bubblesContainer}>
               {field.options.map(option => {
                 const isSelected = (formData[field.key] || []).includes(option);
@@ -212,7 +306,11 @@ const ProfileForm = forwardRef(
                 return (
                   <TouchableOpacity
                     key={option}
-                    style={[styles.bubble, isSelected && styles.bubbleSelected]}
+                    style={[
+                      styles.bubble,
+                      isSelected && styles.bubbleSelected,
+                      changedFields.has(field.key) && isSelected && styles.bubbleChangedSelected,
+                    ]}
                     onPress={() => toggleArrayField(field.key, option)}
                   >
                     <Text style={[styles.bubbleText, isSelected && styles.bubbleTextSelected]}>
@@ -380,6 +478,62 @@ const styles = StyleSheet.create({
   },
   bottomPadding: {
     height: 50,
+  },
+
+  // Changed field indicator styles
+  labelContainer: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  labelChanged: {
+    color: '#4CAF50',
+  },
+  changedIndicator: {
+    backgroundColor: '#E8F5E9',
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#C8E6C9',
+  },
+  changedText: {
+    fontSize: 11,
+    color: '#4CAF50',
+    fontWeight: '600',
+  },
+  textInputChanged: {
+    borderColor: '#4CAF50',
+    borderWidth: 1.5,
+    backgroundColor: '#F1F8E9',
+  },
+  selectorButtonChanged: {
+    backgroundColor: '#F1F8E9',
+  },
+  selectorTextChanged: {
+    color: '#4CAF50',
+    fontWeight: '500',
+  },
+  bubbleChangedSelected: {
+    backgroundColor: '#4CAF50',
+    borderColor: '#388E3C',
+  },
+
+  // Validation error styles
+  labelError: {
+    color: '#FF5252',
+  },
+  textInputError: {
+    borderColor: '#FF5252',
+    borderWidth: 1.5,
+    backgroundColor: '#FFF5F5',
+  },
+  errorText: {
+    color: '#FF5252',
+    fontSize: 12,
+    marginTop: 4,
+    marginLeft: 2,
   },
 });
 

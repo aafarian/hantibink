@@ -39,6 +39,7 @@ const PeopleScreen = ({ navigation }) => {
 
   const [showMatchModal, setShowMatchModal] = useState(false);
   const [matchedUser, setMatchedUser] = useState(null);
+  const [matchQueue, setMatchQueue] = useState([]); // Queue for multiple matches
 
   useEffect(() => {
     if (user?.uid) {
@@ -56,15 +57,15 @@ const PeopleScreen = ({ navigation }) => {
       if (event === 'new-match' && data) {
         Logger.info('New match received in PeopleScreen:', data);
 
-        // If we're not already showing a match modal, show this one
-        if (!showMatchModal && data.matchedUser) {
-          // Simplify the matched user data for the modal
-          setMatchedUser({
+        if (data.matchedUser) {
+          // Add match to queue
+          const newMatch = {
             id: data.matchedUser.id,
             name: data.matchedUser.name,
             photo: data.matchedUser.mainPhoto || null,
-          });
-          setShowMatchModal(true);
+          };
+
+          setMatchQueue(prev => [...prev, newMatch]);
         }
       }
     });
@@ -72,7 +73,18 @@ const PeopleScreen = ({ navigation }) => {
     return () => {
       unsubscribe();
     };
-  }, [user?.uid, showMatchModal]);
+  }, [user?.uid]);
+
+  // Process match queue when modal is not showing
+  useEffect(() => {
+    if (!showMatchModal && matchQueue.length > 0) {
+      // Show the first match in the queue
+      const [nextMatch, ...remainingMatches] = matchQueue;
+      setMatchedUser(nextMatch);
+      setMatchQueue(remainingMatches);
+      setShowMatchModal(true);
+    }
+  }, [showMatchModal, matchQueue]);
 
   // Handle skipping invalid profiles
   useEffect(() => {

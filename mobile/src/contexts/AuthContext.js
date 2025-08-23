@@ -170,7 +170,7 @@ export const AuthProvider = ({ children }) => {
       Logger.info('📝 Updating user profile via API...');
 
       if (apiClient.isAuthenticated()) {
-        const success = await ApiDataService.updateUserProfile(user?.uid, profileData);
+        const success = await ApiDataService.updateUserProfile(profileData);
 
         if (success) {
           // Refresh profile to get updated data
@@ -391,8 +391,6 @@ export const AuthProvider = ({ children }) => {
       } else {
         return { success: false, error: error.message };
       }
-    } finally {
-      setLoading(false);
     }
   };
 
@@ -460,11 +458,17 @@ export const AuthProvider = ({ children }) => {
   const checkEmailExists = async email => {
     try {
       Logger.info('📧 Checking if email exists:', email);
-      // TODO: Implement email check API endpoint
-      Logger.warn(
-        '⚠️ Email check not yet implemented in API - will handle duplicates during registration'
-      );
-      return false; // Assume email doesn't exist for now
+
+      // Call the API to check if email exists
+      const response = await apiClient.checkEmailExists(email);
+
+      if (response.success) {
+        Logger.info(`📧 Email check result: ${response.data.exists ? 'exists' : 'available'}`);
+        return response.data.exists;
+      } else {
+        Logger.warn('⚠️ Email check failed:', response.message);
+        return false;
+      }
     } catch (error) {
       Logger.error('❌ Email check error:', error);
       return false;

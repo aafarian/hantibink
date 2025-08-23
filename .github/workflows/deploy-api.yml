@@ -1,0 +1,92 @@
+name: Deploy API to Google Cloud Run
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'api/**'
+      - '.github/workflows/deploy-api.yml'
+  workflow_dispatch:
+
+env:
+  PROJECT_ID: hantibink
+  REGION: us-central1
+  SERVICE_NAME: hantibink-api
+
+jobs:
+  deploy:
+    name: Deploy API
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v2
+        with:
+          credentials_json: ${{ secrets.GCP_SA_KEY }}
+
+      - name: Set up Cloud SDK
+        uses: google-github-actions/setup-gcloud@v2
+
+      - name: Configure Docker for GCR
+        run: gcloud auth configure-docker --quiet
+
+      - name: Build Docker image
+        working-directory: ./api
+        run: |
+          # Generate Prisma client locally to avoid QEMU issues
+          npm ci
+          npx prisma generate
+          
+          # Create optimized Dockerfile
+          cat > Dockerfile.ci << 'EOF'
+          FROM node:18-slim
+          
+          RUN apt-get update -y && apt-get install -y openssl && rm -rf /var/lib/apt/lists/*
+          
+          WORKDIR /app
+          
+          # Copy everything including generated Prisma client
+          COPY . .
+          
+          # Install production dependencies only (fail fast if npm ci fails)
+          RUN npm ci --omit=dev
+          
+          EXPOSE 8080
+          
+          CMD ["npm", "start"]
+          EOF
+          
+          docker build --platform linux/amd64 -f Dockerfile.ci -t gcr.io/$PROJECT_ID/$SERVICE_NAME:$GITHUB_SHA .
+          docker tag gcr.io/$PROJECT_ID/$SERVICE_NAME:$GITHUB_SHA gcr.io/$PROJECT_ID/$SERVICE_NAME:latest
+
+      - name: Push Docker image to GCR
+        run: |
+          docker push gcr.io/$PROJECT_ID/$SERVICE_NAME:$GITHUB_SHA
+          docker push gcr.io/$PROJECT_ID/$SERVICE_NAME:latest
+
+      - name: Deploy to Cloud Run
+        run: |
+          gcloud run deploy $SERVICE_NAME \
+            --image gcr.io/$PROJECT_ID/$SERVICE_NAME:$GITHUB_SHA \
+            --platform managed \
+            --region $REGION \
+            --allow-unauthenticated \
+            --set-env-vars="NODE_ENV=production,HOST=0.0.0.0,FIREBASE_PROJECT_ID=hantibink,DATABASE_URL=${{ secrets.SUPABASE_DATABASE_URL }},JWT_SECRET=${{ secrets.JWT_SECRET }}" \
+            --min-instances=0 \
+            --max-instances=10 \
+            --memory=512Mi
+
+      - name: Get Service URL
+        run: |
+          SERVICE_URL=$(gcloud run services describe $SERVICE_NAME --region=$REGION --format='value(status.url)')
+          echo "API deployed to: $SERVICE_URL"
+          echo "SERVICE_URL=$SERVICE_URL" >> $GITHUB_ENV
+
+      - name: Test deployment
+        run: |
+          curl -f ${{ env.SERVICE_URL }}/health || exit 1
+          echo "Health check passed!"

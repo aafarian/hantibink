@@ -1,7 +1,7 @@
-const { PrismaClient } = require('@prisma/client');
 const logger = require('../utils/logger');
+const { getPrismaClient } = require('../config/database');
 
-const prisma = new PrismaClient();
+const prisma = getPrismaClient();
 
 /**
  * Get messages for a match

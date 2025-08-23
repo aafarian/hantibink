@@ -2,13 +2,20 @@
 
 A modern dating app connecting the Armenian community worldwide.
 
+## 🚀 Live Deployment
+
+- **API**: https://hantibink-api-wxmdtvzfzq-uc.a.run.app
+- **Database**: Supabase PostgreSQL
+- **Storage**: Firebase Storage
+- **Authentication**: Firebase Auth
+
 ## 🏗️ Monorepo Structure
 
 ```
 hantibink/
 ├── mobile/          # React Native app (iOS & Android)
-├── api/             # Backend API (Node.js/Express) [Coming Soon]
-├── shared/          # Shared types, utilities, and constants
+├── api/             # Backend API (Node.js/Express)
+├── scripts/         # Deployment and utility scripts
 ├── docs/            # Documentation and guides
 └── README.md        # You are here
 ```
@@ -55,15 +62,15 @@ npm run android
 - **Location**: Expo Location API
 - **Code Quality**: ESLint + Prettier + Husky
 
-### Backend (Planned)
+### Backend API
 
-- **Runtime**: Node.js
+- **Runtime**: Node.js 18+
 - **Framework**: Express.js
-- **Database**: PostgreSQL + Redis
+- **Database**: PostgreSQL (Supabase) with Prisma ORM
 - **Authentication**: JWT + Firebase Admin
 - **Real-time**: Socket.io
 - **File Storage**: Firebase Storage
-- **Deployment**: Docker + AWS/GCP
+- **Deployment**: Google Cloud Run (Docker)
 
 ## 🎯 Core Features
 
@@ -94,19 +101,37 @@ npm run android
   - Pre-commit hooks
   - Environment variable security
 
+- **Backend API**
+  - RESTful API with Express
+  - Database with Prisma ORM
+  - Real-time messaging with Socket.IO
+  - Rate limiting and security middleware
+  - Deployed to Google Cloud Run
+
+- **Matching System**
+  - Like/dislike functionality
+  - Mutual match detection
+  - Liked You page
+  - Discovery feed with filters
+
+- **Real-time Features**
+  - Instant messaging
+  - Online status indicators
+  - Typing indicators
+  - Match notifications
+
 ### 🔄 In Development
 
-- **Matching Algorithm**: Smart compatibility scoring
-- **Real-time Chat**: Secure messaging system
-- **Discovery Feed**: Swipe-based matching interface
+- **Push Notifications**: Firebase Cloud Messaging
 - **Premium Features**: Advanced filters and boosts
+- **Video Profiles**: Short introduction videos
 
 ### 📋 Planned
 
-- **Video Profiles**: Short introduction videos
 - **Events Integration**: Community gatherings
 - **Cultural Features**: Armenian holidays and traditions
 - **Family Connections**: Introduce family friends feature
+- **Voice Notes**: Audio messages in chat
 
 ## 🔧 Development
 
@@ -143,9 +168,10 @@ npm run android
 ## 📚 Documentation
 
 - [Mobile App Setup](./mobile/README.md)
-- [API Documentation](./docs/api.md) (Coming Soon)
-- [Deployment Guide](./docs/deployment.md) (Coming Soon)
-- [Contributing Guidelines](./docs/contributing.md) (Coming Soon)
+- [Mobile App Installation](./docs/MOBILE_APP_INSTALL.md)
+- [CI/CD Setup Guide](./docs/CI_CD_SETUP.md)
+- [API Documentation](./api/README.md)
+- [Database Schema](./api/prisma/schema.prisma)
 
 ## 🔐 Security & Privacy
 

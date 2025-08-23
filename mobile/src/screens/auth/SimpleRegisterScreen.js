@@ -40,6 +40,7 @@ const SimpleRegisterScreen = ({ navigation }) => {
   const [loading, setLoading] = useState(false);
   const [selectedLocation, setSelectedLocation] = useState(null);
   const [fieldErrors, setFieldErrors] = useState({}); // Track field-specific errors
+  const [hasValidationErrors, setHasValidationErrors] = useState(true); // Track if form has errors - start as true
 
   // Refs for text inputs to enable auto-advance
   const scrollViewRef = useRef(null);
@@ -72,6 +73,46 @@ const SimpleRegisterScreen = ({ navigation }) => {
     }
   }, [location, selectedLocation]);
 
+  // Check form validity whenever form data or errors change
+  useEffect(() => {
+    const checkFormValidity = () => {
+      // Check if there are any field errors
+      if (Object.keys(fieldErrors).length > 0) {
+        setHasValidationErrors(true);
+        return;
+      }
+
+      // Check if all required fields are filled
+      const isValid =
+        formData.name &&
+        formData.name.trim().length >= 2 &&
+        formData.email &&
+        /^[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}$/i.test(formData.email) &&
+        formData.password &&
+        formData.password.length >= 6 &&
+        formData.confirmPassword &&
+        formData.confirmPassword === formData.password &&
+        formData.birthDate &&
+        formData.age >= 18 &&
+        formData.gender &&
+        formData.interestedIn &&
+        selectedLocation;
+
+      setHasValidationErrors(!isValid);
+    };
+
+    checkFormValidity();
+  }, [formData, fieldErrors, selectedLocation]);
+
+  // Validate all text fields when clicking on non-input elements
+  const validateTextFields = () => {
+    // Validate all text fields that have values
+    if (formData.name) validateField('name', formData.name);
+    if (formData.email) validateField('email', formData.email);
+    if (formData.password) validateField('password', formData.password);
+    if (formData.confirmPassword) validateField('confirmPassword', formData.confirmPassword);
+  };
+
   // Gender options
   const genderOptions = [
     { id: 'man', label: 'Man' },
@@ -91,8 +132,67 @@ const SimpleRegisterScreen = ({ navigation }) => {
     setFormData(prev => ({ ...prev, [field]: value }));
     // Clear error when user starts typing
     if (fieldErrors[field]) {
-      setFieldErrors(prev => ({ ...prev, [field]: null }));
+      const newErrors = { ...fieldErrors };
+      delete newErrors[field];
+      setFieldErrors(newErrors);
+      setHasValidationErrors(Object.keys(newErrors).length > 0);
     }
+  };
+
+  // Field validation on blur
+  const validateField = (field, value) => {
+    let error = null;
+
+    switch (field) {
+      case 'name':
+        if (!value || !value.trim()) {
+          error = 'Name is required';
+        } else if (value.length < 2) {
+          error = 'Name must be at least 2 characters';
+        } else if (!/^[a-zA-Z\s]+$/.test(value)) {
+          error = 'Name can only contain letters and spaces';
+        }
+        break;
+
+      case 'email':
+        if (!value) {
+          error = 'Email is required';
+        } else if (!/^[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}$/i.test(value)) {
+          error = 'Please enter a valid email address';
+        }
+        break;
+
+      case 'password':
+        if (!value) {
+          error = 'Password is required';
+        } else if (value.length < 6) {
+          error = 'Password must be at least 6 characters';
+        } else if (!/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)/.test(value)) {
+          error = 'Password must contain uppercase, lowercase, and a number';
+        }
+        // Also validate confirmPassword if it has a value
+        if (formData.confirmPassword) {
+          validateField('confirmPassword', formData.confirmPassword);
+        }
+        break;
+
+      case 'confirmPassword':
+        if (!value) {
+          error = 'Please confirm your password';
+        } else if (value !== formData.password) {
+          error = 'Passwords do not match';
+        }
+        break;
+    }
+
+    const newErrors = { ...fieldErrors };
+    if (error) {
+      newErrors[field] = error;
+    } else {
+      delete newErrors[field];
+    }
+    setFieldErrors(newErrors);
+    setHasValidationErrors(Object.keys(newErrors).length > 0);
   };
 
   const calculateAge = birthDate => {
@@ -119,21 +219,24 @@ const SimpleRegisterScreen = ({ navigation }) => {
 
   const validateEmail = async email => {
     if (!email) {
-      setFieldErrors(prev => ({ ...prev, email: 'Email is required' }));
-      showError('Email is required');
+      const newErrors = { ...fieldErrors, email: 'Email is required' };
+      setFieldErrors(newErrors);
+      setHasValidationErrors(true);
       return false;
     }
     if (!/^[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}$/i.test(email)) {
-      setFieldErrors(prev => ({ ...prev, email: 'Please enter a valid email address' }));
-      showError('Please enter a valid email address');
+      const newErrors = { ...fieldErrors, email: 'Please enter a valid email address' };
+      setFieldErrors(newErrors);
+      setHasValidationErrors(true);
       return false;
     }
 
     // Check if email already exists
     const emailExists = await checkEmailExists(email);
     if (emailExists) {
-      setFieldErrors(prev => ({ ...prev, email: 'An account with this email already exists' }));
-      showError('An account with this email already exists. Please sign in instead.');
+      const newErrors = { ...fieldErrors, email: 'An account with this email already exists' };
+      setFieldErrors(newErrors);
+      setHasValidationErrors(true);
       return false;
     }
 
@@ -156,6 +259,12 @@ const SimpleRegisterScreen = ({ navigation }) => {
     } else if (formData.password.length < 6) {
       errors.password = 'Password must be at least 6 characters';
       showError('Password must be at least 6 characters');
+      hasErrors = true;
+    } else if (!/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)/.test(formData.password)) {
+      errors.password = 'Password must contain uppercase, lowercase, and a number';
+      showError(
+        'Password must contain at least one uppercase letter, one lowercase letter, and one number'
+      );
       hasErrors = true;
     } else if (formData.password !== formData.confirmPassword) {
       errors.confirmPassword = 'Passwords do not match';
@@ -245,7 +354,19 @@ const SimpleRegisterScreen = ({ navigation }) => {
         // Navigation to main app happens automatically via AuthContext
       } else {
         Logger.error('❌ Registration failed:', result.error);
-        showError(result.error || 'Failed to create account. Please try again.');
+
+        // Handle specific error cases
+        if (
+          result.error?.includes('already exists') ||
+          result.error?.includes('EMAIL_ALREADY_EXISTS')
+        ) {
+          setFieldErrors(prev => ({ ...prev, email: 'This email is already registered' }));
+          showError('An account already exists with this email address');
+          // Focus the email field
+          emailRef.current?.focus();
+        } else {
+          showError(result.error || 'Failed to create account. Please try again.');
+        }
       }
     } catch (error) {
       Logger.error('❌ Account creation error:', error);
@@ -287,6 +408,7 @@ const SimpleRegisterScreen = ({ navigation }) => {
                 placeholder="Enter your full name"
                 value={formData.name}
                 onChangeText={text => updateField('name', text)}
+                onBlur={() => validateField('name', formData.name)}
                 autoCapitalize="words"
                 returnKeyType="next"
                 onSubmitEditing={() => focusField(emailRef)}
@@ -304,6 +426,24 @@ const SimpleRegisterScreen = ({ navigation }) => {
                 placeholder="Enter your email"
                 value={formData.email}
                 onChangeText={text => updateField('email', text)}
+                onBlur={async () => {
+                  validateField('email', formData.email);
+                  // Check email availability on blur if email is valid
+                  if (
+                    formData.email &&
+                    /^[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}$/i.test(formData.email)
+                  ) {
+                    const emailExists = await checkEmailExists(formData.email);
+                    if (emailExists) {
+                      const newErrors = {
+                        ...fieldErrors,
+                        email: 'This email is already registered',
+                      };
+                      setFieldErrors(newErrors);
+                      setHasValidationErrors(Object.keys(newErrors).length > 0);
+                    }
+                  }
+                }}
                 keyboardType="email-address"
                 autoCapitalize="none"
                 autoCorrect={false}
@@ -317,13 +457,14 @@ const SimpleRegisterScreen = ({ navigation }) => {
             {/* Password */}
             <View style={styles.fieldContainer}>
               <Text style={styles.label}>Password *</Text>
-              <View style={styles.passwordContainer}>
+              <View style={[styles.passwordContainer, fieldErrors.password && styles.inputError]}>
                 <TextInput
                   ref={passwordRef}
-                  style={[styles.passwordInput, fieldErrors.password && styles.inputError]}
+                  style={styles.passwordInput}
                   placeholder="Enter your password"
                   value={formData.password}
                   onChangeText={text => updateField('password', text)}
+                  onBlur={() => validateField('password', formData.password)}
                   secureTextEntry={!showPassword}
                   autoCapitalize="none"
                   returnKeyType="next"
@@ -342,18 +483,26 @@ const SimpleRegisterScreen = ({ navigation }) => {
                 </TouchableOpacity>
               </View>
               {fieldErrors.password && <Text style={styles.errorText}>{fieldErrors.password}</Text>}
+              {!fieldErrors.password && formData.password.length === 0 && (
+                <Text style={styles.helperText}>
+                  Min 6 chars with uppercase, lowercase & number
+                </Text>
+              )}
             </View>
 
             {/* Confirm Password */}
             <View style={styles.fieldContainer}>
               <Text style={styles.label}>Confirm Password *</Text>
-              <View style={styles.passwordContainer}>
+              <View
+                style={[styles.passwordContainer, fieldErrors.confirmPassword && styles.inputError]}
+              >
                 <TextInput
                   ref={confirmPasswordRef}
                   style={styles.passwordInput}
                   placeholder="Confirm your password"
                   value={formData.confirmPassword}
                   onChangeText={text => updateField('confirmPassword', text)}
+                  onBlur={() => validateField('confirmPassword', formData.confirmPassword)}
                   secureTextEntry={!showConfirmPassword}
                   autoCapitalize="none"
                   returnKeyType="done"
@@ -371,12 +520,21 @@ const SimpleRegisterScreen = ({ navigation }) => {
                   />
                 </TouchableOpacity>
               </View>
+              {fieldErrors.confirmPassword && (
+                <Text style={styles.errorText}>{fieldErrors.confirmPassword}</Text>
+              )}
             </View>
 
             {/* Birth Date */}
             <View style={styles.fieldContainer}>
               <Text style={styles.label}>Birthday *</Text>
-              <TouchableOpacity style={styles.dateButton} onPress={() => setShowDatePicker(true)}>
+              <TouchableOpacity
+                style={[styles.dateButton, fieldErrors.birthDate && styles.inputError]}
+                onPress={() => {
+                  validateTextFields(); // Validate text fields when clicking date picker
+                  setShowDatePicker(true);
+                }}
+              >
                 <Text style={[styles.dateText, !formData.birthDate && styles.placeholderText]}>
                   {formData.birthDate
                     ? new Date(formData.birthDate).toLocaleDateString()
@@ -384,6 +542,9 @@ const SimpleRegisterScreen = ({ navigation }) => {
                 </Text>
                 <MaterialIcons name="calendar-today" size={20} color="#666" />
               </TouchableOpacity>
+              {fieldErrors.birthDate && (
+                <Text style={styles.errorText}>{fieldErrors.birthDate}</Text>
+              )}
             </View>
 
             {/* Location */}
@@ -393,19 +554,31 @@ const SimpleRegisterScreen = ({ navigation }) => {
                 currentLocation={selectedLocation || ''}
                 placeholder="Select your location"
                 required={true}
+                hasError={!!fieldErrors.location}
                 onLocationSelected={locationText => {
                   setSelectedLocation(locationText);
                   Logger.info('📍 Location selected in registration:', locationText);
+                  // Clear location error when selected
+                  if (fieldErrors.location) {
+                    const newErrors = { ...fieldErrors };
+                    delete newErrors.location;
+                    setFieldErrors(newErrors);
+                    setHasValidationErrors(Object.keys(newErrors).length > 0);
+                  }
                 }}
               />
+              {fieldErrors.location && <Text style={styles.errorText}>{fieldErrors.location}</Text>}
             </View>
 
             {/* Gender */}
             <View style={styles.fieldContainer}>
               <Text style={styles.label}>Gender *</Text>
               <TouchableOpacity
-                style={styles.selectionButton}
-                onPress={() => setShowGenderPicker(true)}
+                style={[styles.selectionButton, fieldErrors.gender && styles.inputError]}
+                onPress={() => {
+                  validateTextFields(); // Validate text fields when clicking dropdown
+                  setShowGenderPicker(true);
+                }}
               >
                 <Text style={[styles.selectionText, !formData.gender && styles.placeholderText]}>
                   {formData.gender
@@ -415,14 +588,18 @@ const SimpleRegisterScreen = ({ navigation }) => {
                 </Text>
                 <MaterialIcons name="keyboard-arrow-down" size={24} color="#666" />
               </TouchableOpacity>
+              {fieldErrors.gender && <Text style={styles.errorText}>{fieldErrors.gender}</Text>}
             </View>
 
             {/* Interested In */}
             <View style={styles.fieldContainer}>
               <Text style={styles.label}>Interested In *</Text>
               <TouchableOpacity
-                style={styles.selectionButton}
-                onPress={() => setShowInterestedInPicker(true)}
+                style={[styles.selectionButton, fieldErrors.interestedIn && styles.inputError]}
+                onPress={() => {
+                  validateTextFields(); // Validate text fields when clicking dropdown
+                  setShowInterestedInPicker(true);
+                }}
               >
                 <Text
                   style={[styles.selectionText, !formData.interestedIn && styles.placeholderText]}
@@ -434,14 +611,20 @@ const SimpleRegisterScreen = ({ navigation }) => {
                 </Text>
                 <MaterialIcons name="keyboard-arrow-down" size={24} color="#666" />
               </TouchableOpacity>
+              {fieldErrors.interestedIn && (
+                <Text style={styles.errorText}>{fieldErrors.interestedIn}</Text>
+              )}
             </View>
           </View>
           {/* Register Button */}
           <View style={styles.buttonContainer}>
             <TouchableOpacity
-              style={[styles.registerButton, loading && styles.registerButtonDisabled]}
+              style={[
+                styles.registerButton,
+                (loading || hasValidationErrors) && styles.registerButtonDisabled,
+              ]}
               onPress={handleNext}
-              disabled={loading}
+              disabled={loading || hasValidationErrors}
             >
               <Text style={styles.registerButtonText}>
                 {loading ? 'Creating Account...' : 'Create Account & Continue'}
@@ -649,6 +832,13 @@ const styles = StyleSheet.create({
     fontSize: 12,
     marginTop: 4,
     marginLeft: 4,
+  },
+  helperText: {
+    color: '#666',
+    fontSize: 11,
+    marginTop: 4,
+    marginLeft: 4,
+    fontStyle: 'italic',
   },
 });
 
