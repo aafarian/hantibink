@@ -49,11 +49,18 @@ jobs:
           
           WORKDIR /app
           
-          # Copy everything including generated Prisma client
-          COPY . .
+          # Copy package files first
+          COPY package*.json ./
+          COPY prisma ./prisma/
           
-          # Install production dependencies only (fail fast if npm ci fails)
+          # Install production dependencies
           RUN npm ci --omit=dev
+          
+          # Generate Prisma client in container
+          RUN npx prisma generate
+          
+          # Copy the rest of the application
+          COPY . .
           
           EXPOSE 8080
           
