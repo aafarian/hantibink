@@ -1,6 +1,13 @@
 const { body, query, param, validationResult } = require('express-validator');
 
 /**
+ * Regular expression for validating ID formats
+ * - CUID: starts with 'c' followed by 24-25 lowercase alphanumeric characters (v1 and v2 formats)
+ * - UUID: standard UUID v4 format
+ */
+const ID_REGEX = /^c[a-z0-9]{24,25}$|^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+/**
  * Validation middleware for handling validation errors
  */
 const handleValidationErrors = (req, res, next) => {
@@ -41,8 +48,8 @@ const authValidation = {
       .isISO8601().withMessage('Invalid date format')
       .custom((value) => {
         const age = Math.floor((new Date() - new Date(value)) / 31557600000);
-        if (age < 18) throw new Error('You must be at least 18 years old');
-        if (age > 100) throw new Error('Invalid birth date');
+        if (age < 18) {throw new Error('You must be at least 18 years old');}
+        if (age > 100) {throw new Error('Invalid birth date');}
         return true;
       }),
     body('gender')
@@ -50,9 +57,9 @@ const authValidation = {
       .isIn(['MALE', 'FEMALE', 'OTHER', 'male', 'female', 'other', 'non-binary']).withMessage('Invalid gender')
       .customSanitizer(value => {
         // Normalize to uppercase
-        if (value === 'male') return 'MALE';
-        if (value === 'female') return 'FEMALE';
-        if (value === 'other' || value === 'non-binary') return 'OTHER';
+        if (value === 'male') {return 'MALE';}
+        if (value === 'female') {return 'FEMALE';}
+        if (value === 'other' || value === 'non-binary') {return 'OTHER';}
         return value.toUpperCase();
       }),
     body('interestedIn')
@@ -65,9 +72,9 @@ const authValidation = {
       .customSanitizer(value => {
         // Normalize to uppercase
         return value.map(v => {
-          if (v === 'male') return 'MALE';
-          if (v === 'female') return 'FEMALE';
-          if (v === 'other' || v === 'non-binary') return 'OTHER';
+          if (v === 'male') {return 'MALE';}
+          if (v === 'female') {return 'FEMALE';}
+          if (v === 'other' || v === 'non-binary') {return 'OTHER';}
           return v.toUpperCase();
         });
       }),
@@ -126,7 +133,7 @@ const actionValidation = {
     body('targetUserId')
       .notEmpty().withMessage('Target user ID is required')
       .isString().withMessage('User ID must be a string')
-      .matches(/^c[a-z0-9]{24,}$|^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i)
+      .matches(ID_REGEX)
       .withMessage('Invalid user ID format'),
     handleValidationErrors,
   ],
@@ -135,7 +142,7 @@ const actionValidation = {
     body('targetUserId')
       .notEmpty().withMessage('Target user ID is required')
       .isString().withMessage('User ID must be a string')
-      .matches(/^c[a-z0-9]{24,}$|^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i)
+      .matches(ID_REGEX)
       .withMessage('Invalid user ID format'),
     handleValidationErrors,
   ],
@@ -144,7 +151,7 @@ const actionValidation = {
     body('targetUserId')
       .notEmpty().withMessage('Target user ID is required')
       .isString().withMessage('User ID must be a string')
-      .matches(/^c[a-z0-9]{24,}$|^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i)
+      .matches(ID_REGEX)
       .withMessage('Invalid user ID format'),
     handleValidationErrors,
   ],
@@ -192,7 +199,7 @@ const discoveryValidation = {
       .custom((value) => {
         if (typeof value === 'string') {
           const ids = value.split(',');
-          return ids.every(id => /^c[a-z0-9]{24,}$|^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id));
+          return ids.every(id => ID_REGEX.test(id));
         }
         return true;
       }).withMessage('Invalid ID format in excludeIds'),
@@ -208,7 +215,7 @@ const discoveryValidation = {
       .isArray().withMessage('Exclude IDs must be an array')
       .custom((value) => {
         if (Array.isArray(value)) {
-          return value.every(id => /^c[a-z0-9]{24,}$|^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id));
+          return value.every(id => ID_REGEX.test(id));
         }
         return true;
       }).withMessage('Invalid ID format in excludeIds'),
@@ -239,7 +246,7 @@ const messageValidation = {
     param('matchId')
       .notEmpty().withMessage('Match ID is required')
       .isString().withMessage('Match ID must be a string')
-      .matches(/^c[a-z0-9]{24,}$|^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i)
+      .matches(ID_REGEX)
       .withMessage('Invalid match ID format'),
     body('content')
       .notEmpty().withMessage('Message content is required')
@@ -255,7 +262,7 @@ const messageValidation = {
   getMessages: [
     param('matchId')
       .notEmpty().withMessage('Match ID is required')
-      .matches(/^c[a-z0-9]{24,}$|^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i)
+      .matches(ID_REGEX)
       .withMessage('Invalid match ID format'),
     query('limit')
       .optional()
@@ -269,7 +276,7 @@ const messageValidation = {
   markAsRead: [
     param('matchId')
       .notEmpty().withMessage('Match ID is required')
-      .matches(/^c[a-z0-9]{24,}$|^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i)
+      .matches(ID_REGEX)
       .withMessage('Invalid match ID format'),
     handleValidationErrors,
   ],
@@ -337,7 +344,7 @@ const profileValidation = {
   getProfile: [
     param('userId')
       .optional()
-      .matches(/^c[a-z0-9]{24,}$|^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i)
+      .matches(ID_REGEX)
       .withMessage('Invalid user ID format'),
     handleValidationErrors,
   ],
@@ -350,7 +357,7 @@ const matchValidation = {
   unmatch: [
     param('matchId')
       .notEmpty().withMessage('Match ID is required')
-      .matches(/^c[a-z0-9]{24,}$|^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i)
+      .matches(ID_REGEX)
       .withMessage('Invalid match ID format'),
     handleValidationErrors,
   ],

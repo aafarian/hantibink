@@ -7,6 +7,7 @@ const {
   loginUser,
   loginWithFirebase,
   refreshTokens,
+  checkEmailExists,
 } = require('../services/authService');
 
 const router = express.Router();
@@ -89,12 +90,11 @@ router.post('/check-email', authLimiter, async (req, res) => {
     }
     
     // Check if email exists
-    const { checkEmailExists } = require('../services/authService');
     const exists = await checkEmailExists(email);
     
     res.json({
       success: true,
-      exists: exists,
+      exists,
       available: !exists,
     });
   } catch (error) {
@@ -207,9 +207,9 @@ router.post('/logout', (req, res) => {
  */
 router.post('/forgot-password', (req, res) => {
   res.json({
-    message: 'Password reset request endpoint',
+    message: 'Password reset request endpoint!!',
     endpoint: 'POST /api/auth/forgot-password',
-    status: 'Coming soon - will integrate with email service',
+    status: 'Coming soon - will integrate with email service!!',
   });
 });
 

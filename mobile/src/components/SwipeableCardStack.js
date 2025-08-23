@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, forwardRef, useImperativeHandle } from 'react';
 import {
   View,
   Text,
@@ -17,8 +17,6 @@ import Logger from '../utils/logger';
 const { width, height } = Dimensions.get('window');
 const SWIPE_THRESHOLD = width * 0.25;
 const SWIPE_OUT_DURATION = 250;
-const NEXT_CARD_SCALE = 1; // All cards same size
-const NEXT_CARD_OPACITY = 1; // Full opacity for all cards
 
 const SwipeableCard = ({ profile, isTop, position, scale, opacity }) => {
   const rotate = position.x.interpolate({
@@ -86,275 +84,294 @@ const SwipeableCard = ({ profile, isTop, position, scale, opacity }) => {
   );
 };
 
-const SwipeableCardStack = ({
-  profiles,
-  onSwipeLeft,
-  onSwipeRight,
-  onNeedMore,
-  loadingMore = false,
-}) => {
-  const [currentIndex, setCurrentIndex] = useState(0);
-  const [isProcessing, setIsProcessing] = useState(false);
-  const processedProfiles = useRef(new Set()); // Track processed profiles to avoid duplicates
+const SwipeableCardStack = forwardRef(
+  ({ profiles, onSwipeLeft, onSwipeRight, onNeedMore, loadingMore = false }, ref) => {
+    const [currentIndex, setCurrentIndex] = useState(0);
+    const [isProcessing, setIsProcessing] = useState(false);
+    const processedProfiles = useRef(new Set()); // Track processed profiles to avoid duplicates
 
-  // Animation values for top card
-  const position = useRef(new Animated.ValueXY()).current;
-  const topCardScale = useRef(new Animated.Value(1)).current;
-  const topCardOpacity = useRef(new Animated.Value(1)).current;
+    // Animation values for top card
+    const position = useRef(new Animated.ValueXY()).current;
+    const topCardScale = useRef(new Animated.Value(1)).current;
+    const topCardOpacity = useRef(new Animated.Value(1)).current;
 
-  // Animation values for next card - all cards same size
-  const nextCardScale = useRef(new Animated.Value(1)).current;
-  const nextCardOpacity = useRef(new Animated.Value(1)).current;
+    // Animation values for next card - all cards same size
+    const nextCardScale = useRef(new Animated.Value(1)).current;
+    const nextCardOpacity = useRef(new Animated.Value(1)).current;
 
-  // Static position values for non-top cards
-  const staticPosition = useRef(new Animated.ValueXY({ x: 0, y: 0 })).current;
+    // Static position values for non-top cards
+    const staticPosition = useRef(new Animated.ValueXY({ x: 0, y: 0 })).current;
 
-  // Request more profiles when we're running low
-  useEffect(() => {
-    const remainingCards = profiles.length - currentIndex;
-    // Count how many profiles ahead are not yet processed
-    let unprocessedAhead = 0;
-    for (let i = currentIndex; i < profiles.length; i++) {
-      if (!processedProfiles.current.has(profiles[i].id)) {
-        unprocessedAhead++;
-      }
-    }
+    // Memoized default animation values to prevent recreation in render
+    const defaultScale = useRef(new Animated.Value(1)).current;
+    const defaultOpacity = useRef(new Animated.Value(1)).current;
 
-    if (unprocessedAhead <= 3 && !loadingMore && remainingCards > 0) {
-      Logger.info('📱 Running low on profiles, requesting more...');
-      onNeedMore?.();
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [currentIndex, profiles.length, loadingMore, onNeedMore]);
-
-  // Clear processed profiles when we get a completely new set (e.g., after filter change)
-  useEffect(() => {
-    // If current index is 0 and we have new profiles, clear the processed set
-    if (currentIndex === 0 && profiles.length > 0) {
-      processedProfiles.current.clear();
-      Logger.info('🔄 Cleared processed profiles cache');
-    }
-  }, [profiles, currentIndex]);
-
-  const panResponder = useRef(
-    PanResponder.create({
-      onStartShouldSetPanResponder: () => !isProcessing && currentIndex < profiles.length,
-      onMoveShouldSetPanResponder: (_, gestureState) => {
-        return (
-          !isProcessing &&
-          currentIndex < profiles.length &&
-          (Math.abs(gestureState.dx) > 5 || Math.abs(gestureState.dy) > 5)
-        );
-      },
-
-      onPanResponderGrant: () => {
-        // Clear any existing animations when starting a new gesture
-        position.stopAnimation();
-      },
-
-      onPanResponderMove: (_, gestureState) => {
-        position.setValue({ x: gestureState.dx, y: gestureState.dy });
-
-        // No scaling since all cards are same size
-        // Just move the top card
-      },
-
-      onPanResponderRelease: (_, gestureState) => {
-        if (isProcessing) return; // Prevent double processing
-
-        if (gestureState.dx > SWIPE_THRESHOLD) {
-          // Swipe right
-          forceSwipe('right');
-        } else if (gestureState.dx < -SWIPE_THRESHOLD) {
-          // Swipe left
-          forceSwipe('left');
-        } else {
-          // Reset position
-          resetPosition();
+    // Request more profiles when we're running low
+    useEffect(() => {
+      const remainingCards = profiles.length - currentIndex;
+      // Count how many profiles ahead are not yet processed
+      let unprocessedAhead = 0;
+      for (let i = currentIndex; i < profiles.length; i++) {
+        if (!processedProfiles.current.has(profiles[i].id)) {
+          unprocessedAhead++;
         }
-      },
-    })
-  ).current;
+      }
 
-  const forceSwipe = direction => {
-    if (isProcessing || currentIndex >= profiles.length) return;
+      if (unprocessedAhead <= 3 && !loadingMore && remainingCards > 0) {
+        Logger.info('📱 Running low on profiles, requesting more...');
+        onNeedMore?.();
+      }
+      // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [currentIndex, profiles.length, loadingMore, onNeedMore]);
 
-    setIsProcessing(true);
-    const x = direction === 'right' ? width * 1.5 : -width * 1.5;
+    // Clear processed profiles when we get a completely new set (e.g., after filter change)
+    useEffect(() => {
+      // If current index is 0 and we have new profiles, clear the processed set
+      if (currentIndex === 0 && profiles.length > 0) {
+        processedProfiles.current.clear();
+        Logger.info('🔄 Cleared processed profiles cache');
+      }
+    }, [profiles, currentIndex]);
 
-    // Start opacity fade for smooth transition
-    Animated.timing(topCardOpacity, {
-      toValue: 0,
-      duration: SWIPE_OUT_DURATION,
-      useNativeDriver: false,
-    }).start();
+    // Expose imperative methods for programmatic swiping
+    useImperativeHandle(
+      ref,
+      () => ({
+        swipeLeft: () => {
+          if (!isProcessing && currentIndex < profiles.length) {
+            forceSwipe('left');
+          }
+        },
+        swipeRight: () => {
+          if (!isProcessing && currentIndex < profiles.length) {
+            forceSwipe('right');
+          }
+        },
+      }),
+      // eslint-disable-next-line react-hooks/exhaustive-deps
+      [isProcessing, currentIndex, profiles.length]
+    );
 
-    Animated.timing(position, {
-      toValue: { x, y: 0 },
-      duration: SWIPE_OUT_DURATION,
-      useNativeDriver: false, // Can't use native driver with x,y values
-    }).start(() => {
-      onSwipeComplete(direction);
-    });
-  };
+    const panResponder = useRef(
+      PanResponder.create({
+        onStartShouldSetPanResponder: () => !isProcessing && currentIndex < profiles.length,
+        onMoveShouldSetPanResponder: (_, gestureState) => {
+          return (
+            !isProcessing &&
+            currentIndex < profiles.length &&
+            (Math.abs(gestureState.dx) > 5 || Math.abs(gestureState.dy) > 5)
+          );
+        },
 
-  const onSwipeComplete = direction => {
-    // Use functional update to get the current index value
-    setCurrentIndex(prevIndex => {
-      // Safety check - ensure we have a valid profile at current index
-      if (prevIndex >= profiles.length) {
-        Logger.warn('No more profiles to swipe');
+        onPanResponderGrant: () => {
+          // Clear any existing animations when starting a new gesture
+          position.stopAnimation();
+        },
+
+        onPanResponderMove: (_, gestureState) => {
+          position.setValue({ x: gestureState.dx, y: gestureState.dy });
+
+          // No scaling since all cards are same size
+          // Just move the top card
+        },
+
+        onPanResponderRelease: (_, gestureState) => {
+          if (isProcessing) return; // Prevent double processing
+
+          if (gestureState.dx > SWIPE_THRESHOLD) {
+            // Swipe right
+            forceSwipe('right');
+          } else if (gestureState.dx < -SWIPE_THRESHOLD) {
+            // Swipe left
+            forceSwipe('left');
+          } else {
+            // Reset position
+            resetPosition();
+          }
+        },
+      })
+    ).current;
+
+    const forceSwipe = direction => {
+      if (isProcessing || currentIndex >= profiles.length) return;
+
+      setIsProcessing(true);
+      const x = direction === 'right' ? width * 1.5 : -width * 1.5;
+
+      // Start opacity fade for smooth transition
+      Animated.timing(topCardOpacity, {
+        toValue: 0,
+        duration: SWIPE_OUT_DURATION,
+        useNativeDriver: false,
+      }).start();
+
+      Animated.timing(position, {
+        toValue: { x, y: 0 },
+        duration: SWIPE_OUT_DURATION,
+        useNativeDriver: false, // Can't use native driver with x,y values
+      }).start(() => {
+        onSwipeComplete(direction);
+      });
+    };
+
+    const onSwipeComplete = direction => {
+      // Use functional update to get the current index value
+      setCurrentIndex(prevIndex => {
+        // Safety check - ensure we have a valid profile at current index
+        if (prevIndex >= profiles.length) {
+          Logger.warn('No more profiles to swipe');
+          position.setValue({ x: 0, y: 0 });
+          setIsProcessing(false);
+          return prevIndex;
+        }
+
+        const swipedProfile = profiles[prevIndex];
+        Logger.info(
+          `🎯 Swiping profile at index ${prevIndex}: ${swipedProfile.name} (${swipedProfile.id})`
+        );
+
+        // Check if we've already processed this profile
+        if (!processedProfiles.current.has(swipedProfile.id)) {
+          // Mark profile as processed BEFORE making API call
+          processedProfiles.current.add(swipedProfile.id);
+          Logger.info(`✅ Marked profile ${swipedProfile.id} as processed`);
+
+          // Call the appropriate callback (fire and forget)
+          if (direction === 'right') {
+            onSwipeRight(swipedProfile).catch(error =>
+              Logger.error('Error processing swipe right:', error)
+            );
+          } else {
+            onSwipeLeft(swipedProfile).catch(error =>
+              Logger.error('Error processing swipe left:', error)
+            );
+          }
+        } else {
+          Logger.warn(`Profile ${swipedProfile.id} already processed, skipping API call`);
+        }
+
+        const newIndex = prevIndex + 1;
+        Logger.info(`📍 Moving from index ${prevIndex} to ${newIndex}`);
+
+        // Return the new index
+        return newIndex;
+      });
+
+      // Reset animations after state update
+      requestAnimationFrame(() => {
         position.setValue({ x: 0, y: 0 });
+        topCardScale.setValue(1);
+        topCardOpacity.setValue(1);
+        nextCardScale.setValue(1);
+        nextCardOpacity.setValue(1);
         setIsProcessing(false);
-        return prevIndex;
+      });
+    };
+
+    const resetPosition = () => {
+      Animated.spring(position, {
+        toValue: { x: 0, y: 0 },
+        friction: 4,
+        useNativeDriver: false, // Can't use native driver with x,y values
+      }).start();
+
+      // No scaling animation needed since all cards are same size
+    };
+
+    const renderCards = () => {
+      // Logger.info(`🎴 Rendering cards - currentIndex: ${currentIndex}, profiles.length: ${profiles.length}`);
+
+      if (currentIndex >= profiles.length) {
+        return (
+          <View style={styles.noMoreCards}>
+            {loadingMore ? (
+              <>
+                <ActivityIndicator size="large" color="#FF6B6B" />
+                <Text style={styles.loadingText}>Finding more people...</Text>
+              </>
+            ) : (
+              <>
+                <Ionicons name="people-outline" size={60} color="#ccc" />
+                <Text style={styles.noMoreText}>No more profiles</Text>
+                <Text style={styles.noMoreSubtext}>Check back later for more matches!</Text>
+              </>
+            )}
+          </View>
+        );
       }
 
-      const swipedProfile = profiles[prevIndex];
-      Logger.info(
-        `🎯 Swiping profile at index ${prevIndex}: ${swipedProfile.name} (${swipedProfile.id})`
-      );
+      // Render up to 3 cards in the stack (current + next 2)
+      const cardsToRender = [];
+      let cardsAdded = 0;
 
-      // Check if we've already processed this profile
-      if (!processedProfiles.current.has(swipedProfile.id)) {
-        // Mark profile as processed BEFORE making API call
-        processedProfiles.current.add(swipedProfile.id);
-        Logger.info(`✅ Marked profile ${swipedProfile.id} as processed`);
+      // Look for up to 3 unprocessed profiles starting from current index
+      for (let offset = 0; offset < profiles.length - currentIndex && cardsAdded < 3; offset++) {
+        const profileIndex = currentIndex + offset;
+        const profile = profiles[profileIndex];
 
-        // Call the appropriate callback (fire and forget)
-        if (direction === 'right') {
-          onSwipeRight(swipedProfile).catch(error =>
-            Logger.error('Error processing swipe right:', error)
+        if (!profile) continue;
+
+        // For the top card (offset 0), always render it even if processed
+        // For other cards, skip if already processed
+        const isProcessed = processedProfiles.current.has(profile.id);
+        if (offset > 0 && isProcessed) {
+          Logger.info(`🚫 Skipping processed profile at offset ${offset}: ${profile.id}`);
+          continue;
+        }
+
+        const isTop = cardsAdded === 0;
+        // Create unique key that includes both profile ID and its index in the queue
+        const cardKey = `${profile.id}-${profileIndex}`;
+        const zIndex = 3 - cardsAdded; // 3 for top, 2 for next, 1 for third
+
+        // Logger.info(`🃏 Rendering card ${cardsAdded}: ${profile.name} (${profile.id}) at index ${profileIndex}, isTop: ${isTop}, zIndex: ${zIndex}`);
+
+        if (isTop) {
+          // Top card with pan responder
+          cardsToRender.push(
+            <Animated.View
+              key={cardKey}
+              style={[styles.cardContainer, { zIndex }]}
+              {...panResponder.panHandlers}
+            >
+              <SwipeableCard
+                profile={profile}
+                isTop={true}
+                position={position}
+                scale={topCardScale}
+                opacity={topCardOpacity}
+                onSwipeLeft={() => forceSwipe('left')}
+                onSwipeRight={() => forceSwipe('right')}
+              />
+            </Animated.View>
           );
         } else {
-          onSwipeLeft(swipedProfile).catch(error =>
-            Logger.error('Error processing swipe left:', error)
+          // Non-top cards
+          cardsToRender.push(
+            <Animated.View key={cardKey} style={[styles.cardContainer, { zIndex }]}>
+              <SwipeableCard
+                profile={profile}
+                isTop={false}
+                position={staticPosition}
+                scale={cardsAdded === 1 ? nextCardScale : defaultScale}
+                opacity={cardsAdded === 1 ? nextCardOpacity : defaultOpacity}
+                onSwipeLeft={() => {}}
+                onSwipeRight={() => {}}
+              />
+            </Animated.View>
           );
         }
-      } else {
-        Logger.warn(`Profile ${swipedProfile.id} already processed, skipping API call`);
+
+        cardsAdded++;
       }
 
-      const newIndex = prevIndex + 1;
-      Logger.info(`📍 Moving from index ${prevIndex} to ${newIndex}`);
+      // Don't reverse - render in the order we built them
+      return cardsToRender;
+    };
 
-      // Return the new index
-      return newIndex;
-    });
-
-    // Reset animations after state update
-    requestAnimationFrame(() => {
-      position.setValue({ x: 0, y: 0 });
-      topCardScale.setValue(1);
-      topCardOpacity.setValue(1);
-      nextCardScale.setValue(1);
-      nextCardOpacity.setValue(1);
-      setIsProcessing(false);
-    });
-  };
-
-  const resetPosition = () => {
-    Animated.spring(position, {
-      toValue: { x: 0, y: 0 },
-      friction: 4,
-      useNativeDriver: false, // Can't use native driver with x,y values
-    }).start();
-
-    // No scaling animation needed since all cards are same size
-  };
-
-  const renderCards = () => {
-    // Logger.info(`🎴 Rendering cards - currentIndex: ${currentIndex}, profiles.length: ${profiles.length}`);
-
-    if (currentIndex >= profiles.length) {
-      return (
-        <View style={styles.noMoreCards}>
-          {loadingMore ? (
-            <>
-              <ActivityIndicator size="large" color="#FF6B6B" />
-              <Text style={styles.loadingText}>Finding more people...</Text>
-            </>
-          ) : (
-            <>
-              <Ionicons name="people-outline" size={60} color="#ccc" />
-              <Text style={styles.noMoreText}>No more profiles</Text>
-              <Text style={styles.noMoreSubtext}>Check back later for more matches!</Text>
-            </>
-          )}
-        </View>
-      );
-    }
-
-    // Render up to 3 cards in the stack (current + next 2)
-    const cardsToRender = [];
-    let cardsAdded = 0;
-
-    // Look for up to 3 unprocessed profiles starting from current index
-    for (let offset = 0; offset < profiles.length - currentIndex && cardsAdded < 3; offset++) {
-      const profileIndex = currentIndex + offset;
-      const profile = profiles[profileIndex];
-
-      if (!profile) continue;
-
-      // For the top card (offset 0), always render it even if processed
-      // For other cards, skip if already processed
-      const isProcessed = processedProfiles.current.has(profile.id);
-      if (offset > 0 && isProcessed) {
-        Logger.info(`🚫 Skipping processed profile at offset ${offset}: ${profile.id}`);
-        continue;
-      }
-
-      const isTop = cardsAdded === 0;
-      // Create unique key that includes both profile ID and its index in the queue
-      const cardKey = `${profile.id}-${profileIndex}`;
-      const zIndex = 3 - cardsAdded; // 3 for top, 2 for next, 1 for third
-
-      // Logger.info(`🃏 Rendering card ${cardsAdded}: ${profile.name} (${profile.id}) at index ${profileIndex}, isTop: ${isTop}, zIndex: ${zIndex}`);
-
-      if (isTop) {
-        // Top card with pan responder
-        cardsToRender.push(
-          <Animated.View
-            key={cardKey}
-            style={[styles.cardContainer, { zIndex }]}
-            {...panResponder.panHandlers}
-          >
-            <SwipeableCard
-              profile={profile}
-              isTop={true}
-              position={position}
-              scale={topCardScale}
-              opacity={topCardOpacity}
-              onSwipeLeft={() => forceSwipe('left')}
-              onSwipeRight={() => forceSwipe('right')}
-            />
-          </Animated.View>
-        );
-      } else {
-        // Non-top cards
-        cardsToRender.push(
-          <Animated.View key={cardKey} style={[styles.cardContainer, { zIndex }]}>
-            <SwipeableCard
-              profile={profile}
-              isTop={false}
-              position={staticPosition}
-              scale={cardsAdded === 1 ? nextCardScale : new Animated.Value(1)}
-              opacity={cardsAdded === 1 ? nextCardOpacity : new Animated.Value(1)}
-              onSwipeLeft={() => {}}
-              onSwipeRight={() => {}}
-            />
-          </Animated.View>
-        );
-      }
-
-      cardsAdded++;
-    }
-
-    // Don't reverse - render in the order we built them
-    return cardsToRender;
-  };
-
-  return <View style={styles.container}>{renderCards()}</View>;
-};
+    return <View style={styles.container}>{renderCards()}</View>;
+  }
+);
 
 const styles = StyleSheet.create({
   container: {

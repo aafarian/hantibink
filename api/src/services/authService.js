@@ -3,6 +3,7 @@ const { generateTokenPair, verifyToken } = require('../utils/jwt');
 const { verifyIdToken } = require('../config/firebase');
 const logger = require('../utils/logger');
 const { getPrismaClient } = require('../config/database');
+const { parseRelationshipType, formatHeight } = require('../utils/profileUtils');
 
 const prisma = getPrismaClient();
 
@@ -243,11 +244,7 @@ const loginUser = async (email, password) => {
       ...user,
       photos: user.photos || [],
       // Convert relationshipType string back to array if needed
-      relationshipType: user.relationshipType 
-        ? (user.relationshipType.includes(',') 
-          ? user.relationshipType.split(',').map(s => s.trim())
-          : [user.relationshipType])
-        : [],
+      relationshipType: parseRelationshipType(user.relationshipType),
     };
 
     // Return user data without password
@@ -386,11 +383,7 @@ const getUserProfile = async (userId) => {
       ...user,
       interests: user.interests?.map(ui => ui.interest) || [],
       // Convert relationshipType string back to array if needed
-      relationshipType: user.relationshipType 
-        ? (user.relationshipType.includes(',') 
-          ? user.relationshipType.split(',').map(s => s.trim())
-          : [user.relationshipType])
-        : [],
+      relationshipType: parseRelationshipType(user.relationshipType),
     };
     
     // eslint-disable-next-line no-unused-vars
@@ -416,9 +409,9 @@ const updateUserProfile = async (userId, updateData) => {
     // Process each field only if it's defined in the update data
     Object.keys(userData).forEach(key => {
       if (userData[key] !== undefined) {
-        if (key === 'height' && typeof userData[key] === 'number') {
-          // Handle height conversion (if number, assume feet and convert to string)
-          updateObject[key] = `${userData[key]}'`;
+        if (key === 'height') {
+          // Handle height conversion with proper formatting
+          updateObject[key] = formatHeight(userData[key]);
         } else if (key === 'relationshipType' && Array.isArray(userData[key])) {
           // Handle relationshipType array - join multiple selections
           updateObject[key] = userData[key].join(', ');
@@ -434,11 +427,11 @@ const updateUserProfile = async (userId, updateData) => {
     
     // Add location fields if location object exists
     if (location) {
-      if (location.latitude !== undefined) updateObject.latitude = location.latitude;
-      if (location.longitude !== undefined) updateObject.longitude = location.longitude;
-      if (location.address !== undefined) updateObject.address = location.address;
-      if (location.city !== undefined) updateObject.city = location.city;
-      if (location.country !== undefined) updateObject.country = location.country;
+      if (location.latitude !== undefined) {updateObject.latitude = location.latitude;}
+      if (location.longitude !== undefined) {updateObject.longitude = location.longitude;}
+      if (location.address !== undefined) {updateObject.address = location.address;}
+      if (location.city !== undefined) {updateObject.city = location.city;}
+      if (location.country !== undefined) {updateObject.country = location.country;}
     }
     
     // Always update the updatedAt timestamp

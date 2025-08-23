@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import {
   View,
   Text,
@@ -42,6 +42,16 @@ const LikedYouScreen = () => {
   const [matchedUser, setMatchedUser] = useState(null);
   const [pendingMatchToast, setPendingMatchToast] = useState(false);
   const [hasShownUpgradeHint, setHasShownUpgradeHint] = useState(false);
+  const timeoutRef = useRef(null);
+
+  // Cleanup timeout on unmount
+  useEffect(() => {
+    return () => {
+      if (timeoutRef.current) {
+        clearTimeout(timeoutRef.current);
+      }
+    };
+  }, []);
 
   // Fetch users who liked the current user
   const fetchWhoLikedMe = useCallback(async () => {
@@ -85,8 +95,13 @@ const LikedYouScreen = () => {
         if (likes.length > 0 && !isPremium && !hasShownUpgradeHint) {
           // Subtle nudge for non-premium users - only show once per session
           setHasShownUpgradeHint(true);
-          setTimeout(() => {
+          // Clear any existing timeout
+          if (timeoutRef.current) {
+            clearTimeout(timeoutRef.current);
+          }
+          timeoutRef.current = setTimeout(() => {
             showInfo(`${likes.length} people liked you! Upgrade to see who they are 👀`);
+            timeoutRef.current = null;
           }, 1000);
         }
       } else {

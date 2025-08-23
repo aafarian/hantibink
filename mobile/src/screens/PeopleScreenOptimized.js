@@ -36,6 +36,7 @@ const PeopleScreenOptimized = ({ navigation }) => {
 
   // Track processed profiles to avoid duplicates
   const processedIds = useRef(new Set());
+  const cardStackRef = useRef(null);
 
   // Filters state
   const [filters, setFilters] = useState({
@@ -264,6 +265,7 @@ const PeopleScreenOptimized = ({ navigation }) => {
       {/* Card Stack */}
       <View style={styles.cardStackContainer}>
         <SwipeableCardStack
+          ref={cardStackRef}
           profiles={profiles}
           onSwipeLeft={handleSwipeLeft}
           onSwipeRight={handleSwipeRight}
@@ -284,20 +286,14 @@ const PeopleScreenOptimized = ({ navigation }) => {
 
           <TouchableOpacity
             style={[styles.actionButton, styles.passButton]}
-            onPress={() => {
-              // Trigger programmatic swipe left
-              // This would need to be connected to the card stack
-            }}
+            onPress={() => cardStackRef.current?.swipeLeft()}
           >
             <Ionicons name="close" size={35} color="#FF5252" />
           </TouchableOpacity>
 
           <TouchableOpacity
             style={[styles.actionButton, styles.likeButton]}
-            onPress={() => {
-              // Trigger programmatic swipe right
-              // This would need to be connected to the card stack
-            }}
+            onPress={() => cardStackRef.current?.swipeRight()}
           >
             <Ionicons name="heart" size={30} color="#4CAF50" />
           </TouchableOpacity>

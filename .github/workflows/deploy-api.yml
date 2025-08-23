@@ -52,8 +52,8 @@ jobs:
           # Copy everything including generated Prisma client
           COPY . .
           
-          # Install production dependencies only
-          RUN npm ci --omit=dev || npm install --omit=dev
+          # Install production dependencies only (fail fast if npm ci fails)
+          RUN npm ci --omit=dev
           
           EXPOSE 8080
           

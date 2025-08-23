@@ -3,8 +3,6 @@
  * Main entry point for the backend API
  */
 
-console.log('Starting Hantibink API Server...');
-
 // Only load .env file in development
 if (process.env.NODE_ENV !== 'production') {
   require('dotenv').config();
@@ -20,6 +18,8 @@ const { Server } = require('socket.io');
 
 // Import configurations and middleware
 const logger = require('./utils/logger');
+
+logger.info('Starting Hantibink API Server...');
 const { errorHandler } = require('./middleware/errorHandler');
 const notFoundHandler = require('./middleware/notFoundHandler');
 const {
@@ -354,8 +354,8 @@ async function startServer() {
     app.set('io', io);
 
     // Start server - simplified for Cloud Run
-    const server = httpServer.listen(PORT, '0.0.0.0', () => {
-      console.log(`Server started on port ${PORT}`);
+    const server = httpServer.listen(PORT, HOST, () => {
+      logger.info(`Server started on port ${PORT}`);
       logger.info('🚀 Hantibink API Server started');
       logger.info(`📍 Environment: ${NODE_ENV}`);
       logger.info(`🌐 Server running at http://0.0.0.0:${PORT}`);

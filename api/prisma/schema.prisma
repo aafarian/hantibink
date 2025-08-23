@@ -54,7 +54,7 @@ model User {
   actionsReceived                             UserAction[]        @relation("actionsReceived")
   actionsSent                                 UserAction[]        @relation("actionsSent")
   interests                                   UserInterest[]
-  mainPhoto                                   Photo?              @relation("mainPhoto", fields: [mainPhotoId], references: [id])
+  mainPhoto                                   Photo?              @relation("mainPhoto", fields: [mainPhotoId], references: [id], onDelete: SetNull)
 
   @@map("users")
 }

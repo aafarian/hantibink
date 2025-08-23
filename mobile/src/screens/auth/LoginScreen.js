@@ -6,6 +6,9 @@ import { useAuth } from '../../contexts/AuthContext';
 import { useToast } from '../../contexts/ToastContext';
 import Logger from '../../utils/logger';
 
+// Email validation regex
+const EMAIL_REGEX = /^[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}$/i;
+
 const LoginScreen = ({ navigation }) => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -24,7 +27,7 @@ const LoginScreen = ({ navigation }) => {
       case 'email':
         if (!value) {
           error = 'Email is required';
-        } else if (!/^[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}$/i.test(value)) {
+        } else if (!EMAIL_REGEX.test(value)) {
           error = 'Please enter a valid email address';
         }
         break;
@@ -54,21 +57,12 @@ const LoginScreen = ({ navigation }) => {
   };
 
   const handleLogin = async () => {
-    // Validate all fields
-    let hasErrors = false;
+    // Validate all fields using existing validation function
+    validateField('email', email);
+    validateField('password', password);
 
-    if (!email) {
-      setFieldErrors(prev => ({ ...prev, email: 'Email is required' }));
-      hasErrors = true;
-    } else if (!/^[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}$/i.test(email)) {
-      setFieldErrors(prev => ({ ...prev, email: 'Please enter a valid email address' }));
-      hasErrors = true;
-    }
-
-    if (!password) {
-      setFieldErrors(prev => ({ ...prev, password: 'Password is required' }));
-      hasErrors = true;
-    }
+    // Check if there are any errors
+    const hasErrors = !email || !EMAIL_REGEX.test(email) || !password;
 
     if (hasErrors) {
       showError('Please fix the errors and try again');

@@ -61,14 +61,6 @@ docs/*
 scripts/*
 test-connection.js
 
-# Deployment scripts with hardcoded values
-scripts/*-manual.sh
-scripts/*-production*.sh
-scripts/quick-deploy*.sh
-scripts/deploy-*.sh
-scripts/finish-setup.sh
-scripts/update-*.sh
-
 # Docker files
 Dockerfile.*
 !Dockerfile

@@ -36,7 +36,7 @@ const ProfileEditScreen = ({ navigation }) => {
     } else {
       setPhotos([]);
     }
-  }, [userProfile?.photos?.length, userProfile]); // Watch photos length to detect changes
+  }, [userProfile?.photos]); // Only watch photos array to avoid unnecessary re-renders
 
   // Initialize form data and track when profile loads
   useEffect(() => {

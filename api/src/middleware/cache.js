@@ -43,7 +43,7 @@ const cacheMiddleware = (ttl = CACHE_TTL, keyGenerator = null) => {
       // Only cache successful responses
       if (res.statusCode === 200) {
         cache.set(key, {
-          data: data,
+          data,
           expires: Date.now() + ttl
         });
         logger.debug(`💾 Cached: ${key} for ${ttl}ms`);

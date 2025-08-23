@@ -272,18 +272,6 @@ const calculateAge = (birthDate) => {
 };
 
 /**
- * Get user's gender for matching
- */
-const getUserGender = async (userId) => {
-  const user = await prisma.user.findUnique({
-    where: { id: userId },
-    select: { gender: true },
-  });
-  
-  return user ? [user.gender] : [];
-};
-
-/**
  * Calculate number of shared interests between users
  */
 const calculateSharedInterests = (currentUserInterests, otherUserInterests) => {

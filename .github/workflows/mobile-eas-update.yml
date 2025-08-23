@@ -41,10 +41,10 @@ jobs:
       - name: Publish update to production channel
         working-directory: ./mobile
         run: |
-          npx eas update --branch production --message "${{ github.event.head_commit.message }}"
+          npx eas update --branch production --message "${{ github.event.head_commit.message || 'Manual EAS update' }}"
 
       - name: Create GitHub Release (optional)
-        if: contains(github.event.head_commit.message, '[release]')
+        if: github.event_name == 'push' && contains(github.event.head_commit.message, '[release]')
         uses: actions/create-release@v1
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

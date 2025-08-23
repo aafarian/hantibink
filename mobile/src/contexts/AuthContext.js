@@ -332,6 +332,8 @@ export const AuthProvider = ({ children }) => {
     } catch (error) {
       Logger.error('❌ API registration failed:', error);
       return { success: false, error: error.message };
+    } finally {
+      setLoading(false);
     }
   };
 

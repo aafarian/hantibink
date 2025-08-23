@@ -26,7 +26,7 @@ export const ToastProvider = ({ children }) => {
         return prev;
       }
 
-      const id = `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+      const id = `${Date.now()}-${Math.random().toString(36).substring(2, 11)}`;
       toastId = id;
       const toast = {
         id,

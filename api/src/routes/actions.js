@@ -99,8 +99,11 @@ router.post('/super-like', authenticateJWT, actionValidation.superLike, async (r
   try {
     const { targetUserId } = req.body;
 
+    // Get Socket.IO instance from app
+    const io = req.app.get('io');
+
     // TODO: Check if user has super likes available (premium feature)
-    const result = await likeUser(req.user.id, targetUserId, 'SUPER_LIKE');
+    const result = await likeUser(req.user.id, targetUserId, 'SUPER_LIKE', io);
 
     res.json({
       success: true,
@@ -186,8 +189,8 @@ router.get('/who-liked-me', authenticateJWT, actionValidation.getWhoLikedMe, asy
     const { limit = 20, offset = 0 } = req.query;
     
     const likers = await getWhoLikedMe(req.user.id, {
-      limit: parseInt(limit) || 20,
-      offset: parseInt(offset) || 0,
+      limit: parseInt(limit, 10),
+      offset: parseInt(offset, 10),
     });
 
     res.json({
