@@ -60,9 +60,14 @@ describe('Health Routes', () => {
       // Database should be healthy since test setup connects to test DB
       expect(response.body.checks.database.status).toBe('healthy');
       
-      // Verify other checks are included (even if not implemented)
+      // Verify other checks are included with correct status
       expect(response.body.checks).toHaveProperty('redis');
+      expect(response.body.checks.redis.status).toBe('not_implemented');
+      expect(response.body.checks.redis.message).toContain('not yet implemented');
+      
       expect(response.body.checks).toHaveProperty('firebase');
+      expect(response.body.checks.firebase.status).toBe('not_implemented');
+      expect(response.body.checks.firebase.message).toContain('not yet implemented');
     });
   });
 });

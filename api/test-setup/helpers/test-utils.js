@@ -17,13 +17,20 @@ export const createTestApp = (router, basePath = '') => {
     app.use(router);
   }
   
-  // Error handler (matches main app format)
-  app.use((err, req, res, next) => {
+  // Error handler (matches main app errorHandler.js format)
+  // This handles unhandled errors that bubble up to the error handler
+  app.use((err, req, res, _next) => {
     const statusCode = err.statusCode || err.status || 500;
+    const status = statusCode >= 500 ? 'error' : 'fail';
+    
+    // Match the format from errorHandler.js sendErrorResponse
     res.status(statusCode).json({
-      success: false,
-      error: err.message || 'Internal server error',
+      status,
       message: err.message || 'Internal server error',
+      ...(process.env.NODE_ENV === 'development' && {
+        error: err,
+        stack: err.stack,
+      }),
     });
   });
   
@@ -32,6 +39,7 @@ export const createTestApp = (router, basePath = '') => {
 
 /**
  * Helper to assert successful response
+ * Handles route responses with { success: true, data: ... } format
  */
 export const expectSuccess = (response, statusCode = 200) => {
   expect(response.status).toBe(statusCode);
@@ -41,17 +49,30 @@ export const expectSuccess = (response, statusCode = 200) => {
 
 /**
  * Helper to assert error response
+ * Handles both:
+ * - Route error responses: { success: false, error: ..., message: ... }
+ * - Error handler responses: { status: 'fail'/'error', message: ... }
  */
 export const expectError = (response, statusCode = 400, errorMessage = null) => {
   expect(response.status).toBe(statusCode);
-  expect(response.body.success).toBe(false);
-  expect(response.body.error).toBeDefined();
   
-  if (errorMessage) {
-    expect(response.body.error).toContain(errorMessage);
+  // Handle both error formats
+  if ('success' in response.body) {
+    // Route error format
+    expect(response.body.success).toBe(false);
+    if (errorMessage) {
+      const error = response.body.error || response.body.message;
+      expect(error).toContain(errorMessage);
+    }
+    return response.body.error || response.body.message;
+  } else {
+    // Error handler format
+    expect(response.body.status).toMatch(/^(fail|error)$/);
+    if (errorMessage) {
+      expect(response.body.message).toContain(errorMessage);
+    }
+    return response.body.message;
   }
-  
-  return response.body.error;
 };
 
 /**

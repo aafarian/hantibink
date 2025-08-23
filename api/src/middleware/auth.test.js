@@ -148,15 +148,16 @@ describe('Auth Middleware', () => {
       });
     });
     
-    it('should handle user not found after token verification', async () => {
+    it.skip('should handle user not found after token verification', async () => {
       // Test case when token is valid but user doesn't exist in database
-      req.headers.authorization = 'Bearer valid-token-deleted-user';
+      // This would require mocking prisma at module level which is complex
+      // This scenario is covered in integration tests
       
-      vi.spyOn(jwtUtils, 'extractTokenFromHeader').mockReturnValue('valid-token-deleted-user');
-      vi.spyOn(jwtUtils, 'verifyToken').mockReturnValue({ userId: 'deleted-user-id' });
-      
-      // We would need to mock prisma at module level to test this scenario
-      // This is covered in integration tests
+      // To properly test this, we would need to:
+      // 1. Mock extractTokenFromHeader to return a valid token
+      // 2. Mock verifyToken to return a valid payload with userId
+      // 3. Mock prisma.user.findUnique to return null
+      // 4. Verify that it returns 401 with "User not found" message
     });
   });
 
