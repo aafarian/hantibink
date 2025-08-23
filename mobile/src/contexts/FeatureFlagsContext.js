@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState } from 'react';
+import React, { createContext, useContext, useState, useMemo } from 'react';
 import { useAuth } from './AuthContext';
 import Logger from '../utils/logger';
 
@@ -23,53 +23,70 @@ export const FeatureFlagsProvider = ({ children }) => {
   // Use the actual premium status from user profile, with override for testing
   const [premiumOverride, setPremiumOverride] = useState(null);
 
-  // If there's a test override, use it; otherwise use the actual profile status
-  const isPremiumUser =
-    premiumOverride !== null ? premiumOverride : userProfile?.isPremium || false;
+  // Memoize the premium status to prevent unnecessary re-renders
+  const isPremiumUser = useMemo(() => {
+    return premiumOverride !== null ? premiumOverride : userProfile?.isPremium || false;
+  }, [premiumOverride, userProfile?.isPremium]);
 
-  // Check if a specific premium feature is enabled
-  const hasFeature = _featureName => {
-    // 🎯 Future: Could add per-feature subscription tiers here
-    // For now, all premium features require premium subscription
-    // Note: _featureName parameter preserved for API compatibility but not used yet
-    return isPremiumUser;
-  };
+  // Memoize hasFeature to prevent recreation on every render
+  const hasFeature = useMemo(
+    () => _featureName => {
+      // 🎯 Future: Could add per-feature subscription tiers here
+      // For now, all premium features require premium subscription
+      // Note: _featureName parameter preserved for API compatibility but not used yet
+      return isPremiumUser;
+    },
+    [isPremiumUser]
+  );
 
-  // Get user's premium status
-  const getPremiumStatus = () => ({
-    isPremium: isPremiumUser,
-    // 📝 Future: Add subscription details
-    // plan: subscription?.plan,
-    // expiresAt: subscription?.expiresAt,
-    // features: subscription?.features || [],
-  });
+  // Memoize premium status object
+  const premiumStatus = useMemo(
+    () => ({
+      isPremium: isPremiumUser,
+      // 📝 Future: Add subscription details
+      // plan: subscription?.plan,
+      // expiresAt: subscription?.expiresAt,
+      // features: subscription?.features || [],
+    }),
+    [isPremiumUser]
+  );
 
   // 🧪 Development helper - Remove in production
-  const togglePremiumForTesting = () => {
-    const currentValue = isPremiumUser;
-    const newValue = !currentValue;
-    setPremiumOverride(newValue);
-    Logger.info(`🎛️  Premium status override set to: ${newValue}`);
-  };
+  const togglePremiumForTesting = useMemo(
+    () =>
+      __DEV__
+        ? () => {
+            const currentValue = isPremiumUser;
+            const newValue = !currentValue;
+            setPremiumOverride(newValue);
+            Logger.info(`🎛️  Premium status override set to: ${newValue}`);
+          }
+        : undefined,
+    [isPremiumUser]
+  );
 
-  const value = {
-    // Feature checking
-    hasFeature,
+  // Memoize the context value to prevent unnecessary re-renders
+  const value = useMemo(
+    () => ({
+      // Feature checking
+      hasFeature,
 
-    // Premium status
-    isPremium: isPremiumUser,
-    premiumStatus: getPremiumStatus(),
+      // Premium status
+      isPremium: isPremiumUser,
+      premiumStatus,
 
-    // Feature constants (for easy reference)
-    FEATURES: PREMIUM_FEATURES,
+      // Feature constants (for easy reference)
+      FEATURES: PREMIUM_FEATURES,
 
-    // 🧪 Development helpers
-    togglePremiumForTesting: __DEV__ ? togglePremiumForTesting : undefined,
+      // 🧪 Development helpers
+      togglePremiumForTesting,
 
-    // 📝 Future: Premium upgrade actions
-    // upgradePrompt: showUpgradePrompt,
-    // purchasePremium: handlePremiumPurchase,
-  };
+      // 📝 Future: Premium upgrade actions
+      // upgradePrompt: showUpgradePrompt,
+      // purchasePremium: handlePremiumPurchase,
+    }),
+    [hasFeature, isPremiumUser, premiumStatus, togglePremiumForTesting]
+  );
 
   return <FeatureFlagsContext.Provider value={value}>{children}</FeatureFlagsContext.Provider>;
 };
