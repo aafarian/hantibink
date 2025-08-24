@@ -15,6 +15,7 @@ import Logger from '../utils/logger';
 import { useToast } from '../contexts/ToastContext';
 import { LoadingScreen } from '../components/LoadingScreen';
 import { capitalizeFirst, formatRelationshipTypes } from '../utils/profileDataUtils';
+import { shouldShowDeveloperOptions, getBuildEnvironment } from '../utils/buildConfig';
 
 // import { theme } from '../styles/theme';
 // import { commonStyles } from '../styles/commonStyles';
@@ -466,8 +467,8 @@ const ProfileScreen = ({ navigation }) => {
           </TouchableOpacity>
         </View>
 
-        {/* Developer Settings - Only in Dev Mode */}
-        {__DEV__ && (
+        {/* Developer Settings - Only in Dev/Preview Mode */}
+        {shouldShowDeveloperOptions() && (
           <View style={styles.settingsSection}>
             <Text style={[styles.sectionTitle, { color: '#9b59b6' }]}>Developer Settings</Text>
 
@@ -480,7 +481,9 @@ const ProfileScreen = ({ navigation }) => {
             </TouchableOpacity>
 
             <View style={styles.devInfo}>
-              <Text style={styles.devInfoText}>🛠️ Development Mode</Text>
+              <Text style={styles.devInfoText}>
+                🛠️ {getBuildEnvironment() === 'development' ? 'Development' : 'Preview'} Mode
+              </Text>
               <Text style={styles.devInfoSubtext}>
                 Premium features {devPremium ? 'enabled' : 'disabled'}
               </Text>

@@ -15,7 +15,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../contexts/AuthContext';
 import { useToast } from '../contexts/ToastContext';
-import { useIsPremium, useFeatureFlags } from '../contexts/FeatureFlagsContext';
+import { useIsPremium } from '../contexts/FeatureFlagsContext';
 import ApiDataService from '../services/ApiDataService';
 import apiClient from '../services/ApiClient';
 import SocketService from '../services/SocketService';
@@ -30,7 +30,6 @@ const LikedYouScreen = () => {
   const { user, userProfile } = useAuth();
   const { showError, showSuccess, showInfo } = useToast();
   const isPremium = useIsPremium();
-  const { togglePremiumForTesting } = useFeatureFlags();
   const { navigateToMessages } = useTabNavigation();
 
   const [incomingLikes, setIncomingLikes] = useState([]);
@@ -366,15 +365,6 @@ const LikedYouScreen = () => {
           <Text style={styles.likeCountText}>{incomingLikes.length}</Text>
         </View>
       </View>
-
-      {/* 🧪 Development Premium Toggle */}
-      {__DEV__ && togglePremiumForTesting && (
-        <TouchableOpacity style={styles.debugToggle} onPress={togglePremiumForTesting}>
-          <Text style={styles.debugText}>
-            🧪 {isPremium ? '💎 PREMIUM' : '🆓 FREE'} (Tap to toggle)
-          </Text>
-        </TouchableOpacity>
-      )}
 
       {!isPremium && incomingLikes.length > 0 && (
         <TouchableOpacity style={styles.upgradeButton} onPress={() => setShowUpgradeModal(true)}>

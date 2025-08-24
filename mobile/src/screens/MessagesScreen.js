@@ -33,7 +33,7 @@ import { getUserProfilePhoto, getUserDisplayName } from '../utils/profileHelpers
 const MessagesScreen = () => {
   const { user } = useAuth();
   const { showError } = useToast();
-  const { hasFeature, FEATURES, isPremium, togglePremiumForTesting } = useFeatureFlags();
+  const { hasFeature, FEATURES } = useFeatureFlags();
   // Unread count now handled globally in UnreadContext
   const { conversations, loading, error, refresh } = useMatchesWithProfiles();
   const { conversations: unreadConversations } = useUnread();
@@ -588,15 +588,6 @@ const MessagesScreen = () => {
 
   return (
     <View style={commonStyles.container}>
-      {/* 🧪 Development Premium Toggle */}
-      {__DEV__ && togglePremiumForTesting && (
-        <TouchableOpacity style={styles.debugToggle} onPress={togglePremiumForTesting}>
-          <Text style={styles.debugText}>
-            🧪 {isPremium ? '💎 PREMIUM' : '🆓 FREE'} (Tap to toggle)
-          </Text>
-        </TouchableOpacity>
-      )}
-
       <FlatList
         data={mergedConversations}
         renderItem={renderConversation}
@@ -800,23 +791,6 @@ const styles = StyleSheet.create({
   premiumHint: {
     marginLeft: 4,
     opacity: 0.7,
-  },
-
-  // 🧪 Development styles
-  debugToggle: {
-    position: 'absolute',
-    top: 10,
-    right: 10,
-    backgroundColor: 'rgba(0,0,0,0.8)',
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 12,
-    zIndex: 1000,
-  },
-  debugText: {
-    color: '#fff',
-    fontSize: 10,
-    fontWeight: '600',
   },
 });
 
