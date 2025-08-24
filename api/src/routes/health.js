@@ -60,37 +60,6 @@ router.get('/detailed', async (req, res) => {
     checks.status = 'degraded';
   }
 
-  // Check Redis connection (when implemented)
-  try {
-    // TODO: Add Redis health check
-    // const redisCheck = await checkRedisHealth();
-    checks.checks.redis = {
-      status: 'not_implemented',
-      message: 'Redis health check not yet implemented',
-    };
-  } catch (error) {
-    checks.checks.redis = {
-      status: 'unhealthy',
-      error: error.message,
-    };
-    checks.status = 'degraded';
-  }
-
-  // Check Firebase connection
-  try {
-    // TODO: Add Firebase health check
-    // const firebaseCheck = await checkFirebaseHealth();
-    checks.checks.firebase = {
-      status: 'not_implemented',
-      message: 'Firebase health check not yet implemented',
-    };
-  } catch (error) {
-    checks.checks.firebase = {
-      status: 'unhealthy',
-      error: error.message,
-    };
-    checks.status = 'degraded';
-  }
 
   const statusCode = checks.status === 'healthy' ? 200 : 503;
   res.status(statusCode).json(checks);
@@ -130,10 +99,6 @@ router.get('/metrics', (req, res) => {
     cpu: process.cpuUsage(),
     environment: process.env.NODE_ENV || 'development',
     version: '1.0.0',
-    // TODO: Add application-specific metrics
-    // requests: requestCounter,
-    // errors: errorCounter,
-    // activeConnections: activeConnectionsGauge,
   };
 
   res.status(200).json(metrics);
