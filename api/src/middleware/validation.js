@@ -117,9 +117,10 @@ const authValidation = {
     body('token')
       .notEmpty().withMessage('Reset token is required')
       .isString().withMessage('Token must be a string'),
-    body('newPassword')
+    body('password')
       .notEmpty().withMessage('New password is required')
       .isLength({ min: 6 }).withMessage('Password must be at least 6 characters')
+      .isLength({ max: 100 }).withMessage('Password must be less than 100 characters')
       .matches(/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)/).withMessage('Password must contain at least one uppercase letter, one lowercase letter, and one number'),
     handleValidationErrors,
   ],

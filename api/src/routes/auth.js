@@ -8,6 +8,8 @@ const {
   loginWithFirebase,
   refreshTokens,
   checkEmailExists,
+  requestPasswordReset,
+  resetPassword,
 } = require('../services/authService');
 
 const router = express.Router();
@@ -205,25 +207,67 @@ router.post('/logout', (req, res) => {
  * @desc    Request password reset
  * @access  Public
  */
-router.post('/forgot-password', (req, res) => {
-  res.json({
-    message: 'Password reset request endpoint!!',
-    endpoint: 'POST /api/auth/forgot-password',
-    status: 'Coming soon - will integrate with email service!!',
-  });
+router.post('/forgot-password', authLimiter, async (req, res) => {
+  try {
+    const { email } = req.body;
+    
+    if (!email) {
+      return res.status(400).json({
+        success: false,
+        error: 'Email is required',
+      });
+    }
+    
+    const result = await requestPasswordReset(email);
+    
+    res.json({
+      success: result.success,
+      message: result.message,
+    });
+  } catch (error) {
+    logger.error('❌ Password reset request error:', error);
+    
+    res.status(500).json({
+      success: false,
+      error: 'Failed to process password reset request',
+      message: error.message,
+    });
+  }
 });
 
 /**
  * @route   POST /api/auth/reset-password
- * @desc    Reset password
+ * @desc    Reset password with token
  * @access  Public
  */
-router.post('/reset-password', (req, res) => {
-  res.json({
-    message: 'Password reset endpoint',
-    endpoint: 'POST /api/auth/reset-password',
-    status: 'Coming soon - will integrate with email service',
-  });
+router.post('/reset-password', authLimiter, authValidation.resetPassword, async (req, res) => {
+  try {
+    const { token, password } = req.body;
+    
+    if (!token || !password) {
+      return res.status(400).json({
+        success: false,
+        error: 'Token and password are required',
+      });
+    }
+    
+    const result = await resetPassword(token, password);
+    
+    res.json({
+      success: result.success,
+      message: result.message,
+    });
+  } catch (error) {
+    logger.error('❌ Password reset error:', error);
+    
+    const statusCode = error.message.includes('Invalid or expired') ? 400 : 500;
+    
+    res.status(statusCode).json({
+      success: false,
+      error: error.message,
+      message: error.message,
+    });
+  }
 });
 
 /**

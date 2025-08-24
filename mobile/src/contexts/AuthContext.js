@@ -426,17 +426,33 @@ export const AuthProvider = ({ children }) => {
   };
 
   /**
-   * Reset password (placeholder - needs API endpoint)
+   * Request password reset via email
    */
   const resetPassword = async email => {
     try {
       Logger.info('📧 Password reset requested for:', email);
-      // TODO: Implement password reset API endpoint
-      Logger.warn('⚠️ Password reset not yet implemented in API');
-      return { success: false, error: 'Password reset not yet available' };
+
+      const response = await apiClient.post('/auth/forgot-password', { email });
+
+      if (response.success) {
+        Logger.success('✅ Password reset email sent (if account exists)');
+        return {
+          success: true,
+          message: 'If an account exists with this email, you will receive a password reset link.',
+        };
+      } else {
+        Logger.warn('⚠️ Password reset request failed');
+        return {
+          success: false,
+          error: response.error || 'Failed to send reset email',
+        };
+      }
     } catch (error) {
       Logger.error('❌ Password reset error:', error);
-      return { success: false, error: error.message };
+      return {
+        success: false,
+        error: error.message || 'Failed to request password reset',
+      };
     }
   };
 
