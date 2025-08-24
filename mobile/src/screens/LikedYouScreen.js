@@ -585,7 +585,7 @@ const LikedYouScreen = () => {
           // Navigate directly to the chat with this match
           if (matchedUser) {
             const matchData = {
-              matchId: matchedUser.matchId || `match_${Date.now()}`, // Temporary ID if not available
+              matchId: matchedUser.matchId || `match_${matchedUser.id}_${user.uid}`, // Use user IDs as fallback
               otherUser: {
                 id: matchedUser.id,
                 name: matchedUser.name,

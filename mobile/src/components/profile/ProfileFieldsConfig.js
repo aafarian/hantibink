@@ -321,9 +321,9 @@ export const transformProfileData = {
       gender: apiData.gender || '',
       // Transform interestedIn - it's an array in backend
       interestedIn: Array.isArray(apiData.interestedIn)
-        ? apiData.interestedIn.length === 3
+        ? apiData.interestedIn.length === 3 // If all 3 genders, show EVERYONE
           ? 'EVERYONE'
-          : apiData.interestedIn[0] || '' // If all 3 genders, show EVERYONE
+          : apiData.interestedIn[0] || ''
         : apiData.interestedIn || '',
       // Handle relationshipType - can be string with commas or array
       relationshipType: parseRelationshipType(apiData.relationshipType),

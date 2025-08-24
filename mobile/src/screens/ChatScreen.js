@@ -15,7 +15,7 @@ import {
   ActivityIndicator,
   StatusBar,
 } from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../contexts/AuthContext';
 import { useToast } from '../contexts/ToastContext';
@@ -495,130 +495,135 @@ const ChatScreen = ({ route, navigation }) => {
   };
 
   return (
-    <View style={styles.container}>
-      {/* Status bar background for Android */}
-      {Platform.OS === 'android' && (
-        <View
-          style={{
-            height: StatusBar.currentHeight,
-            backgroundColor: '#fff',
-          }}
-        />
-      )}
+    <View style={styles.wrapper}>
+      {/* Status bar background */}
+      <SafeAreaView style={styles.statusBarBackground} edges={['top']} />
 
-      {/* Header */}
-      <View style={[styles.header, { paddingTop: Platform.OS === 'ios' ? insets.top : 0 }]}>
-        <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
-          <Ionicons name="arrow-back" size={24} color="#333" />
-        </TouchableOpacity>
+      {/* Main content */}
+      <SafeAreaView style={styles.container} edges={[]}>
+        <StatusBar backgroundColor="#f8f9fa" barStyle="dark-content" />
 
-        <TouchableOpacity
-          style={styles.headerProfile}
-          onPress={() => {
-            /* View profile */
-          }}
-        >
-          <Image
-            source={{ uri: getUserProfilePhoto(match.otherUser) }}
-            style={styles.headerAvatar}
-          />
-          <View style={styles.headerInfo}>
-            <Text style={styles.headerName}>{getUserDisplayName(match.otherUser)}</Text>
-            <View style={styles.statusRow}>
-              {isPremium && onlineStatus ? (
-                <>
-                  <View style={styles.onlineDot} />
-                  <Text style={styles.statusText}>Online</Text>
-                </>
-              ) : otherUserTyping ? (
-                <Text style={styles.statusText}>Typing...</Text>
-              ) : (
-                <Text style={styles.statusText}>Matched recently</Text>
-              )}
-            </View>
-          </View>
-        </TouchableOpacity>
-
-        <TouchableOpacity style={styles.menuButton}>
-          <Ionicons name="ellipsis-vertical" size={20} color="#333" />
-        </TouchableOpacity>
-      </View>
-
-      {/* Messages */}
-      <KeyboardAvoidingView
-        style={styles.chatContainer}
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-        keyboardVerticalOffset={Platform.OS === 'ios' ? 60 : 0}
-      >
-        {isLoading ? (
-          <View style={styles.loadingContainer}>
-            <ActivityIndicator size="large" color="#E91E63" />
-          </View>
-        ) : (
-          <FlatList
-            ref={flatListRef}
-            data={messages}
-            renderItem={renderMessage}
-            keyExtractor={item => item.id}
-            contentContainerStyle={styles.messagesList}
-            onContentSizeChange={scrollToBottom}
-            onLayout={scrollToBottom}
-            ListFooterComponent={renderTypingIndicator}
-            inverted={false}
-            keyboardShouldPersistTaps="handled"
-            maintainVisibleContentPosition={{
-              minIndexForVisible: 0,
-              autoscrollToTopThreshold: 100,
-            }}
-          />
-        )}
-
-        {/* Input */}
-        <View
-          style={[
-            styles.inputContainer,
-            { paddingBottom: Platform.OS === 'android' ? 8 : Math.max(insets.bottom, 8) },
-          ]}
-        >
-          <TouchableOpacity style={styles.attachButton} onPress={() => setShowGifPicker(true)}>
-            <Text style={styles.gifButtonText}>GIF</Text>
+        {/* Header */}
+        <View style={styles.header}>
+          <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
+            <Ionicons name="arrow-back" size={24} color="#333" />
           </TouchableOpacity>
-
-          <TextInput
-            style={styles.messageInput}
-            placeholder="Type a message..."
-            value={messageText}
-            onChangeText={handleTypingChange}
-            multiline
-            maxLength={500}
-          />
 
           <TouchableOpacity
-            style={[
-              styles.sendButton,
-              (!messageText.trim() || isSending) && styles.sendButtonDisabled,
-            ]}
-            onPress={sendMessage}
-            disabled={!messageText.trim() || isSending}
+            style={styles.headerProfile}
+            onPress={() => {
+              /* View profile */
+            }}
           >
-            <Ionicons
-              name="send"
-              size={20}
-              color={messageText.trim() && !isSending ? '#E91E63' : '#999'}
+            <Image
+              source={{ uri: getUserProfilePhoto(match.otherUser) }}
+              style={styles.headerAvatar}
             />
+            <View style={styles.headerInfo}>
+              <Text style={styles.headerName}>{getUserDisplayName(match.otherUser)}</Text>
+              <View style={styles.statusRow}>
+                {isPremium && onlineStatus ? (
+                  <>
+                    <View style={styles.onlineDot} />
+                    <Text style={styles.statusText}>Online</Text>
+                  </>
+                ) : otherUserTyping ? (
+                  <Text style={styles.statusText}>Typing...</Text>
+                ) : (
+                  <Text style={styles.statusText}>Matched recently</Text>
+                )}
+              </View>
+            </View>
+          </TouchableOpacity>
+
+          <TouchableOpacity style={styles.menuButton}>
+            <Ionicons name="ellipsis-vertical" size={20} color="#333" />
           </TouchableOpacity>
         </View>
-      </KeyboardAvoidingView>
 
-      {renderReactionPicker()}
+        {/* Messages */}
+        <KeyboardAvoidingView
+          style={styles.chatContainer}
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+          keyboardVerticalOffset={Platform.OS === 'ios' ? 60 : 0}
+        >
+          {isLoading ? (
+            <View style={styles.loadingContainer}>
+              <ActivityIndicator size="large" color="#E91E63" />
+            </View>
+          ) : (
+            <FlatList
+              ref={flatListRef}
+              data={messages}
+              renderItem={renderMessage}
+              keyExtractor={item => item.id}
+              contentContainerStyle={styles.messagesList}
+              onContentSizeChange={scrollToBottom}
+              onLayout={scrollToBottom}
+              ListFooterComponent={renderTypingIndicator}
+              inverted={false}
+              keyboardShouldPersistTaps="handled"
+              maintainVisibleContentPosition={{
+                minIndexForVisible: 0,
+                autoscrollToTopThreshold: 100,
+              }}
+            />
+          )}
+
+          {/* Input */}
+          <View
+            style={[
+              styles.inputContainer,
+              { paddingBottom: Platform.OS === 'android' ? 8 : Math.max(insets.bottom, 8) },
+            ]}
+          >
+            <TouchableOpacity style={styles.attachButton} onPress={() => setShowGifPicker(true)}>
+              <Text style={styles.gifButtonText}>GIF</Text>
+            </TouchableOpacity>
+
+            <TextInput
+              style={styles.messageInput}
+              placeholder="Type a message..."
+              value={messageText}
+              onChangeText={handleTypingChange}
+              multiline
+              maxLength={500}
+            />
+
+            <TouchableOpacity
+              style={[
+                styles.sendButton,
+                (!messageText.trim() || isSending) && styles.sendButtonDisabled,
+              ]}
+              onPress={sendMessage}
+              disabled={!messageText.trim() || isSending}
+            >
+              <Ionicons
+                name="send"
+                size={20}
+                color={messageText.trim() && !isSending ? '#E91E63' : '#999'}
+              />
+            </TouchableOpacity>
+          </View>
+        </KeyboardAvoidingView>
+
+        {renderReactionPicker()}
+      </SafeAreaView>
     </View>
   );
 };
 
 const styles = StyleSheet.create({
+  wrapper: {
+    flex: 1,
+    backgroundColor: '#f8f9fa', // Light gray background for status bar area
+  },
+  statusBarBackground: {
+    backgroundColor: '#FF6B6B', // Light gray status bar background
+  },
   container: {
     flex: 1,
-    backgroundColor: '#fff',
+    backgroundColor: '#fff', // White background for chat content
   },
   header: {
     flexDirection: 'row',
@@ -627,6 +632,7 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     borderBottomWidth: 1,
     borderBottomColor: '#f0f0f0',
+    backgroundColor: '#fff',
   },
   backButton: {
     marginRight: 12,
@@ -717,7 +723,7 @@ const styles = StyleSheet.create({
     marginBottom: 2,
   },
   ownMessageBubble: {
-    backgroundColor: '#E91E63',
+    backgroundColor: '#FF6B6B',
     borderBottomRightRadius: 4,
   },
   otherMessageBubble: {

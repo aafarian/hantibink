@@ -679,8 +679,8 @@ class ApiDataService {
       Logger.info('🎬 Sending GIF message via API...');
 
       const response = await apiClient.post(`/messages/${matchId}`, {
-        type: 'gif',
-        gifUrl,
+        messageType: 'GIF',
+        content: gifUrl,
       });
 
       if (response.success) {
