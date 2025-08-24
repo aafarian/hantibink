@@ -19,6 +19,7 @@ import { useToast } from '../../contexts/ToastContext';
 import LocationPicker from '../../components/LocationPicker';
 import SelectionPanel from '../../components/SelectionPanel';
 import Logger from '../../utils/logger';
+import { genderOptions, interestedInOptions } from '../../components/profile/ProfileFieldsConfig';
 
 const SimpleRegisterScreen = ({ navigation }) => {
   const { register } = useAuth();
@@ -113,20 +114,7 @@ const SimpleRegisterScreen = ({ navigation }) => {
     if (formData.confirmPassword) validateField('confirmPassword', formData.confirmPassword);
   };
 
-  // Gender options
-  const genderOptions = [
-    { id: 'man', label: 'Man' },
-    { id: 'woman', label: 'Woman' },
-    { id: 'non-binary', label: 'Non-binary' },
-    { id: 'other', label: 'Other' },
-  ];
-
-  // Interested in options
-  const interestedInOptions = [
-    { id: 'men', label: 'Men' },
-    { id: 'women', label: 'Women' },
-    { id: 'everyone', label: 'Everyone' },
-  ];
+  // Gender and interestedIn options are imported from ProfileFieldsConfig for consistency
 
   const updateField = (field, value) => {
     setFormData(prev => ({ ...prev, [field]: value }));

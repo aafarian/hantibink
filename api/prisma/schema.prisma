@@ -215,8 +215,8 @@ model Report {
 enum Gender {
   MALE
   FEMALE
-  NON_BINARY
   OTHER
+  EVERYONE // For interestedIn only
 }
 
 enum ActionType {

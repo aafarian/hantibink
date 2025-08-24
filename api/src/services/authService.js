@@ -62,8 +62,23 @@ const registerUser = async (userData) => {
     const hashedPassword = await bcrypt.hash(password, saltRounds);
 
     // Convert gender and interestedIn to enum values
-    const genderEnum = gender ? gender.toUpperCase() : 'OTHER';
-    const interestedInEnum = Array.isArray(interestedIn) ? interestedIn.map(g => g.toUpperCase()) : ['MALE', 'FEMALE'];
+    // Accept both old format (for backward compatibility) and new format
+    const genderEnum = gender ? 
+      (gender === 'man' || gender === 'male' ? 'MALE' : 
+       gender === 'woman' || gender === 'female' ? 'FEMALE' : 
+       gender === 'non-binary' ? 'OTHER' :
+       gender.toUpperCase()) : 'OTHER';
+    
+    // Handle interestedIn - convert to array if needed
+    const interestedInEnum = interestedIn ? 
+      (Array.isArray(interestedIn) ? interestedIn : [interestedIn])
+        .map(g => {
+          // Convert old format to new format
+          if (g === 'men' || g === 'male') return 'MALE';
+          if (g === 'women' || g === 'female') return 'FEMALE';
+          if (g === 'everyone') return 'EVERYONE';
+          return g.toUpperCase();
+        }) : ['MALE', 'FEMALE'];
 
     // Using PostgreSQL + JWT authentication (no Firebase Auth)
     const firebaseUid = null;

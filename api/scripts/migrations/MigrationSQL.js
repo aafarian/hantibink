@@ -43,24 +43,29 @@ class MigrationSQL {
   }
   
   /**
-   * Create a safe DDL statement
-   * @param {string} statement - The DDL statement (must be hardcoded)
+   * Create a safe DDL/DML statement for migrations
+   * @param {string} statement - The SQL statement (must be hardcoded)
    * @returns {Object} Migration object
    */
   static ddl(statement) {
-    // Validate it's actually a DDL statement
-    const ddlKeywords = ['CREATE', 'ALTER', 'DROP', 'TRUNCATE', 'RENAME'];
+    // Allow both DDL and DML statements for migrations
+    const allowedKeywords = [
+      // DDL statements
+      'CREATE', 'ALTER', 'DROP', 'TRUNCATE', 'RENAME',
+      // DML statements often needed in migrations
+      'UPDATE', 'INSERT', 'DELETE'
+    ];
     const firstWord = statement.trim().split(/\s+/)[0].toUpperCase();
     
-    if (!ddlKeywords.includes(firstWord)) {
-      throw new Error(`Not a DDL statement: ${firstWord}`);
+    if (!allowedKeywords.includes(firstWord)) {
+      throw new Error(`Not a valid migration statement: ${firstWord}`);
     }
     
     return {
       sql: statement,
-      isDDL: true,
+      isMigrationStatement: true,
       execute: async (prisma) => {
-        // DDL statements must use executeRawUnsafe
+        // All migration statements use executeRawUnsafe
         return prisma.$executeRawUnsafe(statement);
       }
     };

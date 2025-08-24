@@ -57,9 +57,12 @@ const calculateMatchScore = (currentUser, otherUser, filters = {}) => {
   
   // 1. MUTUAL INTEREST (most important - 100 points)
   // Both users are interested in each other's gender
-  const mutualInterest = 
-    currentUser.interestedIn.includes(otherUser.gender) &&
+  // Handle EVERYONE preference (interested in all genders)
+  const currentUserInterested = currentUser.interestedIn.includes('EVERYONE') || 
+    currentUser.interestedIn.includes(otherUser.gender);
+  const otherUserInterested = otherUser.interestedIn.includes('EVERYONE') || 
     otherUser.interestedIn.includes(currentUser.gender);
+  const mutualInterest = currentUserInterested && otherUserInterested;
   
   if (mutualInterest) {
     score += 100;
@@ -270,8 +273,15 @@ const getUsersForDiscovery = async (currentUserId, options = {}) => {
 
     // In strict mode, only get users matching preferences
     if (strictMode) {
-      baseWhereClause.gender = { in: currentUser.interestedIn };
-      baseWhereClause.interestedIn = { hasSome: [currentUser.gender] };
+      // If user is interested in EVERYONE, don't filter by gender
+      if (!currentUser.interestedIn.includes('EVERYONE')) {
+        baseWhereClause.gender = { in: currentUser.interestedIn };
+      }
+      // Check if other users would be interested in current user
+      baseWhereClause.OR = [
+        { interestedIn: { hasSome: [currentUser.gender] } },
+        { interestedIn: { hasSome: ['EVERYONE'] } }
+      ];
     }
 
     // Only include users with photos if filter is set
@@ -345,10 +355,12 @@ const getUsersForDiscovery = async (currentUserId, options = {}) => {
             ? user.relationshipType.split(',').map(s => s.trim())
             : [user.relationshipType])
           : [],
-        // Flag if this user matches preferences
+        // Flag if this user matches preferences (handle EVERYONE)
         matchesPreferences: 
-          currentUser.interestedIn.includes(user.gender) &&
-          user.interestedIn.includes(currentUser.gender),
+          (currentUser.interestedIn.includes('EVERYONE') || 
+           currentUser.interestedIn.includes(user.gender)) &&
+          (user.interestedIn.includes('EVERYONE') || 
+           user.interestedIn.includes(currentUser.gender)),
       };
     });
 
