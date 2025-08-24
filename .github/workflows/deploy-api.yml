@@ -78,7 +78,7 @@ jobs:
             --platform managed \
             --region $REGION \
             --allow-unauthenticated \
-            --set-env-vars="NODE_ENV=production,HOST=0.0.0.0,FIREBASE_PROJECT_ID=hantibink,DATABASE_URL=${{ secrets.SUPABASE_DATABASE_URL }},JWT_SECRET=${{ secrets.JWT_SECRET }}" \
+            --set-env-vars="NODE_ENV=production,HOST=0.0.0.0,FIREBASE_PROJECT_ID=hantibink,DATABASE_URL=${{ secrets.SUPABASE_DATABASE_URL }},DIRECT_URL=${{ secrets.SUPABASE_DIRECT_URL }},JWT_SECRET=${{ secrets.JWT_SECRET }}" \
             --min-instances=0 \
             --max-instances=10 \
             --memory=512Mi
@@ -93,3 +93,70 @@ jobs:
         run: |
           curl -f ${{ env.SERVICE_URL }}/health || exit 1
           echo "Health check passed!"
+
+      # Migration check - always runs but doesn't fail the build
+      - name: Check for pending migrations
+        id: migration-check
+        continue-on-error: true
+        working-directory: ./api
+        run: |
+          # Install dependencies first (needed for Prisma client)
+          npm ci --omit=dev
+          
+          # Generate Prisma client
+          npx prisma generate
+          
+          # Run the migration check
+          DATABASE_URL="${{ secrets.SUPABASE_DATABASE_URL }}" \
+          DIRECT_URL="${{ secrets.SUPABASE_DIRECT_URL }}" \
+          node scripts/ci-migration-check.js | tee migration-output.txt
+          
+          # Extract status
+          STATUS=$(grep "^STATUS=" migration-output.txt | cut -d= -f2)
+          PENDING=$(grep "^PENDING_MIGRATIONS=" migration-output.txt | cut -d= -f2)
+          
+          echo "migration_status=$STATUS" >> $GITHUB_OUTPUT
+          echo "pending_migrations=$PENDING" >> $GITHUB_OUTPUT
+          
+          # Show output in logs
+          cat migration-output.txt
+          rm migration-output.txt
+
+      - name: Migration notification
+        if: steps.migration-check.outputs.migration_status == 'PENDING' || steps.migration-check.outputs.migration_status == 'NO_TABLE'
+        run: |
+          echo "::warning title=Pending Database Migration::Database migrations required: ${{ steps.migration-check.outputs.pending_migrations }}"
+          echo "## 📋 Migration Required" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Status:** Pending migrations detected after deployment" >> $GITHUB_STEP_SUMMARY
+          echo "**Migrations needed:** ${{ steps.migration-check.outputs.pending_migrations }}" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### To apply migrations manually:" >> $GITHUB_STEP_SUMMARY
+          echo "\`\`\`bash" >> $GITHUB_STEP_SUMMARY
+          echo "cd api" >> $GITHUB_STEP_SUMMARY
+          echo "npm run migrate:prod:status  # Check status" >> $GITHUB_STEP_SUMMARY
+          echo "npm run migrate:prod         # Apply migrations" >> $GITHUB_STEP_SUMMARY
+          echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### To enable auto-migration:" >> $GITHUB_STEP_SUMMARY
+          echo "Add repository variable \`AUTO_MIGRATE=true\` in GitHub settings" >> $GITHUB_STEP_SUMMARY
+          
+      # Optional: Auto-migrate if enabled (controlled by repository variable)
+      - name: Auto-migrate (if enabled)
+        if: |
+          (steps.migration-check.outputs.migration_status == 'PENDING' || 
+           steps.migration-check.outputs.migration_status == 'NO_TABLE') && 
+          vars.AUTO_MIGRATE == 'true'
+        working-directory: ./api
+        run: |
+          echo "🔄 Running automatic migration..."
+          echo "Pending migrations: ${{ steps.migration-check.outputs.pending_migrations }}"
+          
+          DATABASE_URL="${{ secrets.SUPABASE_DATABASE_URL }}" \
+          DIRECT_URL="${{ secrets.SUPABASE_DIRECT_URL }}" \
+          npm run migrate:prod
+          
+          echo "✅ Migrations applied automatically"
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "## ✅ Auto-Migration Complete" >> $GITHUB_STEP_SUMMARY
+          echo "Successfully applied migrations: ${{ steps.migration-check.outputs.pending_migrations }}" >> $GITHUB_STEP_SUMMARY

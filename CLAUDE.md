@@ -118,3 +118,127 @@
 - All API calls should go through `ApiClient` or `ApiDataService`
 - Toast notifications are handled via `ToastContext`
 - Location services are managed via `LocationContext`
+
+# React Hooks Best Practices
+
+## useEffect Dependencies
+
+### Always include all dependencies
+
+```javascript
+// ❌ BAD - Missing dependency
+useEffect(() => {
+  doSomething(value);
+}, []); // 'value' is missing
+
+// ✅ GOOD - All dependencies included
+useEffect(() => {
+  doSomething(value);
+}, [value]);
+```
+
+### Use useCallback for functions used in useEffect
+
+```javascript
+// ❌ BAD - Function recreated every render
+const loadData = async () => {
+  const data = await fetchData(userId);
+  setData(data);
+};
+
+useEffect(() => {
+  loadData();
+}, []); // Missing dependency
+
+// ✅ GOOD - Function memoized with dependencies
+const loadData = useCallback(async () => {
+  const data = await fetchData(userId);
+  setData(data);
+}, [userId]);
+
+useEffect(() => {
+  loadData();
+}, [loadData]);
+```
+
+### Use useMemo for derived values
+
+```javascript
+// ❌ BAD - Creates new object every render
+const config = route?.params?.config || {};
+
+const doSomething = useCallback(() => {
+  // uses config
+}, [config]); // Changes every render!
+
+// ✅ GOOD - Memoized value
+const config = useMemo(
+  () => route?.params?.config || {},
+  [route?.params?.config],
+);
+
+const doSomething = useCallback(() => {
+  // uses config
+}, [config]); // Stable reference
+```
+
+## Common Patterns
+
+### Loading data on mount
+
+```javascript
+const Component = ({ userId }) => {
+  const [data, setData] = useState(null);
+
+  // Memoize the loading function
+  const loadData = useCallback(async () => {
+    try {
+      const result = await fetchData(userId);
+      setData(result);
+    } catch (error) {
+      Logger.error("Failed to load:", error);
+    }
+  }, [userId]);
+
+  // Load on mount and when dependencies change
+  useEffect(() => {
+    loadData();
+  }, [loadData]);
+};
+```
+
+### Using route params
+
+```javascript
+const Screen = ({ route }) => {
+  // Memoize route params to prevent unnecessary re-renders
+  const params = useMemo(() => route?.params || {}, [route?.params]);
+
+  const [state, setState] = useState({
+    value: params.initialValue || "default",
+  });
+};
+```
+
+## Key Rules
+
+1. **Always specify dependencies** - Never use empty arrays unless you truly want the effect to run only once
+2. **Use useCallback for functions** - Especially if they're used in useEffect or passed as props
+3. **Use useMemo for expensive computations** - Or when creating objects/arrays used as dependencies
+4. **Don't lie about dependencies** - Include all values from component scope that are used inside the effect
+5. **Use eslint-plugin-react-hooks** - It will catch most dependency issues
+
+## React Keys
+
+### Use stable, unique values as keys
+
+```javascript
+// ❌ BAD - Index can cause issues with reordering
+items.map((item, index) => <Item key={index} />);
+
+// ✅ GOOD - Stable unique identifier
+items.map((item) => <Item key={item.id} />);
+
+// ✅ GOOD - For simple strings/numbers
+items.map((item) => <Item key={item} />);
+```
