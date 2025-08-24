@@ -9,25 +9,18 @@
  */
 
 const { PrismaClient } = require('@prisma/client');
-const fs = require('fs').promises;
-const path = require('path');
 const logger = require('../src/utils/logger');
+const MigrationSQL = require('./migrations/MigrationSQL');
 
 const prisma = new PrismaClient();
 
-// Migration definitions
+// Migration definitions using MigrationSQL helper
 const MIGRATIONS = [
   {
     id: '20240824_add_languages',
     name: 'Add languages field to users',
-    checkSQL: `
-      SELECT column_name 
-      FROM information_schema.columns 
-      WHERE table_name = 'users' 
-      AND column_name = 'languages'
-    `,
-    upSQL: `ALTER TABLE "users" ADD COLUMN IF NOT EXISTS "languages" TEXT[] DEFAULT ARRAY[]::TEXT[]`,
-    downSQL: `ALTER TABLE "users" DROP COLUMN IF EXISTS "languages"`,
+    up: MigrationSQL.addColumn('users', 'languages', 'TEXT[]', 'ARRAY[]::TEXT[]'),
+    down: MigrationSQL.dropColumn('users', 'languages'),
     verify: async () => {
       const result = await prisma.$queryRaw`
         SELECT column_name, data_type 
@@ -38,12 +31,10 @@ const MIGRATIONS = [
       return result.length > 0;
     }
   }
+  // Future migrations will follow this same pattern
 ];
 
 // Migration table setup
-// Using "app_migrations" to avoid confusion with Prisma's built-in "_prisma_migrations"
-const MIGRATION_TABLE = 'app_migrations';
-
 async function ensureMigrationTable() {
   try {
     await prisma.$executeRaw`
@@ -108,12 +99,8 @@ async function up() {
       
       logger.info(`📝 Applying migration: ${migration.name}`);
       
-      // Run the migration
-      // Note: Using $executeRawUnsafe is safe here because:
-      // 1. SQL strings are hardcoded in the migrations array (not user input)
-      // 2. DDL statements (ALTER TABLE) don't work with parameterized queries
-      // 3. This script is only run by administrators, not exposed to users
-      await prisma.$executeRawUnsafe(migration.upSQL);
+      // Run the migration using MigrationSQL helper
+      await migration.up.execute(prisma);
       
       // Verify it worked
       const verified = await migration.verify();
@@ -155,9 +142,8 @@ async function down() {
       
       logger.info(`📝 Rolling back migration: ${migration.name}`);
       
-      // Run the rollback
-      // Note: Using $executeRawUnsafe is safe here (see comment in up() function)
-      await prisma.$executeRawUnsafe(migration.downSQL);
+      // Run the rollback using MigrationSQL helper
+      await migration.down.execute(prisma);
       
       // Verify rollback worked
       const stillExists = await migration.verify();
