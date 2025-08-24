@@ -160,3 +160,52 @@ jobs:
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "## ✅ Auto-Migration Complete" >> $GITHUB_STEP_SUMMARY
           echo "Successfully applied migrations: ${{ steps.migration-check.outputs.pending_migrations }}" >> $GITHUB_STEP_SUMMARY
+
+  # Separate job for migration status - shows as its own check
+  migration-status:
+    name: Migration Status
+    runs-on: ubuntu-latest
+    needs: deploy  # Run after deployment
+    if: always()  # Run even if deployment fails
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          cache: 'npm'
+          cache-dependency-path: api/package-lock.json
+
+      - name: Install dependencies
+        working-directory: ./api
+        run: npm ci --omit=dev
+
+      - name: Generate Prisma client
+        working-directory: ./api
+        run: npx prisma generate
+
+      - name: Check migration status
+        working-directory: ./api
+        env:
+          DATABASE_URL: ${{ secrets.SUPABASE_DATABASE_URL }}
+          DIRECT_URL: ${{ secrets.SUPABASE_DIRECT_URL }}
+        run: |
+          # Run check and capture exit code
+          set +e
+          node scripts/ci-migration-check.js
+          EXIT_CODE=$?
+          set -e
+          
+          # Display result
+          if [ $EXIT_CODE -eq 0 ]; then
+            echo "✅ Migration check completed successfully"
+          else
+            echo "⚠️ Migration check failed with exit code $EXIT_CODE"
+            echo "Check the deployment job for migration details"
+          fi
+          
+          # Always exit 0 since this is just for visibility
+          exit 0
