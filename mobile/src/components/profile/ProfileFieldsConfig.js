@@ -87,6 +87,24 @@ export const interestOptions = [
   'Learning',
 ];
 
+// Language options
+export const languageOptions = [
+  'Armenian (Western)',
+  'Armenian (Eastern)',
+  'English',
+  'Spanish',
+  'French',
+  'Mandarin',
+  'Arabic',
+  'Hindi',
+  'Portuguese',
+  'Russian',
+  'Japanese',
+  'German',
+  'Korean',
+  'Italian',
+];
+
 // Field configurations for forms
 export const profileFieldsConfig = {
   // Text Input Fields
@@ -132,7 +150,7 @@ export const profileFieldsConfig = {
     },
   ],
 
-  // Selection Panel Fields
+  // Selection Panel Fields (single select)
   selectionFields: [
     {
       key: 'education',
@@ -169,6 +187,18 @@ export const profileFieldsConfig = {
       placeholder: 'Do you drink?',
       options: drinkingOptions,
       singleSelect: true,
+    },
+  ],
+
+  // Multi-select dropdown fields (with checkboxes)
+  multiSelectFields: [
+    {
+      key: 'languages',
+      label: 'Languages Spoken',
+      placeholder: 'Select languages',
+      options: languageOptions,
+      multiSelect: true,
+      maxSelections: 10, // Allow many languages
     },
   ],
 
@@ -265,6 +295,7 @@ export const transformProfileData = {
       interests: Array.isArray(apiData.interests)
         ? apiData.interests.map(i => (typeof i === 'object' ? i.interest?.name || i.name : i))
         : [],
+      languages: Array.isArray(apiData.languages) ? apiData.languages : [],
     };
   },
 };

@@ -13,6 +13,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { getUserProfilePhoto } from '../utils/profileHelpers';
 import Logger from '../utils/logger';
+import { formatDistanceAway } from '../utils/distanceUtils';
 
 const { width, height } = Dimensions.get('window');
 const SWIPE_THRESHOLD = width * 0.25;
@@ -55,7 +56,15 @@ const SwipeableCard = ({ profile, isTop, position, scale, opacity }) => {
           <Text style={styles.cardName}>
             {profile.name}, {profile.age}
           </Text>
-          {profile.location && (
+          {profile.distance !== null && profile.distance !== undefined && (
+            <View style={styles.locationRow}>
+              <Ionicons name="location-outline" size={16} color="#fff" />
+              <Text style={styles.cardLocation}>
+                {formatDistanceAway(profile.distance, 'both')}
+              </Text>
+            </View>
+          )}
+          {!profile.distance && profile.location && (
             <View style={styles.locationRow}>
               <Ionicons name="location-outline" size={16} color="#fff" />
               <Text style={styles.cardLocation}>{profile.location}</Text>

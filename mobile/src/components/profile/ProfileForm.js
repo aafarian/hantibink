@@ -327,8 +327,72 @@ const ProfileForm = forwardRef(
         ));
     };
 
+    const renderMultiSelectFields = () => {
+      return (profileFieldsConfig.multiSelectFields || [])
+        .filter(field => !excludeFields.includes(field.key))
+        .map(field => (
+          <View key={field.key} style={styles.multiSelectContainer}>
+            <TouchableOpacity
+              style={[
+                styles.selectorButton,
+                changedFields.has(field.key) && styles.selectorButtonChanged,
+              ]}
+              onPress={() => showSelectionPanel(field.key)}
+            >
+              <View style={styles.labelContainer}>
+                <Text style={[styles.label, changedFields.has(field.key) && styles.labelChanged]}>
+                  {field.label}
+                </Text>
+                {changedFields.has(field.key) && (
+                  <View style={styles.changedIndicator}>
+                    <Text style={styles.changedText}>Modified</Text>
+                  </View>
+                )}
+              </View>
+              <View style={styles.selectorRow}>
+                <Text
+                  style={[
+                    styles.selectorText,
+                    changedFields.has(field.key) && styles.selectorTextChanged,
+                  ]}
+                >
+                  {formData[field.key] && formData[field.key].length > 0
+                    ? `${formData[field.key].length} selected`
+                    : field.placeholder}
+                </Text>
+                <Ionicons
+                  name="chevron-forward"
+                  size={20}
+                  color={changedFields.has(field.key) ? '#4CAF50' : '#666'}
+                />
+              </View>
+            </TouchableOpacity>
+
+            {/* Display selected items as tags below */}
+            {formData[field.key] && formData[field.key].length > 0 && (
+              <View style={styles.selectedTagsContainer}>
+                {formData[field.key].map(item => (
+                  <View key={item} style={styles.selectedTag}>
+                    <Text style={styles.selectedTagText}>{item}</Text>
+                    <TouchableOpacity
+                      onPress={() => {
+                        const newValues = formData[field.key].filter(v => v !== item);
+                        updateField(field.key, newValues);
+                      }}
+                      style={styles.removeTagButton}
+                    >
+                      <Ionicons name="close-circle" size={16} color="#FF6B6B" />
+                    </TouchableOpacity>
+                  </View>
+                ))}
+              </View>
+            )}
+          </View>
+        ));
+    };
+
     const renderSelectionPanels = () => {
-      return profileFieldsConfig.selectionFields
+      const singleSelectPanels = profileFieldsConfig.selectionFields
         .filter(field => !excludeFields.includes(field.key))
         .map(field => (
           <SelectionPanel
@@ -345,6 +409,25 @@ const ProfileForm = forwardRef(
             initialScrollIndex={field.initialScrollIndex}
           />
         ));
+
+      const multiSelectPanels = (profileFieldsConfig.multiSelectFields || [])
+        .filter(field => !excludeFields.includes(field.key))
+        .map(field => (
+          <SelectionPanel
+            key={`panel-${field.key}`}
+            visible={selectionPanels[field.key] || false}
+            title={field.label}
+            options={field.options}
+            selectedValues={formData[field.key] || []}
+            multiSelect={true}
+            onSelect={values => {
+              updateField(field.key, values);
+            }}
+            onClose={() => hideSelectionPanel(field.key)}
+          />
+        ));
+
+      return [...singleSelectPanels, ...multiSelectPanels];
     };
 
     return (
@@ -369,6 +452,7 @@ const ProfileForm = forwardRef(
             <Text style={styles.sectionTitle}>Basic Info</Text>
             {renderTextFields()}
             {renderSelectionFields()}
+            {renderMultiSelectFields()}
           </View>
 
           {/* Bubble Fields Sections */}
@@ -438,6 +522,35 @@ const styles = StyleSheet.create({
   },
   selectorButton: {
     marginBottom: 20,
+  },
+  multiSelectContainer: {
+    marginBottom: 20,
+  },
+  selectedTagsContainer: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    marginTop: 12,
+    marginHorizontal: 4,
+  },
+  selectedTag: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#FFF5F5',
+    borderWidth: 1,
+    borderColor: '#FFE0E0',
+    borderRadius: 16,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    marginRight: 8,
+    marginBottom: 8,
+  },
+  selectedTagText: {
+    fontSize: 14,
+    color: '#666',
+    marginRight: 4,
+  },
+  removeTagButton: {
+    marginLeft: 4,
   },
   selectorRow: {
     flexDirection: 'row',

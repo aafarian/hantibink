@@ -17,6 +17,7 @@ import SwipeableCardStack from '../components/SwipeableCardStack';
 import MatchModal from '../components/MatchModal';
 import Logger from '../utils/logger';
 import { getUserProfilePhoto } from '../utils/profileHelpers';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const BATCH_SIZE = 10; // Load 10 profiles at a time
 
@@ -38,21 +39,60 @@ const PeopleScreenOptimized = ({ navigation }) => {
   const processedIds = useRef(new Set());
   const cardStackRef = useRef(null);
 
-  // Filters state
+  // Filters state - load from storage or use defaults
   const [filters, setFilters] = useState({
     minAge: 18,
     maxAge: 50,
-    maxDistance: 50,
-    interestedIn: null,
+    maxDistance: 100,
+    interestedIn: userProfile?.interestedIn || [],
+    strictAge: false,
+    strictDistance: false,
+    relationshipType: [],
+    strictRelationshipType: false,
+    education: [],
+    strictEducation: false,
+    smoking: [],
+    strictSmoking: false,
+    drinking: [],
+    strictDrinking: false,
+    languages: [],
+    strictLanguages: false,
   });
+  const [filtersLoaded, setFiltersLoaded] = useState(false);
 
-  // Initial load
+  // Load filters from AsyncStorage
   useEffect(() => {
-    if (user?.uid && userProfile) {
+    const loadFilters = async () => {
+      try {
+        const savedFilters = await AsyncStorage.getItem('userFilters');
+        if (savedFilters) {
+          const parsed = JSON.parse(savedFilters);
+          Logger.info('📱 Loaded saved filters from storage');
+          setFilters(prev => ({
+            ...prev,
+            ...parsed,
+            interestedIn: userProfile?.interestedIn || parsed.interestedIn || [],
+          }));
+        }
+      } catch (error) {
+        Logger.error('Failed to load filters from storage:', error);
+      } finally {
+        setFiltersLoaded(true);
+      }
+    };
+
+    if (userProfile) {
+      loadFilters();
+    }
+  }, [userProfile]);
+
+  // Initial load - wait for filters to be loaded
+  useEffect(() => {
+    if (user?.uid && userProfile && filtersLoaded) {
       loadInitialProfiles();
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [user?.uid, userProfile]);
+  }, [user?.uid, userProfile, filtersLoaded]);
 
   // Listen for real-time match events
   useEffect(() => {
@@ -81,6 +121,22 @@ const PeopleScreenOptimized = ({ navigation }) => {
       const result = await ApiDataService.getUsersForDiscovery({
         limit: BATCH_SIZE,
         excludeIds: Array.from(processedIds.current),
+        filters: {
+          ageRange: { min: filters.minAge, max: filters.maxAge },
+          maxDistance: filters.maxDistance,
+          strictAge: filters.strictAge || false,
+          strictDistance: filters.strictDistance || false,
+          relationshipType: filters.relationshipType,
+          strictRelationshipType: filters.strictRelationshipType || false,
+          education: filters.education,
+          strictEducation: filters.strictEducation || false,
+          smoking: filters.smoking,
+          strictSmoking: filters.strictSmoking || false,
+          drinking: filters.drinking,
+          strictDrinking: filters.strictDrinking || false,
+          languages: filters.languages,
+          strictLanguages: filters.strictLanguages || false,
+        },
       });
 
       if (result && result.length > 0) {
@@ -119,6 +175,22 @@ const PeopleScreenOptimized = ({ navigation }) => {
       const result = await ApiDataService.getUsersForDiscovery({
         limit: BATCH_SIZE,
         excludeIds: Array.from(processedIds.current),
+        filters: {
+          ageRange: { min: filters.minAge, max: filters.maxAge },
+          maxDistance: filters.maxDistance,
+          strictAge: filters.strictAge || false,
+          strictDistance: filters.strictDistance || false,
+          relationshipType: filters.relationshipType,
+          strictRelationshipType: filters.strictRelationshipType || false,
+          education: filters.education,
+          strictEducation: filters.strictEducation || false,
+          smoking: filters.smoking,
+          strictSmoking: filters.strictSmoking || false,
+          drinking: filters.drinking,
+          strictDrinking: filters.strictDrinking || false,
+          languages: filters.languages,
+          strictLanguages: filters.strictLanguages || false,
+        },
       });
 
       if (result && result.length > 0) {
@@ -146,7 +218,7 @@ const PeopleScreenOptimized = ({ navigation }) => {
     } finally {
       setIsLoadingMore(false);
     }
-  }, [hasInitialized, isLoading, isLoadingMore, hasMore]);
+  }, [hasInitialized, isLoading, isLoadingMore, hasMore, filters]);
 
   // Handle swipe left (pass)
   const handleSwipeLeft = useCallback(async profile => {

@@ -19,11 +19,18 @@ const SelectionPanel = ({
   title,
   options,
   selectedValues,
+  selectedOption, // For backward compatibility with single select
   onSelect,
   multiSelect = false,
   placeholder: _placeholder = 'Select an option',
   initialScrollIndex = 0,
 }) => {
+  // Handle both selectedValues and selectedOption for backward compatibility
+  const actualSelectedValues = multiSelect
+    ? selectedValues || []
+    : selectedOption
+      ? [selectedOption]
+      : [];
   const slideAnim = useRef(new Animated.Value(300)).current;
   const scrollViewRef = useRef(null);
 
@@ -55,10 +62,10 @@ const SelectionPanel = ({
   const handleSelect = option => {
     if (multiSelect) {
       // For multi-select, toggle the selection
-      const isSelected = selectedValues.includes(option);
+      const isSelected = actualSelectedValues.includes(option);
       const newValues = isSelected
-        ? selectedValues.filter(value => value !== option)
-        : [...selectedValues, option];
+        ? actualSelectedValues.filter(value => value !== option)
+        : [...actualSelectedValues, option];
       onSelect(newValues);
     } else {
       // For single select, just select the option
@@ -69,22 +76,6 @@ const SelectionPanel = ({
 
   const handleConfirm = () => {
     onClose();
-  };
-
-  const _getDisplayText = () => {
-    if (!selectedValues || selectedValues.length === 0) {
-      return '';
-    }
-
-    if (multiSelect) {
-      if (selectedValues.length === 1) {
-        return selectedValues[0];
-      }
-      return `${selectedValues.length} selected`;
-    }
-
-    // For single select, return the first value
-    return selectedValues[0];
   };
 
   return (
@@ -124,9 +115,7 @@ const SelectionPanel = ({
                 const optionLabel = typeof option === 'object' ? option.label : option;
                 const optionValue = typeof option === 'object' ? option.id : option;
 
-                const isSelected = multiSelect
-                  ? selectedValues.includes(optionValue)
-                  : selectedValues === optionValue;
+                const isSelected = actualSelectedValues.includes(optionValue);
 
                 return (
                   <TouchableOpacity
@@ -138,10 +127,17 @@ const SelectionPanel = ({
                     ]}
                     onPress={() => handleSelect(optionValue)}
                   >
+                    {multiSelect && (
+                      <View style={[styles.checkbox, isSelected && styles.checkboxSelected]}>
+                        {isSelected && <MaterialIcons name="check" size={16} color="#fff" />}
+                      </View>
+                    )}
                     <Text style={[styles.optionText, isSelected && styles.optionTextSelected]}>
                       {optionLabel}
                     </Text>
-                    {isSelected && <MaterialIcons name="check" size={20} color="#007AFF" />}
+                    {!multiSelect && isSelected && (
+                      <MaterialIcons name="check" size={20} color="#007AFF" />
+                    )}
                   </TouchableOpacity>
                 );
               })}
@@ -222,8 +218,23 @@ const styles = StyleSheet.create({
     color: '#007AFF',
     fontWeight: '600',
   },
+  checkbox: {
+    width: 24,
+    height: 24,
+    borderRadius: 4,
+    borderWidth: 2,
+    borderColor: '#C8C7CC',
+    backgroundColor: '#fff',
+    marginRight: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  checkboxSelected: {
+    backgroundColor: '#FF6B6B',
+    borderColor: '#FF6B6B',
+  },
   confirmButton: {
-    backgroundColor: '#007AFF',
+    backgroundColor: '#FF6B6B',
     margin: 20,
     padding: 15,
     borderRadius: 8,
