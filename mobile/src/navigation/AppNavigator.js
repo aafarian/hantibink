@@ -18,6 +18,7 @@ import PeopleScreenOptimized from '../screens/PeopleScreenOptimized';
 import FilterScreen from '../screens/FilterScreen';
 import LikedYouScreen from '../screens/LikedYouScreen';
 import MessagesScreen from '../screens/MessagesScreen';
+import ChatScreen from '../screens/ChatScreen';
 
 // Import auth navigator
 import AuthNavigator from './AuthNavigator';
@@ -158,6 +159,13 @@ const MessagesStack = () => {
           },
         }}
       />
+      <Stack.Screen
+        name="Chat"
+        component={ChatScreen}
+        options={{
+          headerShown: false, // ChatScreen has its own header
+        }}
+      />
     </Stack.Navigator>
   );
 };
@@ -237,7 +245,6 @@ const AppNavigator = () => {
         <LocationProvider>
           {(() => {
             if (user && userProfile) {
-              // console.log('🎯 User logged in - showing main app');
               return (
                 <>
                   <MainNavigator />
@@ -245,7 +252,6 @@ const AppNavigator = () => {
                 </>
               );
             } else {
-              // console.log('🚪 No user - showing auth flow');
               return <AuthNavigator />;
             }
           })()}

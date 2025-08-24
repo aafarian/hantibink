@@ -240,10 +240,13 @@ export const AuthProvider = ({ children }) => {
         // Pass gender and interestedIn directly - backend handles conversion
         gender: userData.gender,
         // Ensure interestedIn is always an array, handle null/undefined
+        // Convert EVERYONE to array of all genders
         interestedIn: userData.interestedIn
-          ? Array.isArray(userData.interestedIn)
-            ? userData.interestedIn
-            : [userData.interestedIn]
+          ? userData.interestedIn === 'EVERYONE'
+            ? ['MALE', 'FEMALE', 'OTHER']
+            : Array.isArray(userData.interestedIn)
+              ? userData.interestedIn
+              : [userData.interestedIn]
           : [],
         // Use uploaded photo URLs
         photos: uploadedPhotoUrls,

@@ -86,10 +86,32 @@ const PeopleScreenOptimized = ({ navigation }) => {
     }
   }, [userProfile]);
 
-  // Initial load - wait for filters to be loaded
+  // Track previous interestedIn to detect changes
+  const prevInterestedInRef = useRef();
+
+  // Initial load and handle interestedIn changes
   useEffect(() => {
     if (user?.uid && userProfile && filtersLoaded) {
-      loadInitialProfiles();
+      // Check if interestedIn changed
+      const interestedInChanged =
+        prevInterestedInRef.current &&
+        JSON.stringify(prevInterestedInRef.current) !== JSON.stringify(userProfile.interestedIn);
+
+      if (interestedInChanged) {
+        Logger.info('🔄 Interested in changed, clearing cache and reloading...');
+        processedIds.current.clear();
+        setProfiles([]);
+        setHasMore(true);
+        setHasInitialized(false);
+      }
+
+      // Store current interestedIn for next comparison
+      prevInterestedInRef.current = userProfile.interestedIn;
+
+      // Load profiles only if not already initialized or if interestedIn changed
+      if (!hasInitialized || interestedInChanged) {
+        loadInitialProfiles();
+      }
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user?.uid, userProfile, filtersLoaded]);
@@ -121,7 +143,7 @@ const PeopleScreenOptimized = ({ navigation }) => {
       Logger.info('📱 Loading initial profiles batch...');
       const result = await ApiDataService.getUsersForDiscovery({
         limit: BATCH_SIZE,
-        excludeIds: Array.from(processedIds.current),
+        excludeIds: [], // Let the backend handle all exclusions based on database state
         filters: {
           ageRange: { min: filtersToUse.minAge, max: filtersToUse.maxAge },
           maxDistance: filtersToUse.maxDistance,
@@ -142,11 +164,12 @@ const PeopleScreenOptimized = ({ navigation }) => {
       });
 
       if (result && result.length > 0) {
+        // Backend already excludes swiped users, just filter session duplicates
         const newProfiles = result.filter(p => {
           if (processedIds.current.has(p.id)) {
+            Logger.warn(`Duplicate profile ${p.id} filtered out`);
             return false;
           }
-          processedIds.current.add(p.id);
           return true;
         });
 
@@ -176,7 +199,7 @@ const PeopleScreenOptimized = ({ navigation }) => {
       Logger.info('📱 Loading more profiles...');
       const result = await ApiDataService.getUsersForDiscovery({
         limit: BATCH_SIZE,
-        excludeIds: Array.from(processedIds.current),
+        excludeIds: [], // Let the backend handle all exclusions based on database state
         filters: {
           ageRange: { min: filters.minAge, max: filters.maxAge },
           maxDistance: filters.maxDistance,
@@ -197,11 +220,12 @@ const PeopleScreenOptimized = ({ navigation }) => {
       });
 
       if (result && result.length > 0) {
+        // Backend already excludes swiped users, just filter session duplicates
         const newProfiles = result.filter(p => {
           if (processedIds.current.has(p.id)) {
+            Logger.warn(`Duplicate profile ${p.id} filtered out`);
             return false;
           }
-          processedIds.current.add(p.id);
           return true;
         });
 
@@ -227,6 +251,8 @@ const PeopleScreenOptimized = ({ navigation }) => {
   const handleSwipeLeft = useCallback(async profile => {
     try {
       Logger.info(`👈 Swiped left on ${profile.name}`);
+      // Mark as processed to avoid showing again in this session
+      processedIds.current.add(profile.id);
 
       // Fire and forget - don't wait for API response
       ApiDataService.passUser(profile.id).catch(error => {
@@ -242,6 +268,8 @@ const PeopleScreenOptimized = ({ navigation }) => {
     async profile => {
       try {
         Logger.info(`👉 Swiped right on ${profile.name}`);
+        // Mark as processed to avoid showing again in this session
+        processedIds.current.add(profile.id);
 
         // Send like to API
         const result = await ApiDataService.likeUser(profile.id);

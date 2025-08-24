@@ -16,6 +16,7 @@ class SocketService {
     this.matchListeners = new Set();
     this.connectionListeners = new Set();
     this.likedYouListeners = new Set();
+    this.userStatusListeners = new Set();
   }
 
   /**
@@ -125,6 +126,23 @@ class SocketService {
       Logger.info('🟢 User online status:', data);
       this.matchListeners.forEach(callback => callback('user-online-status', data));
     });
+
+    // Additional online/offline events for user status tracking
+    this.socket.on('user-online', data => {
+      Logger.info('🟢 User came online:', data);
+      this.userStatusListeners.forEach(callback => callback(data.userId, true));
+    });
+
+    this.socket.on('user-offline', data => {
+      Logger.info('🔴 User went offline:', data);
+      this.userStatusListeners.forEach(callback => callback(data.userId, false));
+    });
+
+    // Message reaction events
+    this.socket.on('message-reaction', data => {
+      Logger.info('😊 Message reaction received:', data);
+      this.messageListeners.forEach(callback => callback('message-reaction', data));
+    });
   }
 
   /**
@@ -216,6 +234,18 @@ class SocketService {
   }
 
   /**
+   * Subscribe to user status updates
+   */
+  onUserStatus(callback) {
+    this.userStatusListeners.add(callback);
+    Logger.info('👂 User status listener added');
+    return () => {
+      this.userStatusListeners.delete(callback);
+      Logger.info('🔇 User status listener removed');
+    };
+  }
+
+  /**
    * Disconnect from WebSocket server
    */
   disconnect() {
@@ -231,6 +261,7 @@ class SocketService {
       this.matchListeners.clear();
       this.connectionListeners.clear();
       this.likedYouListeners.clear();
+      this.userStatusListeners.clear();
     }
   }
 

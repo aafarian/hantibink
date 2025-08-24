@@ -40,9 +40,22 @@ export const useTabNavigation = () => {
   const navigateToProfile = () => navigateToTab('Profile');
   const navigateToLikedYou = () => navigateToTab('Liked You');
 
+  const navigateToChat = match => {
+    // First navigate to Messages tab
+    navigateToTab('Messages');
+    // Then navigate to the Chat screen within the Messages stack
+    setTimeout(() => {
+      navigation.navigate('Messages', {
+        screen: 'Chat',
+        params: { match },
+      });
+    }, 100);
+  };
+
   return {
     navigateToTab,
     navigateToMessages,
+    navigateToChat,
     navigateToPeople,
     navigateToProfile,
     navigateToLikedYou,
