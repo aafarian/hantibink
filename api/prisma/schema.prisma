@@ -10,135 +10,135 @@ datasource db {
 }
 
 model User {
-  id                                          String              @id @default(cuid())
-  createdAt                                   DateTime            @default(now())
-  updatedAt                                   DateTime            @updatedAt
-  email                                       String              @unique
-  password                                    String
-  firebaseUid                                 String?             @unique
-  name                                        String
-  birthDate                                   DateTime
-  gender                                      Gender
-  interestedIn                                Gender[]
-  bio                                         String?
-  education                                   String?
-  profession                                  String?
-  height                                      String?
-  relationshipType                            String?
-  religion                                    String?
-  smoking                                     String?
-  drinking                                    String?
-  travel                                      String?
-  pets                                        String?
-  location                                    String?
-  latitude                                    Float?
-  longitude                                   Float?
-  mainPhotoId                                 String?
-  isActive                                    Boolean             @default(true)
-  isPremium                                   Boolean             @default(false)
-  hasCompletedOnboarding                      Boolean             @default(false)
-  onboardingStep                              Int                 @default(1)
-  lastActive                                  DateTime            @default(now())
-  profileViews                                Int                 @default(0)
-  totalLikes                                  Int                 @default(0)
-  totalMatches                                Int                 @default(0)
-  matchesAsUser1                              Match[]             @relation("user1Matches")
-  matchesAsUser2                              Match[]             @relation("user2Matches")
-  receivedMessages                            Message[]           @relation("receivedMessages")
-  sentMessages                                Message[]           @relation("sentMessages")
-  notifications                               Notification[]
-  photos                                      Photo[]             @relation("userPhotos")
-  reportsReceived                             Report[]            @relation("reportedUser")
-  reportsFiled                                Report[]            @relation("reportingUser")
-  subscriptions                               Subscription[]
-  actionsReceived                             UserAction[]        @relation("actionsReceived")
-  actionsSent                                 UserAction[]        @relation("actionsSent")
-  interests                                   UserInterest[]
-  mainPhoto                                   Photo?              @relation("mainPhoto", fields: [mainPhotoId], references: [id], onDelete: SetNull)
+  id                     String         @id @default(cuid())
+  createdAt              DateTime       @default(now())
+  updatedAt              DateTime       @updatedAt
+  email                  String         @unique
+  password               String
+  firebaseUid            String?        @unique
+  name                   String
+  birthDate              DateTime
+  gender                 Gender
+  interestedIn           Gender[]
+  bio                    String?
+  education              String?
+  profession             String?
+  height                 String?
+  relationshipType       String?
+  religion               String?
+  smoking                String?
+  drinking               String?
+  travel                 String?
+  pets                   String?
+  location               String?
+  latitude               Float?
+  longitude              Float?
+  mainPhotoId            String?
+  isActive               Boolean        @default(true)
+  isPremium              Boolean        @default(false)
+  hasCompletedOnboarding Boolean        @default(false)
+  onboardingStep         Int            @default(1)
+  lastActive             DateTime       @default(now())
+  profileViews           Int            @default(0)
+  totalLikes             Int            @default(0)
+  totalMatches           Int            @default(0)
+  matchesAsUser1         Match[]        @relation("user1Matches")
+  matchesAsUser2         Match[]        @relation("user2Matches")
+  receivedMessages       Message[]      @relation("receivedMessages")
+  sentMessages           Message[]      @relation("sentMessages")
+  notifications          Notification[]
+  photos                 Photo[]        @relation("userPhotos")
+  reportsReceived        Report[]       @relation("reportedUser")
+  reportsFiled           Report[]       @relation("reportingUser")
+  subscriptions          Subscription[]
+  actionsReceived        UserAction[]   @relation("actionsReceived")
+  actionsSent            UserAction[]   @relation("actionsSent")
+  interests              UserInterest[]
+  mainPhoto              Photo?         @relation("mainPhoto", fields: [mainPhotoId], references: [id], onDelete: SetNull)
 
   @@map("users")
 }
 
 model Photo {
-  id                              String   @id @default(cuid())
-  createdAt                       DateTime @default(now())
-  updatedAt                       DateTime @updatedAt
-  userId                          String
-  url                             String
-  order                           Int      @default(0)
-  isMain                          Boolean  @default(false)
-  user      User     @relation("userPhotos", fields: [userId], references: [id], onDelete: Cascade)
+  id              String   @id @default(cuid())
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  userId          String
+  url             String
+  order           Int      @default(0)
+  isMain          Boolean  @default(false)
+  user            User     @relation("userPhotos", fields: [userId], references: [id], onDelete: Cascade)
   userAsMainPhoto User[]   @relation("mainPhoto")
 
   @@map("photos")
 }
 
 model UserAction {
-  id                                   String     @id @default(cuid())
-  createdAt                            DateTime   @default(now())
-  updatedAt                            DateTime @updatedAt
-  senderId                             String
-  receiverId                           String
-  action                               ActionType
-  timestamp                            DateTime   @default(now())
-  receiver User       @relation("actionsReceived", fields: [receiverId], references: [id], onDelete: Cascade)
-  sender   User       @relation("actionsSent", fields: [senderId], references: [id], onDelete: Cascade)
+  id         String     @id @default(cuid())
+  createdAt  DateTime   @default(now())
+  updatedAt  DateTime   @updatedAt
+  senderId   String
+  receiverId String
+  action     ActionType
+  timestamp  DateTime   @default(now())
+  receiver   User       @relation("actionsReceived", fields: [receiverId], references: [id], onDelete: Cascade)
+  sender     User       @relation("actionsSent", fields: [senderId], references: [id], onDelete: Cascade)
 
   @@unique([senderId, receiverId])
   @@map("user_actions")
 }
 
 model Match {
-  id                           String    @id @default(cuid())
-  createdAt                    DateTime  @default(now())
-  updatedAt                    DateTime @updatedAt
-  user1Id                      String
-  user2Id                      String
-  isActive                     Boolean   @default(true)
-  matchedAt                    DateTime  @default(now())
-  lastMessage                  String?
-  lastMessageTime              DateTime?
-  lastMessageBy                String?
-  lastViewedByUser1            DateTime?
-  lastViewedByUser2            DateTime?
-  user1 User      @relation("user1Matches", fields: [user1Id], references: [id], onDelete: Cascade)
-  user2 User      @relation("user2Matches", fields: [user2Id], references: [id], onDelete: Cascade)
-  messages                     Message[]
+  id                String    @id @default(cuid())
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+  user1Id           String
+  user2Id           String
+  isActive          Boolean   @default(true)
+  matchedAt         DateTime  @default(now())
+  lastMessage       String?
+  lastMessageTime   DateTime?
+  lastMessageBy     String?
+  lastViewedByUser1 DateTime?
+  lastViewedByUser2 DateTime?
+  user1             User      @relation("user1Matches", fields: [user1Id], references: [id], onDelete: Cascade)
+  user2             User      @relation("user2Matches", fields: [user2Id], references: [id], onDelete: Cascade)
+  messages          Message[]
 
   @@unique([user1Id, user2Id])
   @@map("matches")
 }
 
 model Message {
-  id                               String      @id @default(cuid())
-  createdAt                        DateTime    @default(now())
-  updatedAt                        DateTime @updatedAt
-  matchId                          String
-  senderId                         String
-  receiverId                       String
-  content                          String
-  messageType                      MessageType @default(TEXT)
-  isRead                           Boolean     @default(false)
-  readAt                           DateTime?
-  isDelivered                      Boolean     @default(false)
-  deliveredAt                      DateTime?
-  mediaUrl                         String?
-  mediaType                        String?
-  match                          Match       @relation(fields: [matchId], references: [id], onDelete: Cascade)
-  receiver User        @relation("receivedMessages", fields: [receiverId], references: [id], onDelete: Cascade)
-  sender   User        @relation("sentMessages", fields: [senderId], references: [id], onDelete: Cascade)
+  id          String      @id @default(cuid())
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+  matchId     String
+  senderId    String
+  receiverId  String
+  content     String
+  messageType MessageType @default(TEXT)
+  isRead      Boolean     @default(false)
+  readAt      DateTime?
+  isDelivered Boolean     @default(false)
+  deliveredAt DateTime?
+  mediaUrl    String?
+  mediaType   String?
+  match       Match       @relation(fields: [matchId], references: [id], onDelete: Cascade)
+  receiver    User        @relation("receivedMessages", fields: [receiverId], references: [id], onDelete: Cascade)
+  sender      User        @relation("sentMessages", fields: [senderId], references: [id], onDelete: Cascade)
 
   @@map("messages")
 }
 
 model Interest {
-  id             String         @id @default(cuid())
-  createdAt      DateTime       @default(now())
-  updatedAt      DateTime @updatedAt
-  name           String         @unique
-  category       String?
-  description    String?
-  isActive       Boolean        @default(true)
+  id            String         @id @default(cuid())
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+  name          String         @unique
+  category      String?
+  description   String?
+  isActive      Boolean        @default(true)
   userInterests UserInterest[]
 
   @@map("interests")
@@ -149,8 +149,8 @@ model UserInterest {
   createdAt  DateTime @default(now())
   userId     String
   interestId String
-  interest  Interest @relation(fields: [interestId], references: [id], onDelete: Cascade)
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  interest   Interest @relation(fields: [interestId], references: [id], onDelete: Cascade)
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([userId, interestId])
   @@map("user_interests")
@@ -159,7 +159,7 @@ model UserInterest {
 model Notification {
   id        String           @id @default(cuid())
   createdAt DateTime         @default(now())
-  updatedAt DateTime @updatedAt
+  updatedAt DateTime         @updatedAt
   userId    String
   type      NotificationType
   title     String
@@ -169,7 +169,7 @@ model Notification {
   readAt    DateTime?
   isSent    Boolean          @default(false)
   sentAt    DateTime?
-  user     User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user      User             @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@map("notifications")
 }
@@ -177,7 +177,7 @@ model Notification {
 model Subscription {
   id                   String             @id @default(cuid())
   createdAt            DateTime           @default(now())
-  updatedAt            DateTime @updatedAt
+  updatedAt            DateTime           @updatedAt
   userId               String
   plan                 SubscriptionPlan
   status               SubscriptionStatus
@@ -188,25 +188,25 @@ model Subscription {
   stripeCustomerId     String?
   amount               Float
   currency             String             @default("USD")
-  user                User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user                 User               @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@map("subscriptions")
 }
 
 model Report {
-  id                              String       @id @default(cuid())
-  createdAt                       DateTime     @default(now())
-  updatedAt                       DateTime @updatedAt
-  reporterId                      String
-  reportedId                      String
-  reason                          ReportReason
-  description                     String?
-  status                          ReportStatus @default(PENDING)
-  reviewedBy                      String?
-  reviewedAt                      DateTime?
-  adminNotes                      String?
+  id           String       @id @default(cuid())
+  createdAt    DateTime     @default(now())
+  updatedAt    DateTime     @updatedAt
+  reporterId   String
+  reportedId   String
+  reason       ReportReason
+  description  String?
+  status       ReportStatus @default(PENDING)
+  reviewedBy   String?
+  reviewedAt   DateTime?
+  adminNotes   String?
   reportedUser User         @relation("reportedUser", fields: [reportedId], references: [id], onDelete: Cascade)
-  reporter User         @relation("reportingUser", fields: [reporterId], references: [id], onDelete: Cascade)
+  reporter     User         @relation("reportingUser", fields: [reporterId], references: [id], onDelete: Cascade)
 
   @@map("reports")
 }
@@ -224,9 +224,6 @@ enum ActionType {
   SUPER_LIKE
   UNDO
 }
-
-// Removed enums for flexibility - these are now String fields
-// that can accept any value from the UI dropdowns or custom text
 
 enum MessageType {
   TEXT

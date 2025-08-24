@@ -116,12 +116,13 @@ function getPrismaClient() {
  */
 async function checkDatabaseHealth() {
   try {
-    if (!prisma) {
+    const db = getPrismaClient();
+    if (!db) {
       throw new Error('Database not initialized');
     }
 
     // Simple query to test connection
-    await prisma.$queryRaw`SELECT 1`;
+    await db.$queryRaw`SELECT 1`;
 
     return {
       status: 'healthy',

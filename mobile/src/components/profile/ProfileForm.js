@@ -61,7 +61,7 @@ const ProfileForm = forwardRef(
 
     // Expose methods to parent component
     useImperativeHandle(ref, () => ({
-      getFormData: () => transformProfileData.toApi(formData),
+      getFormData: () => formData, // Return raw form data, not transformed
       setFormData: data => setFormData(transformProfileData.fromApi(data)),
       validateForm: () => validateForm(),
       scrollToTop: () => scrollViewRef.current?.scrollTo({ y: 0, animated: true }),
@@ -99,8 +99,9 @@ const ProfileForm = forwardRef(
         }
       });
 
-      // Update parent with both data and validation state
-      onDataChange?.(transformProfileData.toApi(newData), newErrors);
+      // Update parent with raw data (not transformed) and validation state
+      // This allows parent to properly track changes even when fields are empty
+      onDataChange?.(newData, newErrors);
     };
 
     // Helper functions
@@ -244,10 +245,7 @@ const ProfileForm = forwardRef(
         .map(field => (
           <TouchableOpacity
             key={field.key}
-            style={[
-              styles.selectorButton,
-              changedFields.has(field.key) && styles.selectorButtonChanged,
-            ]}
+            style={styles.selectorButton}
             onPress={() => showSelectionPanel(field.key)}
           >
             <View style={styles.labelContainer}>
@@ -260,7 +258,12 @@ const ProfileForm = forwardRef(
                 </View>
               )}
             </View>
-            <View style={styles.selectorRow}>
+            <View
+              style={[
+                styles.selectorRow,
+                changedFields.has(field.key) && styles.selectorRowChanged,
+              ]}
+            >
               <Text
                 style={[
                   styles.selectorText,
@@ -509,7 +512,12 @@ const styles = StyleSheet.create({
     backgroundColor: '#F1F8E9',
   },
   selectorButtonChanged: {
+    // Not used anymore - moved to selectorRowChanged
+  },
+  selectorRowChanged: {
     backgroundColor: '#F1F8E9',
+    borderColor: '#4CAF50',
+    borderWidth: 1.5,
   },
   selectorTextChanged: {
     color: '#4CAF50',

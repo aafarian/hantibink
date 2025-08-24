@@ -95,8 +95,8 @@ const registerUser = async (userData) => {
           height: height || null,
           relationshipType: relationshipTypeValue || null,
           religion: religion || null,
-          smoking: smoking ? smoking.toLowerCase() : null,
-          drinking: drinking ? drinking.toLowerCase() : null,
+          smoking: smoking || null,
+          drinking: drinking || null,
           travel: travel || null,
           pets: pets || null,
           isActive: true,
@@ -416,8 +416,8 @@ const updateUserProfile = async (userId, updateData) => {
           // Handle relationshipType array - join multiple selections
           updateObject[key] = userData[key].join(', ');
         } else if (key === 'smoking' || key === 'drinking') {
-          // Convert to lowercase for database enum compatibility
-          updateObject[key] = userData[key].toLowerCase();
+          // Store as-is (no enum constraints anymore)
+          updateObject[key] = userData[key];
         } else {
           // Direct assignment for other fields
           updateObject[key] = userData[key];

@@ -240,23 +240,33 @@ export const transformProfileData = {
   },
 
   // Transform from API response
-  fromApi: apiData => ({
-    name: apiData.name || '',
-    bio: apiData.bio || '',
-    education: apiData.education || '',
-    profession: apiData.profession || '',
-    height: apiData.height || '',
-    // Handle relationshipType - can be string with commas or array
-    relationshipType: parseRelationshipType(apiData.relationshipType),
-    religion: apiData.religion || '',
-    smoking: apiData.smoking || '',
-    drinking: apiData.drinking || '',
-    travel: apiData.travel || '',
-    pets: apiData.pets || '',
-    interests: Array.isArray(apiData.interests)
-      ? apiData.interests.map(i => (typeof i === 'object' ? i.interest?.name || i.name : i))
-      : [],
-  }),
+  fromApi: apiData => {
+    // Helper to capitalize dropdown values that may have been stored as lowercase
+    const capitalizeDropdownValue = (value, options) => {
+      if (!value) return '';
+      // Find the matching option (case-insensitive) and return the properly cased version
+      const match = options.find(opt => opt.toLowerCase() === value.toLowerCase());
+      return match || value;
+    };
+
+    return {
+      name: apiData.name || '',
+      bio: apiData.bio || '',
+      education: apiData.education || '',
+      profession: apiData.profession || '',
+      height: apiData.height || '',
+      // Handle relationshipType - can be string with commas or array
+      relationshipType: parseRelationshipType(apiData.relationshipType),
+      religion: apiData.religion || '',
+      smoking: capitalizeDropdownValue(apiData.smoking, smokingOptions),
+      drinking: capitalizeDropdownValue(apiData.drinking, drinkingOptions),
+      travel: apiData.travel || '',
+      pets: apiData.pets || '',
+      interests: Array.isArray(apiData.interests)
+        ? apiData.interests.map(i => (typeof i === 'object' ? i.interest?.name || i.name : i))
+        : [],
+    };
+  },
 };
 
 // Validation rules (client-side)

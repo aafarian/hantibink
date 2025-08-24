@@ -220,9 +220,13 @@ const requireAdmin = async (req, res, next) => {
   }
 };
 
+// Alias for test compatibility  
+const authMiddleware = (req, res, next) => authenticateJWT(req, res, next);
+
 module.exports = {
   authenticateJWT,
   authenticateFirebase,
   optionalAuth,
   requireAdmin,
+  authMiddleware, // Alias for tests
 };
