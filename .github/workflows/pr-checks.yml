@@ -29,12 +29,12 @@ jobs:
               f.filename.includes('schema.prisma')
             );
             
-            const hasMigrationScript = files.data.some(f => 
-              f.filename.includes('db-migrate.js') || 
-              f.filename.includes('migrations/')
+            const hasPrismaMigration = files.data.some(f => 
+              f.filename.includes('prisma/migrations/') && 
+              f.filename.endsWith('.sql')
             );
             
-            if (hasSchemaChanges && !hasMigrationScript) {
+            if (hasSchemaChanges && !hasPrismaMigration) {
               // Schema changed but no migration
               await github.rest.issues.createComment({
                 owner: context.repo.owner,
@@ -42,18 +42,19 @@ jobs:
                 issue_number: context.issue.number,
                 body: `## ⚠️ Schema Change Detected
                 
-                This PR modifies \`schema.prisma\` but doesn't include migration updates.
+                This PR modifies \`schema.prisma\` but doesn't include a Prisma migration.
                 
                 **Required Actions:**
-                1. Add migration to \`db-migrate.js\`
-                2. Test migration locally with \`npm run migrate:up\`
-                3. Test rollback with \`npm run migrate:down\`
+                1. Run \`npx prisma migrate dev --name your_migration_name\` to create a migration
+                2. Test the migration locally
+                3. Commit the generated migration files in \`prisma/migrations/\`
                 
-                After merging, run \`npm run migrate:prod\` to apply to production.`
+                **Production Deployment:**
+                After merging, the migration will be automatically applied via \`npx prisma migrate deploy\`.`
               });
               
-              core.setFailed('Schema changed without migration script');
-            } else if (hasSchemaChanges && hasMigrationScript) {
+              core.setFailed('Schema changed without Prisma migration');
+            } else if (hasSchemaChanges && hasPrismaMigration) {
               // Both present - good!
               await github.rest.issues.createComment({
                 owner: context.repo.owner,
@@ -61,8 +62,8 @@ jobs:
                 issue_number: context.issue.number,
                 body: `## ✅ Migration Included
                 
-                This PR includes both schema changes and migration scripts.
+                This PR includes both schema changes and Prisma migration files.
                 
-                **After merging:** Run \`npm run migrate:prod\` to apply migrations.`
+                **After merging:** Migration will be automatically deployed to production.`
               });
             }

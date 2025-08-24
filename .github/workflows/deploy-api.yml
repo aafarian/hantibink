@@ -45,7 +45,7 @@ jobs:
           echo "🔄 Applying migrations before build..."
           npm ci
           npx prisma generate
-          npm run migrate:prod
+          npx prisma migrate deploy
           echo "✅ Migrations applied"
 
       - name: Build Docker image
