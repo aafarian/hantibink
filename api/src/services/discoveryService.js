@@ -57,10 +57,10 @@ const calculateMatchScore = (currentUser, otherUser, filters = {}) => {
   
   // 1. MUTUAL INTEREST (most important - 100 points)
   // Both users are interested in each other's gender
-  // Handle EVERYONE preference (interested in all genders)
-  const currentUserInterested = currentUser.interestedIn.includes('EVERYONE') || 
+  // Handle EVERYONE preference (when user has all 3 genders in their interestedIn array)
+  const currentUserInterested = currentUser.interestedIn.length === 3 || 
     currentUser.interestedIn.includes(otherUser.gender);
-  const otherUserInterested = otherUser.interestedIn.includes('EVERYONE') || 
+  const otherUserInterested = otherUser.interestedIn.length === 3 || 
     otherUser.interestedIn.includes(currentUser.gender);
   const mutualInterest = currentUserInterested && otherUserInterested;
   
@@ -206,6 +206,7 @@ const getUsersForDiscovery = async (currentUserId, options = {}) => {
     };
 
     // Get user's already processed user IDs (liked/passed)
+    // Only get actions where current user was the sender
     const userActions = await prisma.userAction.findMany({
       where: { senderId: currentUserId },
       select: { receiverId: true },
@@ -238,8 +239,9 @@ const getUsersForDiscovery = async (currentUserId, options = {}) => {
       ...new Set([...processedUserIds, ...matchedUserIds, ...excludeIds, currentUserId]),
     ];
 
-    logger.debug(
-      `User ${currentUserId} discovery: excluded ${allExcludedIds.length} users (${processedUserIds.length} acted on, ${matchedUserIds.length} matched)`
+    logger.info(
+      `User ${currentUserId} discovery: excluded ${allExcludedIds.length} users (${processedUserIds.length} acted on, ${matchedUserIds.length} matched)`,
+      { excludedIds: allExcludedIds }
     );
 
     // Get current user's full profile
@@ -273,14 +275,22 @@ const getUsersForDiscovery = async (currentUserId, options = {}) => {
 
     // In strict mode, only get users matching preferences
     if (strictMode) {
-      // If user is interested in EVERYONE, don't filter by gender
-      if (!currentUser.interestedIn.includes('EVERYONE')) {
+      // If user is interested in EVERYONE (all 3 genders), don't filter by gender
+      const isInterestedInEveryone = currentUser.interestedIn.length === 3;
+      if (!isInterestedInEveryone) {
         baseWhereClause.gender = { in: currentUser.interestedIn };
       }
       // Check if other users would be interested in current user
       baseWhereClause.OR = [
         { interestedIn: { hasSome: [currentUser.gender] } },
-        { interestedIn: { hasSome: ['EVERYONE'] } }
+        // Also include users interested in all genders (stored as array of 3)
+        { 
+          AND: [
+            { interestedIn: { hasSome: ['MALE'] } },
+            { interestedIn: { hasSome: ['FEMALE'] } },
+            { interestedIn: { hasSome: ['OTHER'] } }
+          ]
+        }
       ];
     }
 
@@ -307,6 +317,15 @@ const getUsersForDiscovery = async (currentUserId, options = {}) => {
       },
       take: 500, // Get more initially to have enough for filtering
     });
+
+    logger.info(
+      `Found ${users.length} potential users for ${currentUserId} with filters`,
+      { 
+        interestedIn: currentUser.interestedIn,
+        userGender: currentUser.gender,
+        strictMode 
+      }
+    );
 
     // Calculate match scores for all users
     const scoredUsers = users.map((user) => {
@@ -356,11 +375,11 @@ const getUsersForDiscovery = async (currentUserId, options = {}) => {
             ? user.relationshipType.split(',').map(s => s.trim())
             : [user.relationshipType])
           : [],
-        // Flag if this user matches preferences (handle EVERYONE)
+        // Flag if this user matches preferences (handle all 3 genders = everyone)
         matchesPreferences: 
-          (currentUser.interestedIn.includes('EVERYONE') || 
+          (currentUser.interestedIn.length === 3 || 
            currentUser.interestedIn.includes(user.gender)) &&
-          (user.interestedIn.includes('EVERYONE') || 
+          (user.interestedIn.length === 3 || 
            user.interestedIn.includes(currentUser.gender)),
       };
     });
@@ -380,10 +399,18 @@ const getUsersForDiscovery = async (currentUserId, options = {}) => {
       return new Date(b.lastActive) - new Date(a.lastActive);
     });
 
-    // Apply filters based on strict preferences
-    let filteredUsers = scoredUsers;
+    // ALWAYS filter by gender preferences first (this is not optional!)
+    let filteredUsers = scoredUsers.filter(user => {
+      // Check mutual gender interest
+      const currentUserInterested = currentUser.interestedIn.length === 3 || 
+        currentUser.interestedIn.includes(user.gender);
+      const otherUserInterested = user.interestedIn.length === 3 || 
+        user.interestedIn.includes(currentUser.gender);
+      
+      return currentUserInterested && otherUserInterested;
+    });
     
-    // Check if any strict filters are enabled
+    // Check if any additional strict filters are enabled
     const hasStrictFilters = defaultFilters.strictAge || defaultFilters.strictDistance || 
                             defaultFilters.strictRelationshipType || defaultFilters.strictEducation ||
                             defaultFilters.strictSmoking || defaultFilters.strictDrinking || 
@@ -393,7 +420,7 @@ const getUsersForDiscovery = async (currentUserId, options = {}) => {
       const preferenceMatches = [];
       const nonPreferenceMatches = [];
       
-      for (const user of scoredUsers) {
+      for (const user of filteredUsers) {
         let passesFilters = true;
         
         // Strict age filter

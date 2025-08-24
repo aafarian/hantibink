@@ -623,6 +623,79 @@ class ApiDataService {
     }
   }
 
+  /**
+   * Add reaction to a message
+   */
+  static async addMessageReaction(matchId, messageId, emoji) {
+    try {
+      Logger.info(`${emoji} Adding reaction to message via API...`);
+
+      const response = await apiClient.post(`/messages/${matchId}/${messageId}/reaction`, {
+        emoji,
+      });
+
+      if (response.success) {
+        Logger.success(`✅ Reaction added via API`);
+        return response.data;
+      } else {
+        Logger.error('❌ Failed to add reaction via API:', response.message);
+        throw new Error(response.message || 'Failed to add reaction');
+      }
+    } catch (error) {
+      Logger.error('❌ Error adding reaction via API:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Remove reaction from a message
+   */
+  static async removeMessageReaction(matchId, messageId, emoji) {
+    try {
+      Logger.info(`Removing reaction from message via API...`);
+
+      const response = await apiClient.delete(`/messages/${matchId}/${messageId}/reaction`, {
+        data: { emoji },
+      });
+
+      if (response.success) {
+        Logger.success(`✅ Reaction removed via API`);
+        return response.data;
+      } else {
+        Logger.error('❌ Failed to remove reaction via API:', response.message);
+        throw new Error(response.message || 'Failed to remove reaction');
+      }
+    } catch (error) {
+      Logger.error('❌ Error removing reaction via API:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Send a GIF message
+   */
+  static async sendGifMessage(matchId, gifUrl) {
+    try {
+      Logger.info('🎬 Sending GIF message via API...');
+
+      const response = await apiClient.post(`/messages/${matchId}`, {
+        type: 'gif',
+        gifUrl,
+      });
+
+      if (response.success) {
+        Logger.success('✅ GIF sent via API');
+        return response.data;
+      } else {
+        Logger.error('❌ Failed to send GIF via API:', response.message);
+        throw new Error(response.message || 'Failed to send GIF');
+      }
+    } catch (error) {
+      Logger.error('❌ Error sending GIF via API:', error);
+      throw error;
+    }
+  }
+
   // ============ UTILITY METHODS ============
 
   /**

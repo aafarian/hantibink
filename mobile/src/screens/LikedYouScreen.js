@@ -30,7 +30,7 @@ const LikedYouScreen = () => {
   const { user, userProfile } = useAuth();
   const { showError, showSuccess, showInfo } = useToast();
   const isPremium = useIsPremium();
-  const { navigateToMessages } = useTabNavigation();
+  const { navigateToChat } = useTabNavigation();
 
   const [incomingLikes, setIncomingLikes] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -242,6 +242,7 @@ const LikedYouScreen = () => {
             id: profile.id,
             name: profile.name,
             photo: profile.mainPhoto,
+            matchId: result.match?.id, // Include the match ID
           });
           // Show match modal immediately without delay
           setShowMatchModal(true);
@@ -575,11 +576,27 @@ const LikedYouScreen = () => {
         matchedUserPhoto={matchedUser?.photo}
         matchedUserName={matchedUser?.name}
         onSendMessage={() => {
+          // Close the match modal first
+          setShowMatchModal(false);
           // Ensure user detail modal is closed as safety measure
           if (selectedUser) {
             setSelectedUser(null);
           }
-          navigateToMessages();
+          // Navigate directly to the chat with this match
+          if (matchedUser) {
+            const matchData = {
+              matchId: matchedUser.matchId || `match_${Date.now()}`, // Temporary ID if not available
+              otherUser: {
+                id: matchedUser.id,
+                name: matchedUser.name,
+                mainPhoto: matchedUser.photo,
+                photos: matchedUser.photo ? [{ url: matchedUser.photo }] : [],
+              },
+            };
+            setTimeout(() => {
+              navigateToChat(matchData);
+            }, 100);
+          }
         }}
         onKeepSwiping={() => {
           // Just close, the modal handles it

@@ -427,6 +427,15 @@ const updateUserProfile = async (userId, updateData) => {
         if (key === 'height') {
           // Handle height conversion with proper formatting
           updateObject[key] = formatHeight(userData[key]);
+        } else if (key === 'interestedIn') {
+          // Handle interestedIn - convert string to array if needed
+          if (userData[key] === 'EVERYONE') {
+            updateObject[key] = ['MALE', 'FEMALE', 'OTHER'];
+          } else if (typeof userData[key] === 'string') {
+            updateObject[key] = [userData[key]];
+          } else {
+            updateObject[key] = userData[key];
+          }
         } else if (key === 'relationshipType' && Array.isArray(userData[key])) {
           // Handle relationshipType array - join multiple selections
           updateObject[key] = userData[key].join(', ');
