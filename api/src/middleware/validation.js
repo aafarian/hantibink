@@ -332,6 +332,9 @@ const profileValidation = {
         }
         return true;
       }).withMessage('Maximum 10 interests allowed'),
+    body('languages')
+      .optional()
+      .isArray().withMessage('Languages must be an array'),
     body('latitude')
       .optional()
       .isFloat({ min: -90, max: 90 }).withMessage('Invalid latitude'),

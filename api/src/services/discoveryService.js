@@ -28,20 +28,157 @@ const toRad = (deg) => {
 };
 
 /**
- * Get users for discovery/swiping
+ * Calculate preference match score for a user
+ * Higher score = better match
+ */
+const calculateMatchScore = (currentUser, otherUser, filters = {}) => {
+  let score = 0;
+  const scoreBreakdown = {};
+  
+  // 1. MUTUAL INTEREST (most important - 100 points)
+  // Both users are interested in each other's gender
+  const mutualInterest = 
+    currentUser.interestedIn.includes(otherUser.gender) &&
+    otherUser.interestedIn.includes(currentUser.gender);
+  
+  if (mutualInterest) {
+    score += 100;
+    scoreBreakdown.mutualInterest = 100;
+  } else {
+    scoreBreakdown.mutualInterest = 0;
+  }
+  
+  // 2. AGE PREFERENCE (50 points max)
+  const currentAge = calculateAge(currentUser.birthDate);
+  const otherAge = calculateAge(otherUser.birthDate);
+  
+  if (filters.ageRange && currentAge && otherAge) {
+    const { min, max } = filters.ageRange;
+    if (otherAge >= min && otherAge <= max) {
+      score += 50;
+      scoreBreakdown.ageMatch = 50;
+    } else {
+      // Partial score based on how close they are to range
+      const distance = otherAge < min ? min - otherAge : otherAge - max;
+      const partialScore = Math.max(0, 50 - (distance * 5));
+      score += partialScore;
+      scoreBreakdown.ageMatch = partialScore;
+    }
+  }
+  
+  // 3. DISTANCE (40 points max)
+  if (currentUser.latitude && currentUser.longitude && 
+      otherUser.latitude && otherUser.longitude) {
+    const distance = calculateDistance(
+      currentUser.latitude,
+      currentUser.longitude,
+      otherUser.latitude,
+      otherUser.longitude
+    );
+    
+    if (filters.maxDistance) {
+      if (distance <= filters.maxDistance) {
+        // Full points if within preferred distance
+        const distanceScore = 40 * (1 - (distance / filters.maxDistance));
+        score += distanceScore;
+        scoreBreakdown.distance = distanceScore;
+      } else {
+        // Partial points if outside preferred distance
+        const distanceScore = Math.max(0, 40 - ((distance - filters.maxDistance) / 10));
+        score += distanceScore;
+        scoreBreakdown.distance = distanceScore;
+      }
+    }
+  }
+  
+  // 4. SHARED INTERESTS (30 points max)
+  const sharedInterests = calculateSharedInterests(
+    currentUser.interests || [],
+    otherUser.interests || []
+  );
+  if (sharedInterests > 0) {
+    const interestScore = Math.min(30, sharedInterests * 10);
+    score += interestScore;
+    scoreBreakdown.interests = interestScore;
+  }
+  
+  // 5. RELATIONSHIP TYPE MATCH (20 points)
+  if (currentUser.relationshipType && otherUser.relationshipType) {
+    const currentTypes = Array.isArray(currentUser.relationshipType) 
+      ? currentUser.relationshipType 
+      : currentUser.relationshipType.split(',').map(s => s.trim());
+    const otherTypes = Array.isArray(otherUser.relationshipType)
+      ? otherUser.relationshipType
+      : otherUser.relationshipType.split(',').map(s => s.trim());
+    
+    const hasMatch = currentTypes.some(type => otherTypes.includes(type));
+    if (hasMatch) {
+      score += 20;
+      scoreBreakdown.relationshipType = 20;
+    }
+  }
+  
+  // 6. ACTIVITY LEVEL (10 points)
+  const daysSinceActive = Math.floor(
+    (new Date() - new Date(otherUser.lastActive)) / (1000 * 60 * 60 * 24)
+  );
+  if (daysSinceActive <= 7) {
+    score += 10;
+    scoreBreakdown.activity = 10;
+  } else if (daysSinceActive <= 30) {
+    score += 5;
+    scoreBreakdown.activity = 5;
+  }
+  
+  // 7. PROFILE COMPLETENESS (10 points)
+  let completeness = 0;
+  if (otherUser.bio) {completeness++;}
+  if (otherUser.education) {completeness++;}
+  if (otherUser.profession) {completeness++;}
+  if (otherUser.height) {completeness++;}
+  if (otherUser.photos?.length >= 3) {completeness++;}
+  const completenessScore = completeness * 2;
+  score += completenessScore;
+  scoreBreakdown.completeness = completenessScore;
+  
+  // 8. PREMIUM BOOST (5 points if both are premium)
+  if (currentUser.isPremium && otherUser.isPremium) {
+    score += 5;
+    scoreBreakdown.premium = 5;
+  }
+  
+  return { score, breakdown: scoreBreakdown };
+};
+
+/**
+ * Get users for discovery/swiping with flexible matching
  */
 const getUsersForDiscovery = async (currentUserId, options = {}) => {
   try {
     const { 
       limit = 20, 
       excludeIds = [], 
-      filters = {} 
+      filters = {},
+      strictMode = false // If true, only show perfect matches
     } = options;
 
     // Default filter values
     const defaultFilters = {
       ageRange: { min: 18, max: 100 },
       maxDistance: 100, // km
+      onlyWithPhotos: true,
+      strictAge: false,
+      strictDistance: false,
+      relationshipType: [],
+      strictRelationshipType: false,
+      education: [],
+      strictEducation: false,
+      smoking: [],
+      strictSmoking: false,
+      drinking: [],
+      strictDrinking: false,
+      languages: [],
+      strictLanguages: false,
       ...filters
     };
 
@@ -68,22 +205,21 @@ const getUsersForDiscovery = async (currentUserId, options = {}) => {
       },
     });
 
-    // Extract matched user IDs (the other person in each match)
+    // Extract matched user IDs
     const matchedUserIds = userMatches.map(match => 
       match.user1Id === currentUserId ? match.user2Id : match.user1Id
     );
 
-    // Combine with explicitly excluded IDs (including matched users)
+    // Combine with explicitly excluded IDs
     const allExcludedIds = [
       ...new Set([...processedUserIds, ...matchedUserIds, ...excludeIds, currentUserId]),
     ];
 
     logger.debug(
-      `User ${currentUserId} has acted on ${processedUserIds.length} users, matched with ${matchedUserIds.length} users`
+      `User ${currentUserId} discovery: excluded ${allExcludedIds.length} users (${processedUserIds.length} acted on, ${matchedUserIds.length} matched)`
     );
-    logger.debug(`Total excluded IDs: ${allExcludedIds.length}`);
 
-    // Get current user's preferences for filtering
+    // Get current user's full profile
     const currentUser = await prisma.user.findUnique({
       where: { id: currentUserId },
       select: {
@@ -93,6 +229,7 @@ const getUsersForDiscovery = async (currentUserId, options = {}) => {
         birthDate: true,
         isPremium: true,
         gender: true,
+        relationshipType: true,
         interests: {
           include: {
             interest: true,
@@ -105,39 +242,28 @@ const getUsersForDiscovery = async (currentUserId, options = {}) => {
       throw new Error('Current user not found');
     }
 
-    // Build where clause for filtering
-    const whereClause = {
+    // Build base where clause - get ALL active users except excluded
+    const baseWhereClause = {
       id: { notIn: allExcludedIds },
       isActive: true,
-      // Match user's interested in preferences
-      gender: { in: currentUser.interestedIn },
-      // Also filter by those interested in current user's gender
-      interestedIn: { hasSome: [currentUser.gender] },
     };
 
-    // Apply age filter
-    if (defaultFilters.ageRange) {
-      const { min, max } = defaultFilters.ageRange;
-      const maxDate = new Date();
-      maxDate.setFullYear(maxDate.getFullYear() - min);
-      const minDate = new Date();
-      minDate.setFullYear(minDate.getFullYear() - max);
+    // In strict mode, only get users matching preferences
+    if (strictMode) {
+      baseWhereClause.gender = { in: currentUser.interestedIn };
+      baseWhereClause.interestedIn = { hasSome: [currentUser.gender] };
+    }
 
-      whereClause.birthDate = {
-        gte: minDate,
-        lte: maxDate,
+    // Only include users with photos if filter is set
+    if (defaultFilters.onlyWithPhotos) {
+      baseWhereClause.photos = {
+        some: {},
       };
     }
 
-    // For distance filtering, we need location data
-    if (defaultFilters.maxDistance && currentUser.latitude && currentUser.longitude) {
-      whereClause.latitude = { not: null };
-      whereClause.longitude = { not: null };
-    }
-
-    // Get potential users
+    // Get ALL potential users (we'll filter and sort later)
     const users = await prisma.user.findMany({
-      where: whereClause,
+      where: baseWhereClause,
       include: {
         photos: {
           orderBy: { order: 'asc' },
@@ -148,99 +274,178 @@ const getUsersForDiscovery = async (currentUserId, options = {}) => {
           },
         },
       },
-      take: Math.min(limit * 3, 1000), // Get more initially to filter by distance (max 1000)
-      orderBy: [
-        // Premium users boost (if current user is also premium)
-        ...(currentUser.isPremium ? [{ isPremium: 'desc' }] : []),
-        { lastActive: 'desc' }, // Recently active users first
-        { createdAt: 'desc' },  // Then newer users
-      ],
+      take: 500, // Get more initially to have enough for filtering
     });
 
-    // Calculate distance and age for each user
-    let processedUsers = users
-      .filter((user) => user.photos && user.photos.length > 0) // Only users with photos
-      .map((user) => {
-        const age = calculateAge(user.birthDate);
-        
-        // Calculate distance if both users have location
-        let distance = null;
-        if (
-          currentUser.latitude && 
-          currentUser.longitude && 
-          user.latitude && 
+    // Calculate match scores for all users
+    const scoredUsers = users.map((user) => {
+      const age = calculateAge(user.birthDate);
+      
+      // Calculate distance
+      let distance = null;
+      if (
+        currentUser.latitude && 
+        currentUser.longitude && 
+        user.latitude && 
+        user.longitude
+      ) {
+        distance = calculateDistance(
+          currentUser.latitude,
+          currentUser.longitude,
+          user.latitude,
           user.longitude
-        ) {
-          distance = calculateDistance(
-            currentUser.latitude,
-            currentUser.longitude,
-            user.latitude,
-            user.longitude
-          );
-        }
+        );
+      }
 
-        // Calculate compatibility score based on shared interests
-        const sharedInterests = calculateSharedInterests(
+      // Calculate match score
+      const { score, breakdown } = calculateMatchScore(
+        currentUser, 
+        user, 
+        defaultFilters
+      );
+
+      // Remove sensitive data
+      // eslint-disable-next-line no-unused-vars
+      const { password, email, ...userWithoutSensitive } = user;
+
+      return {
+        ...userWithoutSensitive,
+        age,
+        distance: distance ? Math.round(distance) : null,
+        matchScore: score,
+        scoreBreakdown: breakdown,
+        sharedInterestsCount: calculateSharedInterests(
           currentUser.interests || [],
           user.interests || []
-        );
+        ),
+        interests: user.interests.map(ui => ui.interest.name),
+        // Convert relationshipType string to array
+        relationshipType: user.relationshipType 
+          ? (user.relationshipType.includes(',') 
+            ? user.relationshipType.split(',').map(s => s.trim())
+            : [user.relationshipType])
+          : [],
+        // Flag if this user matches preferences
+        matchesPreferences: 
+          currentUser.interestedIn.includes(user.gender) &&
+          user.interestedIn.includes(currentUser.gender),
+      };
+    });
 
-        // Remove sensitive data
-        // eslint-disable-next-line no-unused-vars
-        const { password, email, ...userWithoutSensitive } = user;
-
-        return {
-          ...userWithoutSensitive,
-          age,
-          distance: distance ? Math.round(distance) : null,
-          sharedInterestsCount: sharedInterests,
-          interests: user.interests.map(ui => ui.interest.name),
-          // Convert relationshipType string back to array if needed
-          relationshipType: user.relationshipType 
-            ? (user.relationshipType.includes(',') 
-              ? user.relationshipType.split(',').map(s => s.trim())
-              : [user.relationshipType])
-            : [],
-        };
-      });
-
-    // Apply distance filter if specified
-    if (defaultFilters.maxDistance && currentUser.latitude && currentUser.longitude) {
-      processedUsers = processedUsers.filter(user => {
-        return !user.distance || user.distance <= defaultFilters.maxDistance;
-      });
-    }
-
-    // Sort by relevance (distance, shared interests, etc.)
-    processedUsers.sort((a, b) => {
-      // Priority 1: Users with photos come first
-      if (!a.photos?.length && b.photos?.length) {return 1;}
-      if (a.photos?.length && !b.photos?.length) {return -1;}
-
-      // Priority 2: Closer users (if distance available)
-      if (a.distance !== null && b.distance !== null) {
-        if (a.distance < b.distance) {return -1;}
-        if (a.distance > b.distance) {return 1;}
+    // Sort by match score (highest first)
+    scoredUsers.sort((a, b) => {
+      // First priority: Users who match preferences
+      if (a.matchesPreferences && !b.matchesPreferences) {return -1;}
+      if (!a.matchesPreferences && b.matchesPreferences) {return 1;}
+      
+      // Second priority: Match score
+      if (a.matchScore !== b.matchScore) {
+        return b.matchScore - a.matchScore;
       }
-
-      // Priority 3: More shared interests
-      if (a.sharedInterestsCount !== b.sharedInterestsCount) {
-        return b.sharedInterestsCount - a.sharedInterestsCount;
-      }
-
-      // Priority 4: Recently active
+      
+      // Third priority: Recently active
       return new Date(b.lastActive) - new Date(a.lastActive);
     });
 
+    // Apply filters based on strict preferences
+    let filteredUsers = scoredUsers;
+    
+    // Check if any strict filters are enabled
+    const hasStrictFilters = defaultFilters.strictAge || defaultFilters.strictDistance || 
+                            defaultFilters.strictRelationshipType || defaultFilters.strictEducation ||
+                            defaultFilters.strictSmoking || defaultFilters.strictDrinking || 
+                            defaultFilters.strictLanguages;
+    
+    if (hasStrictFilters) {
+      const preferenceMatches = [];
+      const nonPreferenceMatches = [];
+      
+      for (const user of scoredUsers) {
+        let passesFilters = true;
+        
+        // Strict age filter
+        if (defaultFilters.strictAge && defaultFilters.ageRange && user.age) {
+          const { min, max } = defaultFilters.ageRange;
+          if (user.age < min || user.age > max) {
+            passesFilters = false;
+          }
+        }
+        
+        // Strict distance filter
+        if (defaultFilters.strictDistance && defaultFilters.maxDistance && user.distance) {
+          if (user.distance > defaultFilters.maxDistance) {
+            passesFilters = false;
+          }
+        }
+        
+        // Strict relationship type filter
+        if (defaultFilters.strictRelationshipType && defaultFilters.relationshipType.length > 0) {
+          const userTypes = Array.isArray(user.relationshipType) 
+            ? user.relationshipType 
+            : (user.relationshipType ? [user.relationshipType] : []);
+          const hasMatch = userTypes.some(type => defaultFilters.relationshipType.includes(type));
+          if (!hasMatch && userTypes.length > 0) {
+            passesFilters = false;
+          }
+        }
+        
+        // Strict education filter
+        if (defaultFilters.strictEducation && defaultFilters.education.length > 0) {
+          if (!defaultFilters.education.includes("Doesn't matter") && 
+              user.education && !defaultFilters.education.includes(user.education)) {
+            passesFilters = false;
+          }
+        }
+        
+        // Strict smoking filter
+        if (defaultFilters.strictSmoking && defaultFilters.smoking.length > 0) {
+          if (!defaultFilters.smoking.includes("Doesn't matter") && 
+              user.smoking && !defaultFilters.smoking.includes(user.smoking)) {
+            passesFilters = false;
+          }
+        }
+        
+        // Strict drinking filter
+        if (defaultFilters.strictDrinking && defaultFilters.drinking.length > 0) {
+          if (!defaultFilters.drinking.includes("Doesn't matter") && 
+              user.drinking && !defaultFilters.drinking.includes(user.drinking)) {
+            passesFilters = false;
+          }
+        }
+        
+        // Strict languages filter
+        if (defaultFilters.strictLanguages && defaultFilters.languages.length > 0) {
+          const userLanguages = user.languages || [];
+          const hasLanguageMatch = userLanguages.some(lang => defaultFilters.languages.includes(lang));
+          if (!hasLanguageMatch && userLanguages.length > 0) {
+            passesFilters = false;
+          }
+        }
+        
+        if (passesFilters) {
+          if (user.matchesPreferences) {
+            preferenceMatches.push(user);
+          } else {
+            nonPreferenceMatches.push(user);
+          }
+        }
+      }
+      
+      // Combine: preference matches first, then non-preference matches
+      filteredUsers = [...preferenceMatches, ...nonPreferenceMatches];
+    }
+
     // Limit to requested number
-    const finalUsers = processedUsers.slice(0, limit);
+    const finalUsers = filteredUsers.slice(0, limit);
 
     logger.info(
-      `Found ${finalUsers.length} users for discovery for user ${currentUserId}`,
+      `Discovery for user ${currentUserId}: ${finalUsers.length} users found`,
       {
-        ageRange: defaultFilters.ageRange,
-        maxDistance: defaultFilters.maxDistance,
-        totalFiltered: processedUsers.length,
+        filters: defaultFilters,
+        totalUsers: users.length,
+        afterFiltering: filteredUsers.length,
+        preferenceMatches: finalUsers.filter(u => u.matchesPreferences).length,
+        returned: finalUsers.length,
       }
     );
     

@@ -30,6 +30,7 @@ model User {
   drinking               String?
   travel                 String?
   pets                   String?
+  languages              String[]       @default([])
   location               String?
   latitude               Float?
   longitude              Float?

@@ -342,6 +342,21 @@ const ProfileScreen = ({ navigation }) => {
               )}
             </View>
           </View>
+
+          {/* Languages Section */}
+          {userProfile.languages && userProfile.languages.length > 0 && (
+            <View style={styles.languagesSection}>
+              <Text style={styles.languagesTitle}>Languages</Text>
+              <View style={styles.languagesContainer}>
+                {userProfile.languages.map((language, index) => (
+                  <View key={index} style={styles.languageTag}>
+                    <Ionicons name="globe-outline" size={14} color="#666" />
+                    <Text style={styles.languageText}>{language}</Text>
+                  </View>
+                ))}
+              </View>
+            </View>
+          )}
         </View>
 
         {/* Lifestyle Section */}
@@ -609,6 +624,39 @@ const styles = StyleSheet.create({
     color: '#FF6B6B',
     fontSize: 13,
     fontWeight: '500',
+  },
+  languagesSection: {
+    marginTop: 20,
+    width: '100%',
+  },
+  languagesTitle: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    marginBottom: 10,
+    color: '#333',
+  },
+  languagesContainer: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    width: '100%',
+    marginRight: -8, // Compensate for tag margin
+  },
+  languageTag: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#FFF5F5',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 16,
+    marginRight: 8,
+    marginBottom: 8,
+    borderWidth: 1,
+    borderColor: '#FFE0E0',
+  },
+  languageText: {
+    fontSize: 14,
+    color: '#666',
+    marginLeft: 4,
   },
   settingsSection: {
     padding: 20,

@@ -1,49 +1,84 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { View, Text, ScrollView, TouchableOpacity, StyleSheet, Switch } from 'react-native';
+import Slider from '@react-native-community/slider';
+import MultiSlider from '@ptomasroos/react-native-multi-slider';
 import { MaterialIcons } from '@expo/vector-icons';
 import { useToast } from '../contexts/ToastContext';
+import { useAuth } from '../contexts/AuthContext';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import Logger from '../utils/logger';
 
 const FilterScreen = ({ navigation, route }) => {
   const { showSuccess } = useToast();
+  const { userProfile: _userProfile } = useAuth();
 
-  // Get user preferences from route params or default values
-  const userPreferences = route?.params?.userPreferences || {
-    ageRange: { min: 18, max: 50 },
-    maxDistance: 50,
-    genderPreference: ['men', 'women'],
-  };
+  // Get current filters from route params or use defaults
+  const currentFilters = route?.params?.userPreferences || {};
+  const onSaveCallback = route?.params?.onSavePreferences;
 
   const [filters, setFilters] = useState({
-    // Age Range - start with user's preferences
-    ageMin: userPreferences.ageRange?.min || 18,
-    ageMax: userPreferences.ageRange?.max || 50,
+    // Age Range
+    minAge: currentFilters.minAge || 18,
+    maxAge: currentFilters.maxAge || 50,
+    strictAge: currentFilters.strictAge || false,
 
-    // Distance - start with user's preferences
-    maxDistance: userPreferences.maxDistance || 50,
+    // Distance
+    maxDistance: currentFilters.maxDistance || 100,
+    strictDistance: currentFilters.strictDistance || false,
 
-    // Gender - start with user's preferences
-    showMen: userPreferences.genderPreference?.includes('men') || true,
-    showWomen: userPreferences.genderPreference?.includes('women') || true,
+    // Only show users with photos
+    onlyWithPhotos: currentFilters.onlyWithPhotos !== false, // Default true
 
-    // Languages
-    languages: [],
+    // Advanced filters
+    relationshipType: currentFilters.relationshipType || [],
+    strictRelationshipType: currentFilters.strictRelationshipType || false,
 
-    // Lifestyle
-    religion: [],
-    education: [],
-    smoking: [],
-    drinking: [],
-    pets: [],
-    travel: [],
+    education: currentFilters.education || [],
+    strictEducation: currentFilters.strictEducation || false,
 
-    // Relationship Goals
-    relationshipType: [],
+    smoking: currentFilters.smoking || [],
+    strictSmoking: currentFilters.strictSmoking || false,
 
-    // Advanced
-    heightMin: 150,
-    heightMax: 200,
+    drinking: currentFilters.drinking || [],
+    strictDrinking: currentFilters.strictDrinking || false,
+
+    languages: currentFilters.languages || [],
+    strictLanguages: currentFilters.strictLanguages || false,
+
+    hasKids: currentFilters.hasKids || null,
+    wantsKids: currentFilters.wantsKids || null,
+
+    // Height range (in cm)
+    heightMin: currentFilters.heightMin || null,
+    heightMax: currentFilters.heightMax || null,
   });
+
+  // Load saved filters on mount
+  useEffect(() => {
+    loadSavedFilters();
+  }, []);
+
+  const loadSavedFilters = async () => {
+    try {
+      const savedFilters = await AsyncStorage.getItem('@HantibinkFilters');
+      if (savedFilters) {
+        const parsed = JSON.parse(savedFilters);
+        setFilters(prev => ({ ...prev, ...parsed }));
+        Logger.info('Loaded saved filters:', parsed);
+      }
+    } catch (error) {
+      Logger.error('Failed to load saved filters:', error);
+    }
+  };
+
+  const saveFilters = async filtersToSave => {
+    try {
+      await AsyncStorage.setItem('@HantibinkFilters', JSON.stringify(filtersToSave));
+      Logger.info('Filters saved to storage');
+    } catch (error) {
+      Logger.error('Failed to save filters:', error);
+    }
+  };
 
   const updateFilter = (key, value) => {
     setFilters(prev => ({
@@ -61,31 +96,46 @@ const FilterScreen = ({ navigation, route }) => {
     }));
   };
 
-  const applyFilters = () => {
-    // Here you would apply the filters to your matching algorithm
-    Logger.debug('Applying filters:', filters);
-    showSuccess('Your filters have been updated!');
+  const applyFilters = async () => {
+    // Save filters to storage
+    await saveFilters(filters);
+
+    // Log the applied filters
+    Logger.info('Applying filters:', filters);
+
+    // Call the callback if provided (for PeopleScreen)
+    if (onSaveCallback) {
+      onSaveCallback(filters);
+    }
+
+    showSuccess('Filters updated successfully!');
     navigation.goBack();
   };
 
   const resetFilters = () => {
-    setFilters({
-      ageMin: 18,
-      ageMax: 50,
-      maxDistance: 50,
-      showMen: userPreferences.genderPreference?.includes('men') || true,
-      showWomen: userPreferences.genderPreference?.includes('women') || true,
-      languages: [],
-      religion: [],
-      education: [],
-      smoking: [],
-      drinking: [],
-      pets: [],
-      travel: [],
+    const defaultFilters = {
+      minAge: 18,
+      maxAge: 50,
+      strictAge: false,
+      maxDistance: 100,
+      strictDistance: false,
+      onlyWithPhotos: true,
       relationshipType: [],
-      heightMin: 150,
-      heightMax: 200,
-    });
+      strictRelationshipType: false,
+      education: [],
+      strictEducation: false,
+      smoking: [],
+      strictSmoking: false,
+      drinking: [],
+      strictDrinking: false,
+      languages: [],
+      strictLanguages: false,
+      hasKids: null,
+      wantsKids: null,
+      heightMin: null,
+      heightMax: null,
+    };
+    setFilters(defaultFilters);
   };
 
   const renderSection = (title, children) => (
@@ -95,15 +145,54 @@ const FilterScreen = ({ navigation, route }) => {
     </View>
   );
 
-  const renderToggle = (label, key, value) => (
+  const renderToggle = (label, description, key, value) => (
     <View style={styles.toggleContainer}>
-      <Text style={styles.toggleLabel}>{label}</Text>
+      <View style={styles.toggleTextContainer}>
+        <Text style={styles.toggleLabel}>{label}</Text>
+        {description && <Text style={styles.toggleDescription}>{description}</Text>}
+      </View>
       <Switch
         value={value}
         onValueChange={newValue => updateFilter(key, newValue)}
-        trackColor={{ false: '#E5E5EA', true: '#007AFF' }}
+        trackColor={{ false: '#E5E5EA', true: '#FF6B6B' }}
         thumbColor={value ? '#fff' : '#f4f3f4'}
       />
+    </View>
+  );
+
+  const _renderSlider = (_label, _minKey, _maxKey, _min, _max, _unit = '') => (
+    <View style={styles.sliderContainer}>
+      <Text style={styles.sliderLabel}>{_label}</Text>
+      <View style={styles.sliderRow}>
+        <Text style={styles.sliderValue}>{filters[_minKey]}</Text>
+        <View style={styles.sliderTrack}>
+          <Slider
+            style={styles.slider}
+            minimumValue={_min}
+            maximumValue={_max}
+            value={filters[_minKey]}
+            onValueChange={value => updateFilter(_minKey, Math.round(value))}
+            minimumTrackTintColor="#FF6B6B"
+            maximumTrackTintColor="#E5E5EA"
+            thumbTintColor="#FF6B6B"
+          />
+        </View>
+        <Text style={styles.sliderValue}>{filters[_maxKey]}</Text>
+      </View>
+      <View style={styles.sliderRow}>
+        <Text style={styles.sliderHint}>Min</Text>
+        <Slider
+          style={styles.slider}
+          minimumValue={filters[_minKey]}
+          maximumValue={_max}
+          value={filters[_maxKey]}
+          onValueChange={value => updateFilter(_maxKey, Math.round(value))}
+          minimumTrackTintColor="#FF6B6B"
+          maximumTrackTintColor="#E5E5EA"
+          thumbTintColor="#FF6B6B"
+        />
+        <Text style={styles.sliderHint}>Max</Text>
+      </View>
     </View>
   );
 
@@ -131,148 +220,280 @@ const FilterScreen = ({ navigation, route }) => {
     </View>
   );
 
-  const renderRangeDisplay = (label, min, max, unit = '') => (
-    <View style={styles.rangeContainer}>
-      <Text style={styles.rangeLabel}>{label}</Text>
-      <Text style={styles.rangeValue}>
-        {min} - {max} {unit}
-      </Text>
-    </View>
-  );
-
   return (
     <View style={styles.container}>
+      {/* Header */}
       <View style={styles.header}>
         <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
-          <MaterialIcons name="arrow-back" size={24} color="#007AFF" />
+          <MaterialIcons name="arrow-back" size={24} color="#333" />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>Filters</Text>
+        <Text style={styles.headerTitle}>Discovery Filters</Text>
         <TouchableOpacity onPress={resetFilters} style={styles.resetButton}>
-          <Text style={styles.resetButtonText}>Reset</Text>
+          <Text style={styles.resetText}>Reset</Text>
         </TouchableOpacity>
       </View>
 
       <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
-        {/* Age Range */}
+        {/* Basic Filters */}
         {renderSection(
-          'Age Range',
-          renderRangeDisplay('Age', filters.ageMin, filters.ageMax, 'years')
+          'Basic Preferences',
+          <>
+            {/* Age Range */}
+            <View style={styles.rangeContainer}>
+              <View style={styles.rangeHeader}>
+                <Text style={styles.rangeLabel}>Age Range</Text>
+                <View style={styles.rangeValues}>
+                  <Text style={styles.rangeValue}>{filters.minAge}</Text>
+                  <Text style={styles.rangeSeparator}>-</Text>
+                  <Text style={styles.rangeValue}>{filters.maxAge}</Text>
+                  <Text style={styles.rangeUnit}>years</Text>
+                </View>
+              </View>
+              <View style={styles.multiSliderContainer}>
+                <MultiSlider
+                  values={[filters.minAge, filters.maxAge]}
+                  min={18}
+                  max={100}
+                  step={1}
+                  sliderLength={280}
+                  onValuesChange={values => {
+                    updateFilter('minAge', values[0]);
+                    updateFilter('maxAge', values[1]);
+                  }}
+                  selectedStyle={{
+                    backgroundColor: '#FF6B6B',
+                    height: 4,
+                  }}
+                  unselectedStyle={{
+                    backgroundColor: '#E5E5EA',
+                    height: 4,
+                  }}
+                  markerStyle={{
+                    backgroundColor: '#FFF',
+                    height: 28,
+                    width: 28,
+                    borderRadius: 14,
+                    shadowColor: '#000',
+                    shadowOffset: { width: 0, height: 2 },
+                    shadowOpacity: 0.15,
+                    shadowRadius: 4,
+                    elevation: 4,
+                  }}
+                  pressedMarkerStyle={{
+                    height: 32,
+                    width: 32,
+                    borderRadius: 16,
+                  }}
+                  containerStyle={{
+                    height: 40,
+                  }}
+                  trackStyle={{
+                    height: 4,
+                    borderRadius: 2,
+                  }}
+                />
+                <View style={styles.sliderLabels}>
+                  <Text style={styles.sliderMinLabel}>18</Text>
+                  <Text style={styles.sliderMaxLabel}>100</Text>
+                </View>
+              </View>
+              {renderToggle(
+                'Strict age preference',
+                'Only show people within this age range',
+                'strictAge',
+                filters.strictAge
+              )}
+            </View>
+
+            {/* Distance */}
+            <View style={styles.rangeContainer}>
+              <View style={styles.rangeHeader}>
+                <Text style={styles.rangeLabel}>Maximum Distance</Text>
+                <View style={styles.rangeValues}>
+                  <Text style={styles.rangeValue}>
+                    {Math.round(filters.maxDistance * 0.621371)}
+                  </Text>
+                  <Text style={styles.rangeUnit}>mi</Text>
+                  <Text style={styles.rangeSeparator}>({filters.maxDistance} km)</Text>
+                </View>
+              </View>
+              <View style={styles.multiSliderContainer}>
+                <MultiSlider
+                  values={[filters.maxDistance]}
+                  min={1}
+                  max={500}
+                  step={1}
+                  sliderLength={280}
+                  onValuesChange={values => {
+                    updateFilter('maxDistance', values[0]);
+                  }}
+                  selectedStyle={{
+                    backgroundColor: '#FF6B6B',
+                    height: 4,
+                  }}
+                  unselectedStyle={{
+                    backgroundColor: '#E5E5EA',
+                    height: 4,
+                  }}
+                  markerStyle={{
+                    backgroundColor: '#FFF',
+                    height: 28,
+                    width: 28,
+                    borderRadius: 14,
+                    shadowColor: '#000',
+                    shadowOffset: { width: 0, height: 2 },
+                    shadowOpacity: 0.15,
+                    shadowRadius: 4,
+                    elevation: 4,
+                  }}
+                  pressedMarkerStyle={{
+                    height: 32,
+                    width: 32,
+                    borderRadius: 16,
+                  }}
+                  containerStyle={{
+                    height: 40,
+                  }}
+                  trackStyle={{
+                    height: 4,
+                    borderRadius: 2,
+                  }}
+                  enableOne={true}
+                />
+                <View style={styles.sliderLabels}>
+                  <Text style={styles.sliderMinLabel}>1 mi</Text>
+                  <Text style={styles.sliderMaxLabel}>310 mi</Text>
+                </View>
+              </View>
+              {renderToggle(
+                'Strict distance preference',
+                'Only show people within this distance',
+                'strictDistance',
+                filters.strictDistance
+              )}
+            </View>
+          </>
         )}
 
-        {/* Distance */}
+        {/* Matching Preferences */}
         {renderSection(
-          'Distance',
-          renderRangeDisplay('Maximum Distance', filters.maxDistance, '', 'km')
+          'Matching Preferences',
+          renderToggle(
+            'Only With Photos',
+            'Only show profiles that have at least one photo',
+            'onlyWithPhotos',
+            filters.onlyWithPhotos
+          )
         )}
 
-        {/* Gender */}
+        {/* Relationship Type */}
         {renderSection(
-          'Gender',
-          <View>
-            {renderToggle('Show Men', 'showMen', filters.showMen)}
-            {renderToggle('Show Women', 'showWomen', filters.showWomen)}
-          </View>
+          'Looking For',
+          <>
+            {renderMultiSelect('Relationship Type', 'relationshipType', [
+              'Long-term',
+              'Short-term',
+              'Casual',
+              'Marriage',
+              'Friendship',
+              'Not sure yet',
+            ])}
+            {renderToggle(
+              'Strict relationship preference',
+              'Only show people looking for the same type of relationship',
+              'strictRelationshipType',
+              filters.strictRelationshipType
+            )}
+          </>
         )}
 
-        {/* Languages */}
+        {/* Lifestyle */}
         {renderSection(
-          'Languages',
-          renderMultiSelect('Languages', 'languages', [
-            'English',
-            'Armenian (Western)',
-            'Armenian (Eastern)',
-            'Arabic',
-            'French',
-            'German',
-            'Spanish',
-            'Russian',
-            'Turkish',
-            'Persian',
-            'Italian',
-            'Portuguese',
-            'Chinese',
-            'Japanese',
-            'Korean',
-            'Hindi',
-            'Urdu',
-            'Hebrew',
-            'Greek',
-            'Other',
-          ])
-        )}
-
-        {/* Religion */}
-        {renderSection(
-          'Religion',
-          renderMultiSelect('Religion', 'religion', [
-            'Christian',
-            'Muslim',
-            'Jewish',
-            'Hindu',
-            'Buddhist',
-            'Atheist',
-            'Agnostic',
-            'Other',
-          ])
+          'Lifestyle',
+          <>
+            {renderMultiSelect('Smoking', 'smoking', [
+              'Non-smoker',
+              'Social smoker',
+              'Regular smoker',
+              "Doesn't matter",
+            ])}
+            {renderToggle(
+              'Strict smoking preference',
+              'Only show people with selected smoking habits',
+              'strictSmoking',
+              filters.strictSmoking
+            )}
+            {renderMultiSelect('Drinking', 'drinking', [
+              'Never',
+              'Socially',
+              'Regularly',
+              "Doesn't matter",
+            ])}
+            {renderToggle(
+              'Strict drinking preference',
+              'Only show people with selected drinking habits',
+              'strictDrinking',
+              filters.strictDrinking
+            )}
+          </>
         )}
 
         {/* Education */}
         {renderSection(
           'Education',
-          renderMultiSelect('Education Level', 'education', [
-            'High School',
-            'Some College',
-            "Bachelor's Degree",
-            "Master's Degree",
-            'PhD',
-            'Other',
-          ])
+          <>
+            {renderMultiSelect('Education Level', 'education', [
+              'High School',
+              'Some College',
+              "Bachelor's",
+              "Master's",
+              'PhD',
+              "Doesn't matter",
+            ])}
+            {renderToggle(
+              'Strict education preference',
+              'Only show people with selected education levels',
+              'strictEducation',
+              filters.strictEducation
+            )}
+          </>
         )}
 
-        {/* Smoking */}
+        {/* Languages */}
         {renderSection(
-          'Smoking',
-          renderMultiSelect('Smoking', 'smoking', ['Yes', 'No', 'Occasionally', 'Trying to Quit'])
+          'Languages',
+          <>
+            {renderMultiSelect('Languages Spoken', 'languages', [
+              'Armenian (Western)',
+              'Armenian (Eastern)',
+              'English',
+              'Spanish',
+              'French',
+              'Mandarin',
+              'Arabic',
+              'Hindi',
+              'Portuguese',
+              'Russian',
+              'Japanese',
+              'German',
+              'Korean',
+              'Italian',
+              'Other',
+            ])}
+            {renderToggle(
+              'Strict language preference',
+              'Only show people who speak selected languages',
+              'strictLanguages',
+              filters.strictLanguages
+            )}
+          </>
         )}
 
-        {/* Drinking */}
-        {renderSection(
-          'Drinking',
-          renderMultiSelect('Drinking', 'drinking', ['Yes', 'No', 'Occasionally', 'Socially'])
-        )}
-
-        {/* Pets */}
-        {renderSection('Pets', renderMultiSelect('Pets', 'pets', ['Dog', 'Cat', 'Other', 'None']))}
-
-        {/* Travel */}
-        {renderSection(
-          'Travel',
-          renderMultiSelect('Travel Frequency', 'travel', [
-            'Frequent',
-            'Occasional',
-            'Rarely',
-            'Never',
-          ])
-        )}
-
-        {/* Relationship Goals */}
-        {renderSection(
-          'Relationship Goals',
-          renderMultiSelect('Looking For', 'relationshipType', [
-            'Casual',
-            'Serious',
-            'Friendship',
-            'Marriage',
-          ])
-        )}
-
-        {/* Height */}
-        {renderSection(
-          'Height',
-          renderRangeDisplay('Height Range', filters.heightMin, filters.heightMax, 'cm')
-        )}
+        {/* Space at bottom */}
+        <View style={{ height: 100 }} />
       </ScrollView>
 
+      {/* Apply Button */}
       <View style={styles.footer}>
         <TouchableOpacity style={styles.applyButton} onPress={applyFilters}>
           <Text style={styles.applyButtonText}>Apply Filters</Text>
@@ -291,63 +512,135 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingHorizontal: 20,
-    paddingVertical: 15,
+    paddingHorizontal: 16,
+    paddingTop: 60,
+    paddingBottom: 16,
+    backgroundColor: '#fff',
     borderBottomWidth: 1,
-    borderBottomColor: '#E5E5EA',
+    borderBottomColor: '#f0f0f0',
   },
   backButton: {
-    padding: 5,
+    padding: 4,
   },
   headerTitle: {
     fontSize: 18,
     fontWeight: '600',
+    color: '#333',
   },
   resetButton: {
-    padding: 5,
+    padding: 4,
   },
-  resetButtonText: {
-    color: '#FF3B30',
+  resetText: {
     fontSize: 16,
+    color: '#FF6B6B',
+    fontWeight: '500',
   },
   content: {
     flex: 1,
-    padding: 20,
   },
   section: {
-    marginBottom: 30,
+    paddingHorizontal: 20,
+    paddingVertical: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: '#f0f0f0',
   },
   sectionTitle: {
-    fontSize: 18,
+    fontSize: 14,
     fontWeight: '600',
-    marginBottom: 15,
-    color: '#333',
+    color: '#666',
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+    marginBottom: 16,
   },
   toggleContainer: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingVertical: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: '#F2F2F7',
+    marginBottom: 16,
+  },
+  toggleTextContainer: {
+    flex: 1,
+    marginRight: 16,
   },
   toggleLabel: {
     fontSize: 16,
     color: '#333',
+    fontWeight: '500',
+  },
+  toggleDescription: {
+    fontSize: 13,
+    color: '#666',
+    marginTop: 2,
+  },
+  rangeContainer: {
+    marginBottom: 20,
+  },
+  rangeHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  rangeLabel: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#333',
+  },
+  rangeValues: {
+    flexDirection: 'row',
+    alignItems: 'baseline',
+    backgroundColor: '#F8F8F8',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 6,
+  },
+  rangeValue: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#FF6B6B',
+  },
+  rangeSeparator: {
+    fontSize: 14,
+    color: '#999',
+    marginHorizontal: 4,
+  },
+  rangeUnit: {
+    fontSize: 14,
+    color: '#666',
+    marginLeft: 4,
+  },
+  multiSliderContainer: {
+    alignItems: 'center',
+    paddingHorizontal: 20,
+    marginBottom: 12,
+  },
+  sliderLabels: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    width: 280,
+    marginTop: 8,
+  },
+  sliderMinLabel: {
+    fontSize: 12,
+    color: '#999',
+  },
+  sliderMaxLabel: {
+    fontSize: 12,
+    color: '#999',
   },
   multiSelectContainer: {
-    marginBottom: 10,
+    marginBottom: 20,
   },
   multiSelectLabel: {
     fontSize: 16,
-    fontWeight: '500',
-    marginBottom: 10,
     color: '#333',
+    fontWeight: '500',
+    marginBottom: 12,
   },
   optionsContainer: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: 8,
+    marginHorizontal: -4,
   },
   optionButton: {
     paddingHorizontal: 16,
@@ -356,10 +649,11 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#E5E5EA',
     backgroundColor: '#fff',
+    margin: 4,
   },
   optionButtonActive: {
-    backgroundColor: '#007AFF',
-    borderColor: '#007AFF',
+    backgroundColor: '#FF6B6B',
+    borderColor: '#FF6B6B',
   },
   optionText: {
     fontSize: 14,
@@ -367,39 +661,30 @@ const styles = StyleSheet.create({
   },
   optionTextActive: {
     color: '#fff',
-  },
-  rangeContainer: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingVertical: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: '#F2F2F7',
-  },
-  rangeLabel: {
-    fontSize: 16,
-    color: '#333',
-  },
-  rangeValue: {
-    fontSize: 16,
-    color: '#007AFF',
     fontWeight: '500',
   },
   footer: {
-    padding: 20,
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    backgroundColor: '#fff',
+    paddingHorizontal: 20,
+    paddingVertical: 16,
+    paddingBottom: 34,
     borderTopWidth: 1,
-    borderTopColor: '#E5E5EA',
+    borderTopColor: '#f0f0f0',
   },
   applyButton: {
-    backgroundColor: '#007AFF',
-    paddingVertical: 15,
-    borderRadius: 8,
+    backgroundColor: '#FF6B6B',
+    paddingVertical: 16,
+    borderRadius: 12,
     alignItems: 'center',
   },
   applyButtonText: {
-    color: '#fff',
     fontSize: 16,
     fontWeight: '600',
+    color: '#fff',
   },
 });
 

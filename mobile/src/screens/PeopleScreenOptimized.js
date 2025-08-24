@@ -38,12 +38,24 @@ const PeopleScreenOptimized = ({ navigation }) => {
   const processedIds = useRef(new Set());
   const cardStackRef = useRef(null);
 
-  // Filters state
+  // Filters state - load from storage or use defaults
   const [filters, setFilters] = useState({
     minAge: 18,
     maxAge: 50,
-    maxDistance: 50,
-    interestedIn: null,
+    maxDistance: 100,
+    interestedIn: userProfile?.interestedIn || [],
+    strictAge: false,
+    strictDistance: false,
+    relationshipType: [],
+    strictRelationshipType: false,
+    education: [],
+    strictEducation: false,
+    smoking: [],
+    strictSmoking: false,
+    drinking: [],
+    strictDrinking: false,
+    languages: [],
+    strictLanguages: false,
   });
 
   // Initial load
@@ -81,6 +93,22 @@ const PeopleScreenOptimized = ({ navigation }) => {
       const result = await ApiDataService.getUsersForDiscovery({
         limit: BATCH_SIZE,
         excludeIds: Array.from(processedIds.current),
+        filters: {
+          ageRange: { min: filters.minAge, max: filters.maxAge },
+          maxDistance: filters.maxDistance,
+          strictAge: filters.strictAge || false,
+          strictDistance: filters.strictDistance || false,
+          relationshipType: filters.relationshipType,
+          strictRelationshipType: filters.strictRelationshipType || false,
+          education: filters.education,
+          strictEducation: filters.strictEducation || false,
+          smoking: filters.smoking,
+          strictSmoking: filters.strictSmoking || false,
+          drinking: filters.drinking,
+          strictDrinking: filters.strictDrinking || false,
+          languages: filters.languages,
+          strictLanguages: filters.strictLanguages || false,
+        },
       });
 
       if (result && result.length > 0) {
@@ -119,6 +147,22 @@ const PeopleScreenOptimized = ({ navigation }) => {
       const result = await ApiDataService.getUsersForDiscovery({
         limit: BATCH_SIZE,
         excludeIds: Array.from(processedIds.current),
+        filters: {
+          ageRange: { min: filters.minAge, max: filters.maxAge },
+          maxDistance: filters.maxDistance,
+          strictAge: filters.strictAge || false,
+          strictDistance: filters.strictDistance || false,
+          relationshipType: filters.relationshipType,
+          strictRelationshipType: filters.strictRelationshipType || false,
+          education: filters.education,
+          strictEducation: filters.strictEducation || false,
+          smoking: filters.smoking,
+          strictSmoking: filters.strictSmoking || false,
+          drinking: filters.drinking,
+          strictDrinking: filters.strictDrinking || false,
+          languages: filters.languages,
+          strictLanguages: filters.strictLanguages || false,
+        },
       });
 
       if (result && result.length > 0) {
@@ -146,6 +190,7 @@ const PeopleScreenOptimized = ({ navigation }) => {
     } finally {
       setIsLoadingMore(false);
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [hasInitialized, isLoading, isLoadingMore, hasMore]);
 
   // Handle swipe left (pass)

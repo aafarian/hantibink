@@ -301,13 +301,13 @@ class ApiDataService {
   // ============ DISCOVERY METHODS ============
 
   /**
-   * Get users for discovery/swiping
+   * Get users for discovery/swiping with filters
    */
   static async getUsersForDiscovery(options = {}) {
     try {
       Logger.info('🔍 Getting users for discovery from API...');
 
-      const { limit = 20, excludeIds = [] } = options;
+      const { limit = 20, excludeIds = [], filters = {} } = options;
 
       const queryParams = new URLSearchParams({
         limit: limit.toString(),
@@ -317,10 +317,24 @@ class ApiDataService {
         queryParams.append('excludeIds', excludeIds.join(','));
       }
 
+      // Add filter parameters
+      if (filters.minAge) {
+        queryParams.append('minAge', filters.minAge.toString());
+      }
+      if (filters.maxAge) {
+        queryParams.append('maxAge', filters.maxAge.toString());
+      }
+      if (filters.maxDistance) {
+        queryParams.append('maxDistance', filters.maxDistance.toString());
+      }
+
+      Logger.debug('Discovery API call with params:', queryParams.toString());
       const response = await apiClient.get(`/discovery/users?${queryParams}`);
 
       if (response.success) {
-        Logger.success('✅ Discovery users loaded from API');
+        Logger.success(
+          `✅ Discovery users loaded from API (${response.data?.data?.length || 0} users)`
+        );
         return response.data?.data || response.data || [];
       } else {
         Logger.error('❌ Failed to get discovery users from API:', response.message);

@@ -55,7 +55,15 @@ const SwipeableCard = ({ profile, isTop, position, scale, opacity }) => {
           <Text style={styles.cardName}>
             {profile.name}, {profile.age}
           </Text>
-          {profile.location && (
+          {profile.distance !== null && profile.distance !== undefined && (
+            <View style={styles.locationRow}>
+              <Ionicons name="location-outline" size={16} color="#fff" />
+              <Text style={styles.cardLocation}>
+                {Math.round(profile.distance * 0.621371)} miles ({profile.distance} km) away
+              </Text>
+            </View>
+          )}
+          {!profile.distance && profile.location && (
             <View style={styles.locationRow}>
               <Ionicons name="location-outline" size={16} color="#fff" />
               <Text style={styles.cardLocation}>{profile.location}</Text>
