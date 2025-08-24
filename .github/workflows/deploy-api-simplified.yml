@@ -1,0 +1,130 @@
+name: Deploy API to Google Cloud Run
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'api/**'
+      - '.github/workflows/deploy-api.yml'
+  workflow_dispatch:
+
+env:
+  PROJECT_ID: hantibink
+  REGION: us-central1
+  SERVICE_NAME: hantibink-api
+
+jobs:
+  # First job: Deploy the API
+  deploy:
+    name: Deploy API
+    runs-on: ubuntu-latest
+    outputs:
+      service_url: ${{ steps.deploy.outputs.service_url }}
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v2
+        with:
+          credentials_json: ${{ secrets.GCP_SA_KEY }}
+
+      - name: Set up Cloud SDK
+        uses: google-github-actions/setup-gcloud@v2
+
+      - name: Configure Docker for GCR
+        run: gcloud auth configure-docker --quiet
+
+      - name: Build and Push Docker image
+        working-directory: ./api
+        run: |
+          # Build and push Docker image (existing logic)
+          docker build --platform linux/amd64 -t gcr.io/$PROJECT_ID/$SERVICE_NAME:$GITHUB_SHA .
+          docker push gcr.io/$PROJECT_ID/$SERVICE_NAME:$GITHUB_SHA
+
+      - name: Deploy to Cloud Run
+        id: deploy
+        run: |
+          gcloud run deploy $SERVICE_NAME \
+            --image gcr.io/$PROJECT_ID/$SERVICE_NAME:$GITHUB_SHA \
+            --platform managed \
+            --region $REGION \
+            --allow-unauthenticated \
+            --set-env-vars="NODE_ENV=production,DATABASE_URL=${{ secrets.SUPABASE_DATABASE_URL }},DIRECT_URL=${{ secrets.SUPABASE_DIRECT_URL }},JWT_SECRET=${{ secrets.JWT_SECRET }}" \
+            --min-instances=0 \
+            --max-instances=10 \
+            --memory=512Mi
+          
+          SERVICE_URL=$(gcloud run services describe $SERVICE_NAME --region=$REGION --format='value(status.url)')
+          echo "service_url=$SERVICE_URL" >> $GITHUB_OUTPUT
+
+      - name: Test deployment
+        run: |
+          curl -f ${{ steps.deploy.outputs.service_url }}/health || exit 1
+          echo "✅ Health check passed!"
+
+  # Second job: Check and optionally apply migrations
+  migrations:
+    name: Database Migrations
+    runs-on: ubuntu-latest
+    needs: deploy
+    if: success()  # Only run if deployment succeeded
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+
+      - name: Install migration dependencies
+        working-directory: ./api
+        run: |
+          # Only install what's needed for migrations
+          npm install @prisma/client
+          npx prisma generate
+
+      - name: Check migration status
+        id: check
+        working-directory: ./api
+        env:
+          DATABASE_URL: ${{ secrets.SUPABASE_DATABASE_URL }}
+          DIRECT_URL: ${{ secrets.SUPABASE_DIRECT_URL }}
+        run: |
+          node scripts/ci-migration-check.js | tee output.txt
+          STATUS=$(grep "^STATUS=" output.txt | cut -d= -f2 || echo "ERROR")
+          PENDING=$(grep "^PENDING_MIGRATIONS=" output.txt | cut -d= -f2 || echo "")
+          
+          echo "status=$STATUS" >> $GITHUB_OUTPUT
+          echo "pending=$PENDING" >> $GITHUB_OUTPUT
+          
+          # Create job summary
+          if [ "$STATUS" = "PENDING" ]; then
+            echo "## ⚠️ Migration Required" >> $GITHUB_STEP_SUMMARY
+            echo "Pending: $PENDING" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "Run: \`npm run migrate:prod\`" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "## ✅ Migrations Up to Date" >> $GITHUB_STEP_SUMMARY
+          fi
+
+      - name: Apply migrations (if auto-enabled)
+        if: steps.check.outputs.status == 'PENDING' && vars.AUTO_MIGRATE == 'true'
+        working-directory: ./api
+        env:
+          DATABASE_URL: ${{ secrets.SUPABASE_DATABASE_URL }}
+          DIRECT_URL: ${{ secrets.SUPABASE_DIRECT_URL }}
+        run: |
+          echo "🔄 Auto-applying migrations..."
+          npm run migrate:prod
+          echo "✅ Migrations applied"
+
+      - name: Create status badge
+        if: always()
+        run: |
+          # This could update a badge in your README or send a notification
+          echo "Migration status: ${{ steps.check.outputs.status }}"

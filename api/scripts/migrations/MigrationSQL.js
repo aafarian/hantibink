@@ -70,17 +70,25 @@ class MigrationSQL {
    * Create an ALTER TABLE ADD COLUMN statement
    * @param {string} table - Table name
    * @param {string} column - Column name
-   * @param {string} type - Column type (should be hardcoded, not user input)
-   * @param {string} defaultValue - Default value (optional, should be hardcoded)
+   * @param {string} type - Column type (MUST be hardcoded, never from user input)
+   * @param {string} defaultValue - Default value (MUST be hardcoded, never from user input)
+   * 
+   * WARNING: type and defaultValue are NOT validated for SQL injection.
+   * These MUST be hardcoded strings in migration definitions, NEVER from external input.
+   * Valid only for migration files where all SQL is written by developers.
    */
   static addColumn(table, column, type, defaultValue = null) {
     // Validate identifiers to prevent SQL injection
     const safeTable = this.validateIdentifier(table, 'table name');
     const safeColumn = this.validateIdentifier(column, 'column name');
     
-    // Type and defaultValue should be hardcoded in migration definitions
-    // They're not validated here because they need to support complex SQL types
-    // e.g., "TEXT[]", "VARCHAR(255)", "INTEGER DEFAULT 0"
+    // SECURITY NOTE: type and defaultValue are intentionally not validated
+    // because they need to support complex SQL expressions like:
+    // - "TEXT[]" (arrays)
+    // - "VARCHAR(255)" (with parameters)  
+    // - "INTEGER DEFAULT 0" (with defaults)
+    // - "REFERENCES users(id) ON DELETE CASCADE" (foreign keys)
+    // These MUST be hardcoded in migration files, never from user input!
     let sql = `ALTER TABLE "${safeTable}" ADD COLUMN IF NOT EXISTS "${safeColumn}" ${type}`;
     if (defaultValue !== null) {
       sql += ` DEFAULT ${defaultValue}`;

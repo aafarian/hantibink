@@ -1,0 +1,66 @@
+name: PR Checks
+
+on:
+  pull_request:
+    types: [opened, synchronize]
+
+jobs:
+  migration-reminder:
+    name: Migration Reminder
+    runs-on: ubuntu-latest
+    if: |
+      contains(github.event.pull_request.files.*.filename, 'schema.prisma') ||
+      contains(github.event.pull_request.files.*.filename, 'db-migrate.js')
+    
+    steps:
+      - name: Check for migration files
+        uses: actions/github-script@v6
+        with:
+          script: |
+            const files = await github.rest.pulls.listFiles({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              pull_number: context.issue.number
+            });
+            
+            const hasSchemaChanges = files.data.some(f => 
+              f.filename.includes('schema.prisma')
+            );
+            
+            const hasMigrationScript = files.data.some(f => 
+              f.filename.includes('db-migrate.js') || 
+              f.filename.includes('migrations/')
+            );
+            
+            if (hasSchemaChanges && !hasMigrationScript) {
+              // Schema changed but no migration
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: context.issue.number,
+                body: `## ⚠️ Schema Change Detected
+                
+                This PR modifies \`schema.prisma\` but doesn't include migration updates.
+                
+                **Required Actions:**
+                1. Add migration to \`db-migrate.js\`
+                2. Test migration locally with \`npm run migrate:up\`
+                3. Test rollback with \`npm run migrate:down\`
+                
+                After merging, run \`npm run migrate:prod\` to apply to production.`
+              });
+              
+              core.setFailed('Schema changed without migration script');
+            } else if (hasSchemaChanges && hasMigrationScript) {
+              // Both present - good!
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: context.issue.number,
+                body: `## ✅ Migration Included
+                
+                This PR includes both schema changes and migration scripts.
+                
+                **After merging:** Run \`npm run migrate:prod\` to apply migrations.`
+              });
+            }
