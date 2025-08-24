@@ -77,8 +77,8 @@ jobs:
           CMD ["npm", "start"]
           EOF
           
-          # IMPORTANT: --no-cache ensures Prisma client is regenerated with latest database schema
-          # This prevents issues where the API has an outdated Prisma client after migrations
+          # CRITICAL: --no-cache forces fresh Prisma client generation
+          # Without this, the API may use an outdated Prisma client that doesn't match the database schema
           docker build --platform linux/amd64 --no-cache -f Dockerfile.ci -t gcr.io/$PROJECT_ID/$SERVICE_NAME:$GITHUB_SHA .
           docker tag gcr.io/$PROJECT_ID/$SERVICE_NAME:$GITHUB_SHA gcr.io/$PROJECT_ID/$SERVICE_NAME:latest
 
@@ -110,98 +110,3 @@ jobs:
           curl -f ${{ env.SERVICE_URL }}/health || exit 1
           echo "Health check passed!"
 
-      # Migration check - always runs but doesn't fail the build
-      - name: Check for pending migrations
-        id: migration-check
-        continue-on-error: true
-        working-directory: ./api
-        run: |
-          # Install dependencies first (needed for Prisma client)
-          npm ci --omit=dev
-          
-          # Generate Prisma client
-          npx prisma generate
-          
-          # Run the migration check
-          DATABASE_URL="${{ secrets.SUPABASE_DATABASE_URL }}" \
-          DIRECT_URL="${{ secrets.SUPABASE_DIRECT_URL }}" \
-          node scripts/ci-migration-check.js | tee migration-output.txt
-          
-          # Extract status
-          STATUS=$(grep "^STATUS=" migration-output.txt | cut -d= -f2)
-          PENDING=$(grep "^PENDING_MIGRATIONS=" migration-output.txt | cut -d= -f2)
-          
-          echo "migration_status=$STATUS" >> $GITHUB_OUTPUT
-          echo "pending_migrations=$PENDING" >> $GITHUB_OUTPUT
-          
-          # Show output in logs
-          cat migration-output.txt
-          rm migration-output.txt
-
-      - name: Migration notification
-        if: steps.migration-check.outputs.migration_status == 'PENDING' || steps.migration-check.outputs.migration_status == 'NO_TABLE'
-        run: |
-          echo "::warning title=Pending Database Migration::Database migrations required: ${{ steps.migration-check.outputs.pending_migrations }}"
-          echo "## 📋 Migration Required" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "**Status:** Pending migrations detected after deployment" >> $GITHUB_STEP_SUMMARY
-          echo "**Migrations needed:** ${{ steps.migration-check.outputs.pending_migrations }}" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "### To apply migrations manually:" >> $GITHUB_STEP_SUMMARY
-          echo "\`\`\`bash" >> $GITHUB_STEP_SUMMARY
-          echo "cd api" >> $GITHUB_STEP_SUMMARY
-          echo "npm run migrate:prod:status  # Check status" >> $GITHUB_STEP_SUMMARY
-          echo "npm run migrate:prod         # Apply migrations" >> $GITHUB_STEP_SUMMARY
-          echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "### To enable auto-migration:" >> $GITHUB_STEP_SUMMARY
-          echo "Add repository variable \`AUTO_MIGRATE=true\` in GitHub settings" >> $GITHUB_STEP_SUMMARY
-          
-      # Note: Auto-migration now happens BEFORE Docker build to ensure Prisma client is in sync
-
-  # Separate job for migration status - shows as its own check
-  migration-status:
-    name: Migration Status
-    runs-on: ubuntu-latest
-    needs: deploy  # Run after deployment
-    if: always()  # Run even if deployment fails
-    
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: '18'
-
-      - name: Install dependencies
-        working-directory: ./api
-        run: npm ci --omit=dev
-
-      - name: Generate Prisma client
-        working-directory: ./api
-        run: npx prisma generate
-
-      - name: Check migration status
-        working-directory: ./api
-        env:
-          DATABASE_URL: ${{ secrets.SUPABASE_DATABASE_URL }}
-          DIRECT_URL: ${{ secrets.SUPABASE_DIRECT_URL }}
-        run: |
-          # Run check and capture exit code
-          set +e
-          node scripts/ci-migration-check.js
-          EXIT_CODE=$?
-          set -e
-          
-          # Display result
-          if [ $EXIT_CODE -eq 0 ]; then
-            echo "✅ Migration check completed successfully"
-          else
-            echo "⚠️ Migration check failed with exit code $EXIT_CODE"
-            echo "Check the deployment job for migration details"
-          fi
-          
-          # Always exit 0 since this is just for visibility
-          exit 0
