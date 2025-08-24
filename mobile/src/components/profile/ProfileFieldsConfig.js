@@ -105,6 +105,20 @@ export const languageOptions = [
   'Italian',
 ];
 
+// Gender options (matching backend enum)
+export const genderOptions = [
+  { id: 'MALE', label: 'Man' },
+  { id: 'FEMALE', label: 'Woman' },
+  { id: 'OTHER', label: 'Other' },
+];
+
+// Interested in options (matching backend enum)
+export const interestedInOptions = [
+  { id: 'MALE', label: 'Men' },
+  { id: 'FEMALE', label: 'Women' },
+  { id: 'EVERYONE', label: 'Everyone' },
+];
+
 // Field configurations for forms
 export const profileFieldsConfig = {
   // Text Input Fields
@@ -152,6 +166,24 @@ export const profileFieldsConfig = {
 
   // Selection Panel Fields (single select)
   selectionFields: [
+    {
+      key: 'gender',
+      label: 'Gender',
+      placeholder: 'Select gender',
+      options: genderOptions.map(g => g.label),
+      singleSelect: true,
+      valueMap: genderOptions.reduce((acc, g) => ({ ...acc, [g.label]: g.id }), {}),
+      displayMap: genderOptions.reduce((acc, g) => ({ ...acc, [g.id]: g.label }), {}),
+    },
+    {
+      key: 'interestedIn',
+      label: 'Interested In',
+      placeholder: "Select who you're interested in",
+      options: interestedInOptions.map(i => i.label),
+      singleSelect: true,
+      valueMap: interestedInOptions.reduce((acc, i) => ({ ...acc, [i.label]: i.id }), {}),
+      displayMap: interestedInOptions.reduce((acc, i) => ({ ...acc, [i.id]: i.label }), {}),
+    },
     {
       key: 'education',
       label: 'Education',

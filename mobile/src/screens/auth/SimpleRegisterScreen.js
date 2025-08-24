@@ -113,19 +113,18 @@ const SimpleRegisterScreen = ({ navigation }) => {
     if (formData.confirmPassword) validateField('confirmPassword', formData.confirmPassword);
   };
 
-  // Gender options
+  // Gender options (matching backend enum)
   const genderOptions = [
-    { id: 'man', label: 'Man' },
-    { id: 'woman', label: 'Woman' },
-    { id: 'non-binary', label: 'Non-binary' },
-    { id: 'other', label: 'Other' },
+    { id: 'MALE', label: 'Man' },
+    { id: 'FEMALE', label: 'Woman' },
+    { id: 'OTHER', label: 'Other' },
   ];
 
-  // Interested in options
+  // Interested in options (matching backend enum)
   const interestedInOptions = [
-    { id: 'men', label: 'Men' },
-    { id: 'women', label: 'Women' },
-    { id: 'everyone', label: 'Everyone' },
+    { id: 'MALE', label: 'Men' },
+    { id: 'FEMALE', label: 'Women' },
+    { id: 'EVERYONE', label: 'Everyone' },
   ];
 
   const updateField = (field, value) => {
