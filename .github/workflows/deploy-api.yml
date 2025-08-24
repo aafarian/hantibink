@@ -193,7 +193,19 @@ jobs:
           DATABASE_URL: ${{ secrets.SUPABASE_DATABASE_URL }}
           DIRECT_URL: ${{ secrets.SUPABASE_DIRECT_URL }}
         run: |
-          node scripts/ci-migration-check.js || true
+          # Run check and capture exit code
+          set +e
+          node scripts/ci-migration-check.js
+          EXIT_CODE=$?
+          set -e
           
-          # Always pass - this is just for visibility
-          echo "Check the deployment job for migration details"
+          # Display result
+          if [ $EXIT_CODE -eq 0 ]; then
+            echo "✅ Migration check completed successfully"
+          else
+            echo "⚠️ Migration check failed with exit code $EXIT_CODE"
+            echo "Check the deployment job for migration details"
+          fi
+          
+          # Always exit 0 since this is just for visibility
+          exit 0

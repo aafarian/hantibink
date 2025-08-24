@@ -8,9 +8,6 @@ jobs:
   migration-reminder:
     name: Migration Reminder
     runs-on: ubuntu-latest
-    if: |
-      contains(github.event.pull_request.files.*.filename, 'schema.prisma') ||
-      contains(github.event.pull_request.files.*.filename, 'db-migrate.js')
     
     steps:
       - name: Check for migration files
