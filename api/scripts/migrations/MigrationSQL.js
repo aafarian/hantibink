@@ -63,7 +63,7 @@ class MigrationSQL {
     
     return {
       sql: statement,
-      isDDL: true,
+      isMigrationStatement: true,
       execute: async (prisma) => {
         // All migration statements use executeRawUnsafe
         return prisma.$executeRawUnsafe(statement);
