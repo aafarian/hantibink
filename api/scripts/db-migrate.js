@@ -10,74 +10,12 @@
 
 const { PrismaClient } = require('@prisma/client');
 const logger = require('../src/utils/logger');
-const MigrationSQL = require('./migrations/MigrationSQL');
+const { getMigrations } = require('./migrations');
 
 const prisma = new PrismaClient();
 
-// Migration definitions using MigrationSQL helper
-const MIGRATIONS = [
-  {
-    id: '20240824_add_languages',
-    name: 'Add languages field to users',
-    up: MigrationSQL.addColumn('users', 'languages', 'TEXT[]', 'ARRAY[]::TEXT[]'),
-    down: MigrationSQL.dropColumn('users', 'languages'),
-    verify: async () => {
-      const result = await prisma.$queryRaw`
-        SELECT column_name, data_type 
-        FROM information_schema.columns 
-        WHERE table_name = 'users' 
-        AND column_name = 'languages'
-      `;
-      return result.length > 0;
-    }
-  },
-  {
-    id: '20241224_update_gender_enum',
-    name: 'Update Gender enum values to MALE/FEMALE/OTHER/EVERYONE',
-    up: {
-      execute: async (prisma) => {
-        // Execute each statement separately
-        await prisma.$executeRawUnsafe(`UPDATE users SET gender = 'OTHER' WHERE gender = 'NON_BINARY'`);
-        await prisma.$executeRawUnsafe(`UPDATE users SET "interestedIn" = array_replace("interestedIn", 'NON_BINARY', 'OTHER')`);
-        await prisma.$executeRawUnsafe(`ALTER TYPE "Gender" RENAME TO "Gender_old"`);
-        await prisma.$executeRawUnsafe(`CREATE TYPE "Gender" AS ENUM ('MALE', 'FEMALE', 'OTHER', 'EVERYONE')`);
-        await prisma.$executeRawUnsafe(`ALTER TABLE users ALTER COLUMN gender TYPE "Gender" USING gender::text::"Gender"`);
-        await prisma.$executeRawUnsafe(`ALTER TABLE users ALTER COLUMN "interestedIn" TYPE "Gender"[] USING "interestedIn"::text[]::"Gender"[]`);
-        await prisma.$executeRawUnsafe(`DROP TYPE "Gender_old"`);
-      }
-    },
-    down: {
-      execute: async (prisma) => {
-        // Execute each statement separately for rollback
-        await prisma.$executeRawUnsafe(`ALTER TYPE "Gender" RENAME TO "Gender_new"`);
-        await prisma.$executeRawUnsafe(`CREATE TYPE "Gender" AS ENUM ('MALE', 'FEMALE', 'NON_BINARY', 'OTHER')`);
-        await prisma.$executeRawUnsafe(`
-          ALTER TABLE users ALTER COLUMN gender TYPE "Gender" USING 
-            CASE gender::text
-              WHEN 'EVERYONE' THEN 'OTHER'::"Gender"
-              ELSE gender::text::"Gender"
-            END
-        `);
-        await prisma.$executeRawUnsafe(`UPDATE users SET "interestedIn" = array_replace("interestedIn"::text[], 'EVERYONE', 'OTHER')::"Gender"[]`);
-        await prisma.$executeRawUnsafe(`ALTER TABLE users ALTER COLUMN "interestedIn" TYPE "Gender"[] USING "interestedIn"`);
-        await prisma.$executeRawUnsafe(`DROP TYPE "Gender_new"`);
-      }
-    },
-    verify: async () => {
-      const result = await prisma.$queryRaw`
-        SELECT enumlabel 
-        FROM pg_enum 
-        WHERE enumtypid = (
-          SELECT oid FROM pg_type WHERE typname = 'Gender'
-        )
-      `;
-      const values = result.map(r => r.enumlabel);
-      return values.includes('MALE') && values.includes('FEMALE') && 
-             values.includes('OTHER') && values.includes('EVERYONE');
-    }
-  }
-  // Future migrations will follow this same pattern
-];
+// Get migrations from the centralized source
+const MIGRATIONS = getMigrations();
 
 // Migration table setup
 async function ensureMigrationTable() {
@@ -148,7 +86,7 @@ async function up() {
       await migration.up.execute(prisma);
       
       // Verify it worked
-      const verified = await migration.verify();
+      const verified = await migration.verify(prisma);
       if (!verified) {
         throw new Error(`Migration ${migration.id} verification failed`);
       }
@@ -191,7 +129,7 @@ async function down() {
       await migration.down.execute(prisma);
       
       // Verify rollback worked
-      const stillExists = await migration.verify();
+      const stillExists = await migration.verify(prisma);
       if (stillExists) {
         throw new Error(`Migration ${migration.id} rollback verification failed`);
       }

@@ -20,7 +20,6 @@ const authenticateJWT = async (req, res, next) => {
       });
     }
 
-    // Verify JWT token
     const decoded = verifyToken(token);
     
     // Get user from database

@@ -6,17 +6,12 @@
  */
 
 const { PrismaClient } = require('@prisma/client');
+const { getMigrations } = require('./migrations');
 
 const prisma = new PrismaClient();
 
-// Migration definitions (same as in db-migrate.js)
-const MIGRATIONS = [
-  {
-    id: '20240824_add_languages',
-    name: 'Add languages field to users',
-  }
-  // Add future migrations here
-];
+// Get migrations from the shared source
+const MIGRATIONS = getMigrations();
 
 async function checkMigrations() {
   let hasPending = false;
