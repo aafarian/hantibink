@@ -239,10 +239,12 @@ export const AuthProvider = ({ children }) => {
         birthDate: userData.birthDate,
         // Pass gender and interestedIn directly - backend handles conversion
         gender: userData.gender,
-        // Ensure interestedIn is always an array
-        interestedIn: Array.isArray(userData.interestedIn)
-          ? userData.interestedIn
-          : [userData.interestedIn],
+        // Ensure interestedIn is always an array, handle null/undefined
+        interestedIn: userData.interestedIn
+          ? Array.isArray(userData.interestedIn)
+            ? userData.interestedIn
+            : [userData.interestedIn]
+          : [],
         // Use uploaded photo URLs
         photos: uploadedPhotoUrls,
         // Extract coordinates from userData.coordinates (coordinates object)

@@ -127,8 +127,7 @@ const PeopleScreenOptimized = ({ navigation }) => {
           maxDistance: filtersToUse.maxDistance,
           strictAge: filtersToUse.strictAge || false,
           strictDistance: filtersToUse.strictDistance || false,
-          onlyWithPhotos:
-            filtersToUse.onlyWithPhotos !== undefined ? filtersToUse.onlyWithPhotos : true,
+          onlyWithPhotos: filtersToUse.onlyWithPhotos ?? true,
           relationshipType: filtersToUse.relationshipType,
           strictRelationshipType: filtersToUse.strictRelationshipType || false,
           education: filtersToUse.education,
@@ -183,7 +182,7 @@ const PeopleScreenOptimized = ({ navigation }) => {
           maxDistance: filters.maxDistance,
           strictAge: filters.strictAge || false,
           strictDistance: filters.strictDistance || false,
-          onlyWithPhotos: filters.onlyWithPhotos !== undefined ? filters.onlyWithPhotos : true,
+          onlyWithPhotos: filters.onlyWithPhotos ?? true,
           relationshipType: filters.relationshipType,
           strictRelationshipType: filters.strictRelationshipType || false,
           education: filters.education,
