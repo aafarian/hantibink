@@ -237,26 +237,14 @@ export const AuthProvider = ({ children }) => {
         email: userData.email,
         password: userData.password,
         birthDate: userData.birthDate,
-        // Convert gender: 'man' -> 'male', 'woman' -> 'female', 'non-binary' -> 'non-binary'
-        gender:
-          userData.gender === 'man'
-            ? 'male'
-            : userData.gender === 'woman'
-              ? 'female'
-              : userData.gender === 'non-binary'
-                ? 'non-binary'
-                : userData.gender === 'other'
-                  ? 'non-binary' // map 'other' to 'non-binary'
-                  : 'male', // default fallback
-        // Convert interestedIn: 'men' -> ['male'], 'women' -> ['female'], 'everyone' -> ['male', 'female']
-        interestedIn:
-          userData.interestedIn === 'men'
-            ? ['male']
-            : userData.interestedIn === 'women'
-              ? ['female']
-              : userData.interestedIn === 'everyone'
-                ? ['male', 'female']
-                : ['female'], // default fallback
+        // Pass gender and interestedIn directly - backend handles conversion
+        gender: userData.gender,
+        // Ensure interestedIn is always an array, handle null/undefined
+        interestedIn: userData.interestedIn
+          ? Array.isArray(userData.interestedIn)
+            ? userData.interestedIn
+            : [userData.interestedIn]
+          : [],
         // Use uploaded photo URLs
         photos: uploadedPhotoUrls,
         // Extract coordinates from userData.coordinates (coordinates object)

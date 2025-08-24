@@ -64,7 +64,7 @@ const PeopleScreenOptimized = ({ navigation }) => {
   useEffect(() => {
     const loadFilters = async () => {
       try {
-        const savedFilters = await AsyncStorage.getItem('userFilters');
+        const savedFilters = await AsyncStorage.getItem('@HantibinkFilters');
         if (savedFilters) {
           const parsed = JSON.parse(savedFilters);
           Logger.info('📱 Loaded saved filters from storage');
@@ -114,7 +114,8 @@ const PeopleScreenOptimized = ({ navigation }) => {
   }, [user?.uid]);
 
   // Load initial batch of profiles
-  const loadInitialProfiles = async () => {
+  const loadInitialProfiles = async (customFilters = null) => {
+    const filtersToUse = customFilters || filters;
     setIsLoading(true);
     try {
       Logger.info('📱 Loading initial profiles batch...');
@@ -122,20 +123,21 @@ const PeopleScreenOptimized = ({ navigation }) => {
         limit: BATCH_SIZE,
         excludeIds: Array.from(processedIds.current),
         filters: {
-          ageRange: { min: filters.minAge, max: filters.maxAge },
-          maxDistance: filters.maxDistance,
-          strictAge: filters.strictAge || false,
-          strictDistance: filters.strictDistance || false,
-          relationshipType: filters.relationshipType,
-          strictRelationshipType: filters.strictRelationshipType || false,
-          education: filters.education,
-          strictEducation: filters.strictEducation || false,
-          smoking: filters.smoking,
-          strictSmoking: filters.strictSmoking || false,
-          drinking: filters.drinking,
-          strictDrinking: filters.strictDrinking || false,
-          languages: filters.languages,
-          strictLanguages: filters.strictLanguages || false,
+          ageRange: { min: filtersToUse.minAge, max: filtersToUse.maxAge },
+          maxDistance: filtersToUse.maxDistance,
+          strictAge: filtersToUse.strictAge || false,
+          strictDistance: filtersToUse.strictDistance || false,
+          onlyWithPhotos: filtersToUse.onlyWithPhotos ?? true,
+          relationshipType: filtersToUse.relationshipType,
+          strictRelationshipType: filtersToUse.strictRelationshipType || false,
+          education: filtersToUse.education,
+          strictEducation: filtersToUse.strictEducation || false,
+          smoking: filtersToUse.smoking,
+          strictSmoking: filtersToUse.strictSmoking || false,
+          drinking: filtersToUse.drinking,
+          strictDrinking: filtersToUse.strictDrinking || false,
+          languages: filtersToUse.languages,
+          strictLanguages: filtersToUse.strictLanguages || false,
         },
       });
 
@@ -180,6 +182,7 @@ const PeopleScreenOptimized = ({ navigation }) => {
           maxDistance: filters.maxDistance,
           strictAge: filters.strictAge || false,
           strictDistance: filters.strictDistance || false,
+          onlyWithPhotos: filters.onlyWithPhotos ?? true,
           relationshipType: filters.relationshipType,
           strictRelationshipType: filters.strictRelationshipType || false,
           education: filters.education,
@@ -319,14 +322,21 @@ const PeopleScreenOptimized = ({ navigation }) => {
         onPress={() =>
           navigation.navigate('Filter', {
             userPreferences: filters,
-            onSavePreferences: newFilters => {
+            onSavePreferences: async newFilters => {
               setFilters(newFilters);
+              // Save filters to AsyncStorage
+              try {
+                await AsyncStorage.setItem('@HantibinkFilters', JSON.stringify(newFilters));
+                Logger.info('Filters saved to storage');
+              } catch (error) {
+                Logger.error('Failed to save filters:', error);
+              }
               // Reset everything when filters change
               processedIds.current.clear();
               setProfiles([]);
               setHasMore(true);
               setHasInitialized(false);
-              loadInitialProfiles();
+              loadInitialProfiles(newFilters); // Pass the new filters directly
             },
           })
         }
