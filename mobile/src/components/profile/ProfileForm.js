@@ -368,11 +368,11 @@ const ProfileForm = forwardRef(
               </View>
             </TouchableOpacity>
 
-            {/* Display selected languages as tags below */}
+            {/* Display selected items as tags below */}
             {formData[field.key] && formData[field.key].length > 0 && (
               <View style={styles.selectedTagsContainer}>
-                {formData[field.key].map((item, index) => (
-                  <View key={index} style={styles.selectedTag}>
+                {formData[field.key].map(item => (
+                  <View key={item} style={styles.selectedTag}>
                     <Text style={styles.selectedTagText}>{item}</Text>
                     <TouchableOpacity
                       onPress={() => {

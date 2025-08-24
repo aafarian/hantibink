@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { View, Text, ScrollView, TouchableOpacity, StyleSheet, Switch } from 'react-native';
 import Slider from '@react-native-community/slider';
 import MultiSlider from '@ptomasroos/react-native-multi-slider';
@@ -14,7 +14,10 @@ const FilterScreen = ({ navigation, route }) => {
   const { userProfile: _userProfile } = useAuth();
 
   // Get current filters from route params or use defaults
-  const currentFilters = route?.params?.userPreferences || {};
+  const currentFilters = useMemo(
+    () => route?.params?.userPreferences || {},
+    [route?.params?.userPreferences]
+  );
   const onSaveCallback = route?.params?.onSavePreferences;
 
   const [filters, setFilters] = useState({
@@ -54,23 +57,34 @@ const FilterScreen = ({ navigation, route }) => {
     heightMax: currentFilters.heightMax || null,
   });
 
-  // Load saved filters on mount
-  useEffect(() => {
-    loadSavedFilters();
-  }, []);
-
-  const loadSavedFilters = async () => {
+  const loadSavedFilters = useCallback(async () => {
     try {
       const savedFilters = await AsyncStorage.getItem('@HantibinkFilters');
       if (savedFilters) {
         const parsed = JSON.parse(savedFilters);
-        setFilters(prev => ({ ...prev, ...parsed }));
+        // Only apply saved filters if no route params were provided
+        // Route params take priority over saved filters
+        setFilters(prev => {
+          const hasRouteParams = Object.keys(currentFilters).length > 0;
+          if (hasRouteParams) {
+            // Route params exist, don't override them
+            return prev;
+          } else {
+            // No route params, use saved filters
+            return { ...prev, ...parsed };
+          }
+        });
         Logger.info('Loaded saved filters:', parsed);
       }
     } catch (error) {
       Logger.error('Failed to load saved filters:', error);
     }
-  };
+  }, [currentFilters]); // currentFilters is used inside, so it's a dependency
+
+  // Load saved filters on mount
+  useEffect(() => {
+    loadSavedFilters();
+  }, [loadSavedFilters]);
 
   const saveFilters = async filtersToSave => {
     try {

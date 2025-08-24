@@ -33,7 +33,9 @@ export const milesToKm = miles => {
  * @returns {string} Formatted distance string
  */
 export const formatDistance = (distanceInKm, preference = 'both') => {
-  if (!distanceInKm || distanceInKm < 0) return 'Unknown distance';
+  if (distanceInKm === null || distanceInKm === undefined || distanceInKm < 0)
+    return 'Unknown distance';
+  if (distanceInKm === 0) return 'Very close';
 
   const miles = kmToMiles(distanceInKm);
   const km = Math.round(distanceInKm);
