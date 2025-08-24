@@ -175,8 +175,8 @@ Migrations are tracked in the `app_migrations` table:
 
     -- Migrate data
     INSERT INTO interests (id, name)
-    SELECT DISTINCT unnest(interests) as name,
-           md5(unnest(interests)) as id
+    SELECT DISTINCT md5(unnest(interests)) as id,
+           unnest(interests) as name
     FROM users
     WHERE interests IS NOT NULL;
   `),
