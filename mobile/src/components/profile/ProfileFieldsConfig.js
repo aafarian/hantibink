@@ -167,24 +167,6 @@ export const profileFieldsConfig = {
   // Selection Panel Fields (single select)
   selectionFields: [
     {
-      key: 'gender',
-      label: 'Gender',
-      placeholder: 'Select gender',
-      options: genderOptions.map(g => g.label),
-      singleSelect: true,
-      valueMap: genderOptions.reduce((acc, g) => ({ ...acc, [g.label]: g.id }), {}),
-      displayMap: genderOptions.reduce((acc, g) => ({ ...acc, [g.id]: g.label }), {}),
-    },
-    {
-      key: 'interestedIn',
-      label: 'Interested In',
-      placeholder: "Select who you're interested in",
-      options: interestedInOptions.map(i => i.label),
-      singleSelect: true,
-      valueMap: interestedInOptions.reduce((acc, i) => ({ ...acc, [i.label]: i.id }), {}),
-      displayMap: interestedInOptions.reduce((acc, i) => ({ ...acc, [i.id]: i.label }), {}),
-    },
-    {
       key: 'education',
       label: 'Education',
       placeholder: 'Select education level',
@@ -219,6 +201,24 @@ export const profileFieldsConfig = {
       placeholder: 'Do you drink?',
       options: drinkingOptions,
       singleSelect: true,
+    },
+    {
+      key: 'gender',
+      label: 'Gender',
+      placeholder: 'Select gender',
+      options: genderOptions.map(g => g.label),
+      singleSelect: true,
+      valueMap: genderOptions.reduce((acc, g) => ({ ...acc, [g.label]: g.id }), {}),
+      displayMap: genderOptions.reduce((acc, g) => ({ ...acc, [g.id]: g.label }), {}),
+    },
+    {
+      key: 'interestedIn',
+      label: 'Interested In',
+      placeholder: "Select who you're interested in",
+      options: interestedInOptions.map(i => i.label),
+      singleSelect: true,
+      valueMap: interestedInOptions.reduce((acc, i) => ({ ...acc, [i.label]: i.id }), {}),
+      displayMap: interestedInOptions.reduce((acc, i) => ({ ...acc, [i.id]: i.label }), {}),
     },
   ],
 
@@ -317,6 +317,12 @@ export const transformProfileData = {
       education: apiData.education || '',
       profession: apiData.profession || '',
       height: apiData.height || '',
+      // Transform gender from backend enum to display value
+      gender: apiData.gender || '',
+      // Transform interestedIn - it's an array in backend
+      interestedIn: Array.isArray(apiData.interestedIn)
+        ? apiData.interestedIn[0] || '' // Take first value for now since we're using single select
+        : apiData.interestedIn || '',
       // Handle relationshipType - can be string with commas or array
       relationshipType: parseRelationshipType(apiData.relationshipType),
       religion: apiData.religion || '',

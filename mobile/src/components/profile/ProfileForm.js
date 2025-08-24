@@ -270,7 +270,20 @@ const ProfileForm = forwardRef(
                   changedFields.has(field.key) && styles.selectorTextChanged,
                 ]}
               >
-                {formData[field.key] || field.placeholder}
+                {(() => {
+                  const value = formData[field.key];
+                  if (!value) return field.placeholder;
+
+                  // Handle interestedIn array - take first value
+                  const displayValue = Array.isArray(value) ? value[0] : value;
+
+                  // Use displayMap if available
+                  if (field.displayMap && field.displayMap[displayValue]) {
+                    return field.displayMap[displayValue];
+                  }
+
+                  return displayValue || field.placeholder;
+                })()}
               </Text>
               <Ionicons
                 name="chevron-forward"
@@ -394,21 +407,38 @@ const ProfileForm = forwardRef(
     const renderSelectionPanels = () => {
       const singleSelectPanels = profileFieldsConfig.selectionFields
         .filter(field => !excludeFields.includes(field.key))
-        .map(field => (
-          <SelectionPanel
-            key={`panel-${field.key}`}
-            visible={selectionPanels[field.key] || false}
-            title={field.label}
-            options={field.options}
-            selectedOption={formData[field.key]}
-            onSelect={option => {
-              updateField(field.key, option);
-              hideSelectionPanel(field.key);
-            }}
-            onClose={() => hideSelectionPanel(field.key)}
-            initialScrollIndex={field.initialScrollIndex}
-          />
-        ));
+        .map(field => {
+          // Get the display value for fields with displayMap
+          let selectedOption = formData[field.key];
+
+          // Handle interestedIn array - take first value
+          if (field.key === 'interestedIn' && Array.isArray(selectedOption)) {
+            selectedOption = selectedOption[0];
+          }
+
+          // Convert from backend value to display value if displayMap exists
+          if (field.displayMap && selectedOption) {
+            selectedOption = field.displayMap[selectedOption] || selectedOption;
+          }
+
+          return (
+            <SelectionPanel
+              key={`panel-${field.key}`}
+              visible={selectionPanels[field.key] || false}
+              title={field.label}
+              options={field.options}
+              selectedOption={selectedOption}
+              onSelect={option => {
+                // Convert display value back to backend value if valueMap exists
+                const value = field.valueMap ? field.valueMap[option] || option : option;
+                updateField(field.key, value);
+                hideSelectionPanel(field.key);
+              }}
+              onClose={() => hideSelectionPanel(field.key)}
+              initialScrollIndex={field.initialScrollIndex}
+            />
+          );
+        });
 
       const multiSelectPanels = (profileFieldsConfig.multiSelectFields || [])
         .filter(field => !excludeFields.includes(field.key))

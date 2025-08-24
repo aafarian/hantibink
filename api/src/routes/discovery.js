@@ -33,7 +33,8 @@ router.get('/users', authenticateJWT, discoveryValidation.getUsers, async (req, 
       excludeIds = [],
       minAge,
       maxAge,
-      maxDistance
+      maxDistance,
+      filters: filtersJson // New parameter for full filters object
     } = req.query;
     
     // Parse excludeIds if it's a string (comma-separated)
@@ -42,8 +43,18 @@ router.get('/users', authenticateJWT, discoveryValidation.getUsers, async (req, 
       : (excludeIds ? excludeIds.split(',') : []);
     
     // Build filters object
-    const filters = {};
+    let filters = {};
     
+    // First, parse the JSON filters if provided
+    if (filtersJson) {
+      try {
+        filters = JSON.parse(filtersJson);
+      } catch (e) {
+        logger.warn('Failed to parse filters JSON:', e);
+      }
+    }
+    
+    // Override with specific query params if provided (for backward compatibility)
     if (minAge || maxAge) {
       filters.ageRange = {
         min: parseInt(minAge) || 18,

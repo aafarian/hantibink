@@ -74,9 +74,9 @@ const registerUser = async (userData) => {
       (Array.isArray(interestedIn) ? interestedIn : [interestedIn])
         .map(g => {
           // Convert old format to new format
-          if (g === 'men' || g === 'male') return 'MALE';
-          if (g === 'women' || g === 'female') return 'FEMALE';
-          if (g === 'everyone') return 'EVERYONE';
+          if (g === 'men' || g === 'male') {return 'MALE';}
+          if (g === 'women' || g === 'female') {return 'FEMALE';}
+          if (g === 'everyone') {return 'EVERYONE';}
           return g.toUpperCase();
         }) : ['MALE', 'FEMALE'];
 

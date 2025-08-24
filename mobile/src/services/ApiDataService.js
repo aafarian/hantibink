@@ -328,6 +328,12 @@ class ApiDataService {
         queryParams.append('maxDistance', filters.maxDistance.toString());
       }
 
+      // Send ALL filters as JSON in a filters parameter
+      // This ensures all filter options are sent to the backend
+      if (Object.keys(filters).length > 0) {
+        queryParams.append('filters', JSON.stringify(filters));
+      }
+
       Logger.debug('Discovery API call with params:', queryParams.toString());
       const response = await apiClient.get(`/discovery/users?${queryParams}`);
 

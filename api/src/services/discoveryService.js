@@ -285,7 +285,8 @@ const getUsersForDiscovery = async (currentUserId, options = {}) => {
     }
 
     // Only include users with photos if filter is set
-    if (defaultFilters.onlyWithPhotos) {
+    // Check the actual filter value, not just the default
+    if (defaultFilters.onlyWithPhotos === true) {
       baseWhereClause.photos = {
         some: {},
       };
