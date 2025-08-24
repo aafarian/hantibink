@@ -27,7 +27,7 @@ async function checkMigrations() {
     const tableExists = await prisma.$queryRaw`
       SELECT EXISTS (
         SELECT FROM information_schema.tables 
-        WHERE table_name = '_prisma_migrations_custom'
+        WHERE table_name = 'app_migrations'
       );
     `;
     
@@ -42,7 +42,7 @@ async function checkMigrations() {
     const pendingMigrations = [];
     for (const migration of MIGRATIONS) {
       const result = await prisma.$queryRaw`
-        SELECT id FROM "_prisma_migrations_custom" 
+        SELECT id FROM "app_migrations" 
         WHERE id = ${migration.id} 
         AND rolled_back_at IS NULL
       `;
@@ -70,7 +70,7 @@ async function checkMigrations() {
     
   } catch (error) {
     console.log("STATUS=ERROR");
-    console.error("Error checking migrations:", error.message);
+    console.log("Error checking migrations:", error.message);
     hasError = true;
   } finally {
     await prisma.$disconnect();

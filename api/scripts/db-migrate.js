@@ -41,10 +41,13 @@ const MIGRATIONS = [
 ];
 
 // Migration table setup
+// Using "app_migrations" to avoid confusion with Prisma's built-in "_prisma_migrations"
+const MIGRATION_TABLE = 'app_migrations';
+
 async function ensureMigrationTable() {
   try {
     await prisma.$executeRaw`
-      CREATE TABLE IF NOT EXISTS "_prisma_migrations_custom" (
+      CREATE TABLE IF NOT EXISTS "app_migrations" (
         id TEXT PRIMARY KEY,
         name TEXT NOT NULL,
         applied_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
@@ -61,7 +64,7 @@ async function ensureMigrationTable() {
 // Check if migration is applied
 async function isMigrationApplied(migrationId) {
   const result = await prisma.$queryRaw`
-    SELECT id FROM "_prisma_migrations_custom" 
+    SELECT id FROM "app_migrations" 
     WHERE id = ${migrationId} 
     AND rolled_back_at IS NULL
   `;
@@ -71,7 +74,7 @@ async function isMigrationApplied(migrationId) {
 // Record migration
 async function recordMigration(migrationId, name) {
   await prisma.$executeRaw`
-    INSERT INTO "_prisma_migrations_custom" (id, name) 
+    INSERT INTO "app_migrations" (id, name) 
     VALUES (${migrationId}, ${name})
     ON CONFLICT (id) DO UPDATE 
     SET rolled_back_at = NULL,
@@ -82,7 +85,7 @@ async function recordMigration(migrationId, name) {
 // Record rollback
 async function recordRollback(migrationId) {
   await prisma.$executeRaw`
-    UPDATE "_prisma_migrations_custom" 
+    UPDATE "app_migrations" 
     SET rolled_back_at = CURRENT_TIMESTAMP 
     WHERE id = ${migrationId}
   `;
@@ -106,6 +109,10 @@ async function up() {
       logger.info(`📝 Applying migration: ${migration.name}`);
       
       // Run the migration
+      // Note: Using $executeRawUnsafe is safe here because:
+      // 1. SQL strings are hardcoded in the migrations array (not user input)
+      // 2. DDL statements (ALTER TABLE) don't work with parameterized queries
+      // 3. This script is only run by administrators, not exposed to users
       await prisma.$executeRawUnsafe(migration.upSQL);
       
       // Verify it worked
@@ -149,6 +156,7 @@ async function down() {
       logger.info(`📝 Rolling back migration: ${migration.name}`);
       
       // Run the rollback
+      // Note: Using $executeRawUnsafe is safe here (see comment in up() function)
       await prisma.$executeRawUnsafe(migration.downSQL);
       
       // Verify rollback worked
@@ -179,7 +187,7 @@ async function status() {
   
   const applied = await prisma.$queryRaw`
     SELECT id, name, applied_at, rolled_back_at 
-    FROM "_prisma_migrations_custom" 
+    FROM "app_migrations" 
     ORDER BY applied_at DESC
   `;
   

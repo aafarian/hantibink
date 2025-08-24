@@ -8,11 +8,12 @@
 const { PrismaClient } = require('@prisma/client');
 const fs = require('fs');
 const path = require('path');
+const logger = require('../src/utils/logger');
 
 const prisma = new PrismaClient();
 
 async function runMigration() {
-  console.log('🚀 Starting production database migration...');
+  logger.info('🚀 Starting production database migration...');
   
   try {
     // Check current schema
@@ -24,11 +25,11 @@ async function runMigration() {
     `;
     
     if (checkColumn.length > 0) {
-      console.log('✅ Languages column already exists, skipping migration');
+      logger.info('✅ Languages column already exists, skipping migration');
       return;
     }
     
-    console.log('📝 Adding languages column to users table...');
+    logger.info('📝 Adding languages column to users table...');
     
     // Run migration
     await prisma.$executeRaw`
@@ -36,7 +37,7 @@ async function runMigration() {
       ADD COLUMN "languages" TEXT[] DEFAULT ARRAY[]::TEXT[];
     `;
     
-    console.log('✅ Migration completed successfully!');
+    logger.info('✅ Migration completed successfully!');
     
     // Verify the column was added
     const verify = await prisma.$queryRaw`
@@ -46,10 +47,10 @@ async function runMigration() {
       AND column_name = 'languages';
     `;
     
-    console.log('📊 Verification:', verify);
+    logger.info('📊 Verification:', verify);
     
   } catch (error) {
-    console.error('❌ Migration failed:', error);
+    logger.error('❌ Migration failed:', error);
     process.exit(1);
   } finally {
     await prisma.$disconnect();

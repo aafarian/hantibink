@@ -21,11 +21,12 @@ async function verify() {
       logger.info('Column details:', result[0]);
       
       // Check if any users have languages set
+      // Using cardinality() which returns 0 for empty arrays (not null)
       const usersWithLanguages = await prisma.$queryRaw`
         SELECT COUNT(*) as count 
         FROM users 
         WHERE languages IS NOT NULL 
-        AND array_length(languages, 1) > 0
+        AND cardinality(languages) > 0
       `;
       
       logger.info(`Users with languages set: ${usersWithLanguages[0].count}`);

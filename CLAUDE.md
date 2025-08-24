@@ -196,7 +196,7 @@ const Component = ({ userId }) => {
       const result = await fetchData(userId);
       setData(result);
     } catch (error) {
-      console.error("Failed to load:", error);
+      Logger.error("Failed to load:", error);
     }
   }, [userId]);
 
