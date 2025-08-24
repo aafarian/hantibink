@@ -13,6 +13,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { getUserProfilePhoto } from '../utils/profileHelpers';
 import Logger from '../utils/logger';
+import { formatDistanceAway } from '../utils/distanceUtils';
 
 const { width, height } = Dimensions.get('window');
 const SWIPE_THRESHOLD = width * 0.25;
@@ -59,7 +60,7 @@ const SwipeableCard = ({ profile, isTop, position, scale, opacity }) => {
             <View style={styles.locationRow}>
               <Ionicons name="location-outline" size={16} color="#fff" />
               <Text style={styles.cardLocation}>
-                {Math.round(profile.distance * 0.621371)} miles ({profile.distance} km) away
+                {formatDistanceAway(profile.distance, 'both')}
               </Text>
             </View>
           )}

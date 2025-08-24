@@ -7,6 +7,7 @@ import { useToast } from '../contexts/ToastContext';
 import { useAuth } from '../contexts/AuthContext';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import Logger from '../utils/logger';
+import { kmToMiles } from '../utils/distanceUtils';
 
 const FilterScreen = ({ navigation, route }) => {
   const { showSuccess } = useToast();
@@ -310,9 +311,7 @@ const FilterScreen = ({ navigation, route }) => {
               <View style={styles.rangeHeader}>
                 <Text style={styles.rangeLabel}>Maximum Distance</Text>
                 <View style={styles.rangeValues}>
-                  <Text style={styles.rangeValue}>
-                    {Math.round(filters.maxDistance * 0.621371)}
-                  </Text>
+                  <Text style={styles.rangeValue}>{kmToMiles(filters.maxDistance)}</Text>
                   <Text style={styles.rangeUnit}>mi</Text>
                   <Text style={styles.rangeSeparator}>({filters.maxDistance} km)</Text>
                 </View>

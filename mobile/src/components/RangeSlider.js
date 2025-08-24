@@ -20,6 +20,8 @@ const RangeSlider = ({
 
   const valueToPosition = useCallback(
     value => {
+      // Guard against division by zero
+      if (max === min) return 0;
       return ((value - min) / (max - min)) * containerWidth;
     },
     [min, max, containerWidth]
@@ -27,6 +29,8 @@ const RangeSlider = ({
 
   const positionToValue = useCallback(
     position => {
+      // Guard against division by zero and invalid containerWidth
+      if (!containerWidth || max === min) return min;
       const ratio = Math.max(0, Math.min(1, position / containerWidth));
       const value = min + ratio * (max - min);
       return Math.round(value / step) * step;
@@ -67,15 +71,9 @@ const RangeSlider = ({
     [minValue, maxValue, min, max, step, valueToPosition, positionToValue, onValuesChange]
   );
 
-  const minPanResponder = useRef(createPanResponder(true)).current;
-  const maxPanResponder = useRef(createPanResponder(false)).current;
-
-  // Update pan responders when values change
-  React.useEffect(() => {
-    minPanResponder.panHandlers = createPanResponder(true).panHandlers;
-    maxPanResponder.panHandlers = createPanResponder(false).panHandlers;
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [minValue, maxValue, createPanResponder]);
+  // Memoize pan responders to prevent memory leaks
+  const minPanResponder = React.useMemo(() => createPanResponder(true), [createPanResponder]);
+  const maxPanResponder = React.useMemo(() => createPanResponder(false), [createPanResponder]);
 
   const onLayout = useCallback(event => {
     const { width } = event.nativeEvent.layout;

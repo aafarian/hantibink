@@ -17,6 +17,7 @@ import SwipeableCardStack from '../components/SwipeableCardStack';
 import MatchModal from '../components/MatchModal';
 import Logger from '../utils/logger';
 import { getUserProfilePhoto } from '../utils/profileHelpers';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const BATCH_SIZE = 10; // Load 10 profiles at a time
 
@@ -57,14 +58,41 @@ const PeopleScreenOptimized = ({ navigation }) => {
     languages: [],
     strictLanguages: false,
   });
+  const [filtersLoaded, setFiltersLoaded] = useState(false);
 
-  // Initial load
+  // Load filters from AsyncStorage
   useEffect(() => {
-    if (user?.uid && userProfile) {
+    const loadFilters = async () => {
+      try {
+        const savedFilters = await AsyncStorage.getItem('userFilters');
+        if (savedFilters) {
+          const parsed = JSON.parse(savedFilters);
+          Logger.info('📱 Loaded saved filters from storage');
+          setFilters(prev => ({
+            ...prev,
+            ...parsed,
+            interestedIn: userProfile?.interestedIn || parsed.interestedIn || [],
+          }));
+        }
+      } catch (error) {
+        Logger.error('Failed to load filters from storage:', error);
+      } finally {
+        setFiltersLoaded(true);
+      }
+    };
+
+    if (userProfile) {
+      loadFilters();
+    }
+  }, [userProfile]);
+
+  // Initial load - wait for filters to be loaded
+  useEffect(() => {
+    if (user?.uid && userProfile && filtersLoaded) {
       loadInitialProfiles();
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [user?.uid, userProfile]);
+  }, [user?.uid, userProfile, filtersLoaded]);
 
   // Listen for real-time match events
   useEffect(() => {
@@ -190,8 +218,7 @@ const PeopleScreenOptimized = ({ navigation }) => {
     } finally {
       setIsLoadingMore(false);
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [hasInitialized, isLoading, isLoadingMore, hasMore]);
+  }, [hasInitialized, isLoading, isLoadingMore, hasMore, filters]);
 
   // Handle swipe left (pass)
   const handleSwipeLeft = useCallback(async profile => {
