@@ -424,7 +424,7 @@ const getUsersForDiscovery = async (currentUserId, options = {}) => {
     let filteredUsers = scoredUsers.filter(user => {
       // PRIORITY: If this user liked us, ALWAYS include them
       if (priorityUserIds.includes(user.id)) {
-        logger.info(`✅ Including ${user.name} (ID: ${user.id}) in discovery because they liked you`);
+        logger.info(`✅ Including user ${user.id} in discovery because they liked you`);
         return true;
       }
       

@@ -363,19 +363,22 @@ const PeopleScreenOptimized = ({ navigation }) => {
   // Handle match modal actions
   const handleSendMessage = useCallback(() => {
     setShowMatchModal(false);
-    setMatchedUser(null); // Clear matched user immediately
+
+    // Capture the matched user data before clearing
+    const userToNavigate = matchedUser;
+    setMatchedUser(null); // Clear matched user after capturing
 
     // Small delay to ensure modal closes before navigation
     setTimeout(() => {
-      if (matchedUser) {
+      if (userToNavigate) {
         // Navigate directly to the chat with this match
         const matchData = {
-          matchId: matchedUser.matchId,
+          matchId: userToNavigate.matchId,
           otherUser: {
-            id: matchedUser.id,
-            name: matchedUser.name,
-            mainPhoto: matchedUser.photo,
-            photos: matchedUser.photo ? [{ url: matchedUser.photo }] : [],
+            id: userToNavigate.id,
+            name: userToNavigate.name,
+            mainPhoto: userToNavigate.photo,
+            photos: userToNavigate.photo ? [{ url: userToNavigate.photo }] : [],
           },
         };
         navigateToChat(matchData);

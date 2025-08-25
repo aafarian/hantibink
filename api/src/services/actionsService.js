@@ -59,9 +59,9 @@ const likeUser = async (
       let isMatch = false;
       let match = null;
 
-      if (reverseAction && reverseAction.action === 'LIKE') {
+      if (reverseAction && (reverseAction.action === 'LIKE' || reverseAction.action === 'SUPER_LIKE')) {
         // It's a match! Create match record
-        logger.info(`🎯 MATCH DETECTED: ${receiverId} had already liked ${senderId} on ${reverseAction.createdAt}`);
+        logger.info(`🎯 MATCH DETECTED: ${receiverId} had already liked ${senderId} with ${reverseAction.action} on ${reverseAction.createdAt}`);
         match = await tx.match.create({
           data: {
             user1Id: senderId < receiverId ? senderId : receiverId,
@@ -307,7 +307,7 @@ const undoLastAction = async (userId) => {
             },
           });
 
-          if (reverseAction && reverseAction.action === 'LIKE') {
+          if (reverseAction && (reverseAction.action === 'LIKE' || reverseAction.action === 'SUPER_LIKE')) {
             // This would break a mutual match, need to deactivate the match
             await tx.match.update({
               where: { id: match.id },
