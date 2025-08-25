@@ -61,6 +61,9 @@ docs/*
 scripts/*
 test-connection.js
 
+# API utility scripts (local use only)
+api/scripts/
+
 # Docker files
 Dockerfile.*
 !Dockerfile
