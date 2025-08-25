@@ -365,8 +365,8 @@ class ApiDataService {
 
       if (response.success && response.data) {
         Logger.success('✅ User liked via API');
-        // Extract the actual data from the nested structure
-        const result = response.data.data || response.data;
+        // The API returns { success, message, data } where data contains our result
+        const result = response.data;
         Logger.info('Like result:', result);
         return {
           success: true,

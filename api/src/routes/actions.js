@@ -188,7 +188,7 @@ router.get('/who-liked-me', authenticateJWT, actionValidation.getWhoLikedMe, asy
   try {
     const { limit = 20, offset = 0 } = req.query;
     
-    const likers = await getWhoLikedMe(req.user.id, {
+    const result = await getWhoLikedMe(req.user.id, {
       limit: parseInt(limit, 10),
       offset: parseInt(offset, 10),
     });
@@ -196,7 +196,9 @@ router.get('/who-liked-me', authenticateJWT, actionValidation.getWhoLikedMe, asy
     res.json({
       success: true,
       message: 'Retrieved users who liked you',
-      data: likers,
+      data: result.users,
+      totalCount: result.totalCount,
+      totalLikesCount: result.totalLikesCount,
     });
   } catch (error) {
     logger.error('❌ Get who liked me error:', error);

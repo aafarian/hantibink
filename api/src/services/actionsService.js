@@ -59,8 +59,9 @@ const likeUser = async (
       let isMatch = false;
       let match = null;
 
-      if (reverseAction && reverseAction.action === 'LIKE') {
+      if (reverseAction && (reverseAction.action === 'LIKE' || reverseAction.action === 'SUPER_LIKE')) {
         // It's a match! Create match record
+        logger.info(`🎯 MATCH DETECTED: ${receiverId} had already liked ${senderId} with ${reverseAction.action} on ${reverseAction.createdAt}`);
         match = await tx.match.create({
           data: {
             user1Id: senderId < receiverId ? senderId : receiverId,
@@ -306,7 +307,7 @@ const undoLastAction = async (userId) => {
             },
           });
 
-          if (reverseAction && reverseAction.action === 'LIKE') {
+          if (reverseAction && (reverseAction.action === 'LIKE' || reverseAction.action === 'SUPER_LIKE')) {
             // This would break a mutual match, need to deactivate the match
             await tx.match.update({
               where: { id: match.id },
@@ -355,11 +356,33 @@ const getWhoLikedMe = async (userId, options = {}) => {
   try {
     const { limit = 20, offset = 0 } = options;
 
-    // First, get all users who liked the current user
+    // Get the total count of users who liked the current user (before filtering)
+    const totalLikesCount = await prisma.userAction.count({
+      where: {
+        receiverId: userId,
+        action: { in: ['LIKE', 'SUPER_LIKE'] },
+      },
+    });
+
+    // Get users the current user has already acted on FIRST
+    const allCurrentUserActions = await prisma.userAction.findMany({
+      where: {
+        senderId: userId,
+      },
+      select: {
+        receiverId: true,
+      },
+    });
+
+    const allActedOnUserIds = Array.from(new Set(allCurrentUserActions.map(a => a.receiverId)));
+    
+    // Now fetch users who liked the current user, excluding those already acted on
+    logger.info(`🔍 Fetching who liked user ${userId} (limit: ${limit}, offset: ${offset}, excluding ${allActedOnUserIds.length} acted-on users)`);
     const likers = await prisma.userAction.findMany({
       where: {
         receiverId: userId,
         action: { in: ['LIKE', 'SUPER_LIKE'] },
+        senderId: { notIn: allActedOnUserIds }, // Filter in the query, not after
       },
       include: {
         sender: {
@@ -390,27 +413,11 @@ const getWhoLikedMe = async (userId, options = {}) => {
       take: limit,
       skip: offset,
     });
-
-    // Filter out users the current user has already acted on
-    const currentUserActions = await prisma.userAction.findMany({
-      where: {
-        senderId: userId,
-        receiverId: {
-          in: likers.map(l => l.senderId),
-        },
-      },
-      select: {
-        receiverId: true,
-      },
-    });
-
-    const actedOnUserIds = new Set(currentUserActions.map(a => a.receiverId));
     
-    // Filter out users we've already acted on
-    const filteredLikers = likers.filter(liker => !actedOnUserIds.has(liker.senderId));
+    logger.info(`🔍 Batch ${offset}-${offset+limit}: Found ${likers.length} unacted likers`);
 
     // Transform the data to include age calculation and format
-    const transformedLikers = filteredLikers.map((action) => {
+    const transformedLikers = likers.map((action) => {
       const birthDate = action.sender.birthDate;
       let age = null;
       if (birthDate) {
@@ -435,9 +442,28 @@ const getWhoLikedMe = async (userId, options = {}) => {
       };
     });
 
-    logger.info(`Retrieved ${transformedLikers.length} users who liked user ${userId}`);
+    // Get the accurate count of unacted users
+    const totalUnactedCount = await prisma.userAction.count({
+      where: {
+        receiverId: userId,
+        action: { in: ['LIKE', 'SUPER_LIKE'] },
+        senderId: { notIn: allActedOnUserIds },
+      },
+    });
+    
+    logger.info(`📋 Retrieved ${transformedLikers.length} users in this batch for user ${userId}`);
+    logger.info(`📋 Total unacted likes: ${totalUnactedCount} (${totalLikesCount} total likes - ${allActedOnUserIds.length} users we've acted on)`);
+    
+    // Log first few users for debugging
+    if (transformedLikers.length > 0) {
+      logger.info(`📋 First 3 likers: ${transformedLikers.slice(0, 3).map(l => `${l.user.name} (ID: ${l.user.id})`).join(', ')}`);
+    }
 
-    return transformedLikers;
+    return {
+      users: transformedLikers,
+      totalCount: totalUnactedCount, // Total users who liked you that you haven't acted on
+      totalLikesCount, // Total users who liked you (including acted on)
+    };
   } catch (error) {
     logger.error('❌ Error getting who liked me:', error);
     throw error;

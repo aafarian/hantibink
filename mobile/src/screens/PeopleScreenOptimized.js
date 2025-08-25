@@ -8,6 +8,7 @@ import {
   ActivityIndicator,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { useFocusEffect } from '@react-navigation/native';
 import { useAuth } from '../contexts/AuthContext';
 import { useToast } from '../contexts/ToastContext';
 import { useTabNavigation } from '../hooks/useTabNavigation';
@@ -23,8 +24,8 @@ const BATCH_SIZE = 10; // Load 10 profiles at a time
 
 const PeopleScreenOptimized = ({ navigation }) => {
   const { user, userProfile } = useAuth();
-  const { showSuccess, showError } = useToast();
-  const { navigateToMessages } = useTabNavigation();
+  const { showError } = useToast();
+  const { navigateToChat } = useTabNavigation();
 
   // State
   const [profiles, setProfiles] = useState([]);
@@ -116,6 +117,26 @@ const PeopleScreenOptimized = ({ navigation }) => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user?.uid, userProfile, filtersLoaded]);
 
+  // Refresh when screen comes into focus to catch any matches from other screens
+  useFocusEffect(
+    useCallback(() => {
+      // If we have profiles and we're not loading, check if we need to remove any
+      if (profiles.length > 0 && !isLoading && hasInitialized) {
+        // The backend will handle exclusions, but we should check if current profiles need updating
+        Logger.info('📱 People screen focused - checking for updates');
+
+        // Filter out any profiles that have been processed (matched/swiped) from other screens
+        setProfiles(prev => {
+          const filtered = prev.filter(p => !processedIds.current.has(p.id));
+          if (filtered.length < prev.length) {
+            Logger.info(`📱 Removed ${prev.length - filtered.length} already-processed profiles`);
+          }
+          return filtered;
+        });
+      }
+    }, [profiles.length, isLoading, hasInitialized])
+  );
+
   // Listen for real-time match events
   useEffect(() => {
     if (!user?.uid) return;
@@ -123,10 +144,20 @@ const PeopleScreenOptimized = ({ navigation }) => {
     const unsubscribe = SocketService.onMatch((event, data) => {
       if (event === 'new-match' && data?.matchedUser) {
         Logger.info('🎉 New match received:', data);
+
+        // Add matched user to processed IDs to prevent showing them again
+        if (data.matchedUser.id) {
+          processedIds.current.add(data.matchedUser.id);
+
+          // Also remove from current profiles if they're in the stack
+          setProfiles(prev => prev.filter(p => p.id !== data.matchedUser.id));
+        }
+
         setMatchedUser({
           id: data.matchedUser.id,
           name: data.matchedUser.name,
           photo: data.matchedUser.mainPhoto || null,
+          matchId: data.matchId, // Include matchId from WebSocket event
         });
         setShowMatchModal(true);
       }
@@ -171,6 +202,14 @@ const PeopleScreenOptimized = ({ navigation }) => {
             return false;
           }
           return true;
+        });
+
+        // Log all profiles being shown
+        Logger.info(`🎴 People Tab: Loading ${newProfiles.length} profiles:`);
+        newProfiles.forEach((p, index) => {
+          Logger.info(
+            `  ${index + 1}. ${p.name} (ID: ${p.id}, Age: ${p.age}, Gender: ${p.gender})`
+          );
         });
 
         setProfiles(newProfiles);
@@ -267,7 +306,11 @@ const PeopleScreenOptimized = ({ navigation }) => {
   const handleSwipeRight = useCallback(
     async profile => {
       try {
-        Logger.info(`👉 Swiped right on ${profile.name}`);
+        Logger.info(`👉 Swiped right on ${profile.name} (ID: ${profile.id})`);
+        Logger.info(
+          `💭 Profile details: Age ${profile.age}, Gender: ${profile.gender}, Location: ${profile.location}`
+        );
+
         // Mark as processed to avoid showing again in this session
         processedIds.current.add(profile.id);
 
@@ -276,33 +319,72 @@ const PeopleScreenOptimized = ({ navigation }) => {
 
         if (result.success) {
           if (result.isMatch) {
-            // Show match modal
+            Logger.info(`🎉 MATCH! ${profile.name} had already liked you!`);
+            Logger.info(`🔗 Match ID: ${result.match?.id}`);
+
+            // Show match modal with match details
             setMatchedUser({
               id: profile.id,
               name: profile.name,
               photo: getUserProfilePhoto(profile),
+              matchId: result.match?.id, // Include the match ID for navigation
             });
             setShowMatchModal(true);
-            showSuccess(`It's a match with ${profile.name}! 🎉`);
+            // Don't show toast - the modal is enough notification
+          } else {
+            Logger.info(`💌 Like sent to ${profile.name} - waiting for them to like back`);
           }
         } else {
           Logger.error('Failed to save like:', result);
+          // If user already acted on this profile, don't show error
+          // This can happen if they matched from LikedYou and the profile wasn't removed yet
+          if (
+            result.error?.includes('already acted') ||
+            result.message?.includes('already acted')
+          ) {
+            Logger.warn(`User already acted on ${profile.name}, silently skipping`);
+            return;
+          }
         }
       } catch (error) {
         Logger.error('Error handling swipe right:', error);
+        // Don't show error to user for "already acted" cases
+        // This can happen if they matched from LikedYou and the profile wasn't removed yet
+        if (error.message?.includes('already acted') || error.message?.includes('already swiped')) {
+          Logger.warn('User already acted on this person, silently skipping');
+          return;
+        }
         showError('Failed to save like. Please try again.');
       }
     },
-    [showSuccess, showError]
+    [showError]
   );
 
   // Handle match modal actions
   const handleSendMessage = useCallback(() => {
     setShowMatchModal(false);
-    if (matchedUser) {
-      navigateToMessages(matchedUser.id);
-    }
-  }, [matchedUser, navigateToMessages]);
+
+    // Capture the matched user data before clearing
+    const userToNavigate = matchedUser;
+    setMatchedUser(null); // Clear matched user after capturing
+
+    // Small delay to ensure modal closes before navigation
+    setTimeout(() => {
+      if (userToNavigate) {
+        // Navigate directly to the chat with this match
+        const matchData = {
+          matchId: userToNavigate.matchId,
+          otherUser: {
+            id: userToNavigate.id,
+            name: userToNavigate.name,
+            mainPhoto: userToNavigate.photo,
+            photos: userToNavigate.photo ? [{ url: userToNavigate.photo }] : [],
+          },
+        };
+        navigateToChat(matchData);
+      }
+    }, 100);
+  }, [matchedUser, navigateToChat]);
 
   const handleKeepSwiping = useCallback(() => {
     setShowMatchModal(false);
