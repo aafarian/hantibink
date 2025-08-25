@@ -1,6 +1,16 @@
-import React, { useState } from 'react';
-import { View, Text, StyleSheet, TextInput, TouchableOpacity } from 'react-native';
-import { StaticKeyboardWrapper } from '../../components/KeyboardAwareWrapper';
+import React, { useState, useRef } from 'react';
+import {
+  View,
+  Text,
+  StyleSheet,
+  TextInput,
+  TouchableOpacity,
+  ActivityIndicator,
+  Platform,
+  StatusBar,
+} from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import { KeyboardAwareScrollView } from 'react-native-keyboard-aware-scroll-view';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../../contexts/AuthContext';
 import { useToast } from '../../contexts/ToastContext';
@@ -15,9 +25,13 @@ const LoginScreen = ({ navigation }) => {
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [fieldErrors, setFieldErrors] = useState({});
+  const [apiError, setApiError] = useState(''); // API error state for persistent display
+
+  const scrollViewRef = useRef(null);
+  const passwordInputRef = useRef(null);
 
   const { login } = useAuth();
-  const { showError, showSuccess } = useToast();
+  const { showSuccess } = useToast();
 
   // Real-time field validation
   const validateField = (field, value) => {
@@ -50,13 +64,21 @@ const LoginScreen = ({ navigation }) => {
     if (field === 'email') setEmail(value);
     else if (field === 'password') setPassword(value);
 
-    // Clear error when user starts typing
+    // Clear field error when user starts typing
     if (fieldErrors[field]) {
       setFieldErrors(prev => ({ ...prev, [field]: null }));
+    }
+
+    // Clear API error when user starts typing
+    if (apiError) {
+      setApiError('');
     }
   };
 
   const handleLogin = async () => {
+    // Clear any existing API error
+    setApiError('');
+
     // Validate all fields using existing validation function
     validateField('email', email);
     validateField('password', password);
@@ -65,7 +87,7 @@ const LoginScreen = ({ navigation }) => {
     const hasErrors = !email || !EMAIL_REGEX.test(email) || !password;
 
     if (hasErrors) {
-      showError('Please fix the errors and try again');
+      setApiError('Please fill in all required fields correctly');
       return;
     }
 
@@ -75,32 +97,40 @@ const LoginScreen = ({ navigation }) => {
       const result = await login(email, password);
 
       if (!result || !result.success) {
-        // Handle login errors - don't reveal which field is wrong for security
+        // Handle login errors and set persistent error message
+        let errorMessage = '';
+
         if (
           result?.error?.includes('Invalid email or password') ||
           result?.errorCode === 'auth/wrong-password' ||
           result?.errorCode === 'auth/user-not-found'
         ) {
-          showError('Invalid email or password combination.');
+          errorMessage = 'Invalid email or password combination.';
         } else if (result?.errorCode === 'auth/invalid-email') {
-          showError('Please enter a valid email address.');
+          errorMessage = 'Please enter a valid email address.';
         } else if (result?.error?.includes('Network') || result?.error?.includes('connect')) {
-          showError('Connection error. Please check your internet and try again.');
+          errorMessage = 'Connection error. Please check your internet and try again.';
         } else if (result?.error?.includes('server') || result?.error?.includes('500')) {
-          showError('Server error. Please try again later.');
+          errorMessage = 'Server error. Please try again later.';
         } else if (result?.error?.includes('rate') || result?.error?.includes('429')) {
-          showError('Too many login attempts. Please wait a moment and try again.');
+          errorMessage = 'Too many login attempts. Please wait a moment and try again.';
         } else {
           // Generic fallback for any other errors
-          showError(result?.error || 'Login failed. Please try again.');
+          errorMessage = result?.error || 'Login failed. Please try again.';
         }
+
+        // Set the error to display in UI (no toast needed)
+        setApiError(errorMessage);
       } else {
         showSuccess('Welcome back!');
+        // Clear any errors on success
+        setApiError('');
       }
     } catch (error) {
       // Safety net for any unexpected errors
       Logger.error('Login error:', error);
-      showError('Login failed. Please check your connection and try again.');
+      const errorMessage = 'Login failed. Please check your connection and try again.';
+      setApiError(errorMessage);
     } finally {
       setLoading(false);
     }
@@ -112,14 +142,36 @@ const LoginScreen = ({ navigation }) => {
   };
 
   return (
-    <StaticKeyboardWrapper style={styles.container}>
-      <View style={styles.scrollContainer}>
+    <SafeAreaView style={styles.safeArea} edges={['top']}>
+      <StatusBar backgroundColor="#f8f9fa" barStyle="dark-content" />
+      <KeyboardAwareScrollView
+        ref={scrollViewRef}
+        style={styles.container}
+        contentContainerStyle={styles.scrollContainer}
+        enableOnAndroid={true}
+        enableAutomaticScroll={true}
+        extraScrollHeight={Platform.OS === 'ios' ? 20 : 50}
+        extraHeight={Platform.OS === 'ios' ? 50 : 80}
+        keyboardShouldPersistTaps="handled"
+        showsVerticalScrollIndicator={false}
+        enableResetScrollToCoords={false}
+        keyboardOpeningTime={Number.MAX_SAFE_INTEGER}
+        viewIsInsideTabBar={false}
+      >
         <View style={styles.header}>
           <Text style={styles.title}>Welcome Back</Text>
           <Text style={styles.subtitle}>Sign in to continue your journey</Text>
         </View>
 
         <View style={styles.form}>
+          {/* API Error Display */}
+          {apiError ? (
+            <View style={styles.errorContainer}>
+              <Ionicons name="alert-circle" size={20} color="#FF6B6B" style={styles.errorIcon} />
+              <Text style={styles.errorMessage}>{apiError}</Text>
+            </View>
+          ) : null}
+
           <View style={styles.fieldWrapper}>
             <View style={[styles.inputContainer, fieldErrors.email && styles.inputError]}>
               <Ionicons name="mail" size={20} color="#FF6B6B" style={styles.inputIcon} />
@@ -132,6 +184,11 @@ const LoginScreen = ({ navigation }) => {
                 keyboardType="email-address"
                 autoCapitalize="none"
                 autoCorrect={false}
+                returnKeyType="next"
+                onSubmitEditing={() => {
+                  // Focus password field when "next" is pressed
+                  passwordInputRef.current?.focus();
+                }}
               />
             </View>
             {fieldErrors.email && <Text style={styles.errorText}>{fieldErrors.email}</Text>}
@@ -141,6 +198,7 @@ const LoginScreen = ({ navigation }) => {
             <View style={[styles.inputContainer, fieldErrors.password && styles.inputError]}>
               <Ionicons name="lock-closed" size={20} color="#FF6B6B" style={styles.inputIcon} />
               <TextInput
+                ref={passwordInputRef}
                 style={styles.input}
                 placeholder="Password"
                 value={password}
@@ -148,6 +206,8 @@ const LoginScreen = ({ navigation }) => {
                 onBlur={() => validateField('password', password)}
                 secureTextEntry={!showPassword}
                 autoCapitalize="none"
+                returnKeyType="done"
+                onSubmitEditing={handleLogin}
               />
               <TouchableOpacity
                 style={styles.passwordToggle}
@@ -163,13 +223,19 @@ const LoginScreen = ({ navigation }) => {
             <Text style={styles.forgotPasswordText}>Forgot Password?</Text>
           </TouchableOpacity>
 
-          <TouchableOpacity
-            style={[styles.loginButton, loading && styles.loginButtonDisabled]}
-            onPress={handleLogin}
-            disabled={loading}
-          >
-            <Text style={styles.loginButtonText}>{loading ? 'Signing In...' : 'Sign In'}</Text>
-          </TouchableOpacity>
+          <View>
+            <TouchableOpacity
+              style={[styles.loginButton, loading && styles.loginButtonDisabled]}
+              onPress={handleLogin}
+              disabled={loading}
+            >
+              {loading ? (
+                <ActivityIndicator size="small" color="#fff" />
+              ) : (
+                <Text style={styles.loginButtonText}>Sign In</Text>
+              )}
+            </TouchableOpacity>
+          </View>
 
           <View style={styles.divider}>
             <View style={styles.dividerLine} />
@@ -189,24 +255,32 @@ const LoginScreen = ({ navigation }) => {
             <Text style={styles.footerLink}>Sign Up</Text>
           </TouchableOpacity>
         </View>
-      </View>
-    </StaticKeyboardWrapper>
+
+        {/* Extra space at bottom for keyboard */}
+        <View style={styles.keyboardSpacer} />
+      </KeyboardAwareScrollView>
+    </SafeAreaView>
   );
 };
 
 const styles = StyleSheet.create({
-  container: {
+  safeArea: {
     flex: 1,
     backgroundColor: '#f8f9fa',
+  },
+  container: {
+    flex: 1,
   },
   scrollContainer: {
     flexGrow: 1,
     justifyContent: 'center',
-    padding: 20,
+    paddingHorizontal: 20,
+    paddingVertical: 20,
   },
   header: {
     alignItems: 'center',
     marginBottom: 40,
+    marginTop: 20,
   },
   title: {
     fontSize: 32,
@@ -310,6 +384,9 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: 'bold',
   },
+  keyboardSpacer: {
+    height: 50,
+  },
   fieldWrapper: {
     marginBottom: 16,
   },
@@ -322,6 +399,26 @@ const styles = StyleSheet.create({
     fontSize: 12,
     marginTop: 4,
     marginLeft: 4,
+  },
+  errorContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#FFF5F5',
+    borderRadius: 12,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    marginBottom: 20,
+    borderWidth: 1,
+    borderColor: '#FFD1D1',
+  },
+  errorIcon: {
+    marginRight: 10,
+  },
+  errorMessage: {
+    flex: 1,
+    color: '#D32F2F',
+    fontSize: 14,
+    lineHeight: 18,
   },
 });
 

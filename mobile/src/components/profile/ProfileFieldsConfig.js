@@ -265,6 +265,18 @@ export const transformProfileData = {
         return; // Don't include in the cleaned object
       }
 
+      // Handle interestedIn conversion from display value to API format
+      if (key === 'interestedIn') {
+        if (value === 'EVERYONE') {
+          cleaned[key] = ['MALE', 'FEMALE', 'OTHER'];
+        } else if (typeof value === 'string') {
+          cleaned[key] = [value]; // Convert single string to array
+        } else if (Array.isArray(value)) {
+          cleaned[key] = value; // Already an array
+        }
+        return;
+      }
+
       // For height, keep it as a string (e.g., "5'5\" (165cm)")
       if (key === 'height') {
         if (value && value.trim().length > 0) {

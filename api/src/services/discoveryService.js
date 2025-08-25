@@ -213,6 +213,21 @@ const getUsersForDiscovery = async (currentUserId, options = {}) => {
     });
 
     const processedUserIds = userActions.map((action) => action.receiverId);
+    
+    // IMPORTANT: Get users who have liked the current user
+    // These should ALWAYS appear in discovery regardless of preferences
+    const usersWhoLikedMe = await prisma.userAction.findMany({
+      where: { 
+        receiverId: currentUserId,
+        action: { in: ['LIKE', 'SUPER_LIKE'] },
+        // Exclude users we've already acted on
+        senderId: { notIn: processedUserIds }
+      },
+      select: { senderId: true },
+    });
+    
+    const priorityUserIds = usersWhoLikedMe.map((action) => action.senderId);
+    logger.info(`🎯 Found ${priorityUserIds.length} users who liked ${currentUserId} and haven't been acted on yet`);
 
     // Also exclude users we've matched with
     const userMatches = await prisma.match.findMany({
@@ -386,22 +401,34 @@ const getUsersForDiscovery = async (currentUserId, options = {}) => {
 
     // Sort by match score (highest first)
     scoredUsers.sort((a, b) => {
-      // First priority: Users who match preferences
+      // HIGHEST PRIORITY: Users who liked us should appear first
+      const aLikedUs = priorityUserIds.includes(a.id);
+      const bLikedUs = priorityUserIds.includes(b.id);
+      if (aLikedUs && !bLikedUs) {return -1;}
+      if (!aLikedUs && bLikedUs) {return 1;}
+      
+      // Second priority: Users who match preferences
       if (a.matchesPreferences && !b.matchesPreferences) {return -1;}
       if (!a.matchesPreferences && b.matchesPreferences) {return 1;}
       
-      // Second priority: Match score
+      // Third priority: Match score
       if (a.matchScore !== b.matchScore) {
         return b.matchScore - a.matchScore;
       }
       
-      // Third priority: Recently active
+      // Fourth priority: Recently active
       return new Date(b.lastActive) - new Date(a.lastActive);
     });
 
-    // ALWAYS filter by gender preferences first (this is not optional!)
+    // Filter by gender preferences BUT always include users who liked us
     let filteredUsers = scoredUsers.filter(user => {
-      // Check mutual gender interest
+      // PRIORITY: If this user liked us, ALWAYS include them
+      if (priorityUserIds.includes(user.id)) {
+        logger.info(`✅ Including ${user.name} (ID: ${user.id}) in discovery because they liked you`);
+        return true;
+      }
+      
+      // Otherwise, check mutual gender interest
       const currentUserInterested = currentUser.interestedIn.length === 3 || 
         currentUser.interestedIn.includes(user.gender);
       const otherUserInterested = user.interestedIn.length === 3 || 
@@ -498,6 +525,9 @@ const getUsersForDiscovery = async (currentUserId, options = {}) => {
     // Limit to requested number
     const finalUsers = filteredUsers.slice(0, limit);
 
+    // Count how many priority users made it to final results
+    const priorityUsersInResults = finalUsers.filter(u => priorityUserIds.includes(u.id)).length;
+    
     logger.info(
       `Discovery for user ${currentUserId}: ${finalUsers.length} users found`,
       {
@@ -505,9 +535,14 @@ const getUsersForDiscovery = async (currentUserId, options = {}) => {
         totalUsers: users.length,
         afterFiltering: filteredUsers.length,
         preferenceMatches: finalUsers.filter(u => u.matchesPreferences).length,
+        priorityUsers: priorityUsersInResults,
         returned: finalUsers.length,
       }
     );
+    
+    if (priorityUsersInResults > 0) {
+      logger.info(`🎯 Including ${priorityUsersInResults} users who liked you in discovery results`);
+    }
     
     return finalUsers;
   } catch (error) {

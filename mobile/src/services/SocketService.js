@@ -94,13 +94,23 @@ class SocketService {
 
     // Real-time match events
     this.socket.on('new-match', data => {
-      Logger.info('💕 New match received via WebSocket:', data);
+      Logger.info('💕 New match received via WebSocket!');
+      Logger.info(
+        `🎯 Match Details: Match ID: ${data.matchId}, Matched User: ${data.matchedUser?.name} (ID: ${data.matchedUser?.id})`
+      );
+      Logger.info(
+        `📸 Matched User Photo: ${data.matchedUser?.mainPhoto ? 'Has photo' : 'No photo'}`
+      );
+      Logger.info(`💬 Message: ${data.message}`);
       this.matchListeners.forEach(callback => callback('new-match', data));
     });
 
     // Liked You update events
     this.socket.on('liked-you-update', data => {
-      Logger.info('💘 Liked You update received via WebSocket:', data);
+      Logger.info('💘 Liked You update received via WebSocket!');
+      Logger.info(
+        `🔄 Update Action: ${data.action}, User ID: ${data.userId}, Reason: ${data.reason}`
+      );
       this.likedYouListeners.forEach(callback => callback('liked-you-update', data));
     });
 

@@ -3,13 +3,13 @@ import {
   View,
   Text,
   StyleSheet,
-  ScrollView,
   FlatList,
   Image,
   TouchableOpacity,
   RefreshControl,
   Dimensions,
   Modal,
+  ActivityIndicator,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
@@ -35,13 +35,18 @@ const LikedYouScreen = () => {
   const [incomingLikes, setIncomingLikes] = useState([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [hasMore, setHasMore] = useState(true);
+  const [offset, setOffset] = useState(0);
   const [selectedUser, setSelectedUser] = useState(null);
   const [showUpgradeModal, setShowUpgradeModal] = useState(false);
   const [showMatchModal, setShowMatchModal] = useState(false);
   const [matchedUser, setMatchedUser] = useState(null);
   const [pendingMatchToast, setPendingMatchToast] = useState(false);
   const [hasShownUpgradeHint, setHasShownUpgradeHint] = useState(false);
+  const [totalLikesCount, setTotalLikesCount] = useState(0); // Track the total count
   const timeoutRef = useRef(null);
+  const BATCH_SIZE = 10;
 
   // Cleanup timeout on unmount
   useEffect(() => {
@@ -52,71 +57,208 @@ const LikedYouScreen = () => {
     };
   }, []);
 
-  // Fetch users who liked the current user
-  const fetchWhoLikedMe = useCallback(async () => {
-    try {
-      const response = await apiClient.get('/actions/who-liked-me?limit=50');
-
-      // ApiClient returns { success: true, data: actualApiResponse }
-      // The actual API response has { success, message, data: likesArray }
-      if (response.success && response.data) {
-        // Extract the likes array from the nested structure
-        const responseData = response.data.data || [];
-
-        // Ensure data is an array
-        if (!Array.isArray(responseData)) {
-          setIncomingLikes([]);
-          return;
+  // Fetch users who liked the current user with pagination
+  const fetchWhoLikedMe = useCallback(
+    async (isLoadMore = false) => {
+      try {
+        if (isLoadMore) {
+          setLoadingMore(true);
+        } else {
+          setLoading(true);
         }
 
-        // Transform the data to match our UI expectations
-        const likes = responseData.map(item => {
-          return {
-            id: item.user.id,
-            actionId: item.actionId,
-            name: item.user.name,
-            age: item.user.age || '?',
-            location: item.user.location || 'Unknown location',
-            bio: item.user.bio || 'No bio available',
-            photos: item.user.photos || [],
-            mainPhoto:
-              item.user.photos?.find(p => p.isMain)?.url ||
-              item.user.photos?.[0]?.url ||
-              'https://via.placeholder.com/150',
-            isSuperLike: item.actionType === 'SUPER_LIKE',
-            likedAt: item.likedAt,
-            isNew: false, // You could track this with timestamps
-          };
-        });
+        const currentOffset = isLoadMore ? offset : 0;
+        const response = await apiClient.get(
+          `/actions/who-liked-me?limit=${BATCH_SIZE}&offset=${currentOffset}`
+        );
 
-        setIncomingLikes(likes);
+        // ApiClient returns { success: true, data: actualApiResponse }
+        // The actual API response has { success, message, data: likesArray, totalCount }
+        if (response.success && response.data) {
+          // Extract the likes array and total count from the response
+          const responseData = response.data.data || [];
+          const totalCount = response.data.totalCount || 0;
+          const totalLikesCountFromAPI = response.data.totalLikesCount || 0;
 
-        if (likes.length > 0 && !isPremium && !hasShownUpgradeHint) {
-          // Subtle nudge for non-premium users - only show once per session
-          setHasShownUpgradeHint(true);
-          // Clear any existing timeout
-          if (timeoutRef.current) {
-            clearTimeout(timeoutRef.current);
+          // Set the total count
+          setTotalLikesCount(totalCount);
+          Logger.info(`📊 Batch ${currentOffset}-${currentOffset + BATCH_SIZE}:`);
+          Logger.info(`   • Total unacted likes: ${totalCount}`);
+          Logger.info(`   • Total likes (including acted): ${totalLikesCountFromAPI}`);
+          Logger.info(`   • Users in this batch: ${responseData.length}`);
+
+          // Ensure data is an array
+          if (!Array.isArray(responseData)) {
+            if (!isLoadMore) {
+              setIncomingLikes([]);
+            }
+            setHasMore(false);
+            return;
           }
-          timeoutRef.current = setTimeout(() => {
-            showInfo(`${likes.length} people liked you! Upgrade to see who they are 👀`);
-            timeoutRef.current = null;
-          }, 1000);
+
+          // Transform the data to match our UI expectations
+          const likes = responseData.map(item => {
+            const likeData = {
+              id: item.user.id,
+              actionId: item.actionId,
+              name: item.user.name,
+              age: item.user.age || '?',
+              location: item.user.location || 'Unknown location',
+              bio: item.user.bio || 'No bio available',
+              photos: item.user.photos || [],
+              mainPhoto:
+                item.user.photos?.find(p => p.isMain)?.url ||
+                item.user.photos?.[0]?.url ||
+                'https://via.placeholder.com/150',
+              isSuperLike: item.actionType === 'SUPER_LIKE',
+              likedAt: item.likedAt,
+              isNew: false, // You could track this with timestamps
+            };
+
+            // Log each user that should appear in LikedYou
+            Logger.info(
+              `📋 LikedYou User: ${likeData.name} (ID: ${likeData.id}, Action: ${item.actionType}, Date: ${new Date(likeData.likedAt).toLocaleDateString()})`
+            );
+
+            return likeData;
+          });
+
+          if (isLoadMore) {
+            // Filter out duplicates before setting state
+            const existingIds = new Set(incomingLikes.map(u => u.id));
+            const uniqueNewLikes = likes.filter(u => !existingIds.has(u.id));
+
+            if (uniqueNewLikes.length < likes.length) {
+              const duplicates = likes.filter(u => existingIds.has(u.id));
+              Logger.warn(
+                `🔄 Filtered out ${likes.length - uniqueNewLikes.length} duplicate users:`
+              );
+              duplicates.forEach(u => {
+                Logger.warn(`   - ${u.name} (ID: ${u.id})`);
+              });
+            }
+
+            if (uniqueNewLikes.length === 0) {
+              Logger.info('📋 LikedYou: No new unique users in this batch (all duplicates)');
+              // Still update offset to continue pagination
+              setOffset(currentOffset + likes.length);
+              return;
+            }
+
+            // Append to existing likes and re-sort everything
+            setIncomingLikes(prev => {
+              const newTotal = [...prev, ...uniqueNewLikes];
+
+              // Count super likes before sorting
+              const superLikesBefore = newTotal.filter(u => u.isSuperLike).length;
+              Logger.info(
+                `⭐ Before sort: ${superLikesBefore} Super Likes in list of ${newTotal.length}`
+              );
+
+              // Sort the entire list: Super Likes first, then by date
+              newTotal.sort((a, b) => {
+                // Super Likes come first
+                if (a.isSuperLike && !b.isSuperLike) return -1;
+                if (!a.isSuperLike && b.isSuperLike) return 1;
+                // Within same type, sort by date (newest first)
+                return new Date(b.likedAt) - new Date(a.likedAt);
+              });
+
+              // Log first 5 after sorting to verify order
+              Logger.info(`📋 After sort - First 5 users:`);
+              newTotal.slice(0, 5).forEach((u, i) => {
+                Logger.info(`   ${i + 1}. ${u.name} ${u.isSuperLike ? '⭐ SUPER' : '❤️ regular'}`);
+              });
+
+              Logger.info(
+                `📋 LikedYou: Appending ${uniqueNewLikes.length} unique users to existing ${prev.length} = ${newTotal.length} total loaded (sorted)`
+              );
+
+              return newTotal;
+            });
+
+            // Update offset by the number of unique users added
+            setOffset(currentOffset + uniqueNewLikes.length);
+          } else {
+            // Initial load - sort the batch
+            const superLikesInBatch = likes.filter(u => u.isSuperLike).length;
+            Logger.info(
+              `⭐ Initial batch: ${superLikesInBatch} Super Likes out of ${likes.length}`
+            );
+
+            likes.sort((a, b) => {
+              // Super Likes come first
+              if (a.isSuperLike && !b.isSuperLike) return -1;
+              if (!a.isSuperLike && b.isSuperLike) return 1;
+              // Within same type, sort by date (newest first)
+              return new Date(b.likedAt) - new Date(a.likedAt);
+            });
+
+            // Log first 5 after sorting
+            Logger.info(`📋 Initial sort - First 5 users:`);
+            likes.slice(0, 5).forEach((u, i) => {
+              Logger.info(`   ${i + 1}. ${u.name} ${u.isSuperLike ? '⭐ SUPER' : '❤️ regular'}`);
+            });
+
+            setIncomingLikes(likes);
+            setOffset(likes.length);
+            Logger.info(`📋 LikedYou: Initial load of ${likes.length} users (sorted)`);
+          }
+
+          // Check if there are more to load - use the totalCount from API response, not state
+          const moreAvailable =
+            likes.length === BATCH_SIZE && currentOffset + likes.length < totalCount;
+          setHasMore(moreAvailable);
+
+          Logger.info(
+            `📋 Pagination state - hasMore: ${moreAvailable}, likes.length: ${likes.length}, BATCH_SIZE: ${BATCH_SIZE}, offset: ${currentOffset}, totalCount: ${totalCount}`
+          );
+
+          if (likes.length < BATCH_SIZE) {
+            Logger.info(
+              `📋 LikedYou: Reached end of list (loaded ${likes.length} of max ${BATCH_SIZE})`
+            );
+          } else if (!moreAvailable) {
+            Logger.info(
+              `📋 LikedYou: All users loaded (${currentOffset + likes.length} of ${totalCount})`
+            );
+          }
+
+          if (!isLoadMore && likes.length > 0 && !isPremium && !hasShownUpgradeHint) {
+            // Subtle nudge for non-premium users - only show once per session
+            setHasShownUpgradeHint(true);
+            // Clear any existing timeout
+            if (timeoutRef.current) {
+              clearTimeout(timeoutRef.current);
+            }
+            timeoutRef.current = setTimeout(() => {
+              showInfo(`People have liked you! Upgrade to see who they are 👀`);
+              timeoutRef.current = null;
+            }, 1000);
+          }
+        } else {
+          if (!isLoadMore) {
+            setIncomingLikes([]);
+          }
+          setHasMore(false);
         }
-      } else {
-        setIncomingLikes([]);
+      } catch (error) {
+        Logger.error('Failed to fetch who liked me:', error);
+        // Only show toast, suppress expo error
+        if (error.message && !isLoadMore) {
+          showError('Could not load likes. Pull down to retry.');
+        }
+        if (!isLoadMore) {
+          setIncomingLikes([]);
+        }
+        setHasMore(false);
+      } finally {
+        setLoading(false);
+        setLoadingMore(false);
       }
-    } catch (error) {
-      Logger.error('Failed to fetch who liked me:', error);
-      // Only show toast, suppress expo error
-      if (error.message) {
-        showError('Could not load likes. Pull down to retry.');
-      }
-      setIncomingLikes([]);
-    } finally {
-      setLoading(false);
-    }
-  }, [isPremium, showInfo, showError, hasShownUpgradeHint]);
+    },
+    [offset, isPremium, showInfo, showError, hasShownUpgradeHint, incomingLikes]
+  );
 
   useEffect(() => {
     if (user?.uid) {
@@ -131,13 +273,19 @@ const LikedYouScreen = () => {
 
     // Subscribe to liked-you updates
     const unsubscribe = SocketService.onLikedYouUpdate((event, data) => {
+      Logger.info(`🔔 LikedYou WebSocket event received: ${event}`, data);
       if (event === 'liked-you-update' && data) {
         if (data.action === 'remove' && data.userId) {
+          Logger.info(
+            `🗑️ WebSocket: Removing user ${data.userId} from LikedYou (reason: ${data.reason})`
+          );
           // Remove the user from the incoming likes list
           setIncomingLikes(prev => {
             const filtered = prev.filter(like => like.id !== data.userId);
             return filtered;
           });
+          // Decrement total count
+          setTotalLikesCount(prev => Math.max(0, prev - 1));
 
           // Show toast after state update using setTimeout to avoid the warning
           if (data.reason === 'matched') {
@@ -217,9 +365,50 @@ const LikedYouScreen = () => {
 
   const handleRefresh = async () => {
     setRefreshing(true);
-    await fetchWhoLikedMe();
+    setOffset(0); // Reset offset for refresh
+    setHasMore(true); // Reset hasMore flag
+    setTotalLikesCount(0); // Reset total count
+    await fetchWhoLikedMe(false); // false = not loading more, it's a refresh
     setRefreshing(false);
   };
+
+  const handleLoadMore = () => {
+    Logger.info(
+      `📜 handleLoadMore called - loadingMore: ${loadingMore}, hasMore: ${hasMore}, loading: ${loading}, offset: ${offset}`
+    );
+    if (!loadingMore && hasMore && !loading) {
+      Logger.info(`📜 Loading more users from offset ${offset}`);
+      fetchWhoLikedMe(true); // true = loading more
+    }
+  };
+
+  // Handle match modal actions
+  const handleSendMessage = useCallback(() => {
+    setShowMatchModal(false);
+    setMatchedUser(null); // Clear matched user immediately
+
+    // Small delay to ensure modal closes before navigation
+    setTimeout(() => {
+      if (matchedUser) {
+        // Navigate directly to the chat with this match
+        const matchData = {
+          matchId: matchedUser.matchId,
+          otherUser: {
+            id: matchedUser.id,
+            name: matchedUser.name,
+            mainPhoto: matchedUser.photo,
+            photos: matchedUser.photo ? [{ url: matchedUser.photo }] : [],
+          },
+        };
+        navigateToChat(matchData);
+      }
+    }, 100);
+  }, [matchedUser, navigateToChat]);
+
+  const handleKeepSwiping = useCallback(() => {
+    setShowMatchModal(false);
+    setMatchedUser(null);
+  }, []);
 
   const handleLikeBack = async profile => {
     if (!isPremium) {
@@ -230,13 +419,21 @@ const LikedYouScreen = () => {
     try {
       const result = await ApiDataService.likeUser(profile.id);
 
+      Logger.info(`💘 Like result for ${profile.name}:`, JSON.stringify(result, null, 2));
+
       if (result.success) {
         // Close the user detail modal first if it's open
         if (selectedUser) {
           setSelectedUser(null);
         }
 
+        // When liking someone from LikedYou, it's ALWAYS a match
+        // because they already liked you!
         if (result.isMatch) {
+          Logger.info(`🎉 It's a match with ${profile.name}! Match ID: ${result.match?.id}`);
+          // Close the user detail modal first
+          setSelectedUser(null);
+
           // Set matched user and show match modal
           setMatchedUser({
             id: profile.id,
@@ -247,11 +444,22 @@ const LikedYouScreen = () => {
           // Show match modal immediately without delay
           setShowMatchModal(true);
         } else {
+          // This shouldn't happen when liking from LikedYou
+          Logger.warn(`⚠️ Unexpected: Like to ${profile.name} didn't create a match`);
           showSuccess('Like sent back! 💘');
         }
 
         // Remove from incoming likes
-        setIncomingLikes(prev => prev.filter(like => like.id !== profile.id));
+        Logger.info(
+          `🗑️ Removing ${profile.name} (ID: ${profile.id}) from LikedYou list after match`
+        );
+        setIncomingLikes(prev => {
+          const newList = prev.filter(like => like.id !== profile.id);
+          Logger.info(`📊 LikedYou list updated: ${prev.length} -> ${newList.length} users`);
+          return newList;
+        });
+        // Decrement total count
+        setTotalLikesCount(prev => Math.max(0, prev - 1));
       }
     } catch (error) {
       Logger.error('Failed to like back:', error);
@@ -270,8 +478,17 @@ const LikedYouScreen = () => {
 
       if (result.success) {
         // Remove from incoming likes with animation
-        setIncomingLikes(prev => prev.filter(like => like.id !== profile.id));
+        Logger.info(
+          `🗑️ Removing ${profile.name} (ID: ${profile.id}) from LikedYou list after pass`
+        );
+        setIncomingLikes(prev => {
+          const newList = prev.filter(like => like.id !== profile.id);
+          Logger.info(`📊 LikedYou list updated: ${prev.length} -> ${newList.length} users`);
+          return newList;
+        });
         setSelectedUser(null);
+        // Decrement total count
+        setTotalLikesCount(prev => Math.max(0, prev - 1));
       }
     } catch (error) {
       Logger.error('Failed to pass:', error);
@@ -358,37 +575,47 @@ const LikedYouScreen = () => {
     );
   };
 
-  const renderHeader = () => (
-    <View style={styles.header}>
-      <View style={styles.headerContent}>
-        <Text style={styles.headerTitle}>Who Liked You</Text>
-        <View style={styles.likeCountBadge}>
-          <Text style={styles.likeCountText}>{incomingLikes.length}</Text>
+  const renderHeader = () => {
+    // Log the actual count of users being displayed
+    const uniqueUserIds = new Set(incomingLikes.map(u => u.id));
+    if (incomingLikes.length > 0) {
+      Logger.info(
+        `📊 Display count: Showing ${incomingLikes.length} users (${uniqueUserIds.size} unique) vs API total: ${totalLikesCount}`
+      );
+    }
+
+    return (
+      <View style={styles.header}>
+        <View style={styles.headerContent}>
+          <Text style={styles.headerTitle}>Who Liked You</Text>
+          <View style={styles.likeCountBadge}>
+            <Text style={styles.likeCountText}>{totalLikesCount}</Text>
+          </View>
         </View>
+
+        {!isPremium && incomingLikes.length > 0 && (
+          <TouchableOpacity style={styles.upgradeButton} onPress={() => setShowUpgradeModal(true)}>
+            <LinearGradient
+              colors={['#FFD700', '#FFA500']}
+              style={styles.upgradeGradient}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 0 }}
+            >
+              <Ionicons name="star" size={16} color="white" />
+              <Text style={styles.upgradeButtonText}>See Who Liked You</Text>
+            </LinearGradient>
+          </TouchableOpacity>
+        )}
+
+        {isPremium && (
+          <View style={styles.premiumBadge}>
+            <Ionicons name="star" size={14} color="#FFD700" />
+            <Text style={styles.premiumText}>PREMIUM</Text>
+          </View>
+        )}
       </View>
-
-      {!isPremium && incomingLikes.length > 0 && (
-        <TouchableOpacity style={styles.upgradeButton} onPress={() => setShowUpgradeModal(true)}>
-          <LinearGradient
-            colors={['#FFD700', '#FFA500']}
-            style={styles.upgradeGradient}
-            start={{ x: 0, y: 0 }}
-            end={{ x: 1, y: 0 }}
-          >
-            <Ionicons name="star" size={16} color="white" />
-            <Text style={styles.upgradeButtonText}>See Who Liked You</Text>
-          </LinearGradient>
-        </TouchableOpacity>
-      )}
-
-      {isPremium && (
-        <View style={styles.premiumBadge}>
-          <Ionicons name="star" size={14} color="#FFD700" />
-          <Text style={styles.premiumText}>PREMIUM</Text>
-        </View>
-      )}
-    </View>
-  );
+    );
+  };
 
   const renderEmptyState = () => (
     <View style={styles.emptyState}>
@@ -528,10 +755,30 @@ const LikedYouScreen = () => {
     );
   }
 
+  const renderFooter = () => {
+    if (!loadingMore) return null;
+
+    return (
+      <View style={styles.footerLoader}>
+        <ActivityIndicator size="small" color="#FF6B6B" />
+        <Text style={styles.loadingMoreText}>Loading more...</Text>
+      </View>
+    );
+  };
+
   return (
     <View style={styles.container}>
-      <ScrollView
-        style={styles.scrollView}
+      <FlatList
+        data={incomingLikes}
+        renderItem={renderLikeCard}
+        keyExtractor={item => item.actionId || item.id}
+        extraData={incomingLikes.length} // Force re-render when list changes
+        numColumns={2}
+        columnWrapperStyle={styles.row}
+        ListHeaderComponent={renderHeader}
+        ListEmptyComponent={!loading ? renderEmptyState : null}
+        ListFooterComponent={renderFooter}
+        contentContainerStyle={styles.gridContainer}
         refreshControl={
           <RefreshControl
             refreshing={refreshing}
@@ -540,68 +787,32 @@ const LikedYouScreen = () => {
             tintColor="#FF6B6B"
           />
         }
+        onEndReached={handleLoadMore}
+        onEndReachedThreshold={0.5}
         showsVerticalScrollIndicator={false}
-      >
-        {renderHeader()}
-
-        {incomingLikes.length > 0 ? (
-          <FlatList
-            data={incomingLikes}
-            renderItem={renderLikeCard}
-            keyExtractor={item => item.actionId || item.id}
-            numColumns={2}
-            scrollEnabled={false}
-            contentContainerStyle={styles.gridContainer}
-            columnWrapperStyle={styles.row}
-          />
-        ) : (
-          renderEmptyState()
-        )}
-      </ScrollView>
+      />
 
       {renderUserModal()}
       {renderUpgradeModal()}
 
       {/* Match Modal */}
-      <MatchModal
-        visible={showMatchModal}
-        onClose={() => {
-          setShowMatchModal(false);
-          setMatchedUser(null);
-        }}
-        currentUserPhoto={
-          userProfile?.mainPhoto || userProfile?.photos?.[0]?.url || userProfile?.photos?.[0]
-        }
-        currentUserName={userProfile?.name || user?.displayName}
-        matchedUserPhoto={matchedUser?.photo}
-        matchedUserName={matchedUser?.name}
-        onSendMessage={() => {
-          // Close the match modal first
-          setShowMatchModal(false);
-          // Ensure user detail modal is closed as safety measure
-          if (selectedUser) {
-            setSelectedUser(null);
+      {showMatchModal && matchedUser && (
+        <MatchModal
+          visible={showMatchModal}
+          onClose={() => {
+            setShowMatchModal(false);
+            setMatchedUser(null);
+          }}
+          currentUserPhoto={
+            userProfile?.mainPhoto || userProfile?.photos?.[0]?.url || userProfile?.photos?.[0]
           }
-          // Navigate directly to the chat with this match
-          if (matchedUser) {
-            const matchData = {
-              matchId: matchedUser.matchId || `match_${matchedUser.id}_${user.uid}`, // Use user IDs as fallback
-              otherUser: {
-                id: matchedUser.id,
-                name: matchedUser.name,
-                mainPhoto: matchedUser.photo,
-                photos: matchedUser.photo ? [{ url: matchedUser.photo }] : [],
-              },
-            };
-            setTimeout(() => {
-              navigateToChat(matchData);
-            }, 100);
-          }
-        }}
-        onKeepSwiping={() => {
-          // Just close, the modal handles it
-        }}
-      />
+          currentUserName={userProfile?.name || user?.displayName}
+          matchedUserPhoto={matchedUser?.photo}
+          matchedUserName={matchedUser?.name}
+          onSendMessage={handleSendMessage}
+          onKeepSwiping={handleKeepSwiping}
+        />
+      )}
     </View>
   );
 };
@@ -610,9 +821,6 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#f8f9fa',
-  },
-  scrollView: {
-    flex: 1,
   },
   loadingContainer: {
     flex: 1,
@@ -970,17 +1178,15 @@ const styles = StyleSheet.create({
     color: '#666',
     fontSize: 16,
   },
-  debugToggle: {
-    backgroundColor: '#FFE5E5',
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 15,
-    marginVertical: 10,
+  footerLoader: {
+    paddingVertical: 20,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
-  debugText: {
-    fontSize: 12,
-    fontWeight: 'bold',
-    color: '#FF6B6B',
+  loadingMoreText: {
+    marginTop: 8,
+    fontSize: 14,
+    color: '#666',
   },
 });
 
