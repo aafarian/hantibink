@@ -4,9 +4,10 @@ generator client {
 }
 
 datasource db {
-  provider  = "postgresql"
-  url       = env("DATABASE_URL")
-  directUrl = env("DIRECT_URL")
+  provider          = "postgresql"
+  url               = env("DATABASE_URL")
+  directUrl         = env("DIRECT_URL")
+  shadowDatabaseUrl = env("SHADOW_DATABASE_URL")
 }
 
 model User {
@@ -14,12 +15,12 @@ model User {
   createdAt              DateTime       @default(now())
   updatedAt              DateTime       @updatedAt
   email                  String         @unique
-  password               String
+  password               String?        // Nullable for OAuth/phone auth
   firebaseUid            String?        @unique
   name                   String
   birthDate              DateTime
-  gender                 Gender
-  interestedIn           Gender[]
+  gender                 Gender?        // Nullable until profile setup
+  interestedIn           Gender[]       // Empty array until profile setup
   bio                    String?
   education              String?
   profession             String?
@@ -30,19 +31,24 @@ model User {
   drinking               String?
   travel                 String?
   pets                   String?
-  languages              String[]       @default([])
-  location               String?
+  location               String?        // Required for discovery, but nullable initially
   latitude               Float?
   longitude              Float?
   mainPhotoId            String?
   isActive               Boolean        @default(true)
   isPremium              Boolean        @default(false)
   hasCompletedOnboarding Boolean        @default(false)
-  onboardingStep         Int            @default(1)
+  onboardingStage        OnboardingStage @default(REGISTERED)
+  emailVerified          Boolean        @default(false)
+  phoneVerified          Boolean        @default(false)
+  locationEnabled        Boolean        @default(false)
+  isDiscoverable         Boolean        @default(false) // Computed based on requirements
+  profileCompleteness    Int            @default(0)
   lastActive             DateTime       @default(now())
   profileViews           Int            @default(0)
   totalLikes             Int            @default(0)
   totalMatches           Int            @default(0)
+  languages              String[]       @default([])
   matchesAsUser1         Match[]        @relation("user1Matches")
   matchesAsUser2         Match[]        @relation("user2Matches")
   receivedMessages       Message[]      @relation("receivedMessages")
@@ -55,9 +61,27 @@ model User {
   actionsReceived        UserAction[]   @relation("actionsReceived")
   actionsSent            UserAction[]   @relation("actionsSent")
   interests              UserInterest[]
-  mainPhoto              Photo?         @relation("mainPhoto", fields: [mainPhotoId], references: [id], onDelete: SetNull)
+  oauthAccounts          OAuthAccount[]
+  mainPhoto              Photo?         @relation("mainPhoto", fields: [mainPhotoId], references: [id])
 
   @@map("users")
+}
+
+model OAuthAccount {
+  id           String    @id @default(cuid())
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+  userId       String
+  provider     String    // 'google', 'facebook', 'apple'
+  providerId   String    // Provider's user ID
+  email        String?
+  accessToken  String?
+  refreshToken String?
+  expiresAt    DateTime?
+  user         User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  @@unique([provider, providerId])
+  @@map("oauth_accounts")
 }
 
 model Photo {
@@ -213,10 +237,9 @@ model Report {
 }
 
 enum Gender {
-  MALE
-  FEMALE
+  MAN
+  WOMAN
   OTHER
-  EVERYONE // For interestedIn only
 }
 
 enum ActionType {
@@ -273,4 +296,9 @@ enum ReportStatus {
   UNDER_REVIEW
   RESOLVED
   DISMISSED
+}
+
+enum OnboardingStage {
+  REGISTERED        // Just signed up
+  SETUP_COMPLETE    // Has gender, interestedIn, photo, location
 }

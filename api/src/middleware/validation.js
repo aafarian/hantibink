@@ -52,31 +52,28 @@ const authValidation = {
         if (age > 100) {throw new Error('Invalid birth date');}
         return true;
       }),
+    // Gender is now OPTIONAL for registration
     body('gender')
-      .notEmpty().withMessage('Gender is required')
-      .isIn(['MALE', 'FEMALE', 'OTHER', 'male', 'female', 'other', 'non-binary']).withMessage('Invalid gender')
+      .optional()
+      .isIn(['MAN', 'WOMAN', 'OTHER', 'man', 'woman', 'other']).withMessage('Invalid gender')
       .customSanitizer(value => {
+        if (!value) {return undefined;}
         // Normalize to uppercase
-        if (value === 'male') {return 'MALE';}
-        if (value === 'female') {return 'FEMALE';}
-        if (value === 'other' || value === 'non-binary') {return 'OTHER';}
         return value.toUpperCase();
       }),
+    // InterestedIn is now OPTIONAL for registration
     body('interestedIn')
-      .notEmpty().withMessage('Interested in is required')
+      .optional()
       .isArray().withMessage('Interested in must be an array')
       .custom((value) => {
-        const valid = ['MALE', 'FEMALE', 'OTHER', 'male', 'female', 'other'];
+        if (!value) {return true;}
+        const valid = ['MAN', 'WOMAN', 'OTHER', 'man', 'woman', 'other'];
         return value.every(v => valid.includes(v));
       }).withMessage('Invalid interested in values')
       .customSanitizer(value => {
+        if (!value) {return undefined;}
         // Normalize to uppercase
-        return value.map(v => {
-          if (v === 'male') {return 'MALE';}
-          if (v === 'female') {return 'FEMALE';}
-          if (v === 'other' || v === 'non-binary') {return 'OTHER';}
-          return v.toUpperCase();
-        });
+        return value.map(v => v.toUpperCase());
       }),
     handleValidationErrors,
   ],
@@ -286,6 +283,32 @@ const messageValidation = {
  * Profile validation rules
  */
 const profileValidation = {
+  // New endpoint for completing profile setup (gender, interestedIn, location required)
+  completeSetup: [
+    body('gender')
+      .notEmpty().withMessage('Gender is required for profile setup')
+      .isIn(['MAN', 'WOMAN', 'OTHER', 'man', 'woman', 'other']).withMessage('Invalid gender')
+      .customSanitizer(value => value.toUpperCase()),
+    body('interestedIn')
+      .notEmpty().withMessage('Interested in is required for profile setup')
+      .isArray().withMessage('Interested in must be an array')
+      .custom((value) => {
+        const valid = ['MAN', 'WOMAN', 'OTHER', 'man', 'woman', 'other'];
+        return value.length > 0 && value.every(v => valid.includes(v));
+      }).withMessage('Invalid interested in values')
+      .customSanitizer(value => value.map(v => v.toUpperCase())),
+    body('location')
+      .notEmpty().withMessage('Location is required for discovery')
+      .isString().withMessage('Location must be a string'),
+    body('latitude')
+      .optional()
+      .isFloat({ min: -90, max: 90 }).withMessage('Invalid latitude'),
+    body('longitude')
+      .optional()
+      .isFloat({ min: -180, max: 180 }).withMessage('Invalid longitude'),
+    handleValidationErrors,
+  ],
+  
   updateProfile: [
     body('name')
       .optional()

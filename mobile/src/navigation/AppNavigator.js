@@ -220,7 +220,17 @@ const MainNavigator = () => {
           },
         }}
       />
-      <Tab.Screen name="Messages" component={MessagesStack} options={{ headerShown: false }} />
+      <Tab.Screen
+        name="Messages"
+        component={MessagesStack}
+        options={{ headerShown: false }}
+        listeners={({ navigation }) => ({
+          tabPress: e => {
+            // Navigate to the initial route of the Messages stack
+            navigation.navigate('Messages', { screen: 'MessagesList' });
+          },
+        })}
+      />
     </Tab.Navigator>
   );
 };
