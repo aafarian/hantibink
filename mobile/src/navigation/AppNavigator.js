@@ -225,7 +225,7 @@ const MainNavigator = () => {
         component={MessagesStack}
         options={{ headerShown: false }}
         listeners={({ navigation }) => ({
-          tabPress: e => {
+          tabPress: _e => {
             // Navigate to the initial route of the Messages stack
             navigation.navigate('Messages', { screen: 'MessagesList' });
           },

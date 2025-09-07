@@ -30,8 +30,8 @@ const FilterScreen = ({ navigation, route }) => {
     maxDistance: currentFilters.maxDistance || 100,
     strictDistance: currentFilters.strictDistance || false,
 
-    // Only show users with photos
-    onlyWithPhotos: currentFilters.onlyWithPhotos !== false, // Default true
+    // Always require photos (no longer configurable)
+    // onlyWithPhotos is always true now
 
     // Advanced filters
     relationshipType: currentFilters.relationshipType || [],
@@ -134,7 +134,7 @@ const FilterScreen = ({ navigation, route }) => {
       strictAge: false,
       maxDistance: 100,
       strictDistance: false,
-      onlyWithPhotos: true,
+      // Photos always required - no longer a filter option
       relationshipType: [],
       strictRelationshipType: false,
       education: [],
@@ -388,16 +388,7 @@ const FilterScreen = ({ navigation, route }) => {
           </>
         )}
 
-        {/* Matching Preferences */}
-        {renderSection(
-          'Matching Preferences',
-          renderToggle(
-            'Only With Photos',
-            'Only show profiles that have at least one photo',
-            'onlyWithPhotos',
-            filters.onlyWithPhotos
-          )
-        )}
+        {/* Matching Preferences section removed - photos now always required */}
 
         {/* Relationship Type */}
         {renderSection(

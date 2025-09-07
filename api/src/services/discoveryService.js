@@ -223,7 +223,7 @@ const getUsersForDiscovery = async (currentUserId, options = {}) => {
     const defaultFilters = {
       ageRange: { min: 18, max: 100 },
       maxDistance: 100, // km
-      onlyWithPhotos: true,
+      // Photos are now always required - removed from filters
       strictAge: false,
       strictDistance: false,
       relationshipType: [],
@@ -322,13 +322,11 @@ const getUsersForDiscovery = async (currentUserId, options = {}) => {
       ];
     }
 
-    // Only include users with photos if filter is set
-    // Check the actual filter value, not just the default
-    if (defaultFilters.onlyWithPhotos === true) {
-      baseWhereClause.photos = {
-        some: {},
-      };
-    }
+    // Always require users to have at least one photo
+    // Photos are now mandatory for discovery
+    baseWhereClause.photos = {
+      some: {},
+    };
 
     // Get ALL potential users (we'll filter and sort later)
     const users = await prisma.user.findMany({
