@@ -140,7 +140,7 @@ const LikedYouScreen = () => {
 
             if (uniqueNewLikes.length === 0) {
               Logger.info('📋 LikedYou: No new unique users in this batch (all duplicates)');
-              // Still update offset to continue pagination
+              // Still update offset by the fetched count to continue pagination
               setOffset(currentOffset + likes.length);
               return;
             }
@@ -177,8 +177,8 @@ const LikedYouScreen = () => {
               return newTotal;
             });
 
-            // Update offset by the number of unique users added
-            setOffset(currentOffset + uniqueNewLikes.length);
+            // Update offset by the fetched count (not unique count) to avoid skipping records
+            setOffset(currentOffset + likes.length);
           } else {
             // Initial load - sort the batch
             const superLikesInBatch = likes.filter(u => u.isSuperLike).length;

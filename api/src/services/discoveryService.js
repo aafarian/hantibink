@@ -178,6 +178,40 @@ const calculateMatchScore = (currentUser, otherUser, filters = {}) => {
  */
 const getUsersForDiscovery = async (currentUserId, options = {}) => {
   try {
+    // First check if user is eligible for discovery and get full profile
+    const currentUser = await prisma.user.findUnique({
+      where: { id: currentUserId },
+      select: { 
+        gender: true, 
+        interestedIn: true,
+        location: true,
+        isDiscoverable: true,
+        latitude: true,
+        longitude: true,
+        birthDate: true,
+        isPremium: true,
+        relationshipType: true,
+        interests: {
+          include: {
+            interest: true,
+          },
+        },
+      }
+    });
+
+    if (!currentUser) {
+      throw new Error('User not found');
+    }
+
+    // Check if user has completed profile setup
+    if (!currentUser.gender || !currentUser.interestedIn?.length) {
+      throw new Error('PROFILE_INCOMPLETE: Please complete your profile setup (gender and preferences required)');
+    }
+
+    if (!currentUser.location) {
+      throw new Error('LOCATION_REQUIRED: Location is required for discovery');
+    }
+
     const { 
       limit = 20, 
       excludeIds = [], 
@@ -259,28 +293,7 @@ const getUsersForDiscovery = async (currentUserId, options = {}) => {
       { excludedIds: allExcludedIds }
     );
 
-    // Get current user's full profile
-    const currentUser = await prisma.user.findUnique({
-      where: { id: currentUserId },
-      select: {
-        interestedIn: true,
-        latitude: true,
-        longitude: true,
-        birthDate: true,
-        isPremium: true,
-        gender: true,
-        relationshipType: true,
-        interests: {
-          include: {
-            interest: true,
-          },
-        },
-      },
-    });
-
-    if (!currentUser) {
-      throw new Error('Current user not found');
-    }
+    // Current user already fetched at the beginning of the function
 
     // Build base where clause - get ALL active users except excluded
     const baseWhereClause = {

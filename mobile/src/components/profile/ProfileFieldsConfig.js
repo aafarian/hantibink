@@ -107,15 +107,15 @@ export const languageOptions = [
 
 // Gender options (matching backend enum)
 export const genderOptions = [
-  { id: 'MALE', label: 'Man' },
-  { id: 'FEMALE', label: 'Woman' },
+  { id: 'MAN', label: 'Man' },
+  { id: 'WOMAN', label: 'Woman' },
   { id: 'OTHER', label: 'Other' },
 ];
 
 // Interested in options (matching backend enum)
 export const interestedInOptions = [
-  { id: 'MALE', label: 'Men' },
-  { id: 'FEMALE', label: 'Women' },
+  { id: 'MAN', label: 'Men' },
+  { id: 'WOMAN', label: 'Women' },
   { id: 'EVERYONE', label: 'Everyone' },
 ];
 
@@ -268,7 +268,7 @@ export const transformProfileData = {
       // Handle interestedIn conversion from display value to API format
       if (key === 'interestedIn') {
         if (value === 'EVERYONE') {
-          cleaned[key] = ['MALE', 'FEMALE', 'OTHER'];
+          cleaned[key] = ['MAN', 'WOMAN', 'OTHER'];
         } else if (typeof value === 'string') {
           cleaned[key] = [value]; // Convert single string to array
         } else if (Array.isArray(value)) {

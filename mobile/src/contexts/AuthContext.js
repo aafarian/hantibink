@@ -243,7 +243,7 @@ export const AuthProvider = ({ children }) => {
         // Convert EVERYONE to array of all genders
         interestedIn: userData.interestedIn
           ? userData.interestedIn === 'EVERYONE'
-            ? ['MALE', 'FEMALE', 'OTHER']
+            ? ['MAN', 'WOMAN', 'OTHER']
             : Array.isArray(userData.interestedIn)
               ? userData.interestedIn
               : [userData.interestedIn]
