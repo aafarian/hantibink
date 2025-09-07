@@ -127,6 +127,17 @@ export const commonStyles = StyleSheet.create({
     textAlign: 'center',
   },
 
+  // Text alignment
+  textCenter: {
+    textAlign: 'center',
+  },
+  textLeft: {
+    textAlign: 'left',
+  },
+  textRight: {
+    textAlign: 'right',
+  },
+
   // Spacing
   mb_xs: { marginBottom: theme.spacing.xs },
   mb_sm: { marginBottom: theme.spacing.sm },
@@ -151,4 +162,6 @@ export const commonStyles = StyleSheet.create({
   p_md: { padding: theme.spacing.md },
   p_lg: { padding: theme.spacing.lg },
   p_xl: { padding: theme.spacing.xl },
+  p_xxl: { padding: theme.spacing.xxl },
+  p_huge: { padding: theme.spacing.huge },
 });

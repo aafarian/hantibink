@@ -15,9 +15,9 @@ export const ErrorScreen = ({
       name="alert-circle-outline"
       size={64}
       color={theme.colors.status.error}
-      style={{ marginBottom: theme.spacing.lg }}
+      style={commonStyles.mb_lg}
     />
-    <Text style={[commonStyles.errorText, { marginBottom: theme.spacing.xl }]}>{message}</Text>
+    <Text style={[commonStyles.errorText, commonStyles.mb_xl]}>{message}</Text>
     {onRetry && (
       <TouchableOpacity style={commonStyles.buttonPrimary} onPress={onRetry}>
         <Text style={commonStyles.buttonText}>{retryText}</Text>
@@ -33,17 +33,10 @@ export const EmptyState = ({
   action = null, // { text: "Get Started", onPress: () => {} }
   style = {},
 }) => (
-  <View style={[commonStyles.centered, { padding: theme.spacing.huge }, style]}>
-    <Ionicons
-      name={icon}
-      size={80}
-      color={theme.colors.text.muted}
-      style={{ marginBottom: theme.spacing.lg }}
-    />
-    <Text style={[commonStyles.h3, { marginBottom: theme.spacing.sm, textAlign: 'center' }]}>
-      {title}
-    </Text>
-    <Text style={[commonStyles.textMuted, { textAlign: 'center', marginBottom: theme.spacing.xl }]}>
+  <View style={[commonStyles.centered, commonStyles.p_huge, style]}>
+    <Ionicons name={icon} size={80} color={theme.colors.text.muted} style={commonStyles.mb_lg} />
+    <Text style={[commonStyles.h3, commonStyles.mb_sm, commonStyles.textCenter]}>{title}</Text>
+    <Text style={[commonStyles.textMuted, commonStyles.textCenter, commonStyles.mb_xl]}>
       {subtitle}
     </Text>
     {action && (

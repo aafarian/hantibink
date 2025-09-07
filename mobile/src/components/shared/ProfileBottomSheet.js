@@ -445,9 +445,6 @@ const styles = StyleSheet.create({
     width: 36,
     height: 4,
   },
-  bottomSheetContent: {
-    flex: 1,
-  },
   header: {
     flexDirection: 'row',
     alignItems: 'center',

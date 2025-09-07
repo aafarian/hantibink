@@ -33,7 +33,7 @@ const ChatScreen = ({ route, navigation }) => {
   const { user } = useAuth();
   const { showError, showSuccess } = useToast();
   const isPremium = useIsPremium();
-  const insets = useSafeAreaInsets();
+  const _insets = useSafeAreaInsets();
 
   // State
   const [messages, setMessages] = useState([]);
@@ -47,7 +47,7 @@ const ChatScreen = ({ route, navigation }) => {
   const [showReactionPicker, setShowReactionPicker] = useState(null);
   const [onlineStatus, setOnlineStatus] = useState(false);
   const [_longPressMessage, setLongPressMessage] = useState(null);
-  const [keyboardVisible, setKeyboardVisible] = useState(false);
+  const [_keyboardVisible, setKeyboardVisible] = useState(false);
 
   // Refs
   const flatListRef = useRef(null);
@@ -1006,37 +1006,6 @@ const styles = StyleSheet.create({
   },
   sendButtonDisabled: {
     opacity: 0.5,
-  },
-  modalOverlay: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    position: 'relative',
-  },
-  modalBackdrop: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
-  },
-  reactionPicker: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    justifyContent: 'center',
-    alignItems: 'center',
-    backgroundColor: '#fff',
-    borderRadius: 16,
-    padding: 16,
-    width: 280,
-    elevation: 10,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.25,
-    shadowRadius: 4,
-    position: 'relative',
-    zIndex: 1,
   },
   reactionOption: {
     padding: 8,
