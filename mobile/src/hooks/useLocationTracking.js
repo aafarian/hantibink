@@ -15,6 +15,12 @@ export const useLocationTracking = (enabled = true, intervalMinutes = 5) => {
   const lastLocationRef = useRef(null);
 
   const updateLocation = async () => {
+    // Early return if no user is authenticated
+    if (!user || !user.uid) {
+      Logger.debug('📍 No authenticated user, skipping location update');
+      return;
+    }
+
     try {
       // Check if we have permission
       const { status } = await Location.getForegroundPermissionsAsync();
@@ -56,6 +62,12 @@ export const useLocationTracking = (enabled = true, intervalMinutes = 5) => {
         const locationName = city || region || 'Unknown Location';
         const locationString = country ? `${locationName}, ${country}` : locationName;
 
+        // Double-check user is still authenticated before making API call
+        if (!user || !user.uid) {
+          Logger.debug('📍 User logged out during location update, aborting');
+          return;
+        }
+
         // Update location in database
         await ApiDataService.updateUserProfile({
           location: locationString,
@@ -68,12 +80,27 @@ export const useLocationTracking = (enabled = true, intervalMinutes = 5) => {
         Logger.info('📍 Location auto-updated:', locationString);
       }
     } catch (error) {
-      Logger.debug('📍 Location update error:', error);
+      // Only log non-authentication errors at info level
+      if (
+        error.message?.includes('No token provided') ||
+        error.message?.includes('Authentication required')
+      ) {
+        Logger.debug('📍 Location update skipped - user not authenticated');
+      } else {
+        Logger.debug('📍 Location update error:', error);
+      }
     }
   };
 
   useEffect(() => {
-    if (!enabled || !user) {
+    // Clear any existing interval when user changes or component unmounts
+    if (intervalRef.current) {
+      clearInterval(intervalRef.current);
+      intervalRef.current = null;
+    }
+
+    if (!enabled || !user || !user.uid) {
+      Logger.debug('📍 Location tracking disabled or no user');
       return;
     }
 
@@ -98,9 +125,11 @@ export const useLocationTracking = (enabled = true, intervalMinutes = 5) => {
     return () => {
       if (intervalRef.current) {
         clearInterval(intervalRef.current);
+        intervalRef.current = null;
       }
       subscription?.remove();
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [enabled, user, intervalMinutes]);
 
   return { updateLocation };

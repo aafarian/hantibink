@@ -5,6 +5,7 @@ const logger = require('../utils/logger');
 const { getPrismaClient } = require('../config/database');
 const { parseRelationshipType, formatHeight } = require('../utils/profileUtils');
 const { createEmailVerification, sendVerificationEmail } = require('./emailService');
+const { updateDiscoverableStatus } = require('../utils/discoveryUtils');
 
 const prisma = getPrismaClient();
 
@@ -592,6 +593,9 @@ const updateUserProfile = async (userId, updateData) => {
       });
     }
 
+    // Update discoverable status based on profile completeness
+    await updateDiscoverableStatus(userId, 'profile update');
+
     logger.info(`✅ User profile updated: ${user.email}`);
 
     // Return updated user profile
@@ -649,6 +653,10 @@ const addUserPhoto = async (userId, photoUrl, isMain = false) => {
 
       return newPhoto;
     });
+
+    // Update discoverable status after adding photo
+    // Only check for making discoverable (not removing) as per review comment
+    await updateDiscoverableStatus(userId, 'photo added');
 
     logger.info(`✅ Photo added for user ${userId}: ${shouldBeMain ? 'main' : 'additional'}`);
     return await getUserProfile(userId);
@@ -716,6 +724,9 @@ const deleteUserPhoto = async (userId, photoId) => {
         });
       }
     });
+
+    // Update discoverable status after deleting photo
+    await updateDiscoverableStatus(userId, 'photo deleted');
 
     logger.info(`✅ Photo deleted for user ${userId}: ${photoId}`);
     return await getUserProfile(userId);

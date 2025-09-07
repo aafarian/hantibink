@@ -196,6 +196,7 @@ const getUsersForDiscovery = async (currentUserId, options = {}) => {
             interest: true,
           },
         },
+        photos: true, // Add photos to check if user has any
       }
     });
 
@@ -206,6 +207,11 @@ const getUsersForDiscovery = async (currentUserId, options = {}) => {
     // Check if user has completed profile setup
     if (!currentUser.gender || !currentUser.interestedIn?.length) {
       throw new Error('PROFILE_INCOMPLETE: Please complete your profile setup (gender and preferences required)');
+    }
+
+    // Check if user has photos (required for discovery)
+    if (!currentUser.photos || currentUser.photos.length === 0) {
+      throw new Error('PHOTOS_REQUIRED: At least one photo is required to use discovery');
     }
 
     if (!currentUser.location) {

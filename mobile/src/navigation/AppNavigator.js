@@ -178,13 +178,13 @@ const MessagesStack = () => {
 
 const MainNavigator = () => {
   const insets = useSafeAreaInsets();
-  const { loading, userProfile, refreshUserProfile } = useAuth();
+  const { loading, userProfile, refreshUserProfile, user } = useAuth();
   const { unreadConversationCount } = useUnread();
   const [showSetupModal, setShowSetupModal] = React.useState(false);
   const [hasCheckedProfile, setHasCheckedProfile] = React.useState(false);
 
-  // Enable automatic location tracking
-  useLocationTracking(true, 5); // Update every 5 minutes
+  // Enable automatic location tracking only when user is authenticated
+  useLocationTracking(!!user && !!userProfile, 5); // Update every 5 minutes
 
   // Check if profile needs setup (missing critical fields)
   React.useEffect(() => {

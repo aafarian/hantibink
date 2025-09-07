@@ -2,6 +2,7 @@ const express = require('express');
 const logger = require('../utils/logger');
 const { authenticateJWT } = require('../middleware/auth');
 const { discoveryValidation } = require('../middleware/validation');
+const { checkDiscoveryEligibility, trackDiscoveryActivity } = require('../middleware/discovery');
 const { getUsersForDiscovery } = require('../services/discoveryService');
 
 const router = express.Router();
@@ -26,7 +27,12 @@ router.get('/', (req, res) => {
  * @desc    Get users for discovery/swiping with filters
  * @access  Private
  */
-router.get('/users', authenticateJWT, discoveryValidation.getUsers, async (req, res) => {
+router.get('/users', 
+  authenticateJWT, 
+  checkDiscoveryEligibility, 
+  trackDiscoveryActivity,
+  discoveryValidation.getUsers, 
+  async (req, res) => {
   try {
     const { 
       limit = 20, 
@@ -97,7 +103,12 @@ router.get('/users', authenticateJWT, discoveryValidation.getUsers, async (req, 
  * @desc    Get filtered users for discovery (advanced filtering)
  * @access  Private
  */
-router.post('/users/filters', authenticateJWT, discoveryValidation.filterUsers, async (req, res) => {
+router.post('/users/filters', 
+  authenticateJWT, 
+  checkDiscoveryEligibility,
+  trackDiscoveryActivity,
+  discoveryValidation.filterUsers, 
+  async (req, res) => {
   try {
     const { 
       filters = {}, 
