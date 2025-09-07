@@ -5,6 +5,7 @@ import SimpleRegisterScreen from '../screens/auth/SimpleRegisterScreen';
 import PhotoSelectionScreen from '../screens/auth/PhotoSelectionScreen';
 import ProfileDetailsScreen from '../screens/auth/ProfileDetailsScreen';
 import ForgotPasswordScreen from '../screens/auth/ForgotPasswordScreen';
+import OAuthCompleteScreen from '../screens/auth/OAuthCompleteScreen';
 
 const Stack = createStackNavigator();
 
@@ -25,6 +26,7 @@ const AuthNavigator = () => {
       <Stack.Screen name="PhotoSelection" component={PhotoSelectionScreen} />
       <Stack.Screen name="ProfileDetails" component={ProfileDetailsScreen} />
       <Stack.Screen name="ForgotPassword" component={ForgotPasswordScreen} />
+      <Stack.Screen name="OAuthComplete" component={OAuthCompleteScreen} />
     </Stack.Navigator>
   );
 };

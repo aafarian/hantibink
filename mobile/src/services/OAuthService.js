@@ -5,20 +5,21 @@
 
 import * as AuthSession from 'expo-auth-session';
 import * as WebBrowser from 'expo-web-browser';
-import * as Crypto from 'expo-crypto';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import Constants from 'expo-constants';
 import Logger from '../utils/logger';
 import OAUTH_CONFIG from '../config/oauth';
+import { Platform } from 'react-native';
 
-// Google discovery document for OAuth
-const GOOGLE_DISCOVERY = {
+// Ensure web browser sessions complete properly
+WebBrowser.maybeCompleteAuthSession();
+
+// Google discovery document
+const discovery = {
   authorizationEndpoint: 'https://accounts.google.com/o/oauth2/v2/auth',
   tokenEndpoint: 'https://oauth2.googleapis.com/token',
   revocationEndpoint: 'https://oauth2.googleapis.com/revoke',
 };
-
-// Ensure web browser sessions complete properly
-WebBrowser.maybeCompleteAuthSession();
 
 // Get OAuth configuration
 const getOAuthConfig = () => {
@@ -28,12 +29,10 @@ const getOAuthConfig = () => {
     google: {
       clientId: OAUTH_CONFIG.google[env],
       scopes: ['openid', 'profile', 'email'],
-      responseType: AuthSession.ResponseType.Token,
     },
     facebook: {
       clientId: OAUTH_CONFIG.facebook[env],
       scopes: ['public_profile', 'email'],
-      responseType: AuthSession.ResponseType.Token,
     },
     apple: {
       serviceId: OAUTH_CONFIG.apple.serviceId,
@@ -44,22 +43,35 @@ const getOAuthConfig = () => {
 
 class OAuthService {
   constructor() {
-    // Force use of Expo proxy in development
-    if (__DEV__) {
-      // In development, always use Expo proxy
-      this.redirectUri = 'https://auth.expo.io/@antoafarian/hantibink';
+    // Check if running in Expo Go
+    const isExpoGo = Constants.appOwnership === 'expo';
+
+    if (Platform.OS === 'web') {
+      // Web platform
+      this.redirectUri = AuthSession.makeRedirectUri({
+        useProxy: false,
+      });
+    } else if (isExpoGo) {
+      // Running in Expo Go - must use proxy
+      this.redirectUri = AuthSession.makeRedirectUri({
+        useProxy: true,
+        projectNameForProxy: '@antoafarian/hantibink',
+      });
     } else {
-      // In production, use the actual app scheme
+      // Development build or standalone app - use custom scheme
       this.redirectUri = AuthSession.makeRedirectUri({
         scheme: 'hantibink',
         useProxy: false,
       });
     }
+
     Logger.info('🔐 OAuth redirect URI:', this.redirectUri);
+    Logger.info('📱 Platform:', Platform.OS);
+    Logger.info('📦 App Ownership:', Constants.appOwnership || 'standalone');
   }
 
   /**
-   * Sign in with Google
+   * Sign in with Google using AuthSession
    */
   async signInWithGoogle() {
     try {
@@ -67,95 +79,116 @@ class OAuthService {
 
       const config = getOAuthConfig();
 
-      // Create auth request without PKCE for implicit grant flow
+      // For web platform, use different response type
+      const isWeb = Platform.OS === 'web';
+
+      // Create the auth request - use appropriate response type based on platform
       const request = new AuthSession.AuthRequest({
         clientId: config.google.clientId,
         scopes: config.google.scopes,
-        responseType: AuthSession.ResponseType.Token, // Use implicit grant flow
+        // Use IdToken for native platforms, Token for web
+        responseType: isWeb ? AuthSession.ResponseType.Token : AuthSession.ResponseType.IdToken,
         redirectUri: this.redirectUri,
         prompt: AuthSession.Prompt.SelectAccount,
-        usePKCE: false, // Explicitly disable PKCE for implicit grant
         extraParams: {
-          access_type: 'online', // For web applications
+          // Add nonce for security
+          nonce: Math.random().toString(36).substring(7),
+          // For web, we may need explicit access type
+          ...(isWeb && { access_type: 'online' }),
         },
       });
 
-      // Use Google discovery with proxy enabled
-      const result = await request.promptAsync(GOOGLE_DISCOVERY, {
-        useProxy: true, // Always use proxy for OAuth
+      Logger.info('📤 OAuth Request:', {
+        clientId: config.google.clientId,
+        redirectUri: this.redirectUri,
+        responseType: request.responseType,
+        platform: Platform.OS,
       });
 
-      Logger.info(
-        '🔍 Google OAuth result:',
-        JSON.stringify(
-          {
-            type: result.type,
-            params: result.params,
-            authentication: result.authentication,
-            error: result.error,
-            errorCode: result.errorCode,
-            url: result.url,
-          },
-          null,
-          2
-        )
-      );
+      // Check if running in Expo Go
+      const isExpoGo = Constants.appOwnership === 'expo';
+
+      // Prompt for authentication
+      const result = await request.promptAsync(discovery, {
+        useProxy: isExpoGo && Platform.OS !== 'web', // Only use proxy for Expo Go
+      });
+
+      Logger.info('🔍 OAuth Result:', {
+        type: result.type,
+        hasParams: !!result.params,
+        hasAuthentication: !!result.authentication,
+        error: result.error,
+        errorCode: result.errorCode,
+      });
 
       if (result.type === 'success') {
-        Logger.success('✅ Google authentication successful');
+        // Get tokens from the response
+        const { params, authentication } = result;
 
-        // Check if we have an access token
-        const accessToken = result.params?.access_token || result.authentication?.accessToken;
+        // Try to get ID token from params or authentication
+        const idToken = params?.id_token || authentication?.idToken;
+        const accessToken = params?.access_token || authentication?.accessToken;
 
-        if (!accessToken) {
-          Logger.error('❌ No access token in OAuth response');
+        Logger.info('📦 Token info:', {
+          hasIdToken: !!idToken,
+          hasAccessToken: !!accessToken,
+        });
+
+        // If we have an access token but no ID token (common on web),
+        // we'll send the access token to the backend
+        if (idToken || accessToken) {
+          Logger.success('✅ Got tokens from Google');
+          return {
+            success: true,
+            provider: 'google',
+            idToken: idToken || null,
+            accessToken: accessToken || null,
+            user: {
+              // These will be populated by the backend
+              email: '',
+              name: '',
+              firstName: '',
+              lastName: '',
+              photo: '',
+              emailVerified: true,
+              providerId: '',
+            },
+          };
+        } else {
+          Logger.error('❌ No tokens in response');
+          Logger.error('Full params:', params);
+          Logger.error('Full authentication:', authentication);
           return {
             success: false,
-            error: 'No access token received',
+            error: 'No tokens received from Google',
           };
         }
-
-        // Get user info from Google
-        const userInfo = await this.fetchGoogleUserInfo(accessToken);
-
-        // Structure the OAuth response
-        return {
-          success: true,
-          provider: 'google',
-          accessToken: accessToken,
-          idToken: result.params?.id_token || result.authentication?.idToken,
-          user: {
-            email: userInfo.email,
-            name: userInfo.name,
-            firstName: userInfo.given_name,
-            lastName: userInfo.family_name,
-            photo: userInfo.picture,
-            emailVerified: userInfo.verified_email,
-            providerId: userInfo.id,
-          },
-        };
       } else if (result.type === 'cancel') {
-        Logger.info('❌ Google sign-in cancelled');
+        Logger.info('❌ Google sign-in cancelled by user');
         return {
           success: false,
           error: 'Sign-in cancelled',
         };
       } else if (result.type === 'dismiss') {
-        Logger.info('❌ Google sign-in dismissed');
+        Logger.error('❌ Google sign-in dismissed');
         return {
           success: false,
-          error: 'Sign-in dismissed',
+          error: 'Authentication window closed',
         };
-      } else {
+      } else if (result.type === 'error') {
         Logger.error('❌ Google sign-in error:', {
-          type: result.type,
           error: result.error,
           errorCode: result.errorCode,
-          url: result.url,
         });
         return {
           success: false,
-          error: result.error?.message || result.errorCode || 'Sign-in failed',
+          error: result.error?.message || result.errorCode || 'Authentication failed',
+        };
+      } else {
+        Logger.error('❌ Unknown result type:', result.type);
+        return {
+          success: false,
+          error: 'Authentication failed',
         };
       }
     } catch (error) {
@@ -204,13 +237,13 @@ class OAuthService {
       const request = new AuthSession.AuthRequest({
         clientId: config.facebook.clientId,
         scopes: config.facebook.scopes,
-        responseType: config.facebook.responseType,
+        responseType: AuthSession.ResponseType.Token,
         redirectUri: this.redirectUri,
       });
 
       // Initiate authentication
       const result = await request.promptAsync({
-        useProxy: __DEV__,
+        useProxy: false,
       });
 
       if (result.type === 'success') {
@@ -395,18 +428,6 @@ class OAuthService {
   }
 
   /**
-   * Generate a secure state parameter for OAuth
-   */
-  async generateStateParameter() {
-    const state = await Crypto.digestStringAsync(
-      Crypto.CryptoDigestAlgorithm.SHA256,
-      Math.random().toString(36).substring(7) + Date.now().toString(),
-      { encoding: Crypto.CryptoEncoding.HEX }
-    );
-    return state;
-  }
-
-  /**
    * Validate OAuth response
    */
   validateOAuthResponse(response) {
@@ -464,15 +485,27 @@ class OAuthService {
 
     if (!providerConfig) return false;
 
-    // Check if client IDs are configured (not placeholder values)
+    // Check if client IDs are configured (not placeholder or missing values)
     if (provider === 'google') {
-      return providerConfig.clientId && !providerConfig.clientId.includes('YOUR_');
+      return (
+        providerConfig.clientId &&
+        !providerConfig.clientId.includes('YOUR_') &&
+        !providerConfig.clientId.includes('MISSING_')
+      );
     }
     if (provider === 'facebook') {
-      return providerConfig.clientId && !providerConfig.clientId.includes('YOUR_');
+      return (
+        providerConfig.clientId &&
+        !providerConfig.clientId.includes('YOUR_') &&
+        !providerConfig.clientId.includes('MISSING_')
+      );
     }
     if (provider === 'apple') {
-      return providerConfig.serviceId && !providerConfig.serviceId.includes('YOUR_');
+      return (
+        providerConfig.serviceId &&
+        !providerConfig.serviceId.includes('YOUR_') &&
+        !providerConfig.serviceId.includes('MISSING_')
+      );
     }
 
     return false;
