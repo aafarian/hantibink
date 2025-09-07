@@ -185,20 +185,37 @@ WHERE id = 'migration_id_here';
 
 ### GitHub Actions Workflows
 
-1. **deploy-api.yml**: Runs migrations on main branch pushes (if AUTO_MIGRATE=true)
-2. **deploy-migrations.yml**: Manual migration deployment with dry-run option
+1. **deploy-api.yml**:
+   - Runs migrations automatically on main branch pushes (only if AUTO_MIGRATE=true)
+   - Checks the AUTO_MIGRATE repository variable before running
+   - Includes retry logic and IPv4 forcing
+
+2. **deploy-migrations.yml**:
+   - Manual trigger only (no automatic triggers)
+   - Useful for running migrations independently of deployment
+   - Includes dry-run option to preview changes
 
 ### Setting up AUTO_MIGRATE
 
-```yaml
-# In GitHub repository settings:
-Variables:
-  AUTO_MIGRATE: true # Enable automatic migrations
+To enable automatic migrations on deployment:
 
-Secrets:
-  SUPABASE_DATABASE_URL: postgresql://...
-  SUPABASE_DIRECT_URL: postgresql://...
-```
+1. Go to your GitHub repository
+2. Settings → Secrets and variables → Actions
+3. Click on "Variables" tab
+4. Add new repository variable:
+   - Name: `AUTO_MIGRATE`
+   - Value: `true` (to enable) or `false` (to disable)
+
+Required secrets (in "Secrets" tab):
+
+- `SUPABASE_DATABASE_URL`: Your Supabase connection string
+- `SUPABASE_DIRECT_URL`: Your Supabase direct connection string
+
+**Important**:
+
+- When AUTO_MIGRATE=true, migrations run automatically on every API deployment
+- When AUTO_MIGRATE=false, you must run migrations manually via the GitHub Actions UI
+- The manual workflow (deploy-migrations.yml) works regardless of AUTO_MIGRATE setting
 
 ## Questions?
 

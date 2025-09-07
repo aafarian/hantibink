@@ -34,9 +34,19 @@ jobs:
       - name: Configure Docker for GCR
         run: gcloud auth configure-docker --quiet
 
+      # Debug: Check AUTO_MIGRATE setting
+      - name: Check AUTO_MIGRATE setting
+        run: |
+          echo "AUTO_MIGRATE is set to: '${{ vars.AUTO_MIGRATE }}'"
+          if [ "${{ vars.AUTO_MIGRATE }}" = "true" ]; then
+            echo "✅ Migrations will be applied automatically"
+          else
+            echo "⏭️ Skipping automatic migrations (AUTO_MIGRATE != 'true')"
+          fi
+
       # Apply migrations BEFORE building the Docker image
       - name: Apply migrations (if AUTO_MIGRATE enabled)
-        if: vars.AUTO_MIGRATE == 'true'
+        if: ${{ vars.AUTO_MIGRATE == 'true' }}
         working-directory: ./api
         env:
           DATABASE_URL: ${{ secrets.SUPABASE_DATABASE_URL }}

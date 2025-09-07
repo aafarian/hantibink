@@ -17,12 +17,9 @@ on:
         default: false
         type: boolean
   
-  # Auto-trigger on migration changes (optional - remove if you want manual only)
-  push:
-    branches: [main]
-    paths: 
-      - 'api/prisma/migrations/**'
-      - 'api/prisma/schema.prisma'
+  # NOTE: Auto-trigger removed to prevent duplicate runs
+  # Migrations are automatically handled in deploy-api.yml when AUTO_MIGRATE=true
+  # This workflow is now for manual migration runs only
 
 jobs:
   check-migrations:
