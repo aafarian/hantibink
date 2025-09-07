@@ -30,11 +30,13 @@ export const useLocationTracking = (enabled = true, intervalMinutes = 5) => {
 
       const { latitude, longitude } = location.coords;
 
-      // Check if location has changed significantly (more than ~100 meters)
+      // Check if location has changed significantly
       if (lastLocationRef.current) {
         const latDiff = Math.abs(latitude - lastLocationRef.current.latitude);
         const lonDiff = Math.abs(longitude - lastLocationRef.current.longitude);
-        const threshold = 0.001; // Roughly 100 meters
+        // 0.001 degrees is ~111 meters at equator, varies by latitude
+        // This is a simple approximation - for production, use Haversine formula
+        const threshold = 0.001;
 
         if (latDiff < threshold && lonDiff < threshold) {
           Logger.debug('📍 Location unchanged, skipping update');
@@ -50,7 +52,9 @@ export const useLocationTracking = (enabled = true, intervalMinutes = 5) => {
 
       if (reverseGeocode[0]) {
         const { city, region, country } = reverseGeocode[0];
-        const locationString = `${city || region}, ${country}`;
+        // Build location string with proper fallbacks
+        const locationName = city || region || 'Unknown Location';
+        const locationString = country ? `${locationName}, ${country}` : locationName;
 
         // Update location in database
         await ApiDataService.updateUserProfile({

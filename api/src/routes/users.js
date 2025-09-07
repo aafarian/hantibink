@@ -116,7 +116,7 @@ router.put('/profile', authenticateJWT, profileValidation.updateProfile, async (
  * @desc    Complete initial profile setup
  * @access  Private
  */
-router.post('/profile/complete-setup', authenticateJWT, async (req, res) => {
+router.post('/profile/complete-setup', authenticateJWT, profileValidation.completeSetup, async (req, res) => {
   try {
     const { gender, interestedIn, photos, location, latitude, longitude } = req.body;
     
@@ -166,12 +166,24 @@ router.post('/profile/complete-setup', authenticateJWT, async (req, res) => {
     if (photos && photos.length > 0) {
       for (let i = 0; i < photos.length; i++) {
         const photo = photos[i];
-        // If it's a URL string, add it as a new photo
-        if (typeof photo === 'string' && photo.startsWith('http')) {
+        // Validate and add photo if it's a valid URL
+        if (typeof photo === 'string') {
           try {
-            updatedProfile = await addUserPhoto(req.user.id, photo, i === 0); // First photo is main
-          } catch (photoError) {
-            logger.warn(`Failed to add photo ${i + 1}:`, photoError);
+            const url = new URL(photo);
+            // Only accept http/https URLs
+            if (url.protocol !== 'http:' && url.protocol !== 'https:') {
+              logger.warn(`Skipping invalid photo URL protocol: ${url.protocol}`);
+              continue;
+            }
+            // URL is valid, try to add it
+            try {
+              updatedProfile = await addUserPhoto(req.user.id, photo, i === 0); // First photo is main
+            } catch (photoError) {
+              logger.warn(`Failed to add photo ${i + 1}:`, photoError);
+            }
+          } catch (urlError) {
+            logger.warn(`Invalid photo URL format: ${photo}`);
+            continue;
           }
         }
       }

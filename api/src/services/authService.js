@@ -203,6 +203,8 @@ const registerUser = async (userData) => {
     
     // Check if profile setup is required
     // Don't check location since it's auto-detected on the client
+    // Note: Photos are required for a complete profile, but users can skip the setup modal
+    // This ensures they're prompted to add photos but aren't blocked from using the app
     const requiresSetup = !user.gender || !user.interestedIn || user.interestedIn.length === 0 || !hasPhotos;
     const isDiscoverable = !requiresSetup && hasPhotos;
     

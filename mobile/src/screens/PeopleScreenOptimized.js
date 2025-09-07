@@ -127,7 +127,10 @@ const PeopleScreenOptimized = ({ navigation }) => {
 
   // Initial load and handle interestedIn changes
   useEffect(() => {
-    if (user?.uid && userProfile && filtersLoaded && isProfileComplete()) {
+    // Check if profile just became complete
+    const isNowComplete = isProfileComplete();
+
+    if (user?.uid && userProfile && filtersLoaded && isNowComplete) {
       // Check if interestedIn changed
       const interestedInChanged =
         prevInterestedInRef.current &&

@@ -222,7 +222,9 @@ export const AuthProvider = ({ children }) => {
 
         if (reverseGeocode[0]) {
           const { city, region, country } = reverseGeocode[0];
-          const locationString = `${city || region}, ${country}`;
+          // Build location string with proper fallbacks
+          const locationName = city || region || 'Unknown Location';
+          const locationString = country ? `${locationName}, ${country}` : locationName;
 
           // Update location in the database
           await ApiDataService.updateUserProfile({

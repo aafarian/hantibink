@@ -112,7 +112,8 @@ const ProfileSetupModal = ({ visible, onClose, onComplete, userProfile }) => {
       Logger.info('📍 Triggering location request for location step');
       handleLocationRequest();
     }
-  }, [currentStep, steps, setupData.location, visible, handleLocationRequest]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [currentStep, steps, setupData.location, visible]);
 
   // Separate effect for auto-progression to avoid dependency issues
   useEffect(() => {
@@ -171,7 +172,8 @@ const ProfileSetupModal = ({ visible, onClose, onComplete, userProfile }) => {
         autoProgressionTimerRef.current = null;
       }
     }
-  }, [currentStep, steps, locationData, visible, handleComplete, hasDetectedLocation]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [currentStep, steps, locationData, visible, hasDetectedLocation]);
 
   // Build steps when modal becomes visible
   useEffect(() => {
@@ -219,7 +221,9 @@ const ProfileSetupModal = ({ visible, onClose, onComplete, userProfile }) => {
 
               if (reverseGeocode[0]) {
                 const { city, region, country } = reverseGeocode[0];
-                const locationString = `${city || region}, ${country}`;
+                // Build location string with proper fallbacks
+                const locationName = city || region || 'Unknown Location';
+                const locationString = country ? `${locationName}, ${country}` : locationName;
 
                 // Update both location states
                 const locationInfo = {
@@ -395,7 +399,9 @@ const ProfileSetupModal = ({ visible, onClose, onComplete, userProfile }) => {
 
       if (reverseGeocode[0]) {
         const { city, region, country } = reverseGeocode[0];
-        const locationString = `${city || region}, ${country}`;
+        // Build location string with proper fallbacks
+        const locationName = city || region || 'Unknown Location';
+        const locationString = country ? `${locationName}, ${country}` : locationName;
 
         const locationInfo = {
           location: locationString,
