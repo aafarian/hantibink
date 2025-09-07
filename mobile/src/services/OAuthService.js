@@ -80,26 +80,28 @@ class OAuthService {
       const config = getOAuthConfig();
 
       // For web platform, use different response type
-      const _isWeb = Platform.OS === 'web';
+      const isWeb = Platform.OS === 'web';
 
-      // Create the auth request - simplified for compatibility
+      // Create the auth request - use appropriate response type based on platform
       const request = new AuthSession.AuthRequest({
         clientId: config.google.clientId,
         scopes: config.google.scopes,
-        responseType: AuthSession.ResponseType.Token, // Use Token type for compatibility
+        // Use IdToken for native platforms, Token for web
+        responseType: isWeb ? AuthSession.ResponseType.Token : AuthSession.ResponseType.IdToken,
         redirectUri: this.redirectUri,
         prompt: AuthSession.Prompt.SelectAccount,
         extraParams: {
-          // Request both access token and ID token
-          response_type: 'token id_token',
+          // Add nonce for security
           nonce: Math.random().toString(36).substring(7),
+          // For web, we may need explicit access type
+          ...(isWeb && { access_type: 'online' }),
         },
       });
 
       Logger.info('📤 OAuth Request:', {
         clientId: config.google.clientId,
         redirectUri: this.redirectUri,
-        responseType: 'token id_token',
+        responseType: request.responseType,
         platform: Platform.OS,
       });
 
@@ -483,15 +485,27 @@ class OAuthService {
 
     if (!providerConfig) return false;
 
-    // Check if client IDs are configured (not placeholder values)
+    // Check if client IDs are configured (not placeholder or missing values)
     if (provider === 'google') {
-      return providerConfig.clientId && !providerConfig.clientId.includes('YOUR_');
+      return (
+        providerConfig.clientId &&
+        !providerConfig.clientId.includes('YOUR_') &&
+        !providerConfig.clientId.includes('MISSING_')
+      );
     }
     if (provider === 'facebook') {
-      return providerConfig.clientId && !providerConfig.clientId.includes('YOUR_');
+      return (
+        providerConfig.clientId &&
+        !providerConfig.clientId.includes('YOUR_') &&
+        !providerConfig.clientId.includes('MISSING_')
+      );
     }
     if (provider === 'apple') {
-      return providerConfig.serviceId && !providerConfig.serviceId.includes('YOUR_');
+      return (
+        providerConfig.serviceId &&
+        !providerConfig.serviceId.includes('YOUR_') &&
+        !providerConfig.serviceId.includes('MISSING_')
+      );
     }
 
     return false;

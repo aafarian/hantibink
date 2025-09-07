@@ -8,7 +8,8 @@
       "developmentClient": true,
       "distribution": "internal",
       "env": {
-        "NODE_ENV": "development"
+        "NODE_ENV": "development",
+        "EXPO_PUBLIC_GOOGLE_CLIENT_ID_DEV": "393816901275-0208rvd4b78rj7kupf4j4ol2m71a7nc9.apps.googleusercontent.com"
       }
     },
     "preview": {
@@ -16,7 +17,8 @@
       "env": {
         "NODE_ENV": "production",
         "EXPO_PUBLIC_API_URL": "https://hantibink-api-393816901275.us-central1.run.app",
-        "EXPO_PUBLIC_SOCKET_URL": "wss://hantibink-api-393816901275.us-central1.run.app"
+        "EXPO_PUBLIC_SOCKET_URL": "wss://hantibink-api-393816901275.us-central1.run.app",
+        "EXPO_PUBLIC_GOOGLE_CLIENT_ID_PROD": "393816901275-0208rvd4b78rj7kupf4j4ol2m71a7nc9.apps.googleusercontent.com"
       },
       "ios": {
         "resourceClass": "m-medium"
@@ -30,7 +32,8 @@
       "env": {
         "NODE_ENV": "production",
         "EXPO_PUBLIC_API_URL": "https://hantibink-api-393816901275.us-central1.run.app",
-        "EXPO_PUBLIC_SOCKET_URL": "wss://hantibink-api-393816901275.us-central1.run.app"
+        "EXPO_PUBLIC_SOCKET_URL": "wss://hantibink-api-393816901275.us-central1.run.app",
+        "EXPO_PUBLIC_GOOGLE_CLIENT_ID_PROD": "393816901275-0208rvd4b78rj7kupf4j4ol2m71a7nc9.apps.googleusercontent.com"
       },
       "ios": {
         "resourceClass": "m-medium"

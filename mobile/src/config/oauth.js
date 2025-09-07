@@ -3,27 +3,60 @@
  * Store your OAuth client IDs here
  */
 
+// Validate OAuth configuration for production
+const validateConfig = (value, name, isDev = false) => {
+  if (!value || value.includes('YOUR_')) {
+    if (!isDev) {
+      throw new Error(
+        `Missing required OAuth configuration: ${name}. ` +
+          `Please set the appropriate environment variable.`
+      );
+    }
+    // Return an obviously invalid value for development
+    return `MISSING_${name}_PLEASE_CONFIGURE`;
+  }
+  return value;
+};
+
+const isDevelopment = __DEV__ || process.env.NODE_ENV === 'development';
+
 const OAUTH_CONFIG = {
   google: {
     // Get these from Google Cloud Console
     // https://console.cloud.google.com/apis/credentials
-    development:
-      process.env.EXPO_PUBLIC_GOOGLE_CLIENT_ID_DEV ||
-      'YOUR_DEV_GOOGLE_CLIENT_ID.apps.googleusercontent.com',
-    production:
-      process.env.EXPO_PUBLIC_GOOGLE_CLIENT_ID_PROD ||
-      'YOUR_PROD_GOOGLE_CLIENT_ID.apps.googleusercontent.com',
+    development: validateConfig(
+      process.env.EXPO_PUBLIC_GOOGLE_CLIENT_ID_DEV,
+      'EXPO_PUBLIC_GOOGLE_CLIENT_ID_DEV',
+      true
+    ),
+    production: validateConfig(
+      process.env.EXPO_PUBLIC_GOOGLE_CLIENT_ID_PROD,
+      'EXPO_PUBLIC_GOOGLE_CLIENT_ID_PROD',
+      isDevelopment
+    ),
   },
   facebook: {
     // Get these from Facebook Developer Console
     // https://developers.facebook.com/apps/
-    development: process.env.EXPO_PUBLIC_FACEBOOK_APP_ID_DEV || 'YOUR_DEV_FACEBOOK_APP_ID',
-    production: process.env.EXPO_PUBLIC_FACEBOOK_APP_ID_PROD || 'YOUR_PROD_FACEBOOK_APP_ID',
+    development: validateConfig(
+      process.env.EXPO_PUBLIC_FACEBOOK_APP_ID_DEV,
+      'EXPO_PUBLIC_FACEBOOK_APP_ID_DEV',
+      true
+    ),
+    production: validateConfig(
+      process.env.EXPO_PUBLIC_FACEBOOK_APP_ID_PROD,
+      'EXPO_PUBLIC_FACEBOOK_APP_ID_PROD',
+      isDevelopment
+    ),
   },
   apple: {
     // Get this from Apple Developer Console
     // https://developer.apple.com/account/resources/identifiers/list
-    serviceId: process.env.EXPO_PUBLIC_APPLE_SERVICE_ID || 'YOUR_APPLE_SERVICE_ID',
+    serviceId: validateConfig(
+      process.env.EXPO_PUBLIC_APPLE_SERVICE_ID,
+      'EXPO_PUBLIC_APPLE_SERVICE_ID',
+      isDevelopment
+    ),
   },
 };
 
