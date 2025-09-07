@@ -103,7 +103,8 @@ jobs:
 
           # Debug: Show which database we're connecting to (mask password)
           echo "🔍 Database connection info:"
-          echo "$DATABASE_URL" | sed 's/:[^@]*@/:****@/g'
+          echo "DATABASE_URL: $(echo "$DATABASE_URL" | sed 's/:[^@]*@/:****@/g')"
+          echo "DIRECT_URL: $(echo "$DIRECT_URL" | sed 's/:[^@]*@/:****@/g')"
 
           # Add pooler parameters only to DATABASE_URL (for runtime)
           # Keep DIRECT_URL as pure direct connection (for migrations)
@@ -113,6 +114,10 @@ jobs:
             export DATABASE_URL="${DATABASE_URL}?pgbouncer=true&pool_timeout=0"
           fi
           echo "Added pooler parameters to DATABASE_URL (DIRECT_URL kept as direct connection)"
+
+          # Debug: Verify Prisma can see both URLs
+          echo "🔍 Verifying Prisma configuration..."
+          npx prisma db execute --stdin <<< "SELECT 1;" --schema=./prisma/schema.prisma || echo "⚠️ Direct URL connection test failed"
 
           # Retry logic for Supabase connection issues
           MAX_RETRIES=3
