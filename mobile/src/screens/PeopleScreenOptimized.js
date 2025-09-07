@@ -260,20 +260,20 @@ const PeopleScreenOptimized = ({ navigation }) => {
     } catch (error) {
       Logger.error('Failed to load profiles:', error);
 
-      // Handle specific discovery eligibility errors
-      const errorMessage = error.message || error.toString();
+      // Handle specific discovery eligibility errors with robust API error parsing
+      const errorCode = error.response?.data?.error || error.message || error.toString();
 
-      if (errorMessage.includes('PROFILE_INCOMPLETE')) {
+      if (errorCode === 'PROFILE_INCOMPLETE' || errorCode.includes('PROFILE_INCOMPLETE')) {
         showError('Please complete your profile to use discovery');
         // Navigate to profile setup
         navigation.navigate('Profile', { screen: 'ProfileMain' });
-      } else if (errorMessage.includes('PHOTOS_REQUIRED')) {
+      } else if (errorCode === 'PHOTOS_REQUIRED' || errorCode.includes('PHOTOS_REQUIRED')) {
         showError('Please add at least one photo to use discovery');
         navigation.navigate('Profile', { screen: 'ProfileMain' });
-      } else if (errorMessage.includes('LOCATION_REQUIRED')) {
+      } else if (errorCode === 'LOCATION_REQUIRED' || errorCode.includes('LOCATION_REQUIRED')) {
         showError('Please enable location to find matches near you');
         navigation.navigate('Profile', { screen: 'ProfileMain' });
-      } else if (errorMessage.includes('NOT_DISCOVERABLE')) {
+      } else if (errorCode === 'NOT_DISCOVERABLE' || errorCode.includes('NOT_DISCOVERABLE')) {
         showError('Please verify your email to use discovery');
       } else {
         showError('Failed to load profiles. Please try again.');

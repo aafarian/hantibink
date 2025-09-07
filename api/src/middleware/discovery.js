@@ -119,7 +119,7 @@ const trackDiscoveryActivity = async (req, res, next) => {
     await prisma.user.update({
       where: { id: userId },
       data: {
-        lastActiveAt: new Date(),
+        lastActive: new Date(),
       },
     });
     

@@ -5,6 +5,7 @@ const logger = require('../utils/logger');
 const { getPrismaClient } = require('../config/database');
 const { parseRelationshipType, formatHeight } = require('../utils/profileUtils');
 const { createEmailVerification, sendVerificationEmail } = require('./emailService');
+const { updateDiscoverableStatus } = require('../utils/discoveryUtils');
 
 const prisma = getPrismaClient();
 
@@ -592,45 +593,8 @@ const updateUserProfile = async (userId, updateData) => {
       });
     }
 
-    // Check if user is now discoverable (has all required fields)
-    const checkDiscoverable = await prisma.user.findUnique({
-      where: { id: userId },
-      select: {
-        gender: true,
-        interestedIn: true,
-        location: true,
-        latitude: true,
-        longitude: true,
-        isDiscoverable: true,
-        photos: {
-          select: { id: true },
-          take: 1,
-        },
-      },
-    });
-
-    // Update isDiscoverable if all requirements are met
-    const hasAllRequirements = 
-      checkDiscoverable.gender &&
-      checkDiscoverable.interestedIn && checkDiscoverable.interestedIn.length > 0 &&
-      checkDiscoverable.photos && checkDiscoverable.photos.length > 0 &&
-      checkDiscoverable.location && 
-      checkDiscoverable.latitude !== null && 
-      checkDiscoverable.longitude !== null;
-
-    if (hasAllRequirements && !checkDiscoverable.isDiscoverable) {
-      await prisma.user.update({
-        where: { id: userId },
-        data: { isDiscoverable: true },
-      });
-      logger.info(`✅ User ${user.email} is now discoverable`);
-    } else if (!hasAllRequirements && checkDiscoverable.isDiscoverable) {
-      await prisma.user.update({
-        where: { id: userId },
-        data: { isDiscoverable: false },
-      });
-      logger.info(`⚠️ User ${user.email} is no longer discoverable`);
-    }
+    // Update discoverable status based on profile completeness
+    await updateDiscoverableStatus(userId, 'profile update');
 
     logger.info(`✅ User profile updated: ${user.email}`);
 
@@ -690,39 +654,9 @@ const addUserPhoto = async (userId, photoUrl, isMain = false) => {
       return newPhoto;
     });
 
-    // Check if user is now discoverable after adding photo
-    const checkDiscoverable = await prisma.user.findUnique({
-      where: { id: userId },
-      select: {
-        gender: true,
-        interestedIn: true,
-        location: true,
-        latitude: true,
-        longitude: true,
-        isDiscoverable: true,
-        photos: {
-          select: { id: true },
-          take: 1,
-        },
-      },
-    });
-
-    // Update isDiscoverable if all requirements are met
-    const hasAllRequirements = 
-      checkDiscoverable.gender &&
-      checkDiscoverable.interestedIn && checkDiscoverable.interestedIn.length > 0 &&
-      checkDiscoverable.photos && checkDiscoverable.photos.length > 0 &&
-      checkDiscoverable.location && 
-      checkDiscoverable.latitude !== null && 
-      checkDiscoverable.longitude !== null;
-
-    if (hasAllRequirements && !checkDiscoverable.isDiscoverable) {
-      await prisma.user.update({
-        where: { id: userId },
-        data: { isDiscoverable: true },
-      });
-      logger.info(`✅ User is now discoverable after adding photo`);
-    }
+    // Update discoverable status after adding photo
+    // Only check for making discoverable (not removing) as per review comment
+    await updateDiscoverableStatus(userId, 'photo added');
 
     logger.info(`✅ Photo added for user ${userId}: ${shouldBeMain ? 'main' : 'additional'}`);
     return await getUserProfile(userId);
@@ -791,39 +725,8 @@ const deleteUserPhoto = async (userId, photoId) => {
       }
     });
 
-    // Check if user is still discoverable after deleting photo
-    const checkDiscoverable = await prisma.user.findUnique({
-      where: { id: userId },
-      select: {
-        gender: true,
-        interestedIn: true,
-        location: true,
-        latitude: true,
-        longitude: true,
-        isDiscoverable: true,
-        photos: {
-          select: { id: true },
-          take: 1,
-        },
-      },
-    });
-
-    // Update isDiscoverable if requirements are no longer met
-    const hasAllRequirements = 
-      checkDiscoverable.gender &&
-      checkDiscoverable.interestedIn && checkDiscoverable.interestedIn.length > 0 &&
-      checkDiscoverable.photos && checkDiscoverable.photos.length > 0 &&
-      checkDiscoverable.location && 
-      checkDiscoverable.latitude !== null && 
-      checkDiscoverable.longitude !== null;
-
-    if (!hasAllRequirements && checkDiscoverable.isDiscoverable) {
-      await prisma.user.update({
-        where: { id: userId },
-        data: { isDiscoverable: false },
-      });
-      logger.info(`⚠️ User is no longer discoverable after deleting photo`);
-    }
+    // Update discoverable status after deleting photo
+    await updateDiscoverableStatus(userId, 'photo deleted');
 
     logger.info(`✅ Photo deleted for user ${userId}: ${photoId}`);
     return await getUserProfile(userId);
