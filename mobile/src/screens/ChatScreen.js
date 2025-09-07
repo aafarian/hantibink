@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import {
   View,
   Text,
@@ -63,6 +63,9 @@ const ChatScreen = ({ route, navigation }) => {
     new Animated.Value(0),
     new Animated.Value(0),
   ]).current;
+
+  // Memoize reversed messages to avoid creating new array on every render
+  const reversedMessages = useMemo(() => [...messages].reverse(), [messages]);
 
   // Load messages on mount
   useEffect(() => {
@@ -416,7 +419,6 @@ const ChatScreen = ({ route, navigation }) => {
   // Render message item
   const renderMessage = ({ item, index }) => {
     const isOwnMessage = item.senderId === user.uid;
-    const reversedMessages = [...messages].reverse();
     const showAvatar = index === 0 || reversedMessages[index - 1]?.senderId !== item.senderId;
     // For inverted list, the last message in a group is when the next message (index - 1) is from a different sender
     const isLastInGroup = index === 0 || reversedMessages[index - 1]?.senderId !== item.senderId;
@@ -667,7 +669,7 @@ const ChatScreen = ({ route, navigation }) => {
           ) : (
             <FlatList
               ref={flatListRef}
-              data={[...messages].reverse()}
+              data={reversedMessages}
               renderItem={renderMessage}
               keyExtractor={item => item.id}
               contentContainerStyle={styles.messagesList}

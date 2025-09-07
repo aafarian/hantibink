@@ -64,8 +64,8 @@ const registerUser = async (userData) => {
     // Convert gender and interestedIn to enum values
     // Accept both old format (for backward compatibility) and new format
     const genderEnum = gender ? 
-      (gender === 'man' || gender === 'male' ? 'MALE' : 
-       gender === 'woman' || gender === 'female' ? 'FEMALE' : 
+      (gender === 'man' || gender === 'male' ? 'MAN' : 
+       gender === 'woman' || gender === 'female' ? 'WOMAN' : 
        gender === 'non-binary' ? 'OTHER' :
        gender.toUpperCase()) : 'OTHER';
     
@@ -74,11 +74,11 @@ const registerUser = async (userData) => {
       (Array.isArray(interestedIn) ? interestedIn : [interestedIn])
         .map(g => {
           // Convert old format to new format
-          if (g === 'men' || g === 'male') {return 'MALE';}
-          if (g === 'women' || g === 'female') {return 'FEMALE';}
-          if (g === 'everyone') {return 'EVERYONE';}
+          if (g === 'men' || g === 'male') {return 'MAN';}
+          if (g === 'women' || g === 'female') {return 'WOMAN';}
+          if (g === 'everyone') {return ['MAN', 'WOMAN'];}  // Expand 'everyone' to both
           return g.toUpperCase();
-        }) : ['MALE', 'FEMALE'];
+        }).flat() : ['MAN', 'WOMAN'];
 
     // Using PostgreSQL + JWT authentication (no Firebase Auth)
     const firebaseUid = null;
@@ -430,7 +430,7 @@ const updateUserProfile = async (userId, updateData) => {
         } else if (key === 'interestedIn') {
           // Handle interestedIn - convert string to array if needed
           if (userData[key] === 'EVERYONE') {
-            updateObject[key] = ['MALE', 'FEMALE', 'OTHER'];
+            updateObject[key] = ['MAN', 'WOMAN', 'OTHER'];
           } else if (typeof userData[key] === 'string') {
             updateObject[key] = [userData[key]];
           } else {

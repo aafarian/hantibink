@@ -204,7 +204,7 @@ const getUsersForDiscovery = async (currentUserId, options = {}) => {
     }
 
     // Check if user has completed profile setup
-    if (!currentUser.gender || !currentUser.interestedIn || currentUser.interestedIn.length === 0) {
+    if (!currentUser.gender || !currentUser.interestedIn?.length) {
       throw new Error('PROFILE_INCOMPLETE: Please complete your profile setup (gender and preferences required)');
     }
 
