@@ -2,6 +2,16 @@
 
 Backend API server for the Hantibink dating app.
 
+## Database Migrations
+
+**Important:** Due to Supabase pooler limitations, database migrations cannot be run automatically during deployment. The pooler connection (port 6543) doesn't support DDL operations.
+
+To run migrations:
+
+1. Use the direct connection URL (port 5432) locally
+2. Run: `npx prisma migrate deploy`
+3. Or use the Supabase Dashboard migration tool
+
 ## 🚀 Coming Soon
 
 The backend API will provide:

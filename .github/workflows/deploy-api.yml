@@ -34,144 +34,6 @@ jobs:
       - name: Configure Docker for GCR
         run: gcloud auth configure-docker --quiet
 
-      # Debug: Check AUTO_MIGRATE setting
-      - name: Check AUTO_MIGRATE setting
-        run: |
-          echo "AUTO_MIGRATE is set to: '${{ vars.AUTO_MIGRATE }}'"
-          if [ "${{ vars.AUTO_MIGRATE }}" = "true" ]; then
-            echo "✅ Migrations will be applied automatically"
-          else
-            echo "⏭️ Skipping automatic migrations (AUTO_MIGRATE != 'true')"
-          fi
-
-      # Create database backup before migrations (production only)
-      - name: Create database backup (if migrations enabled)
-        if: ${{ vars.AUTO_MIGRATE == 'true' && github.ref == 'refs/heads/main' }}
-        env:
-          DATABASE_URL: ${{ secrets.SUPABASE_DATABASE_URL }}
-        run: |
-          echo "📦 Creating database backup before migration..."
-          # Note: For Supabase, you can use their dashboard or API
-          # This is a placeholder - replace with your backup method
-          # Example: pg_dump $DATABASE_URL > backup_$(date +%Y%m%d_%H%M%S).sql
-          echo "⚠️  Backup reminder: Consider using Supabase dashboard for production backups"
-          echo "Timestamp: $(date -u +%Y-%m-%d_%H:%M:%S_UTC)"
-
-      # Apply migrations BEFORE building the Docker image
-      - name: Apply migrations (if AUTO_MIGRATE enabled)
-        if: ${{ vars.AUTO_MIGRATE == 'true' }}
-        working-directory: ./api
-        env:
-          DATABASE_URL: ${{ secrets.SUPABASE_DATABASE_URL }}
-          DIRECT_URL: ${{ secrets.SUPABASE_DIRECT_URL }}
-          NODE_OPTIONS: "--dns-result-order=ipv4first --max-old-space-size=2048"
-          MIGRATION_LOCK_KEY: "migration_lock_${{ github.sha }}"
-        run: |
-          echo "🔄 Applying migrations before build..."
-
-          # Force IPv4 DNS resolution system-wide (more aggressive approach)
-          echo "🔧 Configuring IPv4-only DNS resolution..."
-          sudo sed -i 's/#precedence ::ffff:0:0\/96  100/precedence ::ffff:0:0\/96  100/' /etc/gai.conf || true
-          sudo sysctl -w net.ipv6.conf.all.disable_ipv6=1 || true
-          sudo sysctl -w net.ipv6.conf.default.disable_ipv6=1 || true
-
-          # Install dependencies first
-          npm ci
-          npx prisma generate
-
-          # Simple lock mechanism using database (after dependencies are installed)
-          echo "🔒 Acquiring migration lock..."
-          node -e "
-            const { PrismaClient } = require('@prisma/client');
-            const prisma = new PrismaClient();
-            const lockKey = process.env.MIGRATION_LOCK_KEY;
-            
-            async function acquireLock() {
-              try {
-                // Try to create a lock record (you'd need a Lock table for this)
-                // For now, just log the attempt
-                console.log('Lock key:', lockKey);
-                console.log('✅ Lock acquired (or proceeding without lock)');
-                await prisma.\$disconnect();
-              } catch (err) {
-                console.error('⚠️  Could not acquire lock, proceeding anyway:', err.message);
-                await prisma.\$disconnect();
-              }
-            }
-            acquireLock();
-          " || true
-
-          # Debug: Show which database we're connecting to (mask password)
-          echo "🔍 Database connection info:"
-          echo "DATABASE_URL: $(echo "$DATABASE_URL" | sed 's/:[^@]*@/:****@/g')"
-          echo "DIRECT_URL: $(echo "$DIRECT_URL" | sed 's/:[^@]*@/:****@/g')"
-
-          # Since direct connection is blocked, use pooler for both but with migration-optimized settings
-          # Add standard pooler parameters to DATABASE_URL (for runtime)
-          if [[ "$DATABASE_URL" == *"?"* ]]; then
-            export DATABASE_URL="${DATABASE_URL}&pgbouncer=true&pool_timeout=0"
-          else
-            export DATABASE_URL="${DATABASE_URL}?pgbouncer=true&pool_timeout=0"
-          fi
-
-          # Use pooler for DIRECT_URL too, but with migration-optimized parameters
-          if [[ "$DIRECT_URL" == *"?"* ]]; then
-            export DIRECT_URL="${DIRECT_URL}&pgbouncer=true&pool_timeout=300&connection_limit=1"
-          else
-            export DIRECT_URL="${DIRECT_URL}?pgbouncer=true&pool_timeout=300&connection_limit=1"
-          fi
-          echo "Using pooler for both URLs - DIRECT_URL optimized for migrations"
-
-          # Debug: Verify Prisma can see both URLs
-          echo "🔍 Verifying Prisma configuration..."
-          npx prisma db execute --stdin <<< "SELECT 1;" --schema=./prisma/schema.prisma || echo "⚠️ Direct URL connection test failed"
-
-          # Retry logic for Supabase connection issues
-          MAX_RETRIES=3
-          RETRY_DELAY=30
-          SUCCESS=false
-
-          for i in $(seq 1 $MAX_RETRIES); do
-            echo "Migration attempt $i of $MAX_RETRIES..."
-            
-            # Use timeout to prevent hanging connections and capture error
-            # Increased timeout to 300 seconds (5 minutes) for migrations
-            if timeout 300 npx prisma migrate deploy 2>&1; then
-              echo "✅ Migrations applied successfully on attempt $i"
-              SUCCESS=true
-              break
-            else
-              EXIT_CODE=$?
-              echo "❌ Migration failed on attempt $i with exit code: $EXIT_CODE"
-              if [ $i -lt $MAX_RETRIES ]; then
-                echo "Retrying in ${RETRY_DELAY} seconds..."
-                sleep $RETRY_DELAY
-              fi
-            fi
-          done
-
-          if [ "$SUCCESS" = false ]; then
-            echo "❌ Migrations failed after $MAX_RETRIES attempts"
-            
-            # Send failure notification (placeholder for Slack/Discord)
-            echo "📢 MIGRATION FAILURE NOTIFICATION"
-            echo "Environment: Production"
-            echo "Branch: ${{ github.ref_name }}"
-            echo "Commit: ${{ github.sha }}"
-            echo "Time: $(date -u +%Y-%m-%d_%H:%M:%S_UTC)"
-            
-            # Example: Send to Slack (requires SLACK_WEBHOOK secret)
-            # if [ -n "${{ secrets.SLACK_WEBHOOK }}" ]; then
-            #   curl -X POST -H 'Content-type: application/json' \
-            #     --data "{\"text\":\"🚨 Migration failed in production after $MAX_RETRIES attempts\"}" \
-            #     ${{ secrets.SLACK_WEBHOOK }} || true
-            # fi
-            
-            exit 1
-          fi
-
-          echo "📢 Migration succeeded - consider sending success notification"
-
       - name: Build Docker image
         working-directory: ./api
         run: |
@@ -198,11 +60,11 @@ jobs:
 
           EXPOSE 8080
 
+          # Start the server directly
           CMD ["npm", "start"]
           EOF
 
-          # CRITICAL: --no-cache forces fresh Prisma client generation
-          # Without this, the API may use an outdated Prisma client that doesn't match the database schema
+          # Build without cache to ensure fresh Prisma client
           docker build --platform linux/amd64 --no-cache -f Dockerfile.ci -t gcr.io/$PROJECT_ID/$SERVICE_NAME:$GITHUB_SHA .
           docker tag gcr.io/$PROJECT_ID/$SERVICE_NAME:$GITHUB_SHA gcr.io/$PROJECT_ID/$SERVICE_NAME:latest
 
