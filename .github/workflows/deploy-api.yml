@@ -69,6 +69,12 @@ jobs:
         run: |
           echo "🔄 Applying migrations before build..."
           
+          # Force IPv4 DNS resolution system-wide (more aggressive approach)
+          echo "🔧 Configuring IPv4-only DNS resolution..."
+          sudo sed -i 's/#precedence ::ffff:0:0\/96  100/precedence ::ffff:0:0\/96  100/' /etc/gai.conf || true
+          sudo sysctl -w net.ipv6.conf.all.disable_ipv6=1 || true
+          sudo sysctl -w net.ipv6.conf.default.disable_ipv6=1 || true
+          
           # Install dependencies first
           npm ci
           npx prisma generate
@@ -103,7 +109,8 @@ jobs:
           for i in $(seq 1 $MAX_RETRIES); do
             echo "Migration attempt $i of $MAX_RETRIES..."
             
-            if npx prisma migrate deploy; then
+            # Use timeout to prevent hanging connections
+            if timeout 60 npx prisma migrate deploy; then
               echo "✅ Migrations applied successfully on attempt $i"
               SUCCESS=true
               break

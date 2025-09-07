@@ -61,8 +61,8 @@ docs/*
 scripts/*
 test-connection.js
 
-# API utility scripts (local use only)
-api/scripts/
+# API utility scripts - NOW INCLUDED for CI/CD
+# api/scripts/  # Commented out - these scripts are needed for migrations
 
 # Docker files
 Dockerfile.*
