@@ -19,7 +19,7 @@ import {
   BackHandler,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import BottomSheet, { BottomSheetView, BottomSheetScrollView } from '@gorhom/bottom-sheet';
+import BottomSheet, { BottomSheetScrollView } from '@gorhom/bottom-sheet';
 
 const { height: screenHeight, width: screenWidth } = Dimensions.get('window');
 const statusBarHeight = Platform.OS === 'android' ? StatusBar.currentHeight || 24 : 44;
@@ -116,6 +116,9 @@ const ProfileBottomSheet = forwardRef(
             photoIndex++;
             return true;
           }
+          // Skip this photo if URL is falsy and try next one
+          photoIndex++;
+          return addPhotoSection(); // Recursively try next photo
         }
         return false;
       };

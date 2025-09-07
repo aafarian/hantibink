@@ -76,7 +76,7 @@ const registerUser = async (userData) => {
           // Convert old format to new format
           if (g === 'men' || g === 'male') {return 'MAN';}
           if (g === 'women' || g === 'female') {return 'WOMAN';}
-          if (g === 'everyone') {return ['MAN', 'WOMAN'];}  // Expand 'everyone' to both
+          if (g === 'everyone') {return ['MAN', 'WOMAN', 'OTHER'];}  // Expand 'everyone' to all genders
           return g.toUpperCase();
         }).flat() : ['MAN', 'WOMAN'];
 
