@@ -15,6 +15,7 @@ const {
   resendVerificationEmail,
   sendWelcomeEmail,
 } = require('../services/emailService');
+const { googleAuth, completeOAuthProfile, checkUserExists } = require('../services/oauthService');
 
 const router = express.Router();
 
@@ -298,6 +299,122 @@ router.post('/resend-verification', authenticateJWT, async (req, res) => {
       success: false,
       error: 'Failed to resend verification email',
       message: error.message,
+    });
+  }
+});
+
+/**
+ * @route   POST /api/auth/oauth/google
+ * @desc    Authenticate with Google OAuth
+ * @access  Public
+ */
+router.post('/oauth/google', async (req, res) => {
+  try {
+    const { idToken, accessToken } = req.body;
+    
+    if (!idToken && !accessToken) {
+      return res.status(400).json({
+        success: false,
+        error: 'TOKEN_REQUIRED',
+        message: 'Google authentication token is required',
+      });
+    }
+    
+    const result = await googleAuth(idToken, accessToken);
+    
+    res.json({
+      success: true,
+      message: result.isNewUser ? 'Registration successful' : 'Login successful',
+      data: {
+        user: result.user,
+        token: result.token,
+        refreshToken: result.refreshToken,
+        isNewUser: result.isNewUser,
+        requiresSetup: result.requiresSetup,
+        missingFields: result.missingFields,
+      },
+    });
+  } catch (error) {
+    logger.error('Google OAuth error:', error);
+    
+    res.status(401).json({
+      success: false,
+      error: 'OAUTH_FAILED',
+      message: error.message || 'Google authentication failed',
+    });
+  }
+});
+
+/**
+ * @route   POST /api/auth/oauth/complete-profile
+ * @desc    Complete OAuth profile with missing fields
+ * @access  Private
+ */
+router.post('/oauth/complete-profile', authenticateJWT, async (req, res) => {
+  try {
+    const { birthDate, gender, interestedIn } = req.body;
+    
+    // Validate required fields
+    if (!birthDate) {
+      return res.status(400).json({
+        success: false,
+        error: 'BIRTHDATE_REQUIRED',
+        message: 'Birth date is required',
+      });
+    }
+    
+    const result = await completeOAuthProfile(req.user.id, {
+      birthDate,
+      gender,
+      interestedIn,
+    });
+    
+    res.json({
+      success: true,
+      message: 'Profile completed successfully',
+      data: result.user,
+    });
+  } catch (error) {
+    logger.error('Complete OAuth profile error:', error);
+    
+    res.status(500).json({
+      success: false,
+      error: 'PROFILE_COMPLETION_FAILED',
+      message: error.message || 'Failed to complete profile',
+    });
+  }
+});
+
+/**
+ * @route   GET /api/auth/oauth/check-user
+ * @desc    Check if user exists and their auth methods
+ * @access  Public
+ */
+router.get('/oauth/check-user', async (req, res) => {
+  try {
+    const { email } = req.query;
+    
+    if (!email) {
+      return res.status(400).json({
+        success: false,
+        error: 'EMAIL_REQUIRED',
+        message: 'Email is required',
+      });
+    }
+    
+    const result = await checkUserExists(email);
+    
+    res.json({
+      success: true,
+      data: result,
+    });
+  } catch (error) {
+    logger.error('Check user exists error:', error);
+    
+    res.status(500).json({
+      success: false,
+      error: 'CHECK_USER_FAILED',
+      message: error.message || 'Failed to check user',
     });
   }
 });
