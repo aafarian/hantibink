@@ -105,6 +105,11 @@ jobs:
           echo "🔍 Database connection info:"
           echo "$DATABASE_URL" | sed 's/:[^@]*@/:****@/g'
           
+          # Try adding pgbouncer=true and pool_timeout=0 for better pooler compatibility
+          export DATABASE_URL="${DATABASE_URL}?pgbouncer=true&pool_timeout=0"
+          export DIRECT_URL="${DIRECT_URL}?pgbouncer=true&pool_timeout=0"
+          echo "Added pooler parameters to connection strings"
+          
           # Retry logic for Supabase connection issues
           MAX_RETRIES=3
           RETRY_DELAY=30
@@ -113,13 +118,14 @@ jobs:
           for i in $(seq 1 $MAX_RETRIES); do
             echo "Migration attempt $i of $MAX_RETRIES..."
             
-            # Use timeout to prevent hanging connections
-            if timeout 60 npx prisma migrate deploy; then
+            # Use timeout to prevent hanging connections and capture error
+            if timeout 60 npx prisma migrate deploy 2>&1; then
               echo "✅ Migrations applied successfully on attempt $i"
               SUCCESS=true
               break
             else
-              echo "❌ Migration failed on attempt $i"
+              EXIT_CODE=$?
+              echo "❌ Migration failed on attempt $i with exit code: $EXIT_CODE"
               if [ $i -lt $MAX_RETRIES ]; then
                 echo "Retrying in ${RETRY_DELAY} seconds..."
                 sleep $RETRY_DELAY
