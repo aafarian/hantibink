@@ -4,6 +4,7 @@ import apiClient from '../services/ApiClient';
 import SocketService from '../services/SocketService';
 import Logger from '../utils/logger';
 import { uploadImageToFirebase } from '../utils/imageUpload';
+import * as Location from 'expo-location';
 
 /**
  * Transform API profile format to Firebase format
@@ -191,6 +192,62 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
+  // ============ HELPER METHODS ============
+
+  /**
+   * Auto-detect and set user location if permissions are granted
+   * Called after registration to provide better UX
+   */
+  const autoDetectLocation = async () => {
+    try {
+      // Check if we already have location permissions
+      const { status } = await Location.getForegroundPermissionsAsync();
+
+      if (status === 'granted') {
+        Logger.info('📍 Location permissions already granted, auto-detecting location...');
+
+        // Get current location
+        const location = await Location.getCurrentPositionAsync({
+          accuracy: Location.Accuracy.Balanced,
+          timeout: 10000,
+        });
+
+        const { latitude, longitude } = location.coords;
+
+        // Reverse geocode to get city name
+        const reverseGeocode = await Location.reverseGeocodeAsync({
+          latitude,
+          longitude,
+        });
+
+        if (reverseGeocode[0]) {
+          const { city, region, country } = reverseGeocode[0];
+          const locationString = `${city || region}, ${country}`;
+
+          // Update location in the database
+          await ApiDataService.updateUserProfile({
+            location: locationString,
+            latitude,
+            longitude,
+            locationEnabled: true,
+          });
+
+          Logger.success('📍 Location auto-detected after registration:', locationString);
+
+          // Refresh profile to get updated location
+          await refreshUserProfile();
+
+          return true;
+        }
+      } else {
+        Logger.info('📍 Location permissions not granted, skipping auto-detection');
+      }
+    } catch (error) {
+      Logger.warn('📍 Could not auto-detect location:', error);
+    }
+    return false;
+  };
+
   // ============ AUTHENTICATION METHODS ============
 
   /**
@@ -317,8 +374,21 @@ export const AuthProvider = ({ children }) => {
         // Update online status
         SocketService.updateOnlineStatus(result.user.id, true);
 
+        // Auto-detect location if permissions are already granted
+        // This improves UX for users who already gave location permissions
+        // Don't await this - let it run in the background
+        setTimeout(() => {
+          autoDetectLocation().catch(error => {
+            Logger.warn('📍 Background location detection failed:', error);
+          });
+        }, 1000); // Small delay to let the registration complete first
+
         Logger.success('✅ User registered via API');
-        return { success: true, user: { uid: result.user.id, ...result.user } };
+        return {
+          success: true,
+          user: { uid: result.user.id, ...result.user },
+          requiresSetup: result.requiresSetup,
+        };
       }
     } catch (error) {
       Logger.error('❌ API registration failed:', error);
@@ -363,6 +433,16 @@ export const AuthProvider = ({ children }) => {
 
         // Update online status
         SocketService.updateOnlineStatus(result.user.id, true);
+
+        // Auto-detect location if user doesn't have one and permissions are granted
+        // This helps users who granted permissions after initial registration
+        if (!transformedProfile.location) {
+          setTimeout(() => {
+            autoDetectLocation().catch(error => {
+              Logger.warn('📍 Background location detection failed:', error);
+            });
+          }, 1000);
+        }
 
         Logger.success('✅ User logged in via API');
         return { success: true };

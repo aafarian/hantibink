@@ -1,15 +1,18 @@
-import React from 'react';
+import React, { useRef } from 'react';
 import { NavigationContainer } from '@react-navigation/native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { createStackNavigator } from '@react-navigation/stack';
 import { Ionicons } from '@expo/vector-icons';
 import { Platform, View, ActivityIndicator, Text } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useAuth } from '../contexts/AuthContext';
 import { useUnread } from '../contexts/UnreadContext';
 import { LocationProvider } from '../contexts/LocationContext';
 import { ToastProvider } from '../contexts/ToastContext';
 import LocationPromptModal from '../components/LocationPromptModal';
+import Logger from '../utils/logger';
+import { useLocationTracking } from '../hooks/useLocationTracking';
 
 // Import screens
 import ProfileScreen from '../screens/ProfileScreen';
@@ -19,6 +22,9 @@ import FilterScreen from '../screens/FilterScreen';
 import LikedYouScreen from '../screens/LikedYouScreen';
 import MessagesScreen from '../screens/MessagesScreen';
 import ChatScreen from '../screens/ChatScreen';
+
+// Import components
+import ProfileSetupModal from '../components/modals/ProfileSetupModal';
 
 // Import auth navigator
 import AuthNavigator from './AuthNavigator';
@@ -172,8 +178,68 @@ const MessagesStack = () => {
 
 const MainNavigator = () => {
   const insets = useSafeAreaInsets();
-  const { loading } = useAuth();
+  const { loading, userProfile, refreshUserProfile } = useAuth();
   const { unreadConversationCount } = useUnread();
+  const [showSetupModal, setShowSetupModal] = React.useState(false);
+  const [hasCheckedProfile, setHasCheckedProfile] = React.useState(false);
+
+  // Enable automatic location tracking
+  useLocationTracking(true, 5); // Update every 5 minutes
+
+  // Check if profile needs setup (missing critical fields)
+  React.useEffect(() => {
+    const checkProfileSetup = async () => {
+      // First check if we have the registration flag
+      const shouldShowOnboarding = await AsyncStorage.getItem('@HantibinkShowOnboarding');
+
+      // If we have the registration flag, show modal immediately
+      // Don't wait for full profile to load
+      if (shouldShowOnboarding === 'true' && !hasCheckedProfile) {
+        Logger.info('Registration flag detected - showing modal immediately');
+        setShowSetupModal(true);
+        setHasCheckedProfile(true);
+
+        // Clear the registration flag AFTER showing modal
+        // Delay clearing to ensure modal is definitely shown
+        setTimeout(async () => {
+          await AsyncStorage.removeItem('@HantibinkShowOnboarding');
+          Logger.info('Cleared onboarding flag after showing modal');
+        }, 1000);
+        return; // Exit early since we're showing the modal
+      }
+
+      // Otherwise check if profile needs setup based on data
+      if (userProfile && !hasCheckedProfile) {
+        const needsSetup =
+          !userProfile.gender ||
+          !userProfile.interestedIn ||
+          userProfile.interestedIn.length === 0 ||
+          !userProfile.photos ||
+          userProfile.photos.length === 0;
+
+        Logger.info('Profile setup check:', {
+          hasGender: !!userProfile.gender,
+          interestedIn: userProfile.interestedIn,
+          hasPhotos: userProfile.photos?.length > 0,
+          photosCount: userProfile.photos?.length || 0,
+          photos: userProfile.photos,
+          hasLocation: !!userProfile.location,
+          needsSetup,
+          fromRegistration: false,
+        });
+
+        if (needsSetup) {
+          Logger.info('Profile needs setup - showing modal', {
+            reason: 'Missing required fields',
+          });
+          setShowSetupModal(true);
+        }
+        setHasCheckedProfile(true);
+      }
+    };
+
+    checkProfileSetup();
+  }, [userProfile, hasCheckedProfile]);
 
   if (loading) {
     return (
@@ -184,59 +250,87 @@ const MainNavigator = () => {
   }
 
   return (
-    <Tab.Navigator
-      screenOptions={({ route }) => ({
-        tabBarIcon: ({ focused, color, size }) =>
-          renderTabIcon(route, focused, color, size, unreadConversationCount),
-        tabBarActiveTintColor: '#FF6B6B',
-        tabBarInactiveTintColor: 'gray',
-        tabBarStyle: {
-          backgroundColor: '#ffffff',
-          borderTopWidth: 1,
-          borderTopColor: '#e0e0e0',
-          paddingBottom: Platform.OS === 'android' ? insets.bottom : 5,
-          paddingTop: 5,
-          height: Platform.OS === 'android' ? 60 + insets.bottom : 60,
-        },
-      })}
-    >
-      <Tab.Screen
-        name="Profile"
-        component={ProfileStack}
-        options={{ headerShown: false, title: 'My Profile' }}
-      />
-      <Tab.Screen name="People" component={PeopleStack} options={{ headerShown: false }} />
-      <Tab.Screen
-        name="Liked You"
-        component={LikedYouScreen}
-        options={{
-          title: 'Liked You',
-          headerStyle: {
-            backgroundColor: '#FF6B6B',
-          },
-          headerTintColor: '#fff',
-          headerTitleStyle: {
-            fontWeight: 'bold',
-          },
-        }}
-      />
-      <Tab.Screen
-        name="Messages"
-        component={MessagesStack}
-        options={{ headerShown: false }}
-        listeners={({ navigation }) => ({
-          tabPress: _e => {
-            // Navigate to the initial route of the Messages stack
-            navigation.navigate('Messages', { screen: 'MessagesList' });
+    <>
+      <Tab.Navigator
+        screenOptions={({ route }) => ({
+          tabBarIcon: ({ focused, color, size }) =>
+            renderTabIcon(route, focused, color, size, unreadConversationCount),
+          tabBarActiveTintColor: '#FF6B6B',
+          tabBarInactiveTintColor: 'gray',
+          tabBarStyle: {
+            backgroundColor: '#ffffff',
+            borderTopWidth: 1,
+            borderTopColor: '#e0e0e0',
+            paddingBottom: Platform.OS === 'android' ? insets.bottom : 5,
+            paddingTop: 5,
+            height: Platform.OS === 'android' ? 60 + insets.bottom : 60,
           },
         })}
-      />
-    </Tab.Navigator>
+      >
+        <Tab.Screen
+          name="Profile"
+          component={ProfileStack}
+          options={{ headerShown: false, title: 'My Profile' }}
+        />
+        <Tab.Screen name="People" component={PeopleStack} options={{ headerShown: false }} />
+        <Tab.Screen
+          name="Liked You"
+          component={LikedYouScreen}
+          options={{
+            title: 'Liked You',
+            headerStyle: {
+              backgroundColor: '#FF6B6B',
+            },
+            headerTintColor: '#fff',
+            headerTitleStyle: {
+              fontWeight: 'bold',
+            },
+          }}
+        />
+        <Tab.Screen
+          name="Messages"
+          component={MessagesStack}
+          options={{ headerShown: false }}
+          listeners={({ navigation }) => ({
+            tabPress: _e => {
+              // Navigate to the initial route of the Messages stack
+              navigation.navigate('Messages', { screen: 'MessagesList' });
+            },
+          })}
+        />
+      </Tab.Navigator>
+
+      {/* Profile Setup Modal - Shows on app open if profile incomplete */}
+      {showSetupModal && (
+        <ProfileSetupModal
+          visible={showSetupModal}
+          onClose={() => {
+            // User can dismiss, but it will show again next time they open the app
+            setShowSetupModal(false);
+          }}
+          onComplete={async _data => {
+            setShowSetupModal(false);
+            // Trigger a single refresh after modal completes
+            if (refreshUserProfile) {
+              setTimeout(() => {
+                refreshUserProfile();
+              }, 500);
+            }
+          }}
+          userProfile={userProfile}
+        />
+      )}
+    </>
   );
 };
 
 const AppNavigator = () => {
   const { user, userProfile, loading } = useAuth();
+  const navigationRef = useRef();
+
+  // Don't check onboarding flag here - let MainNavigator handle it
+  // This was causing a race condition where the flag was being cleared
+  // before MainNavigator could check it
 
   // Show loading screen while checking authentication
   if (loading) {
@@ -250,7 +344,7 @@ const AppNavigator = () => {
   }
 
   return (
-    <NavigationContainer>
+    <NavigationContainer ref={navigationRef}>
       <ToastProvider>
         <LocationProvider>
           {(() => {

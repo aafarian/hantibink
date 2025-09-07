@@ -63,6 +63,12 @@ const ProfileScreen = ({ navigation }) => {
     return () => subscription?.remove();
   }, [user, refreshUserProfile]);
 
+  // Remove the focus effect - it's causing infinite loops when modal is visible
+  // Profile will be refreshed when:
+  // 1. App comes to foreground (AppState change)
+  // 2. After modal completion (handled in AppNavigator)
+  // 3. After editing profile (handled in ProfileEditScreen)
+
   // Removed old Firebase-based profile loading and editing functions
   // Now using API-based AuthContext and ProfileEditScreen
 
