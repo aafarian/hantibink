@@ -15,6 +15,8 @@ import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../../contexts/AuthContext';
 import { useToast } from '../../contexts/ToastContext';
 import Logger from '../../utils/logger';
+import OAuthService from '../../services/OAuthService';
+import ApiClient from '../../services/ApiClient';
 
 // Email validation regex
 const EMAIL_REGEX = /^[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}$/i;
@@ -30,8 +32,8 @@ const LoginScreen = ({ navigation }) => {
   const scrollViewRef = useRef(null);
   const passwordInputRef = useRef(null);
 
-  const { login } = useAuth();
-  const { showSuccess } = useToast();
+  const { login, setUser, setToken } = useAuth();
+  const { showSuccess, showError } = useToast();
 
   // Real-time field validation
   const validateField = (field, value) => {
@@ -141,6 +143,70 @@ const LoginScreen = ({ navigation }) => {
     navigation.navigate('ForgotPassword');
   };
 
+  const handleGoogleSignIn = async () => {
+    try {
+      setLoading(true);
+      Logger.info('Starting Google sign-in...');
+
+      // Get Google OAuth token (OAuthService is already instantiated)
+      const googleResult = await OAuthService.signInWithGoogle();
+
+      if (!googleResult || (!googleResult.idToken && !googleResult.accessToken)) {
+        throw new Error('Failed to get Google authentication token');
+      }
+
+      // Send tokens to our backend (ApiClient is already instantiated)
+      const response = await ApiClient.post('/auth/oauth/google', {
+        idToken: googleResult.idToken,
+        accessToken: googleResult.accessToken,
+      });
+
+      if (response.success && response.data) {
+        const { user, token, refreshToken, isNewUser, requiresSetup, missingFields } =
+          response.data.data;
+
+        // Store tokens
+        await setToken(token);
+        if (refreshToken) {
+          await ApiClient.setRefreshToken(refreshToken);
+        }
+
+        // Set user in auth context
+        await setUser(user);
+
+        if (isNewUser || requiresSetup) {
+          // OAuth users need to complete profile (usually birthDate)
+          if (missingFields && missingFields.includes('birthDate')) {
+            Logger.info('OAuth user needs to provide birthdate');
+            navigation.navigate('OAuthComplete', {
+              user,
+              missingFields,
+            });
+          } else {
+            // Show setup modal for other missing fields
+            Logger.info('OAuth user needs profile setup');
+          }
+        } else {
+          // Existing user, login successful
+          showSuccess('Welcome back!');
+        }
+      } else {
+        throw new Error(response.message || 'OAuth authentication failed');
+      }
+    } catch (error) {
+      Logger.error('Google sign-in error:', error);
+
+      if (error.message === 'User cancelled') {
+        // User cancelled, don't show error
+        return;
+      }
+
+      showError(error.message || 'Failed to sign in with Google');
+    } finally {
+      setLoading(false);
+    }
+  };
+
   return (
     <SafeAreaView style={styles.safeArea} edges={['top']}>
       <StatusBar backgroundColor="#f8f9fa" barStyle="dark-content" />
@@ -243,7 +309,11 @@ const LoginScreen = ({ navigation }) => {
             <View style={styles.dividerLine} />
           </View>
 
-          <TouchableOpacity style={styles.googleButton}>
+          <TouchableOpacity
+            style={[styles.googleButton, loading && styles.googleButtonDisabled]}
+            onPress={handleGoogleSignIn}
+            disabled={loading}
+          >
             <Ionicons name="logo-google" size={20} color="#666" />
             <Text style={styles.googleButtonText}>Continue with Google</Text>
           </TouchableOpacity>
@@ -364,6 +434,9 @@ const styles = StyleSheet.create({
     paddingVertical: 16,
     borderWidth: 1,
     borderColor: '#e0e0e0',
+  },
+  googleButtonDisabled: {
+    opacity: 0.6,
   },
   googleButtonText: {
     marginLeft: 12,
