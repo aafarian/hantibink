@@ -106,14 +106,21 @@ jobs:
           echo "DATABASE_URL: $(echo "$DATABASE_URL" | sed 's/:[^@]*@/:****@/g')"
           echo "DIRECT_URL: $(echo "$DIRECT_URL" | sed 's/:[^@]*@/:****@/g')"
 
-          # Add pooler parameters only to DATABASE_URL (for runtime)
-          # Keep DIRECT_URL as pure direct connection (for migrations)
+          # Since direct connection is blocked, use pooler for both but with migration-optimized settings
+          # Add standard pooler parameters to DATABASE_URL (for runtime)
           if [[ "$DATABASE_URL" == *"?"* ]]; then
             export DATABASE_URL="${DATABASE_URL}&pgbouncer=true&pool_timeout=0"
           else
             export DATABASE_URL="${DATABASE_URL}?pgbouncer=true&pool_timeout=0"
           fi
-          echo "Added pooler parameters to DATABASE_URL (DIRECT_URL kept as direct connection)"
+
+          # Use pooler for DIRECT_URL too, but with migration-optimized parameters
+          if [[ "$DIRECT_URL" == *"?"* ]]; then
+            export DIRECT_URL="${DIRECT_URL}&pgbouncer=true&pool_timeout=300&connection_limit=1"
+          else
+            export DIRECT_URL="${DIRECT_URL}?pgbouncer=true&pool_timeout=300&connection_limit=1"
+          fi
+          echo "Using pooler for both URLs - DIRECT_URL optimized for migrations"
 
           # Debug: Verify Prisma can see both URLs
           echo "🔍 Verifying Prisma configuration..."
