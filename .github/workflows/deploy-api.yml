@@ -5,8 +5,8 @@ on:
     branches:
       - main
     paths:
-      - 'api/**'
-      - '.github/workflows/deploy-api.yml'
+      - "api/**"
+      - ".github/workflows/deploy-api.yml"
   workflow_dispatch:
 
 env:
@@ -18,7 +18,7 @@ jobs:
   deploy:
     name: Deploy API
     runs-on: ubuntu-latest
-    
+
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -62,23 +62,23 @@ jobs:
         if: ${{ vars.AUTO_MIGRATE == 'true' }}
         working-directory: ./api
         env:
-          DATABASE_URL: ${{ secrets.SUPABASE_DATABASE_URL }}
+          DATABASE_URL: ${{ secrets.SUPABASE_DIRECT_URL }}
           DIRECT_URL: ${{ secrets.SUPABASE_DIRECT_URL }}
-          NODE_OPTIONS: "--dns-result-order=ipv4first"
+          NODE_OPTIONS: "--dns-result-order=ipv4first --max-old-space-size=2048"
           MIGRATION_LOCK_KEY: "migration_lock_${{ github.sha }}"
         run: |
           echo "🔄 Applying migrations before build..."
-          
+
           # Force IPv4 DNS resolution system-wide (more aggressive approach)
           echo "🔧 Configuring IPv4-only DNS resolution..."
           sudo sed -i 's/#precedence ::ffff:0:0\/96  100/precedence ::ffff:0:0\/96  100/' /etc/gai.conf || true
           sudo sysctl -w net.ipv6.conf.all.disable_ipv6=1 || true
           sudo sysctl -w net.ipv6.conf.default.disable_ipv6=1 || true
-          
+
           # Install dependencies first
           npm ci
           npx prisma generate
-          
+
           # Simple lock mechanism using database (after dependencies are installed)
           echo "🔒 Acquiring migration lock..."
           node -e "
@@ -100,30 +100,30 @@ jobs:
             }
             acquireLock();
           " || true
-          
+
           # Debug: Show which database we're connecting to (mask password)
           echo "🔍 Database connection info:"
           echo "$DATABASE_URL" | sed 's/:[^@]*@/:****@/g'
-          
+
           # Check if URL already has parameters before adding more
           if [[ "$DATABASE_URL" == *"?"* ]]; then
             export DATABASE_URL="${DATABASE_URL}&pgbouncer=true&pool_timeout=0"
           else
             export DATABASE_URL="${DATABASE_URL}?pgbouncer=true&pool_timeout=0"
           fi
-          
+
           if [[ "$DIRECT_URL" == *"?"* ]]; then
             export DIRECT_URL="${DIRECT_URL}&pgbouncer=true&pool_timeout=0"
           else  
             export DIRECT_URL="${DIRECT_URL}?pgbouncer=true&pool_timeout=0"
           fi
           echo "Added pooler parameters to connection strings"
-          
+
           # Retry logic for Supabase connection issues
           MAX_RETRIES=3
           RETRY_DELAY=30
           SUCCESS=false
-          
+
           for i in $(seq 1 $MAX_RETRIES); do
             echo "Migration attempt $i of $MAX_RETRIES..."
             
@@ -142,7 +142,7 @@ jobs:
               fi
             fi
           done
-          
+
           if [ "$SUCCESS" = false ]; then
             echo "❌ Migrations failed after $MAX_RETRIES attempts"
             
@@ -162,7 +162,7 @@ jobs:
             
             exit 1
           fi
-          
+
           echo "📢 Migration succeeded - consider sending success notification"
 
       - name: Build Docker image
@@ -171,29 +171,29 @@ jobs:
           # Create optimized Dockerfile
           cat > Dockerfile.ci << 'EOF'
           FROM node:18-slim
-          
+
           RUN apt-get update -y && apt-get install -y openssl && rm -rf /var/lib/apt/lists/*
-          
+
           WORKDIR /app
-          
+
           # Copy package.json and prisma schema
           COPY package.json ./
           COPY prisma ./prisma/
-          
+
           # Install production dependencies
           RUN npm install --omit=dev
-          
+
           # Generate Prisma client with current schema
           RUN npx prisma generate
-          
+
           # Copy the rest of the application
           COPY . .
-          
+
           EXPOSE 8080
-          
+
           CMD ["npm", "start"]
           EOF
-          
+
           # CRITICAL: --no-cache forces fresh Prisma client generation
           # Without this, the API may use an outdated Prisma client that doesn't match the database schema
           docker build --platform linux/amd64 --no-cache -f Dockerfile.ci -t gcr.io/$PROJECT_ID/$SERVICE_NAME:$GITHUB_SHA .
@@ -226,4 +226,3 @@ jobs:
         run: |
           curl -f ${{ env.SERVICE_URL }}/health || exit 1
           echo "Health check passed!"
-
