@@ -105,20 +105,18 @@ const ProfileBottomSheet = forwardRef(
       // Helper to add a photo section if available
       let photoIndex = 0;
       const addPhotoSection = () => {
-        if (photoIndex < photos.length) {
+        while (photoIndex < photos.length) {
           const photoUrl = getPhotoUrl(photos[photoIndex]);
+          photoIndex++; // Always increment to avoid infinite loop
           if (photoUrl) {
             sections.push({
               type: 'photo',
               data: photoUrl,
-              key: `photo-${photoIndex}`,
+              key: `photo-${photoIndex - 1}`, // Use previous index since we already incremented
             });
-            photoIndex++;
             return true;
           }
-          // Skip this photo if URL is falsy and try next one
-          photoIndex++;
-          return addPhotoSection(); // Recursively try next photo
+          // Continue to next photo if URL is falsy
         }
         return false;
       };
