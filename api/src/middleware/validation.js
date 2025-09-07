@@ -286,19 +286,42 @@ const profileValidation = {
   // New endpoint for completing profile setup (gender, interestedIn, location required)
   completeSetup: [
     body('gender')
-      .notEmpty().withMessage('Gender is required for profile setup')
+      .optional() // Gender might already be set
       .isIn(['MAN', 'WOMAN', 'OTHER', 'man', 'woman', 'other']).withMessage('Invalid gender')
-      .customSanitizer(value => value.toUpperCase()),
+      .customSanitizer(value => value ? value.toUpperCase() : value),
     body('interestedIn')
-      .notEmpty().withMessage('Interested in is required for profile setup')
+      .optional() // InterestedIn might already be set
       .isArray().withMessage('Interested in must be an array')
       .custom((value) => {
+        if (!value) {
+          return true; // Optional
+        }
         const valid = ['MAN', 'WOMAN', 'OTHER', 'man', 'woman', 'other'];
         return value.length > 0 && value.every(v => valid.includes(v));
       }).withMessage('Invalid interested in values')
-      .customSanitizer(value => value.map(v => v.toUpperCase())),
+      .customSanitizer(value => value ? value.map(v => v.toUpperCase()) : value),
+    body('photos')
+      .optional()
+      .isArray().withMessage('Photos must be an array')
+      .custom((value) => {
+        if (!value) {
+          return true;
+        }
+        // Validate each photo is a valid URL
+        return value.every(photo => {
+          if (typeof photo !== 'string') {
+            return false;
+          }
+          try {
+            const url = new URL(photo);
+            return url.protocol === 'http:' || url.protocol === 'https:';
+          } catch {
+            return false;
+          }
+        });
+      }).withMessage('Invalid photo URLs'),
     body('location')
-      .notEmpty().withMessage('Location is required for discovery')
+      .optional() // Location is auto-detected on client
       .isString().withMessage('Location must be a string'),
     body('latitude')
       .optional()

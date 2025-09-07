@@ -12,6 +12,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { MaterialIcons } from '@expo/vector-icons';
 import DateTimePicker from '@react-native-community/datetimepicker';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 import { useAuth } from '../../contexts/AuthContext';
 import { useToast } from '../../contexts/ToastContext';
@@ -280,10 +281,19 @@ const SimpleRegisterScreen = ({ navigation }) => {
       // Register user via API (normal login flow)
       const result = await register(userData);
 
-      if (result.success || result.requiresSetup) {
+      if (result.success) {
         Logger.success('✅ Account created successfully');
+        Logger.info('Registration result:', {
+          success: result.success,
+          requiresSetup: result.requiresSetup,
+        });
+
         if (result.requiresSetup) {
           showSuccess("Welcome! Let's set up your profile to start discovering people");
+          // Store a flag to navigate to People tab after the main app loads
+          // This will trigger the ProfileSetupModal
+          await AsyncStorage.setItem('@HantibinkShowOnboarding', 'true');
+          Logger.info('✅ Set onboarding flag for new user');
         } else {
           showSuccess('Welcome to Hantibink!');
         }

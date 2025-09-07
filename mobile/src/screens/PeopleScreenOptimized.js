@@ -90,9 +90,47 @@ const PeopleScreenOptimized = ({ navigation }) => {
   // Track previous interestedIn to detect changes
   const prevInterestedInRef = useRef();
 
+  // Check if profile is complete for discovery
+  const isProfileComplete = useCallback(() => {
+    if (!userProfile) return false;
+
+    const hasGender = userProfile.gender;
+    const hasInterestedIn = userProfile.interestedIn && userProfile.interestedIn.length > 0;
+    const hasPhotos = userProfile.photos && userProfile.photos.length > 0;
+    const hasLocation = userProfile.location && userProfile.latitude && userProfile.longitude;
+
+    return hasGender && hasInterestedIn && hasPhotos && hasLocation;
+  }, [userProfile]);
+
+  // Check profile completeness on mount for logging
+  useEffect(() => {
+    if (userProfile) {
+      const complete = isProfileComplete();
+      Logger.info('Profile completeness check:', {
+        hasGender: !!userProfile.gender,
+        gender: userProfile.gender,
+        hasInterestedIn: userProfile.interestedIn && userProfile.interestedIn.length > 0,
+        interestedIn: userProfile.interestedIn,
+        hasPhotos: userProfile.photos && userProfile.photos.length > 0,
+        photosCount: userProfile.photos?.length || 0,
+        hasLocation: !!(userProfile.location && userProfile.latitude && userProfile.longitude),
+        location: userProfile.location,
+        isComplete: complete,
+      });
+
+      if (!complete) {
+        Logger.info('Profile incomplete - will show setup modal');
+        setIsLoading(false);
+      }
+    }
+  }, [userProfile, isProfileComplete]);
+
   // Initial load and handle interestedIn changes
   useEffect(() => {
-    if (user?.uid && userProfile && filtersLoaded) {
+    // Check if profile just became complete
+    const isNowComplete = isProfileComplete();
+
+    if (user?.uid && userProfile && filtersLoaded && isNowComplete) {
       // Check if interestedIn changed
       const interestedInChanged =
         prevInterestedInRef.current &&
@@ -391,7 +429,25 @@ const PeopleScreenOptimized = ({ navigation }) => {
     setMatchedUser(null);
   }, []);
 
-  // Check if user has photos
+  // Don't show discovery if profile is incomplete
+  // The setup modal is now handled at the app level in AppNavigator
+  if (userProfile && !isProfileComplete()) {
+    return (
+      <SafeAreaView style={styles.container}>
+        <View style={styles.loadingContainer}>
+          <Text style={styles.loadingText}>Complete your profile to start discovering people</Text>
+          <TouchableOpacity
+            style={styles.addPhotosButton}
+            onPress={() => navigation.navigate('Profile', { screen: 'ProfileMain' })}
+          >
+            <Text style={styles.addPhotosButtonText}>Go to Profile</Text>
+          </TouchableOpacity>
+        </View>
+      </SafeAreaView>
+    );
+  }
+
+  // Check if user has photos (only after profile is complete)
   if (!userProfile?.photos || userProfile.photos.length === 0) {
     return (
       <SafeAreaView style={styles.container}>

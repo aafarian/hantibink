@@ -25,6 +25,7 @@ router.get('/', (req, res) => {
     availableEndpoints: [
       'GET /profile - Get user profile',
       'PUT /profile - Update user profile',
+      'POST /profile/complete-setup - Complete profile setup',
       'POST /photos - Add profile photo',
       'DELETE /photos/:id - Delete profile photo',
       'PUT /photos/reorder - Reorder photos',
@@ -106,6 +107,102 @@ router.put('/profile', authenticateJWT, profileValidation.updateProfile, async (
       error: errorMessage,
       message: detailMessage,
       details: process.env.NODE_ENV === 'development' ? error.stack : undefined,
+    });
+  }
+});
+
+/**
+ * @route   POST /api/users/profile/complete-setup
+ * @desc    Complete initial profile setup
+ * @access  Private
+ */
+router.post('/profile/complete-setup', authenticateJWT, profileValidation.completeSetup, async (req, res) => {
+  try {
+    const { gender, interestedIn, photos, location, latitude, longitude } = req.body;
+    
+    logger.info('📥 Complete-setup received data:', {
+      gender,
+      interestedIn,
+      photosCount: photos?.length,
+      location,
+      latitude,
+      longitude,
+    });
+
+    // SIMPLIFIED: This endpoint just marks the profile setup as complete
+    // Each step already saves its own data, so we don't need to re-save everything
+    // We only save data that was explicitly provided in this call
+    
+    const setupData = {
+      hasCompletedOnboarding: true,
+      onboardingStage: 'SETUP_COMPLETE',
+    };
+    
+    // Only update fields that were explicitly provided
+    // (Each step already saved its data, so these are just fallbacks)
+    if (gender) {
+      setupData.gender = gender;
+    }
+    if (interestedIn && interestedIn.length > 0) {
+      setupData.interestedIn = interestedIn;
+    }
+    if (location) {
+      setupData.location = location;
+      setupData.locationEnabled = true;
+    }
+    if (latitude !== null && latitude !== undefined) {
+      setupData.latitude = latitude;
+    }
+    if (longitude !== null && longitude !== undefined) {
+      setupData.longitude = longitude;
+    }
+    
+    logger.info('📝 Updating profile with setupData:', setupData);
+    
+    // First update the profile
+    let updatedProfile = await updateUserProfile(req.user.id, setupData);
+
+    // Then add photos if they're URLs (strings)
+    if (photos && photos.length > 0) {
+      for (let i = 0; i < photos.length; i++) {
+        const photo = photos[i];
+        // Validate and add photo if it's a valid URL
+        if (typeof photo === 'string') {
+          try {
+            const url = new URL(photo);
+            // Only accept http/https URLs
+            if (url.protocol !== 'http:' && url.protocol !== 'https:') {
+              logger.warn(`Skipping invalid photo URL protocol: ${url.protocol}`);
+              continue;
+            }
+            // URL is valid, try to add it
+            try {
+              updatedProfile = await addUserPhoto(req.user.id, photo, i === 0); // First photo is main
+            } catch (photoError) {
+              logger.warn(`Failed to add photo ${i + 1}:`, photoError);
+            }
+          } catch (urlError) {
+            logger.warn(`Invalid photo URL format: ${photo}`);
+            continue;
+          }
+        }
+      }
+    }
+
+    logger.info('✅ Profile setup completed for user:', req.user.id);
+
+    res.json({
+      success: true,
+      message: 'Profile setup completed successfully',
+      data: updatedProfile,
+    });
+  } catch (error) {
+    logger.error('❌ Profile setup error:', error);
+    
+    res.status(400).json({
+      success: false,
+      error: 'Profile setup failed',
+      message: error.message,
     });
   }
 });

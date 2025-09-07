@@ -53,6 +53,53 @@ class ApiDataService {
     }
   }
 
+  /**
+   * Complete profile setup via API
+   */
+  static async completeProfileSetup(setupData) {
+    try {
+      Logger.info('🎯 Completing profile setup via API...');
+
+      const response = await apiClient.post('/users/profile/complete-setup', setupData);
+
+      if (response.success) {
+        Logger.success('✅ Profile setup completed via API');
+        return response.data;
+      } else {
+        Logger.error('❌ Failed to complete profile setup via API:', response.message);
+        throw new Error(response.message || 'Setup failed');
+      }
+    } catch (error) {
+      Logger.error('❌ Error completing profile setup via API:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Add photo URL to user profile via API
+   */
+  static async addPhotoUrl(photoUrl, isMain = false) {
+    try {
+      Logger.info('📷 Adding photo URL via API...');
+
+      const response = await apiClient.post('/users/photos', {
+        photoUrl,
+        isMain,
+      });
+
+      if (response.success) {
+        Logger.success('✅ Photo added via API');
+        return response.data;
+      } else {
+        Logger.error('❌ Failed to add photo via API:', response.message);
+        throw new Error(response.message || 'Failed to add photo');
+      }
+    } catch (error) {
+      Logger.error('❌ Error adding photo via API:', error);
+      throw error;
+    }
+  }
+
   // ============ AUTHENTICATION METHODS ============
 
   /**

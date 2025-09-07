@@ -193,9 +193,6 @@ const registerUser = async (userData) => {
 
     logger.info(`✅ User registered successfully: ${user.email}`);
 
-    // Check if profile setup is required
-    const requiresSetup = !user.gender || !user.interestedIn || user.interestedIn.length === 0 || !user.location;
-    
     // Check if user has photos
     const userPhotos = await prisma.photo.findMany({
       where: { userId: user.id },
@@ -203,6 +200,12 @@ const registerUser = async (userData) => {
     });
     
     const hasPhotos = userPhotos.length > 0;
+    
+    // Check if profile setup is required
+    // Don't check location since it's auto-detected on the client
+    // Note: Photos are required for a complete profile, but users can skip the setup modal
+    // This ensures they're prompted to add photos but aren't blocked from using the app
+    const requiresSetup = !user.gender || !user.interestedIn || user.interestedIn.length === 0 || !hasPhotos;
     const isDiscoverable = !requiresSetup && hasPhotos;
     
     // Update user's onboarding stage and discoverability
@@ -441,6 +444,14 @@ const getUserProfile = async (userId) => {
       relationshipType: parseRelationshipType(user.relationshipType),
     };
     
+    logger.debug('🔍 User profile retrieved:', {
+      id: user.id,
+      hasLocation: !!user.location,
+      location: user.location,
+      latitude: user.latitude,
+      longitude: user.longitude
+    });
+    
     // eslint-disable-next-line no-unused-vars
     const { password: _password, ...userWithoutPassword } = userWithInterests;
     
@@ -456,7 +467,7 @@ const getUserProfile = async (userId) => {
  */
 const updateUserProfile = async (userId, updateData) => {
   try {
-    const { photos, interests, location, ...userData } = updateData;
+    const { photos, interests, ...userData } = updateData;
 
     // Build update object with only provided fields
     const updateObject = {};
@@ -489,17 +500,10 @@ const updateUserProfile = async (userId, updateData) => {
       }
     });
     
-    // Add location fields if location object exists
-    if (location) {
-      if (location.latitude !== undefined) {updateObject.latitude = location.latitude;}
-      if (location.longitude !== undefined) {updateObject.longitude = location.longitude;}
-      if (location.address !== undefined) {updateObject.address = location.address;}
-      if (location.city !== undefined) {updateObject.city = location.city;}
-      if (location.country !== undefined) {updateObject.country = location.country;}
-    }
-    
     // Always update the updatedAt timestamp
     updateObject.updatedAt = new Date();
+
+    logger.info('📝 Final updateObject being sent to Prisma:', updateObject);
 
     // Only update if there are fields to update
     let user;
