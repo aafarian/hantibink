@@ -1,0 +1,193 @@
+name: Deploy Database Migrations
+
+on:
+  workflow_dispatch: # Manual trigger from GitHub UI
+    inputs:
+      environment:
+        description: 'Environment to deploy to'
+        required: true
+        default: 'production'
+        type: choice
+        options:
+          - production
+          - staging
+      dry_run:
+        description: 'Dry run (show pending migrations only)'
+        required: false
+        default: false
+        type: boolean
+  
+  # Auto-trigger on migration changes (optional - remove if you want manual only)
+  push:
+    branches: [main]
+    paths: 
+      - 'api/prisma/migrations/**'
+      - 'api/prisma/schema.prisma'
+
+jobs:
+  check-migrations:
+    name: Check Migration Status
+    runs-on: ubuntu-latest
+    outputs:
+      has_pending: ${{ steps.check.outputs.has_pending }}
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          cache: 'npm'
+          cache-dependency-path: api/package-lock.json
+      
+      - name: Install dependencies
+        working-directory: ./api
+        run: npm ci
+      
+      - name: Check migration status
+        id: check
+        working-directory: ./api
+        env:
+          DATABASE_URL: ${{ secrets.SUPABASE_DATABASE_URL }}
+          DIRECT_URL: ${{ secrets.SUPABASE_DIRECT_URL }}
+          NODE_OPTIONS: "--dns-result-order=ipv4first"
+        run: |
+          echo "🔍 Checking migration status..."
+          
+          # Capture migration status
+          if npx prisma migrate status | grep -q "Database schema is up to date"; then
+            echo "✅ No pending migrations"
+            echo "has_pending=false" >> $GITHUB_OUTPUT
+          else
+            echo "📦 Pending migrations detected"
+            echo "has_pending=true" >> $GITHUB_OUTPUT
+            npx prisma migrate status || true
+          fi
+
+  deploy-migrations:
+    name: Deploy Migrations
+    runs-on: ubuntu-latest
+    needs: check-migrations
+    if: needs.check-migrations.outputs.has_pending == 'true' || github.event.inputs.dry_run == 'false'
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Setup Node.js with IPv4
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          cache: 'npm'
+          cache-dependency-path: api/package-lock.json
+      
+      - name: Configure system for IPv4
+        run: |
+          # Force IPv4 for all connections to avoid Supabase IPv6 issues
+          echo "🔧 Configuring system for IPv4..."
+          
+          # Set Node.js to prefer IPv4
+          echo "NODE_OPTIONS='--dns-result-order=ipv4first'" >> $GITHUB_ENV
+          
+          # Optional: Add Supabase host to /etc/hosts with IPv4 (if you know the IP)
+          # echo "YOUR_SUPABASE_IPV4 db.YOUR_PROJECT.supabase.co" | sudo tee -a /etc/hosts
+      
+      - name: Install dependencies
+        working-directory: ./api
+        run: |
+          echo "📦 Installing dependencies..."
+          npm ci
+      
+      - name: Generate Prisma Client
+        working-directory: ./api
+        run: |
+          echo "🔧 Generating Prisma Client..."
+          npx prisma generate
+      
+      - name: Dry Run - Show Pending Migrations
+        if: github.event.inputs.dry_run == 'true'
+        working-directory: ./api
+        env:
+          DATABASE_URL: ${{ secrets.SUPABASE_DATABASE_URL }}
+          DIRECT_URL: ${{ secrets.SUPABASE_DIRECT_URL }}
+        run: |
+          echo "🔍 DRY RUN - Showing pending migrations only"
+          npx prisma migrate status
+          echo "ℹ️ No changes will be applied in dry run mode"
+      
+      - name: Deploy Migrations with Retry
+        if: github.event.inputs.dry_run != 'true'
+        working-directory: ./api
+        env:
+          DATABASE_URL: ${{ secrets.SUPABASE_DATABASE_URL }}
+          DIRECT_URL: ${{ secrets.SUPABASE_DIRECT_URL }}
+          SHADOW_DATABASE_URL: ${{ secrets.SHADOW_DATABASE_URL }}
+        run: |
+          echo "🚀 Deploying migrations to ${{ github.event.inputs.environment || 'production' }}..."
+          
+          # Retry logic for connection issues
+          MAX_RETRIES=3
+          RETRY_DELAY=30
+          
+          for i in $(seq 1 $MAX_RETRIES); do
+            echo "Attempt $i of $MAX_RETRIES..."
+            
+            if npx prisma migrate deploy; then
+              echo "✅ Migration successful on attempt $i"
+              break
+            else
+              EXIT_CODE=$?
+              echo "❌ Migration failed on attempt $i (exit code: $EXIT_CODE)"
+              
+              if [ $i -lt $MAX_RETRIES ]; then
+                echo "Retrying in ${RETRY_DELAY} seconds..."
+                sleep $RETRY_DELAY
+              else
+                echo "❌ Migration failed after $MAX_RETRIES attempts"
+                exit 1
+              fi
+            fi
+          done
+      
+      - name: Verify Migration Success
+        if: github.event.inputs.dry_run != 'true'
+        working-directory: ./api
+        env:
+          DATABASE_URL: ${{ secrets.SUPABASE_DATABASE_URL }}
+          DIRECT_URL: ${{ secrets.SUPABASE_DIRECT_URL }}
+        run: |
+          echo "✅ Verifying migration status..."
+          npx prisma migrate status
+          
+          # Test database connection
+          echo "🔍 Testing database connection..."
+          node -e "
+            const { PrismaClient } = require('@prisma/client');
+            const prisma = new PrismaClient();
+            prisma.\$connect()
+              .then(() => {
+                console.log('✅ Database connection successful');
+                return prisma.\$disconnect();
+              })
+              .catch((err) => {
+                console.error('❌ Database connection failed:', err);
+                process.exit(1);
+              });
+          "
+      
+      - name: Notify Success
+        if: success() && github.event.inputs.dry_run != 'true'
+        run: |
+          echo "✅ Migrations deployed successfully to ${{ github.event.inputs.environment || 'production' }}!"
+          echo "📊 Summary:"
+          echo "- Environment: ${{ github.event.inputs.environment || 'production' }}"
+          echo "- Branch: ${{ github.ref_name }}"
+          echo "- Commit: ${{ github.sha }}"
+      
+      - name: Notify Failure
+        if: failure()
+        run: |
+          echo "❌ Migration deployment failed!"
+          echo "Please check the logs above for details."
