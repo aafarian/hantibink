@@ -101,6 +101,10 @@ jobs:
             acquireLock();
           " || true
           
+          # Debug: Show which database we're connecting to (mask password)
+          echo "🔍 Database connection info:"
+          echo "$DATABASE_URL" | sed 's/:[^@]*@/:****@/g'
+          
           # Retry logic for Supabase connection issues
           MAX_RETRIES=3
           RETRY_DELAY=30
