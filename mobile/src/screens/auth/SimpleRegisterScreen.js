@@ -14,12 +14,8 @@ import { MaterialIcons } from '@expo/vector-icons';
 import DateTimePicker from '@react-native-community/datetimepicker';
 
 import { useAuth } from '../../contexts/AuthContext';
-import { useLocation } from '../../contexts/LocationContext';
 import { useToast } from '../../contexts/ToastContext';
-import LocationPicker from '../../components/LocationPicker';
-import SelectionPanel from '../../components/SelectionPanel';
 import Logger from '../../utils/logger';
-import { genderOptions, interestedInOptions } from '../../components/profile/ProfileFieldsConfig';
 
 const SimpleRegisterScreen = ({ navigation }) => {
   const { register } = useAuth();
@@ -30,16 +26,11 @@ const SimpleRegisterScreen = ({ navigation }) => {
     name: '',
     birthDate: null,
     age: null,
-    gender: '',
-    interestedIn: '',
   });
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [showDatePicker, setShowDatePicker] = useState(false);
-  const [showGenderPicker, setShowGenderPicker] = useState(false);
-  const [showInterestedInPicker, setShowInterestedInPicker] = useState(false);
   const [loading, setLoading] = useState(false);
-  const [selectedLocation, setSelectedLocation] = useState(null);
   const [fieldErrors, setFieldErrors] = useState({}); // Track field-specific errors
   const [hasValidationErrors, setHasValidationErrors] = useState(true); // Track if form has errors - start as true
 
@@ -51,7 +42,6 @@ const SimpleRegisterScreen = ({ navigation }) => {
   const confirmPasswordRef = useRef(null);
 
   const { checkEmailExists } = useAuth();
-  const { location } = useLocation();
   const { showError, showSuccess } = useToast();
 
   // Helper function to focus next field
@@ -63,17 +53,6 @@ const SimpleRegisterScreen = ({ navigation }) => {
     }, 100);
   };
 
-  // Initialize selectedLocation if context already has a location
-  useEffect(() => {
-    if (location && !selectedLocation) {
-      const locationText = location.selected || location.primary || '';
-      if (locationText) {
-        setSelectedLocation(locationText);
-        Logger.info('📍 Initialized selected location from context:', locationText);
-      }
-    }
-  }, [location, selectedLocation]);
-
   // Check form validity whenever form data or errors change
   useEffect(() => {
     const checkFormValidity = () => {
@@ -83,7 +62,7 @@ const SimpleRegisterScreen = ({ navigation }) => {
         return;
       }
 
-      // Check if all required fields are filled
+      // Check if all required fields are filled - minimal registration
       const isValid =
         formData.name &&
         formData.name.trim().length >= 2 &&
@@ -94,16 +73,13 @@ const SimpleRegisterScreen = ({ navigation }) => {
         formData.confirmPassword &&
         formData.confirmPassword === formData.password &&
         formData.birthDate &&
-        formData.age >= 18 &&
-        formData.gender &&
-        formData.interestedIn &&
-        selectedLocation;
+        formData.age >= 18;
 
       setHasValidationErrors(!isValid);
     };
 
     checkFormValidity();
-  }, [formData, fieldErrors, selectedLocation]);
+  }, [formData, fieldErrors]);
 
   // Validate all text fields when clicking on non-input elements
   const validateTextFields = () => {
@@ -274,27 +250,6 @@ const SimpleRegisterScreen = ({ navigation }) => {
       hasErrors = true;
     }
 
-    // Gender validation
-    if (!formData.gender) {
-      errors.gender = 'Please select your gender';
-      showError('Please select your gender');
-      hasErrors = true;
-    }
-
-    // Interested in validation
-    if (!formData.interestedIn) {
-      errors.interestedIn = "Please select who you're interested in";
-      showError("Please select who you're interested in");
-      hasErrors = true;
-    }
-
-    // Location validation
-    if (!selectedLocation) {
-      errors.location = 'Please select your location';
-      showError('Please select your location');
-      hasErrors = true;
-    }
-
     setFieldErrors(errors);
     return !hasErrors;
   };
@@ -304,42 +259,35 @@ const SimpleRegisterScreen = ({ navigation }) => {
 
     setLoading(true);
     try {
-      Logger.info('🔄 Creating account with basic info...');
+      Logger.info('🔄 Creating account with minimal info...');
 
-      // Create account immediately with minimal required data
+      // Create account with minimal required data
       const userData = {
         email: formData.email,
         password: formData.password,
         name: formData.name,
         birthDate: formData.birthDate,
-        gender: formData.gender,
-        interestedIn: formData.interestedIn,
-        location: String(selectedLocation || 'Pasadena, California'),
-        coordinates: {
-          latitude: Number(location && location.latitude ? location.latitude : 34.16),
-          longitude: Number(location && location.longitude ? location.longitude : -118.07),
-          address: String(selectedLocation || 'Pasadena, California'),
-        },
-        bio: '', // Empty for now
-        hasCompletedOnboarding: false, // Mark as incomplete
-        onboardingStep: 2, // Next step is photos
+        // No gender, interestedIn, or location for minimal registration
       };
 
       // Debug log to see what we're sending
-      Logger.info('🔍 Registration data being sent:', {
-        location: userData.location,
-        coordinates: userData.coordinates,
-        selectedLocation,
-        contextLocation: location,
+      Logger.info('🔍 Minimal registration data being sent:', {
+        email: userData.email,
+        name: userData.name,
+        birthDate: userData.birthDate,
       });
 
       // Register user via API (normal login flow)
       const result = await register(userData);
 
-      if (result.success) {
+      if (result.success || result.requiresSetup) {
         Logger.success('✅ Account created successfully');
-        showSuccess("Welcome to Hantibink! Let's complete your profile");
-        // Navigation to main app happens automatically via AuthContext
+        if (result.requiresSetup) {
+          showSuccess("Welcome! Let's set up your profile to start discovering people");
+        } else {
+          showSuccess('Welcome to Hantibink!');
+        }
+        // Navigation to profile setup or main app happens automatically via AuthContext
       } else {
         Logger.error('❌ Registration failed:', result.error);
 
@@ -382,7 +330,7 @@ const SimpleRegisterScreen = ({ navigation }) => {
             <TouchableOpacity style={styles.backButton} onPress={() => navigation.goBack()}>
               <MaterialIcons name="arrow-back" size={24} color="#333" />
             </TouchableOpacity>
-            <Text style={styles.title}>Step 1: Basic Info</Text>
+            <Text style={styles.title}>Create Your Account</Text>
             <View style={styles.placeholder} />
           </View>
 
@@ -534,75 +482,6 @@ const SimpleRegisterScreen = ({ navigation }) => {
                 <Text style={styles.errorText}>{fieldErrors.birthDate}</Text>
               )}
             </View>
-
-            {/* Location */}
-            <View style={styles.fieldContainer}>
-              <Text style={styles.label}>Location *</Text>
-              <LocationPicker
-                currentLocation={selectedLocation || ''}
-                placeholder="Select your location"
-                required={true}
-                hasError={!!fieldErrors.location}
-                onLocationSelected={locationText => {
-                  setSelectedLocation(locationText);
-                  Logger.info('📍 Location selected in registration:', locationText);
-                  // Clear location error when selected
-                  if (fieldErrors.location) {
-                    const newErrors = { ...fieldErrors };
-                    delete newErrors.location;
-                    setFieldErrors(newErrors);
-                    setHasValidationErrors(Object.keys(newErrors).length > 0);
-                  }
-                }}
-              />
-              {fieldErrors.location && <Text style={styles.errorText}>{fieldErrors.location}</Text>}
-            </View>
-
-            {/* Gender */}
-            <View style={styles.fieldContainer}>
-              <Text style={styles.label}>Gender *</Text>
-              <TouchableOpacity
-                style={[styles.selectionButton, fieldErrors.gender && styles.inputError]}
-                onPress={() => {
-                  validateTextFields(); // Validate text fields when clicking dropdown
-                  setShowGenderPicker(true);
-                }}
-              >
-                <Text style={[styles.selectionText, !formData.gender && styles.placeholderText]}>
-                  {formData.gender
-                    ? genderOptions.find(opt => opt.id === formData.gender)?.label ||
-                      formData.gender
-                    : 'Select your gender'}
-                </Text>
-                <MaterialIcons name="keyboard-arrow-down" size={24} color="#666" />
-              </TouchableOpacity>
-              {fieldErrors.gender && <Text style={styles.errorText}>{fieldErrors.gender}</Text>}
-            </View>
-
-            {/* Interested In */}
-            <View style={styles.fieldContainer}>
-              <Text style={styles.label}>Interested In *</Text>
-              <TouchableOpacity
-                style={[styles.selectionButton, fieldErrors.interestedIn && styles.inputError]}
-                onPress={() => {
-                  validateTextFields(); // Validate text fields when clicking dropdown
-                  setShowInterestedInPicker(true);
-                }}
-              >
-                <Text
-                  style={[styles.selectionText, !formData.interestedIn && styles.placeholderText]}
-                >
-                  {formData.interestedIn
-                    ? interestedInOptions.find(opt => opt.id === formData.interestedIn)?.label ||
-                      formData.interestedIn
-                    : "Select who you're interested in"}
-                </Text>
-                <MaterialIcons name="keyboard-arrow-down" size={24} color="#666" />
-              </TouchableOpacity>
-              {fieldErrors.interestedIn && (
-                <Text style={styles.errorText}>{fieldErrors.interestedIn}</Text>
-              )}
-            </View>
           </View>
           {/* Register Button */}
           <View style={styles.buttonContainer}>
@@ -615,7 +494,7 @@ const SimpleRegisterScreen = ({ navigation }) => {
               disabled={loading || hasValidationErrors}
             >
               <Text style={styles.registerButtonText}>
-                {loading ? 'Creating Account...' : 'Create Account & Continue'}
+                {loading ? 'Creating Account...' : 'Create Account'}
               </Text>
             </TouchableOpacity>
 
@@ -644,34 +523,6 @@ const SimpleRegisterScreen = ({ navigation }) => {
             minimumDate={new Date(1940, 0, 1)}
           />
         )}
-
-        {/* Gender Selection Modal */}
-        <SelectionPanel
-          visible={showGenderPicker}
-          onClose={() => setShowGenderPicker(false)}
-          title="Select Gender"
-          options={genderOptions}
-          selectedValue={formData.gender}
-          onSelect={value => {
-            updateField('gender', value);
-            setShowGenderPicker(false);
-          }}
-          placeholder="Select your gender"
-        />
-
-        {/* Interested In Selection Modal */}
-        <SelectionPanel
-          visible={showInterestedInPicker}
-          onClose={() => setShowInterestedInPicker(false)}
-          title="Interested In"
-          options={interestedInOptions}
-          selectedValue={formData.interestedIn}
-          onSelect={value => {
-            updateField('interestedIn', value);
-            setShowInterestedInPicker(false);
-          }}
-          placeholder="Select who you're interested in"
-        />
       </KeyboardAvoidingView>
     </SafeAreaView>
   );
@@ -796,21 +647,6 @@ const styles = StyleSheet.create({
     color: '#999',
   },
 
-  selectionButton: {
-    backgroundColor: '#fff',
-    borderRadius: 12,
-    paddingHorizontal: 16,
-    paddingVertical: 16,
-    borderWidth: 1,
-    borderColor: '#e0e0e0',
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-  },
-  selectionText: {
-    fontSize: 16,
-    color: '#333',
-  },
   inputError: {
     borderColor: '#FF6B6B',
     backgroundColor: '#FFF5F5',

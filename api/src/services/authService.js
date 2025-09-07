@@ -4,6 +4,7 @@ const { verifyIdToken } = require('../config/firebase');
 const logger = require('../utils/logger');
 const { getPrismaClient } = require('../config/database');
 const { parseRelationshipType, formatHeight } = require('../utils/profileUtils');
+const { createEmailVerification, sendVerificationEmail } = require('./emailService');
 
 const prisma = getPrismaClient();
 
@@ -20,18 +21,21 @@ const registerUser = async (userData) => {
       bio, education, profession, height, relationshipType, religion, smoking, drinking, travel, pets, interests = []
     } = userData;
     
-    // Debug: Log the incoming registration data
-    logger.debug('✅ Required registration data:', {
+    // Debug: Log the incoming registration data - now with minimal required fields
+    logger.debug('✅ Required registration data (minimal):', {
       name: !!name,
       email: !!email,
       password: !!password,
       birthDate: !!birthDate,
+    });
+    logger.debug('🔹 Optional setup data (for discovery):', {
       gender: !!gender,
       interestedIn: !!interestedIn,
       locationText: !!locationText,
       location: !!location,
+      photos: photos?.length > 0 ? `${photos.length} photos` : null,
     });
-    logger.debug('🔹 Optional profile data (Step 3):', {
+    logger.debug('🔹 Optional profile data:', {
       bio: bio || null,
       education: education || null,
       profession: profession || null,
@@ -43,7 +47,6 @@ const registerUser = async (userData) => {
       travel: travel || null,
       pets: pets || null,
       interests: Array.isArray(interests) ? interests : [],
-      photos: photos?.length > 0 ? `${photos.length} photos` : null,
     });
 
     // Check if user already exists
@@ -61,15 +64,15 @@ const registerUser = async (userData) => {
     const saltRounds = 12;
     const hashedPassword = await bcrypt.hash(password, saltRounds);
 
-    // Convert gender and interestedIn to enum values
-    // Accept both old format (for backward compatibility) and new format
+    // Convert gender and interestedIn to enum values - now both optional
+    // Gender can be null for minimal registration
     const genderEnum = gender ? 
       (gender === 'man' || gender === 'male' ? 'MAN' : 
        gender === 'woman' || gender === 'female' ? 'WOMAN' : 
        gender === 'non-binary' ? 'OTHER' :
-       gender.toUpperCase()) : 'OTHER';
+       gender.toUpperCase()) : null; // Changed from 'OTHER' to null for minimal registration
     
-    // Handle interestedIn - convert to array if needed
+    // Handle interestedIn - convert to array if needed, can be null for minimal registration
     const interestedInEnum = interestedIn ? 
       (Array.isArray(interestedIn) ? interestedIn : [interestedIn])
         .map(g => {
@@ -78,7 +81,7 @@ const registerUser = async (userData) => {
           if (g === 'women' || g === 'female') {return 'WOMAN';}
           if (g === 'everyone') {return ['MAN', 'WOMAN', 'OTHER'];}  // Expand 'everyone' to all genders
           return g.toUpperCase();
-        }).flat() : ['MAN', 'WOMAN'];
+        }).flat() : null; // Changed from ['MAN', 'WOMAN'] to null for minimal registration
 
     // Using PostgreSQL + JWT authentication (no Firebase Auth)
     const firebaseUid = null;
@@ -190,13 +193,50 @@ const registerUser = async (userData) => {
 
     logger.info(`✅ User registered successfully: ${user.email}`);
 
+    // Check if profile setup is required
+    const requiresSetup = !user.gender || !user.interestedIn || user.interestedIn.length === 0 || !user.location;
+    
+    // Check if user has photos
+    const userPhotos = await prisma.photo.findMany({
+      where: { userId: user.id },
+      orderBy: { order: 'asc' },
+    });
+    
+    const hasPhotos = userPhotos.length > 0;
+    const isDiscoverable = !requiresSetup && hasPhotos;
+    
+    // Update user's onboarding stage and discoverability
+    await prisma.user.update({
+      where: { id: user.id },
+      data: {
+        onboardingStage: requiresSetup ? 'REGISTERED' : 'SETUP_COMPLETE',
+        isDiscoverable: false, // Not discoverable until email is verified
+        hasCompletedOnboarding: !requiresSetup,
+      },
+    });
+    
+    // Send verification email
+    try {
+      const verificationToken = await createEmailVerification(user.id);
+      await sendVerificationEmail(user.email, user.name, verificationToken);
+      logger.info(`📧 Verification email sent to ${user.email}`);
+    } catch (emailError) {
+      logger.error('Failed to send verification email:', emailError);
+      // Don't fail registration if email fails - user can request resend
+    }
+
     // Return user data without password
     // eslint-disable-next-line no-unused-vars
     const { password: _password, ...userWithoutPassword } = user;
     
     return {
-      user: userWithoutPassword,
+      user: {
+        ...userWithoutPassword,
+        photos: userPhotos,
+      },
       tokens,
+      requiresSetup,
+      isDiscoverable,
     };
   } catch (error) {
     logger.error('❌ User registration failed:', error);

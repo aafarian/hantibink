@@ -40,6 +40,8 @@ model User {
   hasCompletedOnboarding Boolean        @default(false)
   onboardingStage        OnboardingStage @default(REGISTERED)
   emailVerified          Boolean        @default(false)
+  emailVerificationToken String?
+  emailVerificationExpiry DateTime?
   phoneVerified          Boolean        @default(false)
   locationEnabled        Boolean        @default(false)
   isDiscoverable         Boolean        @default(false) // Computed based on requirements
