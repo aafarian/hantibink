@@ -42,4 +42,4 @@ build
 # Docker files (don't copy these into the image)
 Dockerfile*
 docker-compose*
-.dockerignore
+.dockerignore# Force rebuild Sun Sep  7 16:21:44 PDT 2025
