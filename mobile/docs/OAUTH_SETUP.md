@@ -69,9 +69,11 @@ eas secret:create --scope project --name EXPO_PUBLIC_GOOGLE_CLIENT_ID_PROD --val
 4. Configure:
    - **Application type**: Web application (for Expo)
    - **Authorized redirect URIs**:
-     - For Expo Go: `https://auth.expo.io/@antoafarian/hantibink`
-     - For standalone: `hantibink://` (your custom scheme)
+     - For Expo Go: `https://auth.expo.io/@your-expo-username/your-app-slug`
+     - For standalone: `your-app-scheme://` (your custom scheme)
      - For web: Your web app URL
+
+   Note: Replace `@your-expo-username` with your Expo account username and `your-app-slug` with your app's slug from app.json
 
 ### Backend Configuration
 

@@ -308,7 +308,7 @@ router.post('/resend-verification', authenticateJWT, async (req, res) => {
  * @desc    Authenticate with Google OAuth
  * @access  Public
  */
-router.post('/oauth/google', async (req, res) => {
+router.post('/oauth/google', authLimiter, async (req, res) => {
   try {
     const { idToken, accessToken } = req.body;
     
@@ -350,7 +350,7 @@ router.post('/oauth/google', async (req, res) => {
  * @desc    Complete OAuth profile with missing fields
  * @access  Private
  */
-router.post('/oauth/complete-profile', authenticateJWT, async (req, res) => {
+router.post('/oauth/complete-profile', authLimiter, authenticateJWT, async (req, res) => {
   try {
     const { birthDate, gender, interestedIn } = req.body;
     
@@ -390,7 +390,7 @@ router.post('/oauth/complete-profile', authenticateJWT, async (req, res) => {
  * @desc    Check if user exists and their auth methods
  * @access  Public
  */
-router.get('/oauth/check-user', async (req, res) => {
+router.get('/oauth/check-user', authLimiter, async (req, res) => {
   try {
     const { email } = req.query;
     
