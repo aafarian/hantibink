@@ -9,6 +9,11 @@ const {
   refreshTokens,
   checkEmailExists,
 } = require('../services/authService');
+const {
+  verifyEmailWithToken,
+  resendVerificationEmail,
+  sendWelcomeEmail,
+} = require('../services/emailService');
 
 const router = express.Router();
 
@@ -42,6 +47,7 @@ router.get('/', (req, res) => {
       'POST /forgot-password - Password reset request',
       'POST /reset-password - Password reset',
       'POST /verify-email - Email verification',
+      'POST /resend-verification - Resend verification email',
     ],
   });
 });
@@ -228,15 +234,78 @@ router.post('/reset-password', (req, res) => {
 
 /**
  * @route   POST /api/auth/verify-email
- * @desc    Verify email address
+ * @desc    Verify email address with token
  * @access  Public
  */
-router.post('/verify-email', (req, res) => {
-  res.json({
-    message: 'Email verification endpoint',
-    endpoint: 'POST /api/auth/verify-email',
-    status: 'Coming soon - will integrate with Firebase Auth',
-  });
+router.post('/verify-email', async (req, res) => {
+  try {
+    const { token } = req.body;
+    
+    if (!token) {
+      return res.status(400).json({
+        success: false,
+        error: 'Verification token is required',
+      });
+    }
+    
+    const user = await verifyEmailWithToken(token);
+    
+    // Send welcome email
+    await sendWelcomeEmail(user.email, user.name);
+    
+    res.json({
+      success: true,
+      message: 'Email verified successfully',
+      data: {
+        emailVerified: true,
+        requiresSetup: user.onboardingStage === 'REGISTERED',
+      },
+    });
+  } catch (error) {
+    logger.error('❌ Email verification error:', error);
+    
+    res.status(400).json({
+      success: false,
+      error: 'Email verification failed',
+      message: error.message,
+    });
+  }
+});
+
+/**
+ * @route   POST /api/auth/resend-verification
+ * @desc    Resend verification email
+ * @access  Private (requires authentication)
+ */
+router.post('/resend-verification', async (req, res) => {
+  try {
+    // Get user ID from auth token (assuming you have auth middleware)
+    const userId = req.user?.id || req.body.userId; // Fallback for testing
+    
+    if (!userId) {
+      return res.status(401).json({
+        success: false,
+        error: 'Authentication required',
+      });
+    }
+    
+    await resendVerificationEmail(userId);
+    
+    res.json({
+      success: true,
+      message: 'Verification email sent successfully',
+    });
+  } catch (error) {
+    logger.error('❌ Resend verification error:', error);
+    
+    const statusCode = error.message.includes('wait') ? 429 : 400;
+    
+    res.status(statusCode).json({
+      success: false,
+      error: 'Failed to resend verification email',
+      message: error.message,
+    });
+  }
 });
 
 module.exports = router;
