@@ -391,11 +391,13 @@ class ApiDataService {
         return response.data?.data || response.data || [];
       } else {
         Logger.error('❌ Failed to get discovery users from API:', response.message);
-        return [];
+        // Throw error to allow proper error handling in the UI
+        throw new Error(response.error || response.message || 'Failed to get discovery users');
       }
     } catch (error) {
       Logger.error('❌ Error getting discovery users from API:', error);
-      return [];
+      // Re-throw the error to allow proper error handling
+      throw error;
     }
   }
 

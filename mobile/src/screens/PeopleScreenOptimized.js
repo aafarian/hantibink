@@ -259,7 +259,25 @@ const PeopleScreenOptimized = ({ navigation }) => {
       }
     } catch (error) {
       Logger.error('Failed to load profiles:', error);
-      showError('Failed to load profiles. Please try again.');
+
+      // Handle specific discovery eligibility errors
+      const errorMessage = error.message || error.toString();
+
+      if (errorMessage.includes('PROFILE_INCOMPLETE')) {
+        showError('Please complete your profile to use discovery');
+        // Navigate to profile setup
+        navigation.navigate('Profile', { screen: 'ProfileMain' });
+      } else if (errorMessage.includes('PHOTOS_REQUIRED')) {
+        showError('Please add at least one photo to use discovery');
+        navigation.navigate('Profile', { screen: 'ProfileMain' });
+      } else if (errorMessage.includes('LOCATION_REQUIRED')) {
+        showError('Please enable location to find matches near you');
+        navigation.navigate('Profile', { screen: 'ProfileMain' });
+      } else if (errorMessage.includes('NOT_DISCOVERABLE')) {
+        showError('Please verify your email to use discovery');
+      } else {
+        showError('Failed to load profiles. Please try again.');
+      }
     } finally {
       setIsLoading(false);
       setHasInitialized(true); // Mark as initialized after first load
