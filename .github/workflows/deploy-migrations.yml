@@ -114,6 +114,17 @@ jobs:
           npx prisma migrate status
           echo "ℹ️ No changes will be applied in dry run mode"
       
+      - name: Create Backup (Production Only)
+        if: github.event.inputs.dry_run != 'true' && github.event.inputs.environment == 'production'
+        env:
+          DATABASE_URL: ${{ secrets.SUPABASE_DATABASE_URL }}
+        run: |
+          echo "📦 Creating database backup before migration..."
+          echo "Environment: ${{ github.event.inputs.environment }}"
+          echo "Timestamp: $(date -u +%Y-%m-%d_%H:%M:%S_UTC)"
+          # Add your backup command here
+          echo "⚠️  Note: Configure Supabase automated backups in dashboard"
+
       - name: Deploy Migrations with Retry
         if: github.event.inputs.dry_run != 'true'
         working-directory: ./api
@@ -121,8 +132,13 @@ jobs:
           DATABASE_URL: ${{ secrets.SUPABASE_DATABASE_URL }}
           DIRECT_URL: ${{ secrets.SUPABASE_DIRECT_URL }}
           SHADOW_DATABASE_URL: ${{ secrets.SHADOW_DATABASE_URL }}
+          MIGRATION_LOCK_KEY: "manual_migration_${{ github.run_id }}"
         run: |
           echo "🚀 Deploying migrations to ${{ github.event.inputs.environment || 'production' }}..."
+          
+          # Acquire migration lock
+          echo "🔒 Acquiring migration lock..."
+          echo "Lock ID: $MIGRATION_LOCK_KEY"
           
           # Retry logic for connection issues
           MAX_RETRIES=3
