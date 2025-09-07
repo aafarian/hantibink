@@ -62,7 +62,7 @@ jobs:
         if: ${{ vars.AUTO_MIGRATE == 'true' }}
         working-directory: ./api
         env:
-          DATABASE_URL: ${{ secrets.SUPABASE_DIRECT_URL }}
+          DATABASE_URL: ${{ secrets.SUPABASE_DATABASE_URL }}
           DIRECT_URL: ${{ secrets.SUPABASE_DIRECT_URL }}
           NODE_OPTIONS: "--dns-result-order=ipv4first --max-old-space-size=2048"
           MIGRATION_LOCK_KEY: "migration_lock_${{ github.sha }}"
@@ -105,19 +105,14 @@ jobs:
           echo "🔍 Database connection info:"
           echo "$DATABASE_URL" | sed 's/:[^@]*@/:****@/g'
 
-          # Check if URL already has parameters before adding more
+          # Add pooler parameters only to DATABASE_URL (for runtime)
+          # Keep DIRECT_URL as pure direct connection (for migrations)
           if [[ "$DATABASE_URL" == *"?"* ]]; then
             export DATABASE_URL="${DATABASE_URL}&pgbouncer=true&pool_timeout=0"
           else
             export DATABASE_URL="${DATABASE_URL}?pgbouncer=true&pool_timeout=0"
           fi
-
-          if [[ "$DIRECT_URL" == *"?"* ]]; then
-            export DIRECT_URL="${DIRECT_URL}&pgbouncer=true&pool_timeout=0"
-          else  
-            export DIRECT_URL="${DIRECT_URL}?pgbouncer=true&pool_timeout=0"
-          fi
-          echo "Added pooler parameters to connection strings"
+          echo "Added pooler parameters to DATABASE_URL (DIRECT_URL kept as direct connection)"
 
           # Retry logic for Supabase connection issues
           MAX_RETRIES=3
