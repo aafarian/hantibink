@@ -217,7 +217,7 @@ const registerUser = async (userData) => {
     
     // Send verification email
     try {
-      const verificationToken = await createEmailVerification(user.id, user.email);
+      const verificationToken = await createEmailVerification(user.id);
       await sendVerificationEmail(user.email, user.name, verificationToken);
       logger.info(`📧 Verification email sent to ${user.email}`);
     } catch (emailError) {

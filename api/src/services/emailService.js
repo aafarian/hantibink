@@ -132,17 +132,19 @@ const resendVerificationEmail = async (userId) => {
       throw new Error('Email already verified');
     }
     
-    // Check if we should rate limit (e.g., max 3 emails per hour)
-    // This is a simplified check - you might want to use Redis for proper rate limiting
+    // Check if we should rate limit
+    // The expiry is 24 hours from creation, so we calculate when it was created
     if (user.emailVerificationExpiry) {
-      const timeSinceLastEmail = Date.now() - (user.emailVerificationExpiry.getTime() - 24 * 60 * 60 * 1000);
+      const tokenCreatedAt = new Date(user.emailVerificationExpiry.getTime() - 24 * 60 * 60 * 1000);
+      const timeSinceLastEmail = Date.now() - tokenCreatedAt.getTime();
       if (timeSinceLastEmail < 5 * 60 * 1000) { // 5 minutes
-        throw new Error('Please wait 5 minutes before requesting another verification email');
+        const waitTime = Math.ceil((5 * 60 * 1000 - timeSinceLastEmail) / 1000 / 60);
+        throw new Error(`Please wait ${waitTime} more minute${waitTime > 1 ? 's' : ''} before requesting another verification email`);
       }
     }
     
     // Create new token
-    const token = await createEmailVerification(userId, user.email);
+    const token = await createEmailVerification(userId);
     
     // Send email
     await sendVerificationEmail(user.email, user.name, token);

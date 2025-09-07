@@ -2,6 +2,7 @@ const express = require('express');
 const rateLimit = require('express-rate-limit');
 const logger = require('../utils/logger');
 const { authValidation } = require('../middleware/validation');
+const { authenticateJWT } = require('../middleware/auth');
 const {
   registerUser,
   loginUser,
@@ -277,17 +278,10 @@ router.post('/verify-email', async (req, res) => {
  * @desc    Resend verification email
  * @access  Private (requires authentication)
  */
-router.post('/resend-verification', async (req, res) => {
+router.post('/resend-verification', authenticateJWT, async (req, res) => {
   try {
-    // Get user ID from auth token (assuming you have auth middleware)
-    const userId = req.user?.id || req.body.userId; // Fallback for testing
-    
-    if (!userId) {
-      return res.status(401).json({
-        success: false,
-        error: 'Authentication required',
-      });
-    }
+    // Get user ID from authenticated user
+    const userId = req.user.id;
     
     await resendVerificationEmail(userId);
     
