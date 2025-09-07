@@ -69,7 +69,11 @@ jobs:
         run: |
           echo "🔄 Applying migrations before build..."
           
-          # Simple lock mechanism using database
+          # Install dependencies first
+          npm ci
+          npx prisma generate
+          
+          # Simple lock mechanism using database (after dependencies are installed)
           echo "🔒 Acquiring migration lock..."
           node -e "
             const { PrismaClient } = require('@prisma/client');
@@ -90,9 +94,6 @@ jobs:
             }
             acquireLock();
           " || true
-          
-          npm ci
-          npx prisma generate
           
           # Retry logic for Supabase connection issues
           MAX_RETRIES=3
