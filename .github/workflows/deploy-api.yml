@@ -19,9 +19,50 @@ jobs:
     name: Deploy API
     runs-on: ubuntu-latest
 
+    # Prevent concurrent deployments to avoid migration conflicts
+    concurrency:
+      group: deploy-production
+      cancel-in-progress: false
+
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          cache: 'npm'
+          cache-dependency-path: api/package-lock.json
+
+      - name: Install dependencies
+        working-directory: ./api
+        run: npm ci
+
+      - name: Generate Prisma Client
+        working-directory: ./api
+        run: npx prisma generate
+
+      - name: Check Migration Status
+        working-directory: ./api
+        env:
+          DATABASE_URL: ${{ secrets.SUPABASE_DATABASE_URL }}
+          DIRECT_URL: ${{ secrets.SUPABASE_DIRECT_URL }}
+          NODE_OPTIONS: "--dns-result-order=ipv4first"
+        run: |
+          echo "Checking migration status..."
+          npx prisma migrate status || echo "Pending migrations detected"
+
+      - name: Deploy Database Migrations
+        working-directory: ./api
+        env:
+          DATABASE_URL: ${{ secrets.SUPABASE_DATABASE_URL }}
+          DIRECT_URL: ${{ secrets.SUPABASE_DIRECT_URL }}
+          NODE_OPTIONS: "--dns-result-order=ipv4first"
+        run: |
+          echo "Deploying migrations to production database..."
+          npx prisma migrate deploy
+          echo "✅ Migrations deployed successfully"
 
       - name: Authenticate to Google Cloud
         uses: google-github-actions/auth@v2
