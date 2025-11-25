@@ -51,11 +51,15 @@ CREATE TABLE "users" (
     "latitude" DOUBLE PRECISION,
     "longitude" DOUBLE PRECISION,
     "mainPhotoId" TEXT,
+    "mainPhotoUrl" TEXT,
+    "registrationMethod" TEXT,
     "isActive" BOOLEAN NOT NULL DEFAULT true,
     "isPremium" BOOLEAN NOT NULL DEFAULT false,
     "hasCompletedOnboarding" BOOLEAN NOT NULL DEFAULT false,
     "onboardingStage" "OnboardingStage" NOT NULL DEFAULT 'REGISTERED',
     "emailVerified" BOOLEAN NOT NULL DEFAULT false,
+    "emailVerificationToken" TEXT,
+    "emailVerificationExpiry" TIMESTAMP(3),
     "phoneVerified" BOOLEAN NOT NULL DEFAULT false,
     "locationEnabled" BOOLEAN NOT NULL DEFAULT false,
     "isDiscoverable" BOOLEAN NOT NULL DEFAULT false,
@@ -297,3 +301,4 @@ ALTER TABLE "reports" ADD CONSTRAINT "reports_reportedId_fkey" FOREIGN KEY ("rep
 
 -- AddForeignKey
 ALTER TABLE "reports" ADD CONSTRAINT "reports_reporterId_fkey" FOREIGN KEY ("reporterId") REFERENCES "users"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+

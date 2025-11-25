@@ -35,6 +35,8 @@ model User {
   latitude               Float?
   longitude              Float?
   mainPhotoId            String?
+  mainPhotoUrl           String?
+  registrationMethod     String?
   isActive               Boolean        @default(true)
   isPremium              Boolean        @default(false)
   hasCompletedOnboarding Boolean        @default(false)
@@ -51,6 +53,7 @@ model User {
   totalLikes             Int            @default(0)
   totalMatches           Int            @default(0)
   languages              String[]       @default([])
+  migrationTest          String?        // TEST: Verify automated migration pipeline - will be removed
   matchesAsUser1         Match[]        @relation("user1Matches")
   matchesAsUser2         Match[]        @relation("user2Matches")
   receivedMessages       Message[]      @relation("receivedMessages")
