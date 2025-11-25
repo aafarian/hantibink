@@ -7,6 +7,9 @@
     },
     "android": {
       "package": "com.antoafarian.hantibink"
+    },
+    "ios": {
+      "bundleIdentifier": "com.antoafarian.hantibink"
     }
   }
 }
