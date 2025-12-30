@@ -266,20 +266,36 @@ async function startServer() {
       },
     });
 
+    // Track socket -> user data for proper disconnect handling
+    const socketUserMap = new Map();
+
     // Socket.IO connection handling
     io.on('connection', (socket) => {
       logger.info(`🔌 User connected: ${socket.id}`);
       logger.info(`🔌 Total connected sockets: ${io.engine.clientsCount}`);
 
+      // Initialize socket tracking
+      socketUserMap.set(socket.id, { userId: null, matchIds: new Set() });
+
       // Handle user joining their personal room
       socket.on('join-user-room', (userId) => {
         socket.join(`user:${userId}`);
+        // Track user ID for this socket
+        const userData = socketUserMap.get(socket.id);
+        if (userData) {
+          userData.userId = userId;
+        }
         logger.info(`👤 User ${userId} joined their room`);
       });
 
       // Handle joining match rooms for messaging
       socket.on('join-match-room', (matchId) => {
         socket.join(`match:${matchId}`);
+        // Track match ID for this socket
+        const userData = socketUserMap.get(socket.id);
+        if (userData) {
+          userData.matchIds.add(matchId);
+        }
         logger.info(
           `💬 Socket ${socket.id} joined match room: match:${matchId}`,
         );
@@ -291,6 +307,11 @@ async function startServer() {
       // Handle leaving match rooms
       socket.on('leave-match-room', (matchId) => {
         socket.leave(`match:${matchId}`);
+        // Remove match from tracking
+        const userData = socketUserMap.get(socket.id);
+        if (userData) {
+          userData.matchIds.delete(matchId);
+        }
         logger.info(`👋 Socket ${socket.id} left match room: ${matchId}`);
       });
 
@@ -349,8 +370,26 @@ async function startServer() {
 
       socket.on('disconnect', () => {
         logger.info(`🔌 User disconnected: ${socket.id}`);
-        // Note: Client should handle sending offline status before disconnect
-        // Server cannot determine which user this socket belonged to without additional tracking
+
+        // Get user data for this socket and broadcast offline status
+        const userData = socketUserMap.get(socket.id);
+        if (userData && userData.userId) {
+          const { userId, matchIds } = userData;
+
+          // Broadcast offline status to all match rooms this user was in
+          matchIds.forEach(matchId => {
+            socket.to(`match:${matchId}`).emit('user-online-status', {
+              userId,
+              isOnline: false,
+              timestamp: new Date(),
+            });
+          });
+
+          logger.info(`🔴 User ${userId} went offline (broadcast to ${matchIds.size} matches)`);
+        }
+
+        // Clean up tracking
+        socketUserMap.delete(socket.id);
       });
     });
 

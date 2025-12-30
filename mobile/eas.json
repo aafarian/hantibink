@@ -30,6 +30,7 @@
     },
     "production": {
       "autoIncrement": true,
+      "distribution": "internal",
       "env": {
         "NODE_ENV": "production",
         "EXPO_PUBLIC_API_URL": "https://hantibink-api-393816901275.us-central1.run.app",
@@ -37,6 +38,9 @@
       },
       "ios": {
         "resourceClass": "m-medium"
+      },
+      "android": {
+        "buildType": "apk"
       }
     }
   },

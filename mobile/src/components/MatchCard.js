@@ -24,6 +24,10 @@ export const MatchCard = ({
   const profilePhotoUrl = getUserProfilePhoto(user);
   const { openProfileSheet } = usePhotoViewer();
 
+  // Normalize lastMessage to always be a string
+  const lastMessageText =
+    typeof match.lastMessage === 'string' ? match.lastMessage : match.lastMessage?.content || '';
+
   const profileActionButtons = onMessagePress
     ? [
         {
@@ -78,10 +82,21 @@ export const MatchCard = ({
         {showLastMessage ? (
           <>
             {/* Show latest message and timestamp for conversation list */}
-            <Text style={styles.lastMessage} numberOfLines={1}>
+            <Text
+              style={[
+                styles.lastMessage,
+                match.isTyping && styles.typingText,
+                unreadCount > 0 && !match.isTyping && styles.unreadLastMessage,
+              ]}
+              numberOfLines={1}
+            >
               {match.isTyping
-                ? `${match.typingUser || 'User'} is typing...`
-                : match.lastMessage || 'Start a conversation...'}
+                ? `${match.typingUser || 'Someone'} is typing...`
+                : lastMessageText.includes('giphy.com') ||
+                    lastMessageText.includes('media.giphy') ||
+                    lastMessageText === '[GIF]'
+                  ? 'Sent a GIF 🎬'
+                  : lastMessageText || 'Start a conversation...'}
             </Text>
             <Text style={styles.lastMessageTime} numberOfLines={1}>
               {match.lastMessageTime
@@ -210,6 +225,14 @@ const styles = {
     fontSize: theme.typography.sizes.md,
     color: theme.colors.text.secondary,
     marginBottom: theme.spacing.xs,
+  },
+  unreadLastMessage: {
+    fontWeight: theme.typography.weights.semibold,
+    color: theme.colors.text.primary,
+  },
+  typingText: {
+    fontStyle: 'italic',
+    color: '#FF6B6B',
   },
   lastMessageTime: {
     fontSize: theme.typography.sizes.sm,

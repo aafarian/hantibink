@@ -625,19 +625,37 @@ class ApiDataService {
 
   /**
    * Send a message
+   * @param {string} matchId - The match ID
+   * @param {string|object} contentOrOptions - Message content string OR options object
+   * @param {string} messageType - Message type (only used if contentOrOptions is a string)
    */
-  static async sendMessage(matchId, content, messageType = 'TEXT') {
+  static async sendMessage(matchId, contentOrOptions, messageType = 'TEXT') {
     try {
       Logger.info('📤 Sending message via API...');
 
-      const response = await apiClient.post(`/messages/${matchId}`, {
-        content,
-        messageType,
-      });
+      // Support both old signature (content, messageType) and new signature (options object)
+      let body;
+      if (typeof contentOrOptions === 'object') {
+        body = {
+          content: contentOrOptions.content,
+          messageType: contentOrOptions.messageType || 'TEXT',
+          mediaUrl: contentOrOptions.mediaUrl || null,
+          replyToId: contentOrOptions.replyToId || null,
+        };
+      } else {
+        body = {
+          content: contentOrOptions,
+          messageType,
+        };
+      }
+
+      const response = await apiClient.post(`/messages/${matchId}`, body);
 
       if (response.success) {
         Logger.success('✅ Message sent via API');
-        return response.data;
+        // response.data is the API response body { success, message, data }
+        // response.data.data is the actual message object with id, content, etc.
+        return response.data?.data || response.data;
       } else {
         Logger.error('❌ Failed to send message via API:', response.message);
         throw new Error(response.message || 'Message sending failed');

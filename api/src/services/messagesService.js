@@ -1,5 +1,7 @@
 const logger = require('../utils/logger');
 const { getPrismaClient } = require('../config/database');
+const { sendMessageNotification } = require('./notificationService');
+const { getReactionsForMessages } = require('./reactionsService');
 
 const prisma = getPrismaClient();
 
@@ -37,17 +39,36 @@ const getMessages = async (matchId, userId, options = {}) => {
             name: true,
           },
         },
+        replyTo: {
+          select: {
+            id: true,
+            content: true,
+            messageType: true,
+            senderId: true,
+            sender: {
+              select: {
+                id: true,
+                name: true,
+              },
+            },
+          },
+        },
       },
       orderBy: { createdAt: 'asc' },
       take: limit,
       skip: offset,
     });
 
+    // Get reactions for all messages
+    const messageIds = messages.map((m) => m.id);
+    const reactionsMap = await getReactionsForMessages(messageIds);
+
     // Transform messages for client
     const transformedMessages = messages.map((message) => ({
       id: message.id,
       content: message.content,
       messageType: message.messageType,
+      mediaUrl: message.mediaUrl,
       senderId: message.senderId,
       senderName: message.sender.name,
       isFromMe: message.senderId === userId,
@@ -56,6 +77,14 @@ const getMessages = async (matchId, userId, options = {}) => {
       readAt: message.readAt,
       isDelivered: message.isDelivered,
       deliveredAt: message.deliveredAt,
+      reactions: reactionsMap[message.id] || {},
+      replyTo: message.replyTo ? {
+        id: message.replyTo.id,
+        content: message.replyTo.content,
+        messageType: message.replyTo.messageType,
+        senderId: message.replyTo.senderId,
+        senderName: message.replyTo.sender?.name,
+      } : null,
     }));
 
     logger.info(
@@ -73,7 +102,7 @@ const getMessages = async (matchId, userId, options = {}) => {
  */
 const sendMessage = async (matchId, senderId, messageData, io = null) => {
   try {
-    const { content, messageType = 'TEXT' } = messageData;
+    const { content, messageType = 'TEXT', mediaUrl = null, replyToId = null } = messageData;
 
     // Verify user has access to this match
     const match = await prisma.match.findUnique({
@@ -104,6 +133,8 @@ const sendMessage = async (matchId, senderId, messageData, io = null) => {
         receiverId,
         content,
         messageType,
+        mediaUrl,
+        replyToId,
         isDelivered: true,
         deliveredAt: new Date(),
       },
@@ -114,14 +145,38 @@ const sendMessage = async (matchId, senderId, messageData, io = null) => {
             name: true,
           },
         },
+        replyTo: {
+          select: {
+            id: true,
+            content: true,
+            messageType: true,
+            senderId: true,
+            sender: {
+              select: {
+                id: true,
+                name: true,
+              },
+            },
+          },
+        },
       },
     });
+
+    // Determine last message preview (show [GIF] for GIFs, etc.)
+    let lastMessagePreview = content;
+    if (messageType === 'GIF') {
+      lastMessagePreview = '[GIF]';
+    } else if (messageType === 'IMAGE') {
+      lastMessagePreview = '[Image]';
+    } else if (messageType === 'VIDEO') {
+      lastMessagePreview = '[Video]';
+    }
 
     // Update match with last message info
     await prisma.match.update({
       where: { id: matchId },
       data: {
-        lastMessage: content,
+        lastMessage: lastMessagePreview,
         lastMessageTime: message.createdAt,
         lastMessageBy: senderId,
       },
@@ -132,11 +187,20 @@ const sendMessage = async (matchId, senderId, messageData, io = null) => {
       id: message.id,
       content: message.content,
       messageType: message.messageType,
+      mediaUrl: message.mediaUrl,
       senderId: message.senderId,
       senderName: message.sender.name,
       timestamp: message.createdAt,
       isRead: message.isRead,
       isDelivered: message.isDelivered,
+      reactions: {},
+      replyTo: message.replyTo ? {
+        id: message.replyTo.id,
+        content: message.replyTo.content,
+        messageType: message.replyTo.messageType,
+        senderId: message.replyTo.senderId,
+        senderName: message.replyTo.sender?.name,
+      } : null,
     };
 
     logger.info(`Message sent in match ${matchId} by user ${senderId}`);
@@ -160,6 +224,24 @@ const sendMessage = async (matchId, senderId, messageData, io = null) => {
       });
 
       logger.info(`📡 Real-time message events sent for match ${matchId}`);
+    }
+
+    // Send push notification to receiver
+    const receiver = await prisma.user.findUnique({
+      where: { id: receiverId },
+      select: { pushToken: true },
+    });
+
+    if (receiver?.pushToken) {
+      const messagePreview =
+        lastMessagePreview.length > 100 ? `${lastMessagePreview.substring(0, 100)}...` : lastMessagePreview;
+      sendMessageNotification(
+        receiver.pushToken,
+        message.sender.name,
+        messagePreview
+      ).catch(err =>
+        logger.error('Failed to send push notification for message:', err)
+      );
     }
 
     return transformedMessage;

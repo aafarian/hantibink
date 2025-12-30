@@ -16,7 +16,7 @@ hantibink/
 ├── mobile/          # React Native app (iOS & Android)
 ├── api/             # Backend API (Node.js/Express)
 ├── scripts/         # Deployment and utility scripts
-├── docs/            # Documentation and guides
+├── CLAUDE.md        # Development guidelines
 └── README.md        # You are here
 ```
 
@@ -185,10 +185,9 @@ npm run test:ci
 ## 📚 Documentation
 
 - [Mobile App Setup](./mobile/README.md)
-- [Mobile App Installation](./docs/MOBILE_APP_INSTALL.md)
-- [CI/CD Setup Guide](./docs/CI_CD_SETUP.md)
 - [API Documentation](./api/README.md)
 - [Database Schema](./api/prisma/schema.prisma)
+- [Project Guidelines](./CLAUDE.md)
 
 ## 🔐 Security & Privacy
 
@@ -199,7 +198,7 @@ npm run test:ci
 
 ## 🤝 Contributing
 
-This is currently a private repository. For contribution guidelines and development setup, see [CONTRIBUTING.md](./docs/contributing.md).
+This is currently a private repository. See [CLAUDE.md](./CLAUDE.md) for development guidelines and coding standards.
 
 ## 📄 License
 

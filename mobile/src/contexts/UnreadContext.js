@@ -51,8 +51,33 @@ export const UnreadProvider = ({ children }) => {
 
     const setupRealTimeListeners = async () => {
       try {
-        // Get all user matches
-        const _matches = await ApiDataService.getUserMatches();
+        // Get all user matches and initialize unread counts
+        const matches = await ApiDataService.getUserMatches();
+
+        // Initialize conversations with data from API
+        if (matches && matches.length > 0) {
+          const initialConversations = matches.map(match => ({
+            matchId: match.id,
+            id: match.id,
+            match: match,
+            unreadCount: match.unreadCount || 0,
+            // API returns lastMessage as object { content, timestamp, senderId, isFromMe }
+            lastMessage: match.lastMessage || null,
+            lastMessageTime: match.lastMessage?.timestamp || match.lastMessageTime,
+            isTyping: false,
+            typingUser: null,
+          }));
+
+          setConversations(initialConversations);
+
+          // Calculate initial total unread
+          const totalUnread = initialConversations.filter(conv => conv.unreadCount > 0).length;
+          setUnreadConversationCount(totalUnread);
+
+          Logger.info(
+            `📬 Initialized ${matches.length} conversations, ${totalUnread} with unread messages`
+          );
+        }
 
         // Set up real-time listeners for each match's messages AND match document changes
         const matchListeners = [];
@@ -73,7 +98,7 @@ export const UnreadProvider = ({ children }) => {
                       messages: [...(conv.messages || []), data.message],
                       unreadCount: shouldIncrementUnread ? conv.unreadCount + 1 : conv.unreadCount,
                       lastMessage: data.message,
-                      lastActivity: new Date(data.message.timestamp),
+                      lastMessageTime: data.message.timestamp || data.message.createdAt,
                     };
                   }
                 }
@@ -111,7 +136,11 @@ export const UnreadProvider = ({ children }) => {
             // Update typing status for conversations
             setConversations(prev =>
               prev.map(conv => {
-                if (conv.id === data.matchId && data.userId !== user?.uid) {
+                // Check both matchId and id for compatibility
+                if (
+                  (conv.matchId === data.matchId || conv.id === data.matchId) &&
+                  data.userId !== user?.uid
+                ) {
                   return {
                     ...conv,
                     isTyping: data.isTyping,
@@ -126,16 +155,18 @@ export const UnreadProvider = ({ children }) => {
 
         const unsubscribeMatch = SocketService.onMatch((eventType, data) => {
           if (eventType === 'new-match') {
-            // Add new match to conversations
+            // Add new match to conversations with consistent structure
             setConversations(prev => [
               ...prev,
               {
+                matchId: data.matchId,
                 id: data.matchId,
-                otherUser: data.user,
-                messages: [],
+                match: data.matchedUser || data.user,
                 unreadCount: 0,
                 lastMessage: null,
-                lastActivity: new Date(data.timestamp),
+                lastMessageTime: data.timestamp,
+                isTyping: false,
+                typingUser: null,
               },
             ]);
           }

@@ -5,6 +5,7 @@ import SocketService from '../services/SocketService';
 import Logger from '../utils/logger';
 import { uploadImageToFirebase } from '../utils/imageUpload';
 import * as Location from 'expo-location';
+import { registerForPushNotificationsAsync } from '../utils/notifications';
 
 /**
  * Transform API profile format to Firebase format
@@ -77,6 +78,13 @@ export const AuthProvider = ({ children }) => {
             // Connect to WebSocket for session restoration
             SocketService.connect(profile.id);
             SocketService.updateOnlineStatus(profile.id, true);
+
+            // Register for push notifications on session restore
+            setTimeout(() => {
+              registerForPushNotificationsAsync().catch(error => {
+                Logger.warn('📱 Push notification registration failed on restore:', error);
+              });
+            }, 1500);
 
             Logger.success('✅ User session restored from API');
           } else {
@@ -385,6 +393,13 @@ export const AuthProvider = ({ children }) => {
           });
         }, 1000); // Small delay to let the registration complete first
 
+        // Register for push notifications after registration
+        setTimeout(() => {
+          registerForPushNotificationsAsync().catch(error => {
+            Logger.warn('📱 Push notification registration failed after register:', error);
+          });
+        }, 2000);
+
         Logger.success('✅ User registered via API');
         return {
           success: true,
@@ -445,6 +460,13 @@ export const AuthProvider = ({ children }) => {
             });
           }, 1000);
         }
+
+        // Register for push notifications
+        setTimeout(() => {
+          registerForPushNotificationsAsync().catch(error => {
+            Logger.warn('📱 Push notification registration failed:', error);
+          });
+        }, 1500);
 
         Logger.success('✅ User logged in via API');
         return { success: true };
