@@ -3,16 +3,10 @@
  * Store your OAuth client IDs here
  */
 
-// Validate OAuth configuration for production
-const validateConfig = (value, name, isDev = false) => {
+// Validate OAuth configuration - returns placeholder if missing (no longer throws)
+const validateConfig = (value, name) => {
   if (!value || value.includes('YOUR_')) {
-    if (!isDev) {
-      throw new Error(
-        `Missing required OAuth configuration: ${name}. ` +
-          `Please set the appropriate environment variable.`
-      );
-    }
-    // Return an obviously invalid value for development
+    // Return placeholder - OAuth will fail gracefully if user tries to use unconfigured provider
     return `MISSING_${name}_PLEASE_CONFIGURE`;
   }
   return value;
