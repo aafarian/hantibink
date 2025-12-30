@@ -8,6 +8,7 @@ const {
   markMessagesAsRead,
   deleteMessage,
 } = require('../services/messagesService');
+const { addReaction, removeReaction } = require('../services/reactionsService');
 
 const router = express.Router();
 
@@ -24,6 +25,8 @@ router.get('/', (req, res) => {
       'POST /:matchId - Send a message',
       'PUT /:matchId/read - Mark messages as read',
       'DELETE /:messageId - Delete a message',
+      'POST /:matchId/:messageId/reaction - Add reaction to a message',
+      'DELETE /:matchId/:messageId/reaction - Remove reaction from a message',
     ],
   });
 });
@@ -67,7 +70,7 @@ router.get('/:matchId', authenticateJWT, messageValidation.getMessages, async (r
 router.post('/:matchId', authenticateJWT, messageValidation.sendMessage, async (req, res) => {
   try {
     const { matchId } = req.params;
-    const { content, messageType = 'TEXT' } = req.body;
+    const { content, messageType = 'TEXT', mediaUrl = null, replyToId = null } = req.body;
 
     if (!content || content.trim().length === 0) {
       return res.status(400).json({
@@ -86,6 +89,8 @@ router.post('/:matchId', authenticateJWT, messageValidation.sendMessage, async (
       {
         content: content.trim(),
         messageType,
+        mediaUrl,
+        replyToId,
       },
       io,
     );
@@ -164,6 +169,84 @@ router.delete('/:messageId', authenticateJWT, async (req, res) => {
     res.status(400).json({
       success: false,
       error: 'Failed to delete message',
+      message: error.message,
+    });
+  }
+});
+
+/**
+ * @route   POST /api/messages/:matchId/:messageId/reaction
+ * @desc    Add or toggle a reaction on a message
+ * @access  Private
+ */
+router.post('/:matchId/:messageId/reaction', authenticateJWT, messageValidation.addReaction, async (req, res) => {
+  try {
+    const { messageId } = req.params;
+    const { emoji } = req.body;
+
+    if (!emoji) {
+      return res.status(400).json({
+        success: false,
+        error: 'Validation failed',
+        message: 'Emoji is required',
+      });
+    }
+
+    // Get Socket.IO instance from app
+    const io = req.app.get('io');
+
+    const result = await addReaction(messageId, req.user.id, emoji, io);
+
+    res.json({
+      success: true,
+      message: `Reaction ${result.action} successfully`,
+      data: result,
+    });
+  } catch (error) {
+    logger.error('❌ Add reaction error:', error);
+
+    res.status(400).json({
+      success: false,
+      error: 'Failed to add reaction',
+      message: error.message,
+    });
+  }
+});
+
+/**
+ * @route   DELETE /api/messages/:matchId/:messageId/reaction
+ * @desc    Remove a reaction from a message
+ * @access  Private
+ */
+router.delete('/:matchId/:messageId/reaction', authenticateJWT, messageValidation.removeReaction, async (req, res) => {
+  try {
+    const { messageId } = req.params;
+    const { emoji } = req.body;
+
+    if (!emoji) {
+      return res.status(400).json({
+        success: false,
+        error: 'Validation failed',
+        message: 'Emoji is required',
+      });
+    }
+
+    // Get Socket.IO instance from app
+    const io = req.app.get('io');
+
+    const result = await removeReaction(messageId, req.user.id, emoji, io);
+
+    res.json({
+      success: true,
+      message: 'Reaction removed successfully',
+      data: result,
+    });
+  } catch (error) {
+    logger.error('❌ Remove reaction error:', error);
+
+    res.status(400).json({
+      success: false,
+      error: 'Failed to remove reaction',
       message: error.message,
     });
   }

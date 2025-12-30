@@ -4,12 +4,12 @@ import { PrismaClient } from '@prisma/client';
 import { execSync } from 'child_process';
 import Logger from '../src/utils/logger.js';
 
-// Set test environment
+// Set test environment - use environment variables with defaults for local dev
 process.env.NODE_ENV = 'test';
-process.env.JWT_SECRET = 'test-secret-key-for-testing';
-process.env.DATABASE_URL = 'postgresql://test:test@localhost:5433/hantibink_test';
-process.env.DIRECT_URL = 'postgresql://test:test@localhost:5433/hantibink_test';
-process.env.ADMIN_EMAIL = 'admin@example.com';
+process.env.JWT_SECRET = process.env.JWT_SECRET || 'test-secret-key-for-testing';
+process.env.DATABASE_URL = process.env.TEST_DATABASE_URL || process.env.DATABASE_URL;
+process.env.DIRECT_URL = process.env.TEST_DIRECT_URL || process.env.DIRECT_URL;
+process.env.ADMIN_EMAIL = process.env.ADMIN_EMAIL || 'admin@example.com';
 
 // Suppress logs during tests (except errors)
 if (process.env.NODE_ENV === 'test') {

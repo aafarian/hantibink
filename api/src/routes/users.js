@@ -2,15 +2,18 @@ const express = require('express');
 const logger = require('../utils/logger');
 const { authenticateJWT } = require('../middleware/auth');
 const { profileValidation } = require('../middleware/validation');
+const { getPrismaClient } = require('../config/database');
 // Removed caching from profile endpoint as it changes frequently
-const { 
-  getUserProfile, 
-  updateUserProfile, 
-  addUserPhoto, 
-  deleteUserPhoto, 
-  reorderUserPhotos, 
-  setMainPhoto 
+const {
+  getUserProfile,
+  updateUserProfile,
+  addUserPhoto,
+  deleteUserPhoto,
+  reorderUserPhotos,
+  setMainPhoto
 } = require('../services/authService');
+
+const prisma = getPrismaClient();
 
 const router = express.Router();
 
@@ -395,6 +398,49 @@ router.delete('/account', authenticateJWT, async (req, res) => {
     endpoint: 'DELETE /api/users/account',
     status: 'Coming soon - will implement account deletion with data cleanup',
   });
+});
+
+/**
+ * @route   POST /api/users/push-token
+ * @desc    Save Expo push notification token
+ * @access  Private
+ */
+router.post('/push-token', authenticateJWT, async (req, res) => {
+  try {
+    const { pushToken } = req.body;
+
+    if (!pushToken) {
+      return res.status(400).json({
+        success: false,
+        error: 'Push token is required',
+      });
+    }
+
+    // Validate Expo push token format
+    if (!pushToken.startsWith('ExponentPushToken[')) {
+      return res.status(400).json({
+        success: false,
+        error: 'Invalid push token format',
+      });
+    }
+
+    await prisma.user.update({
+      where: { id: req.user.id },
+      data: { pushToken },
+    });
+
+    logger.info(`Push token saved for user ${req.user.id}`);
+    res.json({
+      success: true,
+      message: 'Push token saved successfully',
+    });
+  } catch (error) {
+    logger.error('Error saving push token:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to save push token',
+    });
+  }
 });
 
 module.exports = router;

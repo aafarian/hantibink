@@ -53,6 +53,7 @@ model User {
   totalLikes             Int            @default(0)
   totalMatches           Int            @default(0)
   languages              String[]       @default([])
+  pushToken              String?        // Expo push notification token
   matchesAsUser1         Match[]        @relation("user1Matches")
   matchesAsUser2         Match[]        @relation("user2Matches")
   receivedMessages       Message[]      @relation("receivedMessages")
@@ -67,6 +68,7 @@ model User {
   interests              UserInterest[]
   oauthAccounts          OAuthAccount[]
   mainPhoto              Photo?         @relation("mainPhoto", fields: [mainPhotoId], references: [id])
+  messageReactions       MessageReaction[]
 
   @@map("users")
 }
@@ -139,25 +141,42 @@ model Match {
 }
 
 model Message {
-  id          String      @id @default(cuid())
-  createdAt   DateTime    @default(now())
-  updatedAt   DateTime    @updatedAt
+  id          String            @id @default(cuid())
+  createdAt   DateTime          @default(now())
+  updatedAt   DateTime          @updatedAt
   matchId     String
   senderId    String
   receiverId  String
   content     String
-  messageType MessageType @default(TEXT)
-  isRead      Boolean     @default(false)
+  messageType MessageType       @default(TEXT)
+  isRead      Boolean           @default(false)
   readAt      DateTime?
-  isDelivered Boolean     @default(false)
+  isDelivered Boolean           @default(false)
   deliveredAt DateTime?
   mediaUrl    String?
   mediaType   String?
-  match       Match       @relation(fields: [matchId], references: [id], onDelete: Cascade)
-  receiver    User        @relation("receivedMessages", fields: [receiverId], references: [id], onDelete: Cascade)
-  sender      User        @relation("sentMessages", fields: [senderId], references: [id], onDelete: Cascade)
+  replyToId   String?
+  match       Match             @relation(fields: [matchId], references: [id], onDelete: Cascade)
+  receiver    User              @relation("receivedMessages", fields: [receiverId], references: [id], onDelete: Cascade)
+  sender      User              @relation("sentMessages", fields: [senderId], references: [id], onDelete: Cascade)
+  replyTo     Message?          @relation("MessageReplies", fields: [replyToId], references: [id], onDelete: SetNull)
+  replies     Message[]         @relation("MessageReplies")
+  reactions   MessageReaction[]
 
   @@map("messages")
+}
+
+model MessageReaction {
+  id        String   @id @default(cuid())
+  createdAt DateTime @default(now())
+  messageId String
+  userId    String
+  emoji     String
+  message   Message  @relation(fields: [messageId], references: [id], onDelete: Cascade)
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([messageId, userId, emoji])
+  @@map("message_reactions")
 }
 
 model Interest {
@@ -260,6 +279,7 @@ enum MessageType {
   AUDIO
   LOCATION
   STICKER
+  GIF
 }
 
 enum NotificationType {

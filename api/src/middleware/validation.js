@@ -248,11 +248,18 @@ const messageValidation = {
     body('content')
       .notEmpty().withMessage('Message content is required')
       .isString().withMessage('Content must be a string')
-      .isLength({ min: 1, max: 1000 }).withMessage('Message must be between 1 and 1000 characters')
+      .isLength({ min: 1, max: 2000 }).withMessage('Message must be between 1 and 2000 characters')
       .trim(),
-    body('type')
+    body('messageType')
       .optional()
-      .isIn(['TEXT', 'IMAGE', 'GIF']).withMessage('Invalid message type'),
+      .isIn(['TEXT', 'IMAGE', 'VIDEO', 'AUDIO', 'LOCATION', 'STICKER', 'GIF']).withMessage('Invalid message type'),
+    body('mediaUrl')
+      .optional({ values: 'falsy' })
+      .isURL().withMessage('Invalid media URL'),
+    body('replyToId')
+      .optional({ values: 'falsy' })
+      .isString().withMessage('Reply ID must be a string')
+      .matches(ID_REGEX).withMessage('Invalid reply ID format'),
     handleValidationErrors,
   ],
 
@@ -275,6 +282,38 @@ const messageValidation = {
       .notEmpty().withMessage('Match ID is required')
       .matches(ID_REGEX)
       .withMessage('Invalid match ID format'),
+    handleValidationErrors,
+  ],
+
+  addReaction: [
+    param('matchId')
+      .notEmpty().withMessage('Match ID is required')
+      .matches(ID_REGEX)
+      .withMessage('Invalid match ID format'),
+    param('messageId')
+      .notEmpty().withMessage('Message ID is required')
+      .matches(ID_REGEX)
+      .withMessage('Invalid message ID format'),
+    body('emoji')
+      .notEmpty().withMessage('Emoji is required')
+      .isString().withMessage('Emoji must be a string')
+      .isLength({ min: 1, max: 8 }).withMessage('Invalid emoji'),
+    handleValidationErrors,
+  ],
+
+  removeReaction: [
+    param('matchId')
+      .notEmpty().withMessage('Match ID is required')
+      .matches(ID_REGEX)
+      .withMessage('Invalid match ID format'),
+    param('messageId')
+      .notEmpty().withMessage('Message ID is required')
+      .matches(ID_REGEX)
+      .withMessage('Invalid message ID format'),
+    body('emoji')
+      .notEmpty().withMessage('Emoji is required')
+      .isString().withMessage('Emoji must be a string')
+      .isLength({ min: 1, max: 8 }).withMessage('Invalid emoji'),
     handleValidationErrors,
   ],
 };

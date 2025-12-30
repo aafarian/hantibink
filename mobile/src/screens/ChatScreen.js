@@ -13,26 +13,48 @@ import {
   Pressable,
   ActivityIndicator,
   StatusBar,
-  Vibration,
   Keyboard,
   BackHandler,
 } from 'react-native';
+import * as Haptics from 'expo-haptics';
+import { Swipeable } from 'react-native-gesture-handler';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../contexts/AuthContext';
 import { useToast } from '../contexts/ToastContext';
 import { useIsPremium } from '../contexts/FeatureFlagsContext';
+import { usePhotoViewer } from '../contexts/PhotoViewerContext';
 import ApiDataService from '../services/ApiDataService';
 import SocketService from '../services/SocketService';
 import Logger from '../utils/logger';
 import { getUserProfilePhoto, getUserDisplayName } from '../utils/profileHelpers';
 import ProfileBottomSheet from '../components/shared/ProfileBottomSheet';
+import GifPicker from '../components/GifPicker';
+import EmojiPicker from 'rn-emoji-keyboard';
+import BottomSheet, { BottomSheetScrollView, BottomSheetBackdrop } from '@gorhom/bottom-sheet';
+
+// Helper to format "last seen X ago"
+const formatLastSeen = date => {
+  if (!date) return null;
+  const now = new Date();
+  const diffMs = now - date;
+  const diffMins = Math.floor(diffMs / 60000);
+  const diffHours = Math.floor(diffMs / 3600000);
+  const diffDays = Math.floor(diffMs / 86400000);
+
+  if (diffMins < 1) return 'Last seen just now';
+  if (diffMins < 60) return `Last seen ${diffMins}m ago`;
+  if (diffHours < 24) return `Last seen ${diffHours}h ago`;
+  if (diffDays < 7) return `Last seen ${diffDays}d ago`;
+  return 'Last seen recently';
+};
 
 const ChatScreen = ({ route, navigation }) => {
   const { match } = route.params;
   const { user } = useAuth();
-  const { showError, showSuccess } = useToast();
+  const { showError, showInfo } = useToast();
   const isPremium = useIsPremium();
+  const { openPhotoViewer } = usePhotoViewer();
   const _insets = useSafeAreaInsets();
 
   // State
@@ -43,11 +65,19 @@ const ChatScreen = ({ route, navigation }) => {
   const [isTyping, setIsTyping] = useState(false);
   const [otherUserTyping, setOtherUserTyping] = useState(false);
   const [_selectedMessage, _setSelectedMessage] = useState(null);
-  const [_showGifPicker, setShowGifPicker] = useState(false);
+  const [showGifPicker, setShowGifPicker] = useState(false);
   const [showReactionPicker, setShowReactionPicker] = useState(null);
   const [onlineStatus, setOnlineStatus] = useState(false);
+  const [lastSeen, setLastSeen] = useState(null);
   const [_longPressMessage, setLongPressMessage] = useState(null);
+  const [replyTo, setReplyTo] = useState(null);
   const [_keyboardVisible, setKeyboardVisible] = useState(false);
+  const [showScrollButton, setShowScrollButton] = useState(false);
+  const [tappedMessageId, setTappedMessageId] = useState(null);
+  const [isProfileSheetOpen, setIsProfileSheetOpen] = useState(false);
+  const [showMenu, setShowMenu] = useState(false);
+  const [reactionsDetailMessage, setReactionsDetailMessage] = useState(null);
+  const [reactionsTab, setReactionsTab] = useState('all'); // 'all', 'you', 'them'
 
   // Refs
   const flatListRef = useRef(null);
@@ -56,6 +86,17 @@ const ChatScreen = ({ route, navigation }) => {
   const hasMarkedAsReadRef = useRef(false);
   const profileSheetRef = useRef(null);
   const hasInitialScrollRef = useRef(false);
+  const swipeableRefs = useRef({});
+  const sentMessageIdsRef = useRef(new Set()); // Track IDs of messages we sent to avoid socket duplicates
+  const sentMessageTimeoutsRef = useRef(new Map()); // Track cleanup timeouts for sentMessageIds
+  const scrollButtonAnim = useRef(new Animated.Value(0)).current;
+
+  // Max number of message IDs to track (prevents unbounded growth)
+  const MAX_SENT_MESSAGE_IDS = 100;
+  const reactionsSheetRef = useRef(null);
+
+  // Snap points for reactions bottom sheet - fixed height for consistency
+  const reactionsSnapPoints = useMemo(() => [350], []);
 
   // Animation values
   const typingDotsAnim = useRef([
@@ -66,6 +107,51 @@ const ChatScreen = ({ route, navigation }) => {
 
   // Memoize reversed messages to avoid creating new array on every render
   const reversedMessages = useMemo(() => [...messages].reverse(), [messages]);
+
+  // Helper to track sent message IDs with max size limit and proper cleanup
+  const trackSentMessageId = useCallback(messageId => {
+    if (!messageId) return;
+
+    // Add to set
+    sentMessageIdsRef.current.add(messageId);
+
+    // Enforce max size by removing oldest entries (FIFO-style)
+    if (sentMessageIdsRef.current.size > MAX_SENT_MESSAGE_IDS) {
+      const idsArray = Array.from(sentMessageIdsRef.current);
+      const idsToRemove = idsArray.slice(0, idsArray.length - MAX_SENT_MESSAGE_IDS);
+      idsToRemove.forEach(id => {
+        sentMessageIdsRef.current.delete(id);
+        // Also clear associated timeout
+        const timeoutId = sentMessageTimeoutsRef.current.get(id);
+        if (timeoutId) {
+          clearTimeout(timeoutId);
+          sentMessageTimeoutsRef.current.delete(id);
+        }
+      });
+    }
+
+    // Schedule cleanup after 10 seconds
+    const timeoutId = setTimeout(() => {
+      sentMessageIdsRef.current.delete(messageId);
+      sentMessageTimeoutsRef.current.delete(messageId);
+    }, 10000);
+
+    sentMessageTimeoutsRef.current.set(messageId, timeoutId);
+  }, []);
+
+  // Cleanup sent message tracking on unmount
+  useEffect(() => {
+    // Capture refs for cleanup
+    const timeoutsMap = sentMessageTimeoutsRef.current;
+    const idsSet = sentMessageIdsRef.current;
+
+    return () => {
+      // Clear all pending timeouts
+      timeoutsMap.forEach(timeoutId => clearTimeout(timeoutId));
+      timeoutsMap.clear();
+      idsSet.clear();
+    };
+  }, []);
 
   // Load messages on mount
   useEffect(() => {
@@ -112,10 +198,20 @@ const ChatScreen = ({ route, navigation }) => {
     try {
       setIsLoading(true);
       const loadedMessages = await ApiDataService.getMessages(match.matchId);
-      setMessages(loadedMessages || []);
+
+      // Filter out any messages without valid IDs and log warning
+      const validMessages = (loadedMessages || []).filter(msg => {
+        if (!msg.id) {
+          Logger.warn('Message without ID found:', msg);
+          return false;
+        }
+        return true;
+      });
+
+      setMessages(validMessages);
 
       // Only mark as read if there are messages from the other user
-      if (loadedMessages?.some(msg => msg.senderId !== user.uid)) {
+      if (validMessages.some(msg => msg.senderId !== user.uid)) {
         markMessagesAsRead();
       }
     } catch (error) {
@@ -134,9 +230,17 @@ const ChatScreen = ({ route, navigation }) => {
     const unsubscribeMessage = SocketService.onMessage((event, data) => {
       if (event === 'new-message' && data.matchId === match.matchId) {
         // Don't add our own messages via socket (they're already added optimistically)
-        if (data.message?.senderId !== user.uid) {
-          handleNewMessage(data);
+        // Use String() to handle potential type mismatches
+        const messageSenderId = String(data.message?.senderId || '');
+        const currentUserId = String(user.uid || '');
+        const messageId = data.message?.id;
+
+        // Skip if it's our own message OR if we already added this message (via API response)
+        if (messageSenderId === currentUserId || sentMessageIdsRef.current.has(messageId)) {
+          Logger.info(`📩 Skipping own/duplicate message: ${messageId}`);
+          return;
         }
+        handleNewMessage(data);
       } else if (event === 'message-reaction' && data.matchId === match.matchId) {
         handleMessageReaction(data);
       } else if (event === 'user-typing' && data.matchId === match.matchId) {
@@ -147,9 +251,12 @@ const ChatScreen = ({ route, navigation }) => {
     });
 
     // Check online status
-    const unsubscribeOnline = SocketService.onUserStatus((userId, isOnline) => {
+    const unsubscribeOnline = SocketService.onUserStatus((userId, isOnline, timestamp) => {
       if (userId === match.otherUser.id) {
         setOnlineStatus(isOnline);
+        if (!isOnline && timestamp) {
+          setLastSeen(new Date(timestamp));
+        }
       }
     });
 
@@ -186,19 +293,30 @@ const ChatScreen = ({ route, navigation }) => {
   // Handle new incoming message
   const handleNewMessage = messageData => {
     // Transform the message data to match our format
+    const msg = messageData.message || messageData;
+
+    // Validate message has an ID
+    if (!msg.id) {
+      Logger.warn('Received message without ID, skipping:', msg);
+      return;
+    }
+
     const transformedMessage = {
-      id: messageData.message?.id || messageData.id,
-      text: messageData.message?.content || messageData.content || messageData.text,
-      senderId: messageData.message?.senderId || messageData.senderId,
-      senderName: messageData.message?.senderName || messageData.senderName,
-      createdAt: messageData.message?.timestamp || messageData.timestamp || messageData.createdAt,
-      messageType: messageData.message?.messageType || messageData.messageType || 'TEXT',
-      isRead: messageData.message?.isRead || messageData.isRead || false,
-      isDelivered: messageData.message?.isDelivered || messageData.isDelivered || false,
+      id: msg.id,
+      text: msg.content || msg.text,
+      content: msg.content,
+      mediaUrl: msg.mediaUrl,
+      senderId: msg.senderId,
+      senderName: msg.senderName,
+      createdAt: msg.timestamp || msg.createdAt,
+      messageType: msg.messageType || 'TEXT',
+      isRead: msg.isRead || false,
+      isDelivered: msg.isDelivered || false,
+      reactions: msg.reactions || {},
     };
 
     setMessages(prev => {
-      const exists = prev.some(msg => msg.id === transformedMessage.id);
+      const exists = prev.some(m => m.id === transformedMessage.id);
       if (exists) return prev;
       // Scroll to bottom when receiving new message
       setTimeout(() => scrollToBottom(true), 100);
@@ -237,60 +355,99 @@ const ChatScreen = ({ route, navigation }) => {
     );
   };
 
+  // Core message sending function (handles both text and GIF)
+  const sendMessageCore = async ({ content, messageType, mediaUrl = null, replyToData = null }) => {
+    const tempId = `temp-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+
+    // Build temp message for optimistic update
+    const tempMessage = {
+      id: tempId,
+      content,
+      text: messageType === 'TEXT' ? content : undefined,
+      messageType,
+      mediaUrl,
+      senderId: user.uid,
+      senderName: user.displayName,
+      createdAt: new Date().toISOString(),
+      isTemp: true,
+      reactions: {},
+      replyTo: replyToData,
+    };
+
+    // Add to messages immediately
+    setMessages(prev => [...prev, tempMessage]);
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    setTimeout(() => scrollToBottom(true), 100);
+
+    try {
+      const apiPayload = {
+        content,
+        messageType,
+        ...(mediaUrl && { mediaUrl }),
+        ...(replyToData && { replyToId: replyToData.id }),
+      };
+
+      const sentMessage = await ApiDataService.sendMessage(match.matchId, apiPayload);
+
+      if (!sentMessage?.id) {
+        Logger.error(`API returned ${messageType} message without ID:`, sentMessage);
+        throw new Error('Invalid message response from server');
+      }
+
+      trackSentMessageId(sentMessage.id);
+
+      // Replace temp message with real one
+      setMessages(prev =>
+        prev.map(msg =>
+          msg.id === tempId
+            ? { ...sentMessage, senderId: user.uid, isTemp: false, ...(mediaUrl && { mediaUrl }) }
+            : msg
+        )
+      );
+    } catch (error) {
+      Logger.error(`Failed to send ${messageType.toLowerCase()}:`, error);
+      showError(`Failed to send ${messageType === 'GIF' ? 'GIF' : 'message'}`);
+      setMessages(prev => prev.filter(msg => msg.id !== tempId));
+    }
+  };
+
   // Send text message
   const sendMessage = async () => {
     if (!messageText.trim() || isSending) return;
 
     const text = messageText.trim();
+    const currentReplyTo = replyTo;
+
+    // Clear inputs immediately
     setMessageText('');
+    setReplyTo(null);
     setIsSending(true);
 
-    // Optimistic update
-    const tempMessage = {
-      id: `temp-${Date.now()}`,
-      text,
-      senderId: user.uid,
-      senderName: user.displayName,
-      createdAt: new Date().toISOString(),
-      isTemp: true,
-    };
+    // Build replyTo data if replying
+    const replyToData = currentReplyTo
+      ? {
+          id: currentReplyTo.id,
+          content: currentReplyTo.content || currentReplyTo.text,
+          messageType: currentReplyTo.messageType || 'TEXT',
+          senderId: currentReplyTo.senderId,
+          senderName:
+            currentReplyTo.senderId === user.uid
+              ? user.displayName
+              : getUserDisplayName(match.otherUser),
+        }
+      : null;
 
-    setMessages(prev => [...prev, tempMessage]);
-    // Scroll to bottom when sending a message
-    setTimeout(() => scrollToBottom(true), 100);
-
-    try {
-      const result = await ApiDataService.sendMessage(match.matchId, text);
-
-      // Replace temp message with real one
-      setMessages(prev =>
-        prev.map(msg => (msg.id === tempMessage.id ? { ...result.data, isTemp: false } : msg))
-      );
-    } catch (error) {
-      Logger.error('Failed to send message:', error);
-      showError('Failed to send message');
-
-      // Remove temp message on error
-      setMessages(prev => prev.filter(msg => msg.id !== tempMessage.id));
-    } finally {
-      setIsSending(false);
-    }
+    await sendMessageCore({ content: text, messageType: 'TEXT', replyToData });
+    setIsSending(false);
   };
 
   // Send GIF
-  const _sendGif = async gifUrl => {
+  const sendGif = async gifUrl => {
     setShowGifPicker(false);
     setIsSending(true);
 
-    try {
-      await ApiDataService.sendGifMessage(match.matchId, gifUrl);
-      showSuccess('GIF sent!');
-    } catch (error) {
-      Logger.error('Failed to send GIF:', error);
-      showError('Failed to send GIF');
-    } finally {
-      setIsSending(false);
-    }
+    await sendMessageCore({ content: gifUrl, messageType: 'GIF', mediaUrl: gifUrl });
+    setIsSending(false);
   };
 
   // Handle typing
@@ -317,38 +474,15 @@ const ChatScreen = ({ route, navigation }) => {
     }, 1000);
   };
 
-  // Double tap to react
-  const handleDoubleTap = useCallback(message => {
-    const now = Date.now();
-    const DOUBLE_TAP_DELAY = 300;
-
-    if (lastTapRef.current && now - lastTapRef.current < DOUBLE_TAP_DELAY) {
-      // Double tap detected - add heart reaction
-      addReaction(message.id, '❤️');
-      lastTapRef.current = null;
-    } else {
-      lastTapRef.current = now;
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
   // Add reaction to message
   const addReaction = async (messageId, emoji) => {
     Logger.info(`Adding reaction ${emoji} to message ${messageId}`);
 
-    // For now, just handle reactions locally since API endpoint doesn't exist yet
-    // TODO: Uncomment when API endpoint is implemented
-    // try {
-    //   await ApiDataService.addMessageReaction(match.matchId, messageId, emoji);
-    // } catch (error) {
-    //   Logger.error('Failed to add reaction:', error);
-    // }
-
-    // Optimistic update (now it's the actual update)
+    // Optimistic update first
     setMessages(prev =>
       prev.map(msg => {
         if (msg.id === messageId) {
-          const reactions = msg.reactions || {};
+          const reactions = { ...(msg.reactions || {}) };
           const currentReaction = reactions[emoji] || [];
 
           if (currentReaction.includes(user.uid)) {
@@ -370,6 +504,35 @@ const ChatScreen = ({ route, navigation }) => {
 
     setShowReactionPicker(null);
     setLongPressMessage(null);
+
+    // Call API to persist reaction
+    try {
+      await ApiDataService.addMessageReaction(match.matchId, messageId, emoji);
+    } catch (error) {
+      Logger.error('Failed to add reaction:', error);
+      // Revert optimistic update on error
+      setMessages(prev =>
+        prev.map(msg => {
+          if (msg.id === messageId) {
+            const reactions = { ...(msg.reactions || {}) };
+            const currentReaction = reactions[emoji] || [];
+
+            // Reverse the action
+            if (currentReaction.includes(user.uid)) {
+              reactions[emoji] = currentReaction.filter(id => id !== user.uid);
+              if (reactions[emoji].length === 0) {
+                delete reactions[emoji];
+              }
+            } else {
+              reactions[emoji] = [...currentReaction, user.uid];
+            }
+
+            return { ...msg, reactions };
+          }
+          return msg;
+        })
+      );
+    }
   };
 
   // Scroll to bottom with delay for keyboard animation (inverted list scrolls to index 0)
@@ -378,6 +541,65 @@ const ChatScreen = ({ route, navigation }) => {
       flatListRef.current?.scrollToOffset({ offset: 0, animated });
     }, delay);
   };
+
+  // Handle scroll to show/hide scroll-to-bottom button
+  const handleScroll = useCallback(
+    event => {
+      const offsetY = event.nativeEvent.contentOffset.y;
+      // Show button when scrolled up more than 200px (inverted list, so > 200 means scrolled up)
+      const shouldShow = offsetY > 200;
+
+      if (shouldShow !== showScrollButton) {
+        setShowScrollButton(shouldShow);
+        Animated.spring(scrollButtonAnim, {
+          toValue: shouldShow ? 1 : 0,
+          useNativeDriver: true,
+          tension: 50,
+          friction: 7,
+        }).start();
+      }
+    },
+    [showScrollButton, scrollButtonAnim]
+  );
+
+  // Scroll to a specific message (for tapping on quoted reply)
+  const scrollToMessage = useCallback(
+    messageId => {
+      const index = reversedMessages.findIndex(m => m.id === messageId);
+      if (index !== -1 && flatListRef.current) {
+        flatListRef.current.scrollToIndex({
+          index,
+          animated: true,
+          viewPosition: 0.5, // Center the message
+        });
+        // Briefly highlight the message
+        setTappedMessageId(messageId);
+        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+        setTimeout(() => setTappedMessageId(null), 1500);
+      }
+    },
+    [reversedMessages]
+  );
+
+  // Handle tap on message to show timestamp
+  const handleMessageTap = useCallback(
+    message => {
+      const now = Date.now();
+      const DOUBLE_TAP_DELAY = 300;
+
+      if (lastTapRef.current && now - lastTapRef.current < DOUBLE_TAP_DELAY) {
+        // Double tap detected - add heart reaction
+        addReaction(message.id, '❤️');
+        lastTapRef.current = null;
+      } else {
+        lastTapRef.current = now;
+        // Single tap - toggle timestamp visibility
+        setTappedMessageId(prev => (prev === message.id ? null : message.id));
+      }
+    },
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    []
+  );
 
   // Animate typing dots
   useEffect(() => {
@@ -410,10 +632,52 @@ const ChatScreen = ({ route, navigation }) => {
   const handleMessageLongPress = useCallback(message => {
     Logger.info('Long press triggered for message:', message.id);
     // Trigger haptic feedback
-    Vibration.vibrate(10);
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     setLongPressMessage(message);
     setShowReactionPicker(message.id);
     Logger.info('Reaction picker should be visible for message:', message.id);
+  }, []);
+
+  // Handle swipe to reply
+  const handleSwipeToReply = useCallback(message => {
+    // Trigger haptic immediately for responsiveness
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    // Close the swipeable first for smooth animation
+    if (swipeableRefs.current[message.id]) {
+      swipeableRefs.current[message.id].close();
+    }
+    // Defer state update to avoid blocking the animation
+    requestAnimationFrame(() => {
+      setReplyTo(message);
+    });
+  }, []);
+
+  // Render swipe action for own messages (swipe left to reveal on right)
+  const renderRightActions = useCallback((progress, dragX) => {
+    const translateX = dragX.interpolate({
+      inputRange: [-80, 0],
+      outputRange: [0, 80],
+      extrapolate: 'clamp',
+    });
+    return (
+      <Animated.View style={[styles.swipeActionRight, { transform: [{ translateX }] }]}>
+        <Ionicons name="arrow-undo" size={24} color="#E91E63" />
+      </Animated.View>
+    );
+  }, []);
+
+  // Render swipe action for other's messages (swipe right to reveal on left)
+  const renderLeftActions = useCallback((progress, dragX) => {
+    const translateX = dragX.interpolate({
+      inputRange: [0, 80],
+      outputRange: [-80, 0],
+      extrapolate: 'clamp',
+    });
+    return (
+      <Animated.View style={[styles.swipeActionLeft, { transform: [{ translateX }] }]}>
+        <Ionicons name="arrow-undo" size={24} color="#E91E63" />
+      </Animated.View>
+    );
   }, []);
 
   // Render message item
@@ -422,94 +686,246 @@ const ChatScreen = ({ route, navigation }) => {
     const showAvatar = index === 0 || reversedMessages[index - 1]?.senderId !== item.senderId;
     // For inverted list, the last message in a group is when the next message (index - 1) is from a different sender
     const isLastInGroup = index === 0 || reversedMessages[index - 1]?.senderId !== item.senderId;
+    const isHighlighted = tappedMessageId === item.id;
+    // Only show timestamp for last in group OR when tapped (but not when highlighted from scroll)
+    const showTimestamp = isLastInGroup;
+
+    // Determine if we're quoting ourselves or the other person
+    const isQuotingSelf = item.replyTo?.senderId === user.uid;
 
     return (
-      <Pressable onPress={() => handleDoubleTap(item)} style={styles.messageWrapper}>
-        <View style={[styles.messageRow, isOwnMessage && styles.ownMessageRow]}>
-          {!isOwnMessage && showAvatar && (
-            <Image
-              source={{ uri: getUserProfilePhoto(match.otherUser) }}
-              style={styles.messageAvatar}
-            />
-          )}
-          {!isOwnMessage && !showAvatar && <View style={styles.avatarPlaceholder} />}
+      <Swipeable
+        ref={ref => (swipeableRefs.current[item.id] = ref)}
+        renderRightActions={isOwnMessage ? renderRightActions : undefined}
+        renderLeftActions={isOwnMessage ? undefined : renderLeftActions}
+        onSwipeableOpen={direction => {
+          if ((isOwnMessage && direction === 'right') || (!isOwnMessage && direction === 'left')) {
+            handleSwipeToReply(item);
+          }
+        }}
+        rightThreshold={isOwnMessage ? 60 : undefined}
+        leftThreshold={isOwnMessage ? undefined : 60}
+        overshootRight={false}
+        overshootLeft={false}
+        friction={2}
+        containerStyle={styles.swipeableContainer}
+      >
+        <View style={styles.messageWrapper}>
+          <View style={[styles.messageRow, isOwnMessage && styles.ownMessageRow]}>
+            {!isOwnMessage && showAvatar && (
+              <Image
+                source={{ uri: getUserProfilePhoto(match.otherUser) }}
+                style={styles.messageAvatar}
+              />
+            )}
+            {!isOwnMessage && !showAvatar && <View style={styles.avatarPlaceholder} />}
 
-          <View style={[styles.messageBubbleContainer, isOwnMessage && styles.ownBubbleContainer]}>
-            <Pressable
-              onLongPress={() => handleMessageLongPress(item)}
-              delayLongPress={500}
-              style={({ pressed }) => [
-                styles.messageBubble,
-                isOwnMessage ? styles.ownMessageBubble : styles.otherMessageBubble,
-                item.isTemp && styles.tempMessage,
-                pressed && styles.messageBubblePressed,
-              ]}
+            <View
+              style={[styles.messageBubbleContainer, isOwnMessage && styles.ownBubbleContainer]}
             >
-              {item.type === 'gif' ? (
-                <Image source={{ uri: item.gifUrl }} style={styles.gifMessage} />
-              ) : (
-                <Text style={[styles.messageText, isOwnMessage && styles.ownMessageText]}>
-                  {item.text || item.content || ''}
-                </Text>
+              {/* Quoted Reply - Separate element above the message bubble */}
+              {item.replyTo && (
+                <TouchableOpacity
+                  style={[
+                    styles.quotedReplyStandalone,
+                    isOwnMessage
+                      ? styles.ownQuotedReplyStandalone
+                      : styles.otherQuotedReplyStandalone,
+                    isQuotingSelf ? styles.quotingSelfStandalone : styles.quotingOtherStandalone,
+                  ]}
+                  onPress={() => scrollToMessage(item.replyTo.id)}
+                  activeOpacity={0.7}
+                >
+                  <Image
+                    source={{
+                      uri: isQuotingSelf
+                        ? getUserProfilePhoto(user)
+                        : getUserProfilePhoto(match.otherUser),
+                    }}
+                    style={styles.quotedReplyAvatar}
+                  />
+                  <View
+                    style={[
+                      styles.quotedReplyBar,
+                      isQuotingSelf ? styles.quotingSelfBar : styles.quotingOtherBar,
+                    ]}
+                  />
+                  <View style={styles.quotedReplyContent}>
+                    <Text
+                      style={[
+                        styles.quotedReplyName,
+                        isQuotingSelf ? styles.quotingSelfName : styles.quotingOtherName,
+                      ]}
+                    >
+                      {item.replyTo.senderId === user.uid
+                        ? 'You'
+                        : item.replyTo.senderName || getUserDisplayName(match.otherUser)}
+                    </Text>
+                    <Text
+                      style={[
+                        styles.quotedReplyText,
+                        isQuotingSelf ? styles.quotingSelfText : styles.quotingOtherText,
+                      ]}
+                      numberOfLines={2}
+                    >
+                      {item.replyTo.messageType === 'GIF'
+                        ? '📷 GIF'
+                        : item.replyTo.content || item.replyTo.text}
+                    </Text>
+                  </View>
+                </TouchableOpacity>
               )}
-            </Pressable>
 
-            {/* Reactions - positioned overlapping the message bubble */}
-            {item.reactions && Object.keys(item.reactions).length > 0 && (
-              <View
-                style={[
-                  styles.reactionsContainer,
-                  isOwnMessage ? styles.ownReactionsContainer : styles.otherReactionsContainer,
+              <Pressable
+                onPress={() => handleMessageTap(item)}
+                onLongPress={() => handleMessageLongPress(item)}
+                delayLongPress={500}
+                style={({ pressed }) => [
+                  styles.messageBubble,
+                  isOwnMessage ? styles.ownMessageBubble : styles.otherMessageBubble,
+                  item.isTemp && styles.tempMessage,
+                  pressed && styles.messageBubblePressed,
+                  isHighlighted && styles.highlightedMessage,
                 ]}
               >
-                {Object.entries(item.reactions).map(
-                  ([emoji, users]) =>
-                    users.length > 0 && (
-                      <TouchableOpacity
-                        key={emoji}
-                        style={styles.reactionBubble}
-                        onPress={() => addReaction(item.id, emoji)}
-                      >
-                        <Text style={styles.reactionEmoji}>{emoji}</Text>
-                        {users.length > 1 && (
-                          <Text style={styles.reactionCount}>{users.length}</Text>
-                        )}
-                      </TouchableOpacity>
-                    )
+                {item.messageType === 'GIF' ? (
+                  <TouchableOpacity
+                    onPress={() => openPhotoViewer([item.mediaUrl || item.content], 0)}
+                    onLongPress={() => handleMessageLongPress(item)}
+                    delayLongPress={500}
+                    activeOpacity={0.9}
+                  >
+                    <Image
+                      source={{ uri: item.mediaUrl || item.content }}
+                      style={styles.gifMessage}
+                      resizeMode="cover"
+                    />
+                  </TouchableOpacity>
+                ) : (
+                  <Text style={[styles.messageText, isOwnMessage && styles.ownMessageText]}>
+                    {item.text || item.content || ''}
+                  </Text>
                 )}
-              </View>
-            )}
+              </Pressable>
 
-            {/* Timestamp and read receipts for own messages */}
-            {isOwnMessage && isLastInGroup && (
-              <View style={styles.messageStatus}>
-                <Text style={styles.messageTime}>
-                  {item.createdAt
-                    ? new Date(item.createdAt).toLocaleTimeString('en-US', {
-                        hour: 'numeric',
-                        minute: '2-digit',
-                      })
-                    : ''}
-                </Text>
-                {isPremium && (
-                  <>
-                    {item.isRead ? (
-                      <Ionicons
-                        name="checkmark-done"
-                        size={14}
-                        color="#4CAF50"
-                        style={styles.readIcon}
-                      />
-                    ) : (
-                      <Ionicons name="checkmark" size={14} color="#999" style={styles.readIcon} />
-                    )}
-                  </>
-                )}
-              </View>
-            )}
+              {/* Reactions - Android Messages style, overlapping the bubble */}
+              {item.reactions &&
+                Object.keys(item.reactions).length > 0 &&
+                (() => {
+                  const reactionEntries = Object.entries(item.reactions).filter(
+                    ([, users]) => users.length > 0
+                  );
+
+                  const MAX_VISIBLE = 3;
+
+                  // Prioritize showing at least one reaction from each person
+                  // First, find reactions unique to each person
+                  const myReactions = reactionEntries.filter(
+                    ([, users]) => users.includes(user.uid) && users.length === 1
+                  );
+                  const theirReactions = reactionEntries.filter(
+                    ([, users]) => !users.includes(user.uid)
+                  );
+                  const sharedReactions = reactionEntries.filter(
+                    ([, users]) => users.includes(user.uid) && users.length > 1
+                  );
+
+                  // Build visible list ensuring fair representation
+                  const visibleReactions = [];
+
+                  // Add one from each person first if available
+                  if (myReactions.length > 0) {
+                    visibleReactions.push(myReactions[0]);
+                  }
+                  if (theirReactions.length > 0 && visibleReactions.length < MAX_VISIBLE) {
+                    visibleReactions.push(theirReactions[0]);
+                  }
+                  if (sharedReactions.length > 0 && visibleReactions.length < MAX_VISIBLE) {
+                    visibleReactions.push(sharedReactions[0]);
+                  }
+
+                  // Fill remaining slots
+                  const remaining = [...myReactions, ...theirReactions, ...sharedReactions].filter(
+                    r => !visibleReactions.includes(r)
+                  );
+                  while (visibleReactions.length < MAX_VISIBLE && remaining.length > 0) {
+                    visibleReactions.push(remaining.shift());
+                  }
+
+                  const hiddenCount = reactionEntries.length - visibleReactions.length;
+
+                  // Superscript characters for counts
+                  const superscripts = {
+                    2: '²',
+                    3: '³',
+                    4: '⁴',
+                    5: '⁵',
+                    6: '⁶',
+                    7: '⁷',
+                    8: '⁸',
+                    9: '⁹',
+                  };
+                  const getSuperscript = count =>
+                    count > 1 ? superscripts[count] || `⁺${count}` : '';
+
+                  return (
+                    <TouchableOpacity
+                      style={[
+                        styles.reactionsContainer,
+                        isOwnMessage
+                          ? styles.ownReactionsContainer
+                          : styles.otherReactionsContainer,
+                      ]}
+                      onPress={() => {
+                        setReactionsDetailMessage(item);
+                        reactionsSheetRef.current?.expand();
+                      }}
+                      activeOpacity={0.8}
+                    >
+                      {visibleReactions.map(([emoji, users]) => (
+                        <Text key={emoji} style={styles.reactionEmoji}>
+                          {emoji}
+                          {users.length > 1 && (
+                            <Text style={styles.reactionSuperscript}>
+                              {getSuperscript(users.length)}
+                            </Text>
+                          )}
+                        </Text>
+                      ))}
+                      {hiddenCount > 0 && (
+                        <Text style={styles.reactionOverflow}>+{hiddenCount}</Text>
+                      )}
+                    </TouchableOpacity>
+                  );
+                })()}
+
+              {/* Timestamp and read receipts for own messages */}
+              {isOwnMessage && showTimestamp && (
+                <View style={styles.messageStatus}>
+                  <Text style={styles.messageTime}>
+                    {item.createdAt
+                      ? new Date(item.createdAt).toLocaleTimeString('en-US', {
+                          hour: 'numeric',
+                          minute: '2-digit',
+                        })
+                      : ''}
+                  </Text>
+                  {item.isRead ? (
+                    <Ionicons
+                      name="checkmark-done"
+                      size={14}
+                      color="#4CAF50"
+                      style={styles.readIcon}
+                    />
+                  ) : (
+                    <Ionicons name="checkmark" size={14} color="#999" style={styles.readIcon} />
+                  )}
+                </View>
+              )}
+            </View>
           </View>
         </View>
-      </Pressable>
+      </Swipeable>
     );
   };
 
@@ -534,79 +950,141 @@ const ChatScreen = ({ route, navigation }) => {
     );
   };
 
-  // Reaction picker overlay (no Modal)
-  const renderReactionPicker = () => {
-    const reactions = ['❤️', '😂', '😍', '😮', '😢', '👍', '🔥', '💯'];
+  // Handle emoji selection from the emoji keyboard
+  const handleEmojiSelected = useCallback(
+    emojiObject => {
+      if (showReactionPicker) {
+        Haptics.selectionAsync();
+        addReaction(showReactionPicker, emojiObject.emoji);
+      }
+    },
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [showReactionPicker]
+  );
 
-    Logger.info('renderReactionPicker called, showReactionPicker:', showReactionPicker);
+  // Close emoji picker
+  const handleCloseEmojiPicker = useCallback(() => {
+    setShowReactionPicker(null);
+    setLongPressMessage(null);
+  }, []);
 
-    if (showReactionPicker === null) {
-      return null;
-    }
+  // Menu action handlers
+  const handleMenuAction = useCallback(
+    action => {
+      setShowMenu(false);
+      switch (action) {
+        case 'viewProfile':
+          setIsProfileSheetOpen(true);
+          profileSheetRef.current?.open();
+          break;
+        case 'search':
+        case 'mute':
+        case 'block':
+        case 'unmatch':
+        case 'report':
+          showInfo('Coming soon!');
+          break;
+        default:
+          break;
+      }
+    },
+    [showInfo]
+  );
+
+  // Render menu overlay
+  const renderMenu = () => {
+    if (!showMenu) return null;
+
+    const menuItems = [
+      { id: 'search', icon: 'search', label: 'Search in conversation', color: '#333' },
+      { id: 'viewProfile', icon: 'person', label: 'View profile', color: '#333' },
+      { id: 'mute', icon: 'notifications-off', label: 'Mute notifications', color: '#333' },
+      { id: 'block', icon: 'ban', label: 'Block user', color: '#FF9800' },
+      { id: 'unmatch', icon: 'heart-dislike', label: 'Unmatch', color: '#F44336' },
+      { id: 'report', icon: 'flag', label: 'Report user', color: '#F44336' },
+    ];
 
     return (
-      <View
-        style={{
-          position: 'absolute',
-          top: 0,
-          left: 0,
-          right: 0,
-          bottom: 0,
-          justifyContent: 'center',
-          alignItems: 'center',
-          zIndex: 9999,
-          elevation: 999,
-        }}
-      >
-        <Pressable
-          style={{
-            position: 'absolute',
-            top: 0,
-            left: 0,
-            right: 0,
-            bottom: 0,
-            backgroundColor: 'rgba(0, 0, 0, 0.5)',
-          }}
-          onPress={() => {
-            Logger.info('Overlay pressed, closing modal');
-            setShowReactionPicker(null);
-            setLongPressMessage(null);
-          }}
-        />
-        <View
-          style={{
-            flexDirection: 'row',
-            flexWrap: 'wrap',
-            justifyContent: 'center',
-            alignItems: 'center',
-            backgroundColor: '#fff',
-            borderRadius: 16,
-            padding: 16,
-            width: 280,
-            elevation: 10,
-            shadowColor: '#000',
-            shadowOffset: { width: 0, height: 2 },
-            shadowOpacity: 0.25,
-            shadowRadius: 4,
-          }}
-        >
-          {reactions.map(emoji => (
+      <View style={styles.menuOverlay}>
+        <Pressable style={styles.menuBackdrop} onPress={() => setShowMenu(false)} />
+        <View style={styles.menuContainer}>
+          {menuItems.map((item, index) => (
             <TouchableOpacity
-              key={emoji}
-              style={styles.reactionOption}
-              onPress={() => {
-                Logger.info('Reaction selected:', emoji);
-                Vibration.vibrate(5);
-                addReaction(showReactionPicker, emoji);
-              }}
+              key={item.id}
+              style={[styles.menuItem, index === menuItems.length - 1 && styles.menuItemLast]}
+              onPress={() => handleMenuAction(item.id)}
+              activeOpacity={0.7}
             >
-              <Text style={styles.reactionOptionEmoji}>{emoji}</Text>
+              <Ionicons name={item.icon} size={20} color={item.color} />
+              <Text style={[styles.menuItemText, { color: item.color }]}>{item.label}</Text>
             </TouchableOpacity>
           ))}
         </View>
       </View>
     );
   };
+
+  // Get reactions data for the bottom sheet
+  const getReactionsData = useCallback(() => {
+    if (!reactionsDetailMessage) return { reactionsList: [], filteredReactions: [] };
+
+    const reactions = reactionsDetailMessage.reactions || {};
+    const reactionEntries = Object.entries(reactions).filter(([, users]) => users.length > 0);
+
+    const reactionsList = [];
+    reactionEntries.forEach(([emoji, userIds]) => {
+      userIds.forEach(userId => {
+        const isMe = userId === user.uid;
+        reactionsList.push({
+          emoji,
+          userId,
+          name: isMe ? 'You' : getUserDisplayName(match.otherUser),
+          avatar: isMe ? getUserProfilePhoto(user) : getUserProfilePhoto(match.otherUser),
+          isMe,
+        });
+      });
+    });
+
+    const filteredReactions = reactionsList.filter(r => {
+      if (reactionsTab === 'all') return true;
+      if (reactionsTab === 'you') return r.isMe;
+      if (reactionsTab === 'them') return !r.isMe;
+      return true;
+    });
+
+    return { reactionsList, filteredReactions };
+  }, [reactionsDetailMessage, reactionsTab, user, match.otherUser]);
+
+  // Handle reactions sheet close
+  const handleReactionsSheetClose = useCallback(() => {
+    setReactionsDetailMessage(null);
+    setReactionsTab('all');
+  }, []);
+
+  // Backdrop for reactions sheet - tap to close
+  const renderReactionsBackdrop = useCallback(
+    props => (
+      <BottomSheetBackdrop
+        {...props}
+        disappearsOnIndex={-1}
+        appearsOnIndex={0}
+        opacity={0.5}
+        pressBehavior="close"
+      />
+    ),
+    []
+  );
+
+  // Handle add reaction from sheet
+  const handleAddReactionFromSheet = useCallback(() => {
+    const messageToReact = reactionsDetailMessage;
+    reactionsSheetRef.current?.close();
+    setTimeout(() => {
+      if (messageToReact) {
+        handleMessageLongPress(messageToReact);
+      }
+    }, 300);
+  }, [reactionsDetailMessage, handleMessageLongPress]);
 
   const WrapperComponent = Platform.OS === 'ios' ? SafeAreaView : View;
 
@@ -632,6 +1110,7 @@ const ChatScreen = ({ route, navigation }) => {
             <TouchableOpacity
               style={styles.headerProfile}
               onPress={() => {
+                setIsProfileSheetOpen(true);
                 profileSheetRef.current?.open();
               }}
             >
@@ -642,13 +1121,15 @@ const ChatScreen = ({ route, navigation }) => {
               <View style={styles.headerInfo}>
                 <Text style={styles.headerName}>{getUserDisplayName(match.otherUser)}</Text>
                 <View style={styles.statusRow}>
-                  {isPremium && onlineStatus ? (
+                  {otherUserTyping ? (
+                    <Text style={styles.statusText}>Typing...</Text>
+                  ) : isPremium && onlineStatus ? (
                     <>
                       <View style={styles.onlineDot} />
                       <Text style={styles.statusText}>Online</Text>
                     </>
-                  ) : otherUserTyping ? (
-                    <Text style={styles.statusText}>Typing...</Text>
+                  ) : lastSeen ? (
+                    <Text style={styles.statusText}>{formatLastSeen(lastSeen)}</Text>
                   ) : (
                     <Text style={styles.statusText}>Matched recently</Text>
                   )}
@@ -656,7 +1137,7 @@ const ChatScreen = ({ route, navigation }) => {
               </View>
             </TouchableOpacity>
 
-            <TouchableOpacity style={styles.menuButton}>
+            <TouchableOpacity style={styles.menuButton} onPress={() => setShowMenu(true)}>
               <Ionicons name="ellipsis-vertical" size={20} color="#333" />
             </TouchableOpacity>
           </View>
@@ -667,31 +1148,89 @@ const ChatScreen = ({ route, navigation }) => {
               <ActivityIndicator size="large" color="#E91E63" />
             </View>
           ) : (
-            <FlatList
-              ref={flatListRef}
-              data={reversedMessages}
-              renderItem={renderMessage}
-              keyExtractor={item => item.id}
-              contentContainerStyle={styles.messagesList}
-              ListHeaderComponent={renderTypingIndicator}
-              inverted={true}
-              keyboardShouldPersistTaps="handled"
-              keyboardDismissMode="interactive"
-              maintainVisibleContentPosition={{
-                minIndexForVisible: 0,
-                autoscrollToTopThreshold: 10,
-              }}
-              style={styles.chatContainer}
-              onContentSizeChange={() => {
-                // Scroll to bottom on initial load only
-                if (!hasInitialScrollRef.current && messages.length > 0) {
-                  hasInitialScrollRef.current = true;
-                  setTimeout(() => {
-                    flatListRef.current?.scrollToOffset({ offset: 0, animated: false });
-                  }, 100);
+            <>
+              <FlatList
+                ref={flatListRef}
+                data={reversedMessages}
+                renderItem={renderMessage}
+                keyExtractor={(item, index) =>
+                  item.id || `msg-${index}-${item.createdAt || Date.now()}`
                 }
-              }}
-            />
+                contentContainerStyle={styles.messagesList}
+                ListHeaderComponent={renderTypingIndicator}
+                inverted={true}
+                keyboardShouldPersistTaps="handled"
+                keyboardDismissMode="interactive"
+                maintainVisibleContentPosition={{
+                  minIndexForVisible: 0,
+                  autoscrollToTopThreshold: 10,
+                }}
+                style={styles.chatContainer}
+                onScroll={handleScroll}
+                scrollEventThrottle={16}
+                onContentSizeChange={() => {
+                  // Scroll to bottom on initial load only
+                  if (!hasInitialScrollRef.current && messages.length > 0) {
+                    hasInitialScrollRef.current = true;
+                    setTimeout(() => {
+                      flatListRef.current?.scrollToOffset({ offset: 0, animated: false });
+                    }, 100);
+                  }
+                }}
+              />
+
+              {/* Scroll to bottom FAB - hidden when profile sheet or reactions panel is open */}
+              {!isProfileSheetOpen && !reactionsDetailMessage && (
+                <Animated.View
+                  style={[
+                    styles.scrollToBottomFab,
+                    {
+                      opacity: scrollButtonAnim,
+                      transform: [
+                        {
+                          scale: scrollButtonAnim.interpolate({
+                            inputRange: [0, 1],
+                            outputRange: [0.5, 1],
+                          }),
+                        },
+                      ],
+                    },
+                  ]}
+                  pointerEvents={showScrollButton ? 'auto' : 'none'}
+                >
+                  <TouchableOpacity
+                    style={styles.scrollToBottomButton}
+                    onPress={() => {
+                      scrollToBottom(true);
+                      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                    }}
+                    activeOpacity={0.8}
+                  >
+                    <Ionicons name="chevron-down" size={24} color="#fff" />
+                  </TouchableOpacity>
+                </Animated.View>
+              )}
+            </>
+          )}
+
+          {/* Reply Preview */}
+          {replyTo && (
+            <View style={styles.replyPreview}>
+              <View style={styles.replyPreviewContent}>
+                <View style={styles.replyPreviewBar} />
+                <View style={styles.replyPreviewText}>
+                  <Text style={styles.replyPreviewName}>
+                    {replyTo.senderId === user.uid ? 'You' : getUserDisplayName(match.otherUser)}
+                  </Text>
+                  <Text style={styles.replyPreviewMessage} numberOfLines={1}>
+                    {replyTo.messageType === 'GIF' ? 'GIF' : replyTo.content || replyTo.text}
+                  </Text>
+                </View>
+              </View>
+              <TouchableOpacity onPress={() => setReplyTo(null)} style={styles.replyPreviewClose}>
+                <Ionicons name="close" size={20} color="#666" />
+              </TouchableOpacity>
+            </View>
           )}
 
           {/* Input */}
@@ -730,12 +1269,170 @@ const ChatScreen = ({ route, navigation }) => {
             ref={profileSheetRef}
             profile={match.otherUser}
             showActions={false}
-            onClose={() => {}}
+            onClose={() => setIsProfileSheetOpen(false)}
+          />
+
+          {/* GIF Picker Modal */}
+          <GifPicker
+            visible={showGifPicker}
+            onClose={() => setShowGifPicker(false)}
+            onSelectGif={sendGif}
           />
         </KeyboardAvoidingView>
 
-        {/* Render reaction picker as overlay inside wrapper */}
-        {renderReactionPicker()}
+        {/* Menu overlay */}
+        {renderMenu()}
+
+        {/* Reactions detail bottom sheet */}
+        <BottomSheet
+          ref={reactionsSheetRef}
+          index={-1}
+          snapPoints={reactionsSnapPoints}
+          enableDynamicSizing={false}
+          enablePanDownToClose={true}
+          backgroundStyle={styles.reactionsSheetBackground}
+          handleIndicatorStyle={styles.reactionsSheetIndicator}
+          backdropComponent={renderReactionsBackdrop}
+          onChange={index => {
+            if (index === -1) {
+              handleReactionsSheetClose();
+            }
+          }}
+        >
+          <View style={styles.reactionsSheetContent}>
+            <Text style={styles.reactionsDetailTitle}>Reactions</Text>
+
+            {/* Tabs */}
+            {reactionsDetailMessage && (
+              <>
+                <View style={styles.reactionsTabs}>
+                  <TouchableOpacity
+                    style={[
+                      styles.reactionsTab,
+                      reactionsTab === 'all' && styles.reactionsTabActive,
+                    ]}
+                    onPress={() => setReactionsTab('all')}
+                  >
+                    <Text
+                      style={[
+                        styles.reactionsTabText,
+                        reactionsTab === 'all' && styles.reactionsTabTextActive,
+                      ]}
+                    >
+                      All ({getReactionsData().reactionsList.length})
+                    </Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={[
+                      styles.reactionsTab,
+                      reactionsTab === 'you' && styles.reactionsTabActive,
+                    ]}
+                    onPress={() => setReactionsTab('you')}
+                  >
+                    <Text
+                      style={[
+                        styles.reactionsTabText,
+                        reactionsTab === 'you' && styles.reactionsTabTextActive,
+                      ]}
+                    >
+                      You ({getReactionsData().reactionsList.filter(r => r.isMe).length})
+                    </Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={[
+                      styles.reactionsTab,
+                      reactionsTab === 'them' && styles.reactionsTabActive,
+                    ]}
+                    onPress={() => setReactionsTab('them')}
+                  >
+                    <Text
+                      style={[
+                        styles.reactionsTabText,
+                        reactionsTab === 'them' && styles.reactionsTabTextActive,
+                      ]}
+                    >
+                      {getUserDisplayName(match.otherUser).split(' ')[0]} (
+                      {getReactionsData().reactionsList.filter(r => !r.isMe).length})
+                    </Text>
+                  </TouchableOpacity>
+                </View>
+
+                {/* Scrollable reactions list - fixed height, fills available space */}
+                <View style={styles.reactionsScrollContainer}>
+                  <BottomSheetScrollView contentContainerStyle={styles.reactionsScrollContent}>
+                    {getReactionsData().filteredReactions.map((reaction, index) => (
+                      <View
+                        key={`${reaction.userId}-${reaction.emoji}-${index}`}
+                        style={styles.reactionDetailRow}
+                      >
+                        <View style={styles.reactionDetailLeft}>
+                          <Image
+                            source={{ uri: reaction.avatar }}
+                            style={styles.reactionDetailAvatar}
+                          />
+                          <Text style={styles.reactionDetailName}>{reaction.name}</Text>
+                        </View>
+                        <TouchableOpacity
+                          onPress={() => {
+                            if (reaction.isMe && reactionsDetailMessage) {
+                              addReaction(reactionsDetailMessage.id, reaction.emoji);
+                            }
+                          }}
+                          activeOpacity={reaction.isMe ? 0.7 : 1}
+                        >
+                          <Text style={styles.reactionDetailEmoji}>{reaction.emoji}</Text>
+                        </TouchableOpacity>
+                      </View>
+                    ))}
+
+                    {getReactionsData().filteredReactions.length === 0 && (
+                      <View style={styles.noReactionsContainer}>
+                        <Text style={styles.noReactionsText}>No reactions yet</Text>
+                      </View>
+                    )}
+                  </BottomSheetScrollView>
+                </View>
+
+                {/* Add reaction button - anchored at bottom */}
+                <TouchableOpacity
+                  style={styles.addReactionRow}
+                  onPress={handleAddReactionFromSheet}
+                  activeOpacity={0.7}
+                >
+                  <Ionicons name="add-circle-outline" size={24} color="#FF6B6B" />
+                  <Text style={styles.addReactionText}>Add reaction</Text>
+                </TouchableOpacity>
+              </>
+            )}
+          </View>
+        </BottomSheet>
+
+        {/* Emoji Picker for reactions */}
+        <EmojiPicker
+          onEmojiSelected={handleEmojiSelected}
+          open={showReactionPicker !== null}
+          onClose={handleCloseEmojiPicker}
+          theme={{
+            backdrop: '#00000080',
+            knob: '#FF6B6B',
+            category: {
+              icon: '#666',
+              iconActive: '#FF6B6B',
+              container: '#fff',
+              containerActive: '#FFE4E1',
+            },
+            search: {
+              background: '#f5f5f5',
+              placeholder: '#999',
+              text: '#333',
+            },
+            header: '#999',
+            skinTonesContainer: '#fff',
+          }}
+          enableSearchBar={true}
+          enableRecentlyUsed={true}
+          categoryPosition="top"
+        />
       </WrapperComponent>
     </>
   );
@@ -813,8 +1510,7 @@ const styles = StyleSheet.create({
     flexGrow: 1,
   },
   messageWrapper: {
-    marginVertical: 2,
-    marginBottom: 16, // Extra space for reactions
+    marginVertical: 4,
   },
   messageRow: {
     flexDirection: 'row',
@@ -835,7 +1531,7 @@ const styles = StyleSheet.create({
     marginRight: 8,
   },
   messageBubbleContainer: {
-    maxWidth: '75%',
+    maxWidth: '85%',
     alignItems: 'flex-start',
     position: 'relative',
   },
@@ -882,6 +1578,10 @@ const styles = StyleSheet.create({
     opacity: 0.8,
     transform: [{ scale: 0.98 }],
   },
+  highlightedMessage: {
+    opacity: 0.7,
+    transform: [{ scale: 1.02 }],
+  },
   messageText: {
     fontSize: 16,
     color: '#1c1c1e',
@@ -898,44 +1598,204 @@ const styles = StyleSheet.create({
     height: 150,
     borderRadius: 12,
   },
-  reactionsContainer: {
-    position: 'absolute',
-    bottom: -2,
-    left: 8,
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    zIndex: 1,
-    gap: 4,
-  },
-  ownReactionsContainer: {
-    // All reactions on the left now
-  },
-  otherReactionsContainer: {
-    // All reactions on the left now
-  },
-  reactionBubble: {
+  quotedReplyStandalone: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#FFFFFF',
-    borderRadius: 16,
     paddingHorizontal: 8,
-    paddingVertical: 4,
+    paddingVertical: 6,
+    borderRadius: 12,
+    marginBottom: 4,
+  },
+  quotedReplyAvatar: {
+    width: 20,
+    height: 20,
+    borderRadius: 10,
+    marginRight: 6,
+  },
+  ownQuotedReplyStandalone: {
+    alignSelf: 'flex-end',
+  },
+  otherQuotedReplyStandalone: {
+    alignSelf: 'flex-start',
+  },
+  // Colors based on WHO is being quoted
+  quotingSelfStandalone: {
+    backgroundColor: 'rgba(255, 107, 107, 0.15)',
+  },
+  quotingOtherStandalone: {
+    backgroundColor: 'rgba(103, 58, 183, 0.12)',
+  },
+  quotedReplyBar: {
+    width: 3,
+    alignSelf: 'stretch',
+    borderRadius: 2,
+    marginRight: 8,
+  },
+  quotingSelfBar: {
+    backgroundColor: '#FF6B6B',
+  },
+  quotingOtherBar: {
+    backgroundColor: '#673AB7',
+  },
+  quotedReplyContent: {
+    flexShrink: 1,
+    flexGrow: 1,
+  },
+  quotedReplyName: {
+    fontSize: 12,
+    fontWeight: '600',
+    marginBottom: 2,
+  },
+  quotingSelfName: {
+    color: '#FF6B6B',
+  },
+  quotingOtherName: {
+    color: '#673AB7',
+  },
+  quotedReplyText: {
+    fontSize: 13,
+  },
+  quotingSelfText: {
+    color: '#666',
+  },
+  quotingOtherText: {
+    color: '#555',
+  },
+  reactionsContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#fff',
+    borderRadius: 12,
+    paddingHorizontal: 6,
+    paddingVertical: 3,
+    marginTop: -8,
     borderWidth: 1,
-    borderColor: 'rgba(0, 0, 0, 0.1)',
+    borderColor: 'rgba(0, 0, 0, 0.08)',
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
+    shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 4,
+    shadowRadius: 2,
+    elevation: 2,
+  },
+  ownReactionsContainer: {
+    alignSelf: 'flex-end',
+    marginRight: 4,
+  },
+  otherReactionsContainer: {
+    alignSelf: 'flex-start',
+    marginLeft: 4,
   },
   reactionEmoji: {
     fontSize: 16,
   },
-  reactionCount: {
+  reactionSuperscript: {
+    fontSize: 10,
+    lineHeight: 14,
+  },
+  reactionOverflow: {
     fontSize: 12,
-    color: '#505050',
-    marginLeft: 4,
+    color: '#666',
+    marginLeft: 2,
+    fontWeight: '500',
+  },
+  // Reactions detail bottom sheet styles
+  reactionsSheetBackground: {
+    backgroundColor: '#fff',
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+  },
+  reactionsSheetIndicator: {
+    backgroundColor: '#ddd',
+    width: 36,
+    height: 4,
+  },
+  reactionsSheetContent: {
+    flex: 1,
+    paddingHorizontal: 20,
+  },
+  reactionsScrollContainer: {
+    flex: 1,
+  },
+  reactionsScrollContent: {
+    flexGrow: 1,
+  },
+  reactionsDetailTitle: {
+    fontSize: 18,
     fontWeight: '600',
+    color: '#333',
+    marginBottom: 12,
+  },
+  reactionsTabs: {
+    flexDirection: 'row',
+    marginBottom: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: '#f0f0f0',
+  },
+  reactionsTab: {
+    paddingVertical: 8,
+    paddingHorizontal: 16,
+    marginRight: 8,
+    borderBottomWidth: 2,
+    borderBottomColor: 'transparent',
+  },
+  reactionsTabActive: {
+    borderBottomColor: '#FF6B6B',
+  },
+  reactionsTabText: {
+    fontSize: 14,
+    color: '#666',
+    fontWeight: '500',
+  },
+  reactionsTabTextActive: {
+    color: '#FF6B6B',
+  },
+  noReactionsContainer: {
+    paddingVertical: 40,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  reactionDetailRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingVertical: 12,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: '#f0f0f0',
+  },
+  reactionDetailLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  reactionDetailAvatar: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    marginRight: 12,
+  },
+  reactionDetailName: {
+    fontSize: 16,
+    color: '#333',
+  },
+  noReactionsText: {
+    fontSize: 14,
+    color: '#999',
+    textAlign: 'center',
+  },
+  reactionDetailEmoji: {
+    fontSize: 24,
+  },
+  addReactionRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 16,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: '#f0f0f0',
+  },
+  addReactionText: {
+    fontSize: 16,
+    color: '#FF6B6B',
+    marginLeft: 12,
+    fontWeight: '500',
   },
   messageStatus: {
     flexDirection: 'row',
@@ -971,6 +1831,60 @@ const styles = StyleSheet.create({
     backgroundColor: '#666',
     marginHorizontal: 2,
   },
+  swipeableContainer: {
+    backgroundColor: '#fff',
+  },
+  swipeActionRight: {
+    justifyContent: 'center',
+    alignItems: 'center',
+    width: 80,
+    backgroundColor: 'transparent',
+  },
+  swipeActionLeft: {
+    justifyContent: 'center',
+    alignItems: 'center',
+    width: 80,
+    backgroundColor: 'transparent',
+  },
+  replyPreview: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    backgroundColor: '#f5f5f5',
+    borderTopWidth: 1,
+    borderTopColor: '#e0e0e0',
+  },
+  replyPreviewContent: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  replyPreviewBar: {
+    width: 3,
+    height: '100%',
+    minHeight: 32,
+    backgroundColor: '#E91E63',
+    borderRadius: 2,
+    marginRight: 8,
+  },
+  replyPreviewText: {
+    flex: 1,
+  },
+  replyPreviewName: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: '#E91E63',
+    marginBottom: 2,
+  },
+  replyPreviewMessage: {
+    fontSize: 14,
+    color: '#666',
+  },
+  replyPreviewClose: {
+    padding: 4,
+    marginLeft: 8,
+  },
   inputContainer: {
     flexDirection: 'row',
     alignItems: 'flex-end',
@@ -1001,18 +1915,82 @@ const styles = StyleSheet.create({
   },
   sendButton: {
     paddingLeft: 12,
-    paddingBottom: 4,
+    alignSelf: 'center',
     justifyContent: 'center',
   },
   sendButtonDisabled: {
     opacity: 0.5,
   },
-  reactionOption: {
-    padding: 8,
-    margin: 4,
+  scrollToBottomFab: {
+    position: 'absolute',
+    bottom: 80,
+    alignSelf: 'center',
+    left: '50%',
+    marginLeft: -22,
+    zIndex: 10,
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 4,
+    elevation: 5,
   },
-  reactionOptionEmoji: {
-    fontSize: 28,
+  scrollToBottomButton: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: '#FF6B6B',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  menuOverlay: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    zIndex: 9999,
+    elevation: 999,
+  },
+  menuBackdrop: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: 'rgba(0, 0, 0, 0.4)',
+  },
+  menuContainer: {
+    position: 'absolute',
+    top: 60,
+    right: 16,
+    backgroundColor: '#fff',
+    borderRadius: 12,
+    paddingVertical: 8,
+    minWidth: 220,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.15,
+    shadowRadius: 12,
+    elevation: 8,
+  },
+  menuItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: '#f0f0f0',
+  },
+  menuItemLast: {
+    borderBottomWidth: 0,
+  },
+  menuItemText: {
+    fontSize: 15,
+    marginLeft: 12,
+    fontWeight: '400',
   },
 });
 

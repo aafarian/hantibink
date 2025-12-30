@@ -44,11 +44,11 @@ const getUserMatches = async (userId, options = {}) => {
         },
         messages: {
           orderBy: { createdAt: 'desc' },
-          take: 1,
           select: {
             content: true,
             createdAt: true,
             senderId: true,
+            isRead: true,
           },
         },
       },
@@ -64,6 +64,11 @@ const getUserMatches = async (userId, options = {}) => {
 
       // Calculate age
       const age = calculateAge(otherUser.birthDate);
+
+      // Count unread messages (messages from other user that haven't been read)
+      const unreadCount = match.messages.filter(
+        (msg) => msg.senderId !== userId && !msg.isRead
+      ).length;
 
       return {
         id: match.id,
@@ -84,8 +89,7 @@ const getUserMatches = async (userId, options = {}) => {
               isFromMe: lastMessage.senderId === userId,
             }
           : null,
-        // Add unread count (simplified for now)
-        unreadCount: 0, // TODO: Implement proper unread count
+        unreadCount,
       };
     });
 

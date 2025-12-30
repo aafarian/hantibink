@@ -1,5 +1,10 @@
 const { getPrismaClient } = require('../config/database');
 const logger = require('../utils/logger');
+const {
+  sendMatchNotification,
+  sendLikeNotification,
+  sendSuperLikeNotification,
+} = require('./notificationService');
 
 const prisma = getPrismaClient();
 
@@ -72,6 +77,7 @@ const likeUser = async (
               select: {
                 id: true,
                 name: true,
+                pushToken: true,
                 photos: {
                   where: { isMain: true },
                   select: { url: true },
@@ -82,6 +88,7 @@ const likeUser = async (
               select: {
                 id: true,
                 name: true,
+                pushToken: true,
                 photos: {
                   where: { isMain: true },
                   select: { url: true },
@@ -147,7 +154,19 @@ const likeUser = async (
           matchedUser: match.user1Id === senderId ? user2Data : user1Data,
           message: "It's a match! 🎉",
         });
-        
+
+        // Send push notifications to both users
+        if (match.user1.pushToken) {
+          sendMatchNotification(match.user1.pushToken, user2Data.name).catch(err =>
+            logger.error('Failed to send push notification to user1:', err)
+          );
+        }
+        if (match.user2.pushToken) {
+          sendMatchNotification(match.user2.pushToken, user1Data.name).catch(err =>
+            logger.error('Failed to send push notification to user2:', err)
+          );
+        }
+
         // Also emit an event to update the "Liked You" screen
         io.to(`user:${senderId}`).emit('liked-you-update', {
           action: 'remove',
@@ -158,7 +177,39 @@ const likeUser = async (
       logger.info(`Real-time match notifications sent to users ${senderId} and ${receiverId}`);
     }
 
-    // Total likes already incremented in the transaction above
+    // Send notification for likes/super-likes (when NOT a match)
+    // This lets users know someone is interested in them
+    if (!isMatch && (actionType === 'LIKE' || actionType === 'SUPER_LIKE')) {
+      try {
+        // Get receiver's push token and sender's name
+        const [receiver, sender] = await Promise.all([
+          prisma.user.findUnique({
+            where: { id: receiverId },
+            select: { pushToken: true },
+          }),
+          prisma.user.findUnique({
+            where: { id: senderId },
+            select: { name: true },
+          }),
+        ]);
+
+        if (receiver?.pushToken && sender?.name) {
+          if (actionType === 'SUPER_LIKE') {
+            sendSuperLikeNotification(receiver.pushToken, sender.name).catch(err =>
+              logger.error('Failed to send super like notification:', err)
+            );
+          } else {
+            sendLikeNotification(receiver.pushToken, sender.name).catch(err =>
+              logger.error('Failed to send like notification:', err)
+            );
+          }
+          logger.info(`📩 Sent ${actionType} notification to user ${receiverId}`);
+        }
+      } catch (notifError) {
+        // Don't fail the action if notification fails
+        logger.warn('Could not send like notification:', notifError.message);
+      }
+    }
 
     logger.info(
       `${actionType} action created: ${senderId} -> ${receiverId}${isMatch ? ' (MATCH!)' : ''}`,

@@ -43,6 +43,9 @@ yarn-error.*
 # typescript
 *.tsbuildinfo
 
+# Documentation folder (contains internal planning docs and potential secrets)
+# Keep essential docs in top-level CONTRIBUTING.md or README.md instead
+docs/
 CODEBASE_ANALYSIS.md
 COMPREHENSIVE_FIXES_PROMPT.md
 
@@ -57,8 +60,7 @@ api/config/firebase-service-account.json
 postgres-data/
 *.sqlite
 *.db
-docs/*
-scripts/*
+scripts/old/
 test-connection.js
 
 # API utility scripts - NOW INCLUDED for CI/CD
@@ -106,3 +108,7 @@ mobile/.env.*
 *.crt
 secrets/
 .secrets/
+
+# Scripts with credentials (use environment variables instead)
+scripts/update-cloud-run-env.sh
+scripts/setup-env-vars.sh

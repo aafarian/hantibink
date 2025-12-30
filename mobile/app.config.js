@@ -42,6 +42,7 @@ module.exports = () => {
         favicon: './assets/favicon.png',
       },
       plugins: [
+        'expo-dev-client',
         'expo-image-picker',
         [
           'expo-location',
@@ -51,6 +52,13 @@ module.exports = () => {
           },
         ],
         'expo-web-browser',
+        [
+          'expo-notifications',
+          {
+            icon: './assets/adaptive-icon.png',
+            color: '#E91E63',
+          },
+        ],
       ],
       extra: {
         eas: {

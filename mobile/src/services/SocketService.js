@@ -135,17 +135,21 @@ class SocketService {
     this.socket.on('user-online-status', data => {
       Logger.info('🟢 User online status:', data);
       this.matchListeners.forEach(callback => callback('user-online-status', data));
+      // Also notify user status listeners with timestamp
+      this.userStatusListeners.forEach(callback =>
+        callback(data.userId, data.isOnline, data.timestamp)
+      );
     });
 
-    // Additional online/offline events for user status tracking
+    // Additional online/offline events for user status tracking (legacy)
     this.socket.on('user-online', data => {
       Logger.info('🟢 User came online:', data);
-      this.userStatusListeners.forEach(callback => callback(data.userId, true));
+      this.userStatusListeners.forEach(callback => callback(data.userId, true, new Date()));
     });
 
     this.socket.on('user-offline', data => {
       Logger.info('🔴 User went offline:', data);
-      this.userStatusListeners.forEach(callback => callback(data.userId, false));
+      this.userStatusListeners.forEach(callback => callback(data.userId, false, new Date()));
     });
 
     // Message reaction events
