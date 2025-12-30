@@ -37,6 +37,7 @@ module.exports = () => {
           'android.permission.RECORD_AUDIO',
         ],
         package: IS_DEV ? 'com.antoafarian.hantibink.dev' : 'com.antoafarian.hantibink',
+        googleServicesFile: process.env.GOOGLE_SERVICES_JSON || './google-services.json',
       },
       web: {
         favicon: './assets/favicon.png',

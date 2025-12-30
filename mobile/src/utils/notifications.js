@@ -8,15 +8,51 @@ import ApiClient from '../services/ApiClient';
 // Configure notification behavior - wrapped in try-catch to prevent crash on module load
 try {
   Notifications.setNotificationHandler({
-    handleNotification: async () => ({
-      shouldShowAlert: true,
-      shouldPlaySound: true,
-      shouldSetBadge: true,
-    }),
+    handleNotification: async notification => {
+      const data = notification.request.content.data;
+
+      // For message notifications, dismiss any existing notifications for this match
+      // so the new one (with updated count) replaces them
+      if (data?.type === 'message' && data?.matchId) {
+        try {
+          const presented = await Notifications.getPresentedNotificationsAsync();
+          for (const n of presented) {
+            if (n.request.content.data?.matchId === data.matchId) {
+              await Notifications.dismissNotificationAsync(n.request.identifier);
+            }
+          }
+        } catch (err) {
+          // Ignore errors - just show the notification
+        }
+      }
+
+      return {
+        shouldShowAlert: true,
+        shouldPlaySound: true,
+        shouldSetBadge: true,
+      };
+    },
   });
 } catch (error) {
   // Silently fail - notifications will still work, just won't show when app is in foreground
   Logger.warn('Failed to set notification handler:', error?.message);
+}
+
+/**
+ * Clear notifications for a match (call when user opens the chat)
+ * @param {string} matchId - The match ID to clear
+ */
+export function clearNotificationForMatch(matchId) {
+  // Dismiss all delivered notifications for this match
+  Notifications.getPresentedNotificationsAsync()
+    .then(notifications => {
+      notifications.forEach(notification => {
+        if (notification.request.content.data?.matchId === matchId) {
+          Notifications.dismissNotificationAsync(notification.request.identifier).catch(() => {});
+        }
+      });
+    })
+    .catch(() => {});
 }
 
 /**
@@ -34,10 +70,13 @@ export async function registerForPushNotificationsAsync() {
     // Configure notification channel for Android first
     if (Platform.OS === 'android') {
       await Notifications.setNotificationChannelAsync('default', {
-        name: 'default',
+        name: 'Messages',
         importance: Notifications.AndroidImportance.MAX,
         vibrationPattern: [0, 250, 250, 250],
         lightColor: '#FF231F7C',
+        showBadge: true,
+        enableVibrate: true,
+        enableLights: true,
       });
     }
 

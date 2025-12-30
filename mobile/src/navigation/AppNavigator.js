@@ -1,4 +1,4 @@
-import React, { useRef } from 'react';
+import React, { useRef, useEffect } from 'react';
 import { NavigationContainer } from '@react-navigation/native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { createStackNavigator } from '@react-navigation/stack';
@@ -6,6 +6,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { Platform, View, ActivityIndicator, Text } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import * as Notifications from 'expo-notifications';
 import { useAuth } from '../contexts/AuthContext';
 import { useUnread } from '../contexts/UnreadContext';
 import { LocationProvider } from '../contexts/LocationContext';
@@ -327,6 +328,62 @@ const MainNavigator = () => {
 const AppNavigator = () => {
   const { user, userProfile, loading } = useAuth();
   const navigationRef = useRef();
+  const notificationResponseListener = useRef();
+  const pendingNavigationRef = useRef(null);
+  const [isNavigationReady, setIsNavigationReady] = React.useState(false);
+
+  // Handle pending navigation when navigation becomes ready
+  const handleNavigationReady = React.useCallback(() => {
+    setIsNavigationReady(true);
+    // Execute any pending navigation
+    if (pendingNavigationRef.current && navigationRef.current) {
+      const data = pendingNavigationRef.current;
+      pendingNavigationRef.current = null;
+      navigationRef.current.navigate('Messages', {
+        screen: 'Chat',
+        params: {
+          match: {
+            matchId: data.matchId,
+            otherUser: data.otherUser,
+          },
+        },
+      });
+    }
+  }, []);
+
+  // Handle notification tap to navigate to the correct screen
+  useEffect(() => {
+    notificationResponseListener.current = Notifications.addNotificationResponseReceivedListener(
+      response => {
+        const data = response.notification.request.content.data;
+        Logger.info('Notification tapped:', data);
+
+        if (data?.type === 'message' && data?.matchId && data?.otherUser) {
+          if (isNavigationReady && navigationRef.current) {
+            // Navigate immediately if ready
+            navigationRef.current.navigate('Messages', {
+              screen: 'Chat',
+              params: {
+                match: {
+                  matchId: data.matchId,
+                  otherUser: data.otherUser,
+                },
+              },
+            });
+          } else {
+            // Store for later navigation when ready
+            pendingNavigationRef.current = data;
+          }
+        }
+      }
+    );
+
+    return () => {
+      if (notificationResponseListener.current) {
+        Notifications.removeNotificationSubscription(notificationResponseListener.current);
+      }
+    };
+  }, [isNavigationReady]);
 
   // Don't check onboarding flag here - let MainNavigator handle it
   // This was causing a race condition where the flag was being cleared
@@ -344,7 +401,7 @@ const AppNavigator = () => {
   }
 
   return (
-    <NavigationContainer ref={navigationRef}>
+    <NavigationContainer ref={navigationRef} onReady={handleNavigationReady}>
       <ToastProvider>
         <LocationProvider>
           {(() => {

@@ -374,6 +374,7 @@ const ProfileBottomSheet = forwardRef(
         handleIndicatorStyle={styles.bottomSheetIndicator}
         enableContentPanningGesture={enableContentPanning}
         enableHandlePanningGesture={true}
+        topInset={statusBarHeight}
         onChange={index => {
           if (index === -1) {
             isOpenRef.current = false;

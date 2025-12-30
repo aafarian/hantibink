@@ -1,5 +1,5 @@
-import React from 'react';
-import { View, Text, TouchableOpacity } from 'react-native';
+import React, { useEffect, useRef } from 'react';
+import { View, Text, TouchableOpacity, Animated } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { theme } from '../styles/theme';
 import {
@@ -8,8 +8,11 @@ import {
   getUserAge,
   getUserLocation,
 } from '../utils/profileHelpers';
+import { isUserOnline } from '../utils/userHelpers';
+import { formatRelativeTime } from '../utils/timeHelpers';
 import ClickablePhoto from './shared/ClickablePhoto';
 import { usePhotoViewer } from '../contexts/PhotoViewerContext';
+import { useIsPremium } from '../contexts/FeatureFlagsContext';
 
 export const MatchCard = ({
   match,
@@ -20,9 +23,59 @@ export const MatchCard = ({
   unreadCount = 0,
   showLastMessage = false,
 }) => {
+  const isPremium = useIsPremium();
   const user = match.otherUser || match;
   const profilePhotoUrl = getUserProfilePhoto(user);
   const { openProfileSheet } = usePhotoViewer();
+
+  // Online status (premium only)
+  const isOnline = isPremium && isUserOnline(user.lastActive);
+  const shockwaveScale = useRef(new Animated.Value(1)).current;
+  const shockwaveOpacity = useRef(new Animated.Value(0.6)).current;
+
+  // Shockwave animation for online dot
+  useEffect(() => {
+    let shockwaveAnimation;
+    if (isOnline) {
+      shockwaveAnimation = Animated.loop(
+        Animated.parallel([
+          Animated.sequence([
+            Animated.timing(shockwaveScale, {
+              toValue: 2.2,
+              duration: 1500,
+              useNativeDriver: true,
+            }),
+            Animated.timing(shockwaveScale, {
+              toValue: 1,
+              duration: 0,
+              useNativeDriver: true,
+            }),
+          ]),
+          Animated.sequence([
+            Animated.timing(shockwaveOpacity, {
+              toValue: 0,
+              duration: 1500,
+              useNativeDriver: true,
+            }),
+            Animated.timing(shockwaveOpacity, {
+              toValue: 0.6,
+              duration: 0,
+              useNativeDriver: true,
+            }),
+          ]),
+        ])
+      );
+      shockwaveAnimation.start();
+    } else {
+      shockwaveScale.setValue(1);
+      shockwaveOpacity.setValue(0.6);
+    }
+    return () => {
+      if (shockwaveAnimation) {
+        shockwaveAnimation.stop();
+      }
+    };
+  }, [isOnline, shockwaveScale, shockwaveOpacity]);
 
   // Normalize lastMessage to always be a string
   const lastMessageText =
@@ -75,22 +128,35 @@ export const MatchCard = ({
       />
 
       <View style={styles.info}>
-        <Text style={styles.name}>
-          {getUserDisplayName(user)}
-          {getUserAge(user) ? `, ${getUserAge(user)}` : ''}
-        </Text>
+        <View style={styles.nameRow}>
+          <Text style={styles.name}>
+            {getUserDisplayName(user)}
+            {getUserAge(user) ? `, ${getUserAge(user)}` : ''}
+          </Text>
+          {isOnline && (
+            <View style={styles.onlineContainer}>
+              <Animated.View
+                style={[
+                  styles.onlineShockwave,
+                  { transform: [{ scale: shockwaveScale }], opacity: shockwaveOpacity },
+                ]}
+              />
+              <View style={styles.onlineDot} />
+            </View>
+          )}
+        </View>
         {showLastMessage ? (
           <>
             {/* Show latest message and timestamp for conversation list */}
             <Text
               style={[
                 styles.lastMessage,
-                match.isTyping && styles.typingText,
-                unreadCount > 0 && !match.isTyping && styles.unreadLastMessage,
+                isPremium && match.isTyping && styles.typingText,
+                unreadCount > 0 && !(isPremium && match.isTyping) && styles.unreadLastMessage,
               ]}
               numberOfLines={1}
             >
-              {match.isTyping
+              {isPremium && match.isTyping
                 ? `${match.typingUser || 'Someone'} is typing...`
                 : lastMessageText.includes('giphy.com') ||
                     lastMessageText.includes('media.giphy') ||
@@ -99,14 +165,7 @@ export const MatchCard = ({
                   : lastMessageText || 'Start a conversation...'}
             </Text>
             <Text style={styles.lastMessageTime} numberOfLines={1}>
-              {match.lastMessageTime
-                ? new Date(match.lastMessageTime).toLocaleDateString([], {
-                    month: 'short',
-                    day: 'numeric',
-                    hour: '2-digit',
-                    minute: '2-digit',
-                  })
-                : 'Recently matched'}
+              {formatRelativeTime(match.lastMessageTime || match.matchedAt) || 'New match'}
             </Text>
           </>
         ) : (
@@ -168,11 +227,36 @@ const styles = {
   info: {
     flex: 1,
   },
+  nameRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: theme.spacing.xs,
+  },
   name: {
     fontSize: theme.typography.sizes.lg,
     fontWeight: theme.typography.weights.bold,
     color: theme.colors.text.primary,
-    marginBottom: theme.spacing.xs,
+  },
+  onlineContainer: {
+    width: 20,
+    height: 20,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginLeft: theme.spacing.xs,
+  },
+  onlineDot: {
+    width: 10,
+    height: 10,
+    borderRadius: 5,
+    backgroundColor: '#4CAF50',
+    position: 'absolute',
+  },
+  onlineShockwave: {
+    width: 10,
+    height: 10,
+    borderRadius: 5,
+    backgroundColor: '#4CAF50',
+    position: 'absolute',
   },
   location: {
     fontSize: theme.typography.sizes.md,

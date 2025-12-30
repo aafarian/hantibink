@@ -21,6 +21,8 @@ async function sendPushNotification(pushToken, notification) {
       title: notification.title,
       body: notification.body,
       data: notification.data || {},
+      priority: 'high',
+      channelId: 'default',
     };
 
     const response = await fetch('https://exp.host/--/api/v2/push/send', {
@@ -70,12 +72,27 @@ async function sendMatchNotification(pushToken, matchedUserName) {
 
 /**
  * Send notification for a new message
+ * @param {string} pushToken - Expo push token
+ * @param {string} title - Notification title (e.g. "💬 John" or "💬 John (3)")
+ * @param {string} body - Message content
+ * @param {object} navigationData - Data needed for navigating to chat on tap
+ * @param {string} navigationData.matchId - Match ID
+ * @param {object} navigationData.sender - Sender info (id, name, photos)
  */
-async function sendMessageNotification(pushToken, senderName, messagePreview) {
+async function sendMessageNotification(pushToken, title, body, navigationData = {}) {
+  const { matchId, sender } = navigationData;
   return sendPushNotification(pushToken, {
-    title: `💬 ${senderName}`,
-    body: messagePreview,
-    data: { type: 'message' },
+    title,
+    body,
+    data: {
+      type: 'message',
+      matchId,
+      otherUser: sender ? {
+        id: sender.id,
+        name: sender.name,
+        photos: sender.photos || [],
+      } : null,
+    },
   });
 }
 
