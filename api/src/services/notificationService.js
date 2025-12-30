@@ -33,6 +33,11 @@ async function sendPushNotification(pushToken, notification) {
       body: JSON.stringify(message),
     });
 
+    if (!response.ok) {
+      logger.error('Push notification HTTP error:', response.status);
+      return { success: false, error: `HTTP ${response.status}` };
+    }
+
     const result = await response.json();
 
     if (result.data && result.data.status === 'error') {
