@@ -278,7 +278,7 @@ async function startServer() {
       socketUserMap.set(socket.id, { userId: null, matchIds: new Set() });
 
       // Handle user joining their personal room
-      socket.on('join-user-room', (userId) => {
+      socket.on('join-user-room', async (userId) => {
         socket.join(`user:${userId}`);
         // Track user ID for this socket
         const userData = socketUserMap.get(socket.id);
@@ -286,6 +286,51 @@ async function startServer() {
           userData.userId = userId;
         }
         logger.info(`👤 User ${userId} joined their room`);
+
+        // Broadcast online status to all matches
+        try {
+          const { getPrismaClient } = require('./config/database');
+          const prisma = getPrismaClient();
+
+          // Get all active matches for this user
+          const matches = await prisma.match.findMany({
+            where: {
+              OR: [{ user1Id: userId }, { user2Id: userId }],
+              isActive: true,
+            },
+            select: { id: true, user1Id: true, user2Id: true },
+          });
+
+          // Update lastActive in database
+          await prisma.user.update({
+            where: { id: userId },
+            data: { lastActive: new Date() },
+          });
+
+          // Broadcast online status to each match's other user
+          matches.forEach(match => {
+            const otherUserId = match.user1Id === userId ? match.user2Id : match.user1Id;
+            io.to(`user:${otherUserId}`).emit('user-online-status', {
+              userId,
+              isOnline: true,
+              timestamp: new Date(),
+            });
+            // Also emit to match room
+            io.to(`match:${match.id}`).emit('user-online-status', {
+              userId,
+              isOnline: true,
+              timestamp: new Date(),
+            });
+            // Track match ID for disconnect handling
+            if (userData) {
+              userData.matchIds.add(match.id);
+            }
+          });
+
+          logger.info(`🟢 User ${userId} came online - notified ${matches.length} matches`);
+        } catch (error) {
+          logger.warn('🟢 Could not broadcast online status:', error.message);
+        }
       });
 
       // Handle joining match rooms for messaging
@@ -316,29 +361,73 @@ async function startServer() {
       });
 
       // Handle typing indicators
-      socket.on('typing-start', (data) => {
+      socket.on('typing-start', async (data) => {
         const { matchId, userId, userName } = data;
         logger.info(
           `⌨️ Received typing-start from ${userId} in match ${matchId}`,
         );
-        socket.to(`match:${matchId}`).emit('user-typing', {
+
+        const typingData = {
           matchId,
           userId,
           userName,
           isTyping: true,
-        });
+        };
+
+        // Emit to match room (for users who have chat open)
+        socket.to(`match:${matchId}`).emit('user-typing', typingData);
+
+        // Also emit to both users' personal rooms (for threads list updates)
+        // Need to get the other user in the match
+        try {
+          const { getPrismaClient } = require('./config/database');
+          const prisma = getPrismaClient();
+          const match = await prisma.match.findUnique({
+            where: { id: matchId },
+            select: { user1Id: true, user2Id: true },
+          });
+          if (match) {
+            const otherUserId = match.user1Id === userId ? match.user2Id : match.user1Id;
+            io.to(`user:${otherUserId}`).emit('user-typing', typingData);
+            logger.info(`⌨️ Typing event sent to user room: user:${otherUserId}`);
+          }
+        } catch (error) {
+          logger.warn('⌨️ Could not send typing to user room:', error.message);
+        }
+
         logger.info(
           `⌨️ User ${userId} started typing in match ${matchId} - event sent to room`,
         );
       });
 
-      socket.on('typing-stop', (data) => {
+      socket.on('typing-stop', async (data) => {
         const { matchId, userId } = data;
-        socket.to(`match:${matchId}`).emit('user-typing', {
+
+        const typingData = {
           matchId,
           userId,
           isTyping: false,
-        });
+        };
+
+        // Emit to match room
+        socket.to(`match:${matchId}`).emit('user-typing', typingData);
+
+        // Also emit to both users' personal rooms
+        try {
+          const { getPrismaClient } = require('./config/database');
+          const prisma = getPrismaClient();
+          const match = await prisma.match.findUnique({
+            where: { id: matchId },
+            select: { user1Id: true, user2Id: true },
+          });
+          if (match) {
+            const otherUserId = match.user1Id === userId ? match.user2Id : match.user1Id;
+            io.to(`user:${otherUserId}`).emit('user-typing', typingData);
+          }
+        } catch (error) {
+          logger.warn('⌨️ Could not send typing-stop to user room:', error.message);
+        }
+
         logger.info(`⌨️ User ${userId} stopped typing in match ${matchId}`);
       });
 
@@ -368,7 +457,7 @@ async function startServer() {
         }
       });
 
-      socket.on('disconnect', () => {
+      socket.on('disconnect', async () => {
         logger.info(`🔌 User disconnected: ${socket.id}`);
 
         // Get user data for this socket and broadcast offline status
@@ -376,14 +465,48 @@ async function startServer() {
         if (userData && userData.userId) {
           const { userId, matchIds } = userData;
 
-          // Broadcast offline status to all match rooms this user was in
-          matchIds.forEach(matchId => {
-            socket.to(`match:${matchId}`).emit('user-online-status', {
-              userId,
-              isOnline: false,
-              timestamp: new Date(),
+          // Update lastActive in database
+          try {
+            const { getPrismaClient } = require('./config/database');
+            const prisma = getPrismaClient();
+            await prisma.user.update({
+              where: { id: userId },
+              data: { lastActive: new Date() },
             });
+          } catch (error) {
+            logger.warn('🔴 Could not update lastActive:', error.message);
+          }
+
+          // Broadcast offline status to all match rooms and personal rooms
+          const offlineData = {
+            userId,
+            isOnline: false,
+            timestamp: new Date(),
+          };
+
+          // Emit to match rooms
+          matchIds.forEach(matchId => {
+            io.to(`match:${matchId}`).emit('user-online-status', offlineData);
           });
+
+          // Also emit to each matched user's personal room
+          try {
+            const { getPrismaClient } = require('./config/database');
+            const prisma = getPrismaClient();
+            const matches = await prisma.match.findMany({
+              where: {
+                OR: [{ user1Id: userId }, { user2Id: userId }],
+                isActive: true,
+              },
+              select: { user1Id: true, user2Id: true },
+            });
+            matches.forEach(match => {
+              const otherUserId = match.user1Id === userId ? match.user2Id : match.user1Id;
+              io.to(`user:${otherUserId}`).emit('user-online-status', offlineData);
+            });
+          } catch (error) {
+            logger.warn('🔴 Could not broadcast offline to user rooms:', error.message);
+          }
 
           logger.info(`🔴 User ${userId} went offline (broadcast to ${matchIds.size} matches)`);
         }

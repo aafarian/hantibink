@@ -9,8 +9,18 @@ const {
   deleteMessage,
 } = require('../services/messagesService');
 const { addReaction, removeReaction } = require('../services/reactionsService');
+const { getPrismaClient } = require('../config/database');
 
 const router = express.Router();
+const prisma = getPrismaClient();
+
+// Helper to update user's lastActive (fire and forget)
+const updateLastActive = (userId) => {
+  prisma.user.update({
+    where: { id: userId },
+    data: { lastActive: new Date() },
+  }).catch(() => {}); // Silently ignore errors
+};
 
 /**
  * @route   GET /api/messages
@@ -41,10 +51,17 @@ router.get('/:matchId', authenticateJWT, messageValidation.getMessages, async (r
     const { matchId } = req.params;
     const { limit = 50, offset = 0 } = req.query;
 
+    // Update user's lastActive
+    updateLastActive(req.user.id);
+
     const messages = await getMessages(matchId, req.user.id, {
       limit: parseInt(limit),
       offset: parseInt(offset),
     });
+
+    // Disable caching for messages to always get fresh data
+    res.set('Cache-Control', 'no-store, no-cache, must-revalidate');
+    res.set('ETag', `${Date.now()}`);
 
     res.json({
       success: true,

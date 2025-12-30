@@ -270,7 +270,7 @@ const messageValidation = {
       .withMessage('Invalid match ID format'),
     query('limit')
       .optional()
-      .isInt({ min: 1, max: 100 }).withMessage('Limit must be between 1 and 100'),
+      .isInt({ min: 1 }).withMessage('Limit must be at least 1'),
     query('offset')
       .optional()
       .isInt({ min: 0 }).withMessage('Offset must be a positive integer'),

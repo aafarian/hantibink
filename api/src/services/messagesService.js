@@ -10,7 +10,7 @@ const prisma = getPrismaClient();
  */
 const getMessages = async (matchId, userId, options = {}) => {
   try {
-    const { limit = 50, offset = 0 } = options;
+    const { limit = 1000, offset = 0 } = options;  // High limit to get all messages
 
     // Verify user has access to this match
     const match = await prisma.match.findUnique({
@@ -29,7 +29,7 @@ const getMessages = async (matchId, userId, options = {}) => {
       throw new Error('Match is no longer active');
     }
 
-    // Get messages
+    // Get messages in chronological order
     const messages = await prisma.message.findMany({
       where: { matchId },
       include: {
@@ -54,7 +54,7 @@ const getMessages = async (matchId, userId, options = {}) => {
           },
         },
       },
-      orderBy: { createdAt: 'asc' },
+      orderBy: { createdAt: 'asc' },  // Chronological order
       take: limit,
       skip: offset,
     });
@@ -143,6 +143,7 @@ const sendMessage = async (matchId, senderId, messageData, io = null) => {
           select: {
             id: true,
             name: true,
+            photos: true,
           },
         },
         replyTo: {
@@ -207,13 +208,18 @@ const sendMessage = async (matchId, senderId, messageData, io = null) => {
 
     // Emit WebSocket event for real-time delivery
     if (io) {
-      // Emit to the match room (both users will be listening)
-      io.to(`match:${matchId}`).emit('new-message', {
+      const messagePayload = {
         matchId,
         message: transformedMessage,
-      });
+      };
 
-      // Emit to receiver's personal room for notifications
+      // Emit to the match room (for users who have chat open)
+      io.to(`match:${matchId}`).emit('new-message', messagePayload);
+
+      // Also emit to receiver's personal room (for threads list updates when not in chat)
+      io.to(`user:${receiverId}`).emit('new-message', messagePayload);
+
+      // Emit message notification for push/in-app notifications
       io.to(`user:${receiverId}`).emit('message-notification', {
         matchId,
         senderId,
@@ -223,22 +229,53 @@ const sendMessage = async (matchId, senderId, messageData, io = null) => {
         timestamp: message.createdAt,
       });
 
-      logger.info(`📡 Real-time message events sent for match ${matchId}`);
+      logger.info(`📡 Real-time message events sent for match ${matchId} (to match room and user:${receiverId})`);
     }
 
-    // Send push notification to receiver
+    // Send push notification to receiver with stacked unread messages
     const receiver = await prisma.user.findUnique({
       where: { id: receiverId },
       select: { pushToken: true },
     });
 
     if (receiver?.pushToken) {
-      const messagePreview =
-        lastMessagePreview.length > 100 ? `${lastMessagePreview.substring(0, 100)}...` : lastMessagePreview;
+      // Get recent unread messages from this sender in this match (for stacking)
+      const recentUnread = await prisma.message.findMany({
+        where: {
+          matchId,
+          senderId,
+          receiverId,
+          isRead: false,
+        },
+        orderBy: { createdAt: 'desc' },
+        take: 5, // Max 5 messages in stacked notification
+        select: { content: true, messageType: true },
+      });
+
+      const unreadCount = recentUnread.length;
+      logger.info(`📊 Notification: ${unreadCount} unread messages from ${message.sender.name}`);
+
+      // Simple notification: count in title, latest message in body
+      const notificationBody = lastMessagePreview.length > 100
+        ? `${lastMessagePreview.substring(0, 100)}...`
+        : lastMessagePreview;
+
+      const title = unreadCount > 1
+        ? `💬 ${message.sender.name} (${unreadCount})`
+        : `💬 ${message.sender.name}`;
+
       sendMessageNotification(
         receiver.pushToken,
-        message.sender.name,
-        messagePreview
+        title,
+        notificationBody,
+        {
+          matchId,
+          sender: {
+            id: message.sender.id,
+            name: message.sender.name,
+            photos: message.sender.photos,
+          },
+        }
       ).catch(err =>
         logger.error('Failed to send push notification for message:', err)
       );
@@ -305,13 +342,19 @@ const markMessagesAsRead = async (
       const otherUserId =
         match.user1Id === userId ? match.user2Id : match.user1Id;
 
-      // Emit to the match room that messages were read
-      io.to(`match:${matchId}`).emit('messages-read', {
+      const readData = {
         matchId,
         readByUserId: userId,
         messageCount: result.count,
         timestamp: new Date(),
-      });
+      };
+
+      // Emit to the match room that messages were read (for users in chat)
+      io.to(`match:${matchId}`).emit('messages-read', readData);
+
+      // Also emit to both users' personal rooms (for threads list updates)
+      io.to(`user:${userId}`).emit('messages-read', readData);
+      io.to(`user:${otherUserId}`).emit('messages-read', readData);
 
       // Emit to sender's personal room for read receipt notification
       io.to(`user:${otherUserId}`).emit('read-receipt', {
