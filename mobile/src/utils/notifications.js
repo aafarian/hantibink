@@ -16,7 +16,7 @@ try {
   });
 } catch (error) {
   // Silently fail - notifications will still work, just won't show when app is in foreground
-  console.warn('Failed to set notification handler:', error?.message);
+  Logger.warn('Failed to set notification handler:', error?.message);
 }
 
 /**
