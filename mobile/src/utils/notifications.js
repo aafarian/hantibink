@@ -5,14 +5,19 @@ import { Platform } from 'react-native';
 import Logger from './logger';
 import ApiClient from '../services/ApiClient';
 
-// Configure notification behavior
-Notifications.setNotificationHandler({
-  handleNotification: async () => ({
-    shouldShowAlert: true,
-    shouldPlaySound: true,
-    shouldSetBadge: true,
-  }),
-});
+// Configure notification behavior - wrapped in try-catch to prevent crash on module load
+try {
+  Notifications.setNotificationHandler({
+    handleNotification: async () => ({
+      shouldShowAlert: true,
+      shouldPlaySound: true,
+      shouldSetBadge: true,
+    }),
+  });
+} catch (error) {
+  // Silently fail - notifications will still work, just won't show when app is in foreground
+  Logger.warn('Failed to set notification handler:', error?.message);
+}
 
 /**
  * Request notification permissions and register for push notifications
