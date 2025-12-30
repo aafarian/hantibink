@@ -31,30 +31,12 @@ import SocketService from '../services/SocketService';
 import Logger from '../utils/logger';
 import { clearNotificationForMatch } from '../utils/notifications';
 import { getUserProfilePhoto, getUserDisplayName } from '../utils/profileHelpers';
+import { isUserOnline } from '../utils/userHelpers';
+import { formatLastSeen } from '../utils/timeHelpers';
 import ProfileBottomSheet from '../components/shared/ProfileBottomSheet';
 import GifPicker from '../components/GifPicker';
 import EmojiPicker from 'rn-emoji-keyboard';
 import BottomSheet, { BottomSheetScrollView, BottomSheetBackdrop } from '@gorhom/bottom-sheet';
-
-// Helper to format "last seen X ago"
-const formatLastSeen = date => {
-  if (!date) return null;
-  const now = new Date();
-  const diffMs = now - date;
-  const diffMins = Math.floor(diffMs / 60000);
-  const diffHours = Math.floor(diffMs / 3600000);
-  const diffDays = Math.floor(diffMs / 86400000);
-  const diffWeeks = Math.floor(diffDays / 7);
-  const diffMonths = Math.floor(diffDays / 30);
-
-  if (diffMins < 1) return 'Last seen just now';
-  if (diffMins < 60) return `Last seen ${diffMins}m ago`;
-  if (diffHours < 24) return `Last seen ${diffHours}h ago`;
-  if (diffDays < 7) return `Last seen ${diffDays}d ago`;
-  if (diffWeeks < 4) return `Last seen ${diffWeeks}w ago`;
-  if (diffMonths < 12) return `Last seen ${diffMonths}mo ago`;
-  return `Last seen ${Math.floor(diffMonths / 12)}y ago`;
-};
 
 const ChatScreen = ({ route, navigation }) => {
   const { match } = route.params;
@@ -236,16 +218,10 @@ const ChatScreen = ({ route, navigation }) => {
   // Initialize online status from match data
   useEffect(() => {
     if (match.otherUser?.lastActive) {
-      const lastActiveDate = new Date(match.otherUser.lastActive);
-      const now = new Date();
-      const minutesSinceActive = (now - lastActiveDate) / (1000 * 60);
-
-      // Consider online if active within last 2 minutes
-      if (minutesSinceActive < 2) {
-        setOnlineStatus(true);
-      } else {
-        setOnlineStatus(false);
-        setLastSeen(lastActiveDate);
+      const online = isUserOnline(match.otherUser.lastActive);
+      setOnlineStatus(online);
+      if (!online) {
+        setLastSeen(new Date(match.otherUser.lastActive));
       }
     }
   }, [match.otherUser?.lastActive]);

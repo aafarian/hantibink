@@ -8,37 +8,11 @@ import {
   getUserAge,
   getUserLocation,
 } from '../utils/profileHelpers';
+import { isUserOnline } from '../utils/userHelpers';
+import { formatRelativeTime } from '../utils/timeHelpers';
 import ClickablePhoto from './shared/ClickablePhoto';
 import { usePhotoViewer } from '../contexts/PhotoViewerContext';
 import { useIsPremium } from '../contexts/FeatureFlagsContext';
-
-// Check if user is online (active within last 2 minutes)
-const isUserOnline = lastActive => {
-  if (!lastActive) return false;
-  const lastActiveDate = new Date(lastActive);
-  const now = new Date();
-  const minutesSinceActive = (now - lastActiveDate) / (1000 * 60);
-  return minutesSinceActive < 2;
-};
-
-// Format timestamp as relative time (like Tinder/Hinge)
-const formatRelativeTime = timestamp => {
-  if (!timestamp) return null;
-  const date = new Date(timestamp);
-  const now = new Date();
-  const diffMs = now - date;
-  const diffMins = Math.floor(diffMs / (1000 * 60));
-  const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
-  const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
-
-  if (diffMins < 1) return 'Just now';
-  if (diffMins < 60) return `${diffMins}m ago`;
-  if (diffHours < 24) return `${diffHours}h ago`;
-  if (diffDays < 7) return `${diffDays}d ago`;
-
-  // For older dates, show month and day
-  return date.toLocaleDateString([], { month: 'short', day: 'numeric' });
-};
 
 export const MatchCard = ({
   match,
