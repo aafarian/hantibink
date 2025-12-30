@@ -329,36 +329,51 @@ const AppNavigator = () => {
   const { user, userProfile, loading } = useAuth();
   const navigationRef = useRef();
   const notificationResponseListener = useRef();
+  const pendingNavigationRef = useRef(null);
+  const [isNavigationReady, setIsNavigationReady] = React.useState(false);
+
+  // Handle pending navigation when navigation becomes ready
+  const handleNavigationReady = React.useCallback(() => {
+    setIsNavigationReady(true);
+    // Execute any pending navigation
+    if (pendingNavigationRef.current && navigationRef.current) {
+      const data = pendingNavigationRef.current;
+      pendingNavigationRef.current = null;
+      navigationRef.current.navigate('Messages', {
+        screen: 'Chat',
+        params: {
+          match: {
+            matchId: data.matchId,
+            otherUser: data.otherUser,
+          },
+        },
+      });
+    }
+  }, []);
 
   // Handle notification tap to navigate to the correct screen
   useEffect(() => {
-    // Helper to navigate when ready
-    const navigateWhenReady = (data, retries = 10) => {
-      if (navigationRef.current?.isReady()) {
-        navigationRef.current.navigate('Messages', {
-          screen: 'Chat',
-          params: {
-            match: {
-              matchId: data.matchId,
-              otherUser: data.otherUser,
-            },
-          },
-        });
-      } else if (retries > 0) {
-        // Retry after a short delay if navigation isn't ready yet
-        setTimeout(() => navigateWhenReady(data, retries - 1), 100);
-      } else {
-        Logger.warn('Navigation not ready after retries');
-      }
-    };
-
     notificationResponseListener.current = Notifications.addNotificationResponseReceivedListener(
       response => {
         const data = response.notification.request.content.data;
         Logger.info('Notification tapped:', data);
 
         if (data?.type === 'message' && data?.matchId && data?.otherUser) {
-          navigateWhenReady(data);
+          if (isNavigationReady && navigationRef.current) {
+            // Navigate immediately if ready
+            navigationRef.current.navigate('Messages', {
+              screen: 'Chat',
+              params: {
+                match: {
+                  matchId: data.matchId,
+                  otherUser: data.otherUser,
+                },
+              },
+            });
+          } else {
+            // Store for later navigation when ready
+            pendingNavigationRef.current = data;
+          }
         }
       }
     );
@@ -368,7 +383,7 @@ const AppNavigator = () => {
         Notifications.removeNotificationSubscription(notificationResponseListener.current);
       }
     };
-  }, []);
+  }, [isNavigationReady]);
 
   // Don't check onboarding flag here - let MainNavigator handle it
   // This was causing a race condition where the flag was being cleared
@@ -386,7 +401,7 @@ const AppNavigator = () => {
   }
 
   return (
-    <NavigationContainer ref={navigationRef}>
+    <NavigationContainer ref={navigationRef} onReady={handleNavigationReady}>
       <ToastProvider>
         <LocationProvider>
           {(() => {
