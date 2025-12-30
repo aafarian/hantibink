@@ -166,14 +166,6 @@ const ChatScreen = ({ route, navigation }) => {
     isFocusedRef.current = isFocused;
   }, [isFocused]);
 
-  // Track app foreground/background state
-  useEffect(() => {
-    const subscription = AppState.addEventListener('change', nextAppState => {
-      appStateRef.current = nextAppState;
-    });
-    return () => subscription?.remove();
-  }, []);
-
   // Memoize reversed messages to avoid creating new array on every render
   const reversedMessages = useMemo(() => [...messages].reverse(), [messages]);
 
@@ -382,6 +374,25 @@ const ChatScreen = ({ route, navigation }) => {
       hasMarkedAsReadRef.current = false;
     }
   };
+
+  // Mark messages as read when returning from background while screen is focused
+  useEffect(() => {
+    const subscription = AppState.addEventListener('change', nextAppState => {
+      const previousState = appStateRef.current;
+      appStateRef.current = nextAppState;
+
+      // If returning to foreground while this screen is focused, mark messages as read
+      if (
+        previousState.match(/inactive|background/) &&
+        nextAppState === 'active' &&
+        isFocusedRef.current
+      ) {
+        markMessagesAsRead();
+      }
+    });
+    return () => subscription?.remove();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [match.matchId]);
 
   // Handle new incoming message
   const handleNewMessage = messageData => {

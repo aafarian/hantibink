@@ -10,7 +10,7 @@ const prisma = getPrismaClient();
  */
 const getMessages = async (matchId, userId, options = {}) => {
   try {
-    const { limit = 1000, offset = 0 } = options;  // High limit to get all messages
+    const { limit = 100, offset = 0 } = options;
 
     // Verify user has access to this match
     const match = await prisma.match.findUnique({

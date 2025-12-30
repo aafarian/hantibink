@@ -332,27 +332,33 @@ const AppNavigator = () => {
 
   // Handle notification tap to navigate to the correct screen
   useEffect(() => {
+    // Helper to navigate when ready
+    const navigateWhenReady = (data, retries = 10) => {
+      if (navigationRef.current?.isReady()) {
+        navigationRef.current.navigate('Messages', {
+          screen: 'Chat',
+          params: {
+            match: {
+              matchId: data.matchId,
+              otherUser: data.otherUser,
+            },
+          },
+        });
+      } else if (retries > 0) {
+        // Retry after a short delay if navigation isn't ready yet
+        setTimeout(() => navigateWhenReady(data, retries - 1), 100);
+      } else {
+        Logger.warn('Navigation not ready after retries');
+      }
+    };
+
     notificationResponseListener.current = Notifications.addNotificationResponseReceivedListener(
       response => {
         const data = response.notification.request.content.data;
         Logger.info('Notification tapped:', data);
 
         if (data?.type === 'message' && data?.matchId && data?.otherUser) {
-          // Navigate to the chat screen with this match
-          // Need to wait for navigation to be ready
-          setTimeout(() => {
-            if (navigationRef.current) {
-              navigationRef.current.navigate('Messages', {
-                screen: 'Chat',
-                params: {
-                  match: {
-                    matchId: data.matchId,
-                    otherUser: data.otherUser,
-                  },
-                },
-              });
-            }
-          }, 100);
+          navigateWhenReady(data);
         }
       }
     );

@@ -25,6 +25,7 @@ const notFoundHandler = require('./middleware/notFoundHandler');
 const {
   connectDatabase,
   gracefulShutdown: dbGracefulShutdown,
+  getPrismaClient,
 } = require('./config/database');
 const { initializeFirebase } = require('./config/firebase');
 const { cleanup: cacheCleanup } = require('./middleware/cache');
@@ -289,7 +290,6 @@ async function startServer() {
 
         // Broadcast online status to all matches
         try {
-          const { getPrismaClient } = require('./config/database');
           const prisma = getPrismaClient();
 
           // Get all active matches for this user
@@ -380,7 +380,6 @@ async function startServer() {
         // Also emit to both users' personal rooms (for threads list updates)
         // Need to get the other user in the match
         try {
-          const { getPrismaClient } = require('./config/database');
           const prisma = getPrismaClient();
           const match = await prisma.match.findUnique({
             where: { id: matchId },
@@ -414,7 +413,6 @@ async function startServer() {
 
         // Also emit to both users' personal rooms
         try {
-          const { getPrismaClient } = require('./config/database');
           const prisma = getPrismaClient();
           const match = await prisma.match.findUnique({
             where: { id: matchId },
@@ -467,7 +465,6 @@ async function startServer() {
 
           // Update lastActive in database
           try {
-            const { getPrismaClient } = require('./config/database');
             const prisma = getPrismaClient();
             await prisma.user.update({
               where: { id: userId },
@@ -491,7 +488,6 @@ async function startServer() {
 
           // Also emit to each matched user's personal room
           try {
-            const { getPrismaClient } = require('./config/database');
             const prisma = getPrismaClient();
             const matches = await prisma.match.findMany({
               where: {

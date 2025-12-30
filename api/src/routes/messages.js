@@ -14,12 +14,14 @@ const { getPrismaClient } = require('../config/database');
 const router = express.Router();
 const prisma = getPrismaClient();
 
-// Helper to update user's lastActive (fire and forget)
+// Helper to update user's lastActive (fire and forget with logging)
 const updateLastActive = (userId) => {
   prisma.user.update({
     where: { id: userId },
     data: { lastActive: new Date() },
-  }).catch(() => {}); // Silently ignore errors
+  }).catch(error => {
+    logger.warn(`Failed to update lastActive for user ${userId}:`, error.message);
+  });
 };
 
 /**
@@ -61,7 +63,6 @@ router.get('/:matchId', authenticateJWT, messageValidation.getMessages, async (r
 
     // Disable caching for messages to always get fresh data
     res.set('Cache-Control', 'no-store, no-cache, must-revalidate');
-    res.set('ETag', `${Date.now()}`);
 
     res.json({
       success: true,
