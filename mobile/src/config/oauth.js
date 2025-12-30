@@ -20,7 +20,7 @@ const validateConfig = (value, name, { required = false, silent = false } = {}) 
     if (!isDevelopment && required && !silent) {
       Logger.warn(`OAuth config missing: ${name} - this OAuth provider won't work`);
     }
-    return null; // Return null for missing config - easier to check than placeholder string
+    return `MISSING_${name}`; // Placeholder string for OAuthService.isConfigured() compatibility
   }
   return value;
 };
@@ -74,12 +74,14 @@ export const isProviderConfigured = provider => {
   const config = OAUTH_CONFIG[provider];
   if (!config) return false;
 
+  const isValidValue = val => val && !val.includes('MISSING_') && !val.includes('YOUR_');
+
   if (provider === 'apple') {
-    return config.serviceId !== null;
+    return isValidValue(config.serviceId);
   }
 
   const key = isDevelopment ? 'development' : 'production';
-  return config[key] !== null;
+  return isValidValue(config[key]);
 };
 
 export default OAUTH_CONFIG;
