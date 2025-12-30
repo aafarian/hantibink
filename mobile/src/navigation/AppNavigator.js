@@ -1,4 +1,4 @@
-import React, { useRef } from 'react';
+import React, { useRef, useEffect } from 'react';
 import { NavigationContainer } from '@react-navigation/native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { createStackNavigator } from '@react-navigation/stack';
@@ -6,6 +6,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { Platform, View, ActivityIndicator, Text } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import * as Notifications from 'expo-notifications';
 import { useAuth } from '../contexts/AuthContext';
 import { useUnread } from '../contexts/UnreadContext';
 import { LocationProvider } from '../contexts/LocationContext';
@@ -327,6 +328,41 @@ const MainNavigator = () => {
 const AppNavigator = () => {
   const { user, userProfile, loading } = useAuth();
   const navigationRef = useRef();
+  const notificationResponseListener = useRef();
+
+  // Handle notification tap to navigate to the correct screen
+  useEffect(() => {
+    notificationResponseListener.current = Notifications.addNotificationResponseReceivedListener(
+      response => {
+        const data = response.notification.request.content.data;
+        Logger.info('Notification tapped:', data);
+
+        if (data?.type === 'message' && data?.matchId && data?.otherUser) {
+          // Navigate to the chat screen with this match
+          // Need to wait for navigation to be ready
+          setTimeout(() => {
+            if (navigationRef.current) {
+              navigationRef.current.navigate('Messages', {
+                screen: 'Chat',
+                params: {
+                  match: {
+                    matchId: data.matchId,
+                    otherUser: data.otherUser,
+                  },
+                },
+              });
+            }
+          }, 100);
+        }
+      }
+    );
+
+    return () => {
+      if (notificationResponseListener.current) {
+        Notifications.removeNotificationSubscription(notificationResponseListener.current);
+      }
+    };
+  }, []);
 
   // Don't check onboarding flag here - let MainNavigator handle it
   // This was causing a race condition where the flag was being cleared

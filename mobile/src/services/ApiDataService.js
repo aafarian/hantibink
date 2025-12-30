@@ -602,7 +602,7 @@ class ApiDataService {
     try {
       Logger.info('💬 Getting messages from API...');
 
-      const { limit = 50, offset = 0 } = options;
+      const { limit = 1000, offset = 0 } = options; // High limit to get all messages
       const queryParams = new URLSearchParams({
         limit: limit.toString(),
         offset: offset.toString(),

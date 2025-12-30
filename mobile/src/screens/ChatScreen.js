@@ -15,10 +15,12 @@ import {
   StatusBar,
   Keyboard,
   BackHandler,
+  AppState,
 } from 'react-native';
 import * as Haptics from 'expo-haptics';
 import { Swipeable } from 'react-native-gesture-handler';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useIsFocused } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../contexts/AuthContext';
 import { useToast } from '../contexts/ToastContext';
@@ -27,6 +29,7 @@ import { usePhotoViewer } from '../contexts/PhotoViewerContext';
 import ApiDataService from '../services/ApiDataService';
 import SocketService from '../services/SocketService';
 import Logger from '../utils/logger';
+import { clearNotificationForMatch } from '../utils/notifications';
 import { getUserProfilePhoto, getUserDisplayName } from '../utils/profileHelpers';
 import ProfileBottomSheet from '../components/shared/ProfileBottomSheet';
 import GifPicker from '../components/GifPicker';
@@ -41,12 +44,16 @@ const formatLastSeen = date => {
   const diffMins = Math.floor(diffMs / 60000);
   const diffHours = Math.floor(diffMs / 3600000);
   const diffDays = Math.floor(diffMs / 86400000);
+  const diffWeeks = Math.floor(diffDays / 7);
+  const diffMonths = Math.floor(diffDays / 30);
 
   if (diffMins < 1) return 'Last seen just now';
   if (diffMins < 60) return `Last seen ${diffMins}m ago`;
   if (diffHours < 24) return `Last seen ${diffHours}h ago`;
   if (diffDays < 7) return `Last seen ${diffDays}d ago`;
-  return 'Last seen recently';
+  if (diffWeeks < 4) return `Last seen ${diffWeeks}w ago`;
+  if (diffMonths < 12) return `Last seen ${diffMonths}mo ago`;
+  return `Last seen ${Math.floor(diffMonths / 12)}y ago`;
 };
 
 const ChatScreen = ({ route, navigation }) => {
@@ -56,6 +63,7 @@ const ChatScreen = ({ route, navigation }) => {
   const isPremium = useIsPremium();
   const { openPhotoViewer } = usePhotoViewer();
   const _insets = useSafeAreaInsets();
+  const isFocused = useIsFocused();
 
   // State
   const [messages, setMessages] = useState([]);
@@ -90,6 +98,8 @@ const ChatScreen = ({ route, navigation }) => {
   const sentMessageIdsRef = useRef(new Set()); // Track IDs of messages we sent to avoid socket duplicates
   const sentMessageTimeoutsRef = useRef(new Map()); // Track cleanup timeouts for sentMessageIds
   const scrollButtonAnim = useRef(new Animated.Value(0)).current;
+  const isFocusedRef = useRef(isFocused); // Track focus state for callbacks
+  const appStateRef = useRef(AppState.currentState); // Track app foreground/background state
 
   // Max number of message IDs to track (prevents unbounded growth)
   const MAX_SENT_MESSAGE_IDS = 100;
@@ -104,6 +114,65 @@ const ChatScreen = ({ route, navigation }) => {
     new Animated.Value(0),
     new Animated.Value(0),
   ]).current;
+  const shockwaveScale = useRef(new Animated.Value(1)).current;
+  const shockwaveOpacity = useRef(new Animated.Value(0.6)).current;
+
+  // Shockwave animation for online dot
+  useEffect(() => {
+    let shockwaveAnimation;
+    if (onlineStatus && isPremium) {
+      shockwaveAnimation = Animated.loop(
+        Animated.parallel([
+          Animated.sequence([
+            Animated.timing(shockwaveScale, {
+              toValue: 2.2,
+              duration: 1500,
+              useNativeDriver: true,
+            }),
+            Animated.timing(shockwaveScale, {
+              toValue: 1,
+              duration: 0,
+              useNativeDriver: true,
+            }),
+          ]),
+          Animated.sequence([
+            Animated.timing(shockwaveOpacity, {
+              toValue: 0,
+              duration: 1500,
+              useNativeDriver: true,
+            }),
+            Animated.timing(shockwaveOpacity, {
+              toValue: 0.6,
+              duration: 0,
+              useNativeDriver: true,
+            }),
+          ]),
+        ])
+      );
+      shockwaveAnimation.start();
+    } else {
+      shockwaveScale.setValue(1);
+      shockwaveOpacity.setValue(0.6);
+    }
+    return () => {
+      if (shockwaveAnimation) {
+        shockwaveAnimation.stop();
+      }
+    };
+  }, [onlineStatus, isPremium, shockwaveScale, shockwaveOpacity]);
+
+  // Keep focus ref in sync for callbacks
+  useEffect(() => {
+    isFocusedRef.current = isFocused;
+  }, [isFocused]);
+
+  // Track app foreground/background state
+  useEffect(() => {
+    const subscription = AppState.addEventListener('change', nextAppState => {
+      appStateRef.current = nextAppState;
+    });
+    return () => subscription?.remove();
+  }, []);
 
   // Memoize reversed messages to avoid creating new array on every render
   const reversedMessages = useMemo(() => [...messages].reverse(), [messages]);
@@ -157,13 +226,37 @@ const ChatScreen = ({ route, navigation }) => {
   useEffect(() => {
     loadMessages();
     joinChatRoom();
+    // Clear any pending notification for this conversation
+    clearNotificationForMatch(match.matchId);
     // Don't mark as read on mount - wait until we have messages
 
     return () => {
       leaveChatRoom();
+      // Clear typing timeout on unmount
+      if (otherUserTypingTimeoutRef.current) {
+        clearTimeout(otherUserTypingTimeoutRef.current);
+        otherUserTypingTimeoutRef.current = null;
+      }
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [match.matchId]);
+
+  // Initialize online status from match data
+  useEffect(() => {
+    if (match.otherUser?.lastActive) {
+      const lastActiveDate = new Date(match.otherUser.lastActive);
+      const now = new Date();
+      const minutesSinceActive = (now - lastActiveDate) / (1000 * 60);
+
+      // Consider online if active within last 2 minutes
+      if (minutesSinceActive < 2) {
+        setOnlineStatus(true);
+      } else {
+        setOnlineStatus(false);
+        setLastSeen(lastActiveDate);
+      }
+    }
+  }, [match.otherUser?.lastActive]);
 
   // Track keyboard state and handle Android back button
   useEffect(() => {
@@ -313,6 +406,7 @@ const ChatScreen = ({ route, navigation }) => {
       isRead: msg.isRead || false,
       isDelivered: msg.isDelivered || false,
       reactions: msg.reactions || {},
+      replyTo: msg.replyTo || null,
     };
 
     setMessages(prev => {
@@ -323,8 +417,9 @@ const ChatScreen = ({ route, navigation }) => {
       return [...prev, transformedMessage];
     });
 
-    // Mark as read only if it's from the other user
-    if (transformedMessage.senderId !== user.uid) {
+    // Mark as read only if it's from the other user AND screen is focused AND app is in foreground
+    const isAppActive = appStateRef.current === 'active';
+    if (transformedMessage.senderId !== user.uid && isFocusedRef.current && isAppActive) {
       markMessagesAsRead();
     }
   };
@@ -338,10 +433,28 @@ const ChatScreen = ({ route, navigation }) => {
     );
   };
 
-  // Handle typing indicator
+  // Ref for typing timeout (auto-clear if no stop event received)
+  const otherUserTypingTimeoutRef = useRef(null);
+
+  // Handle typing indicator with auto-clear timeout
   const handleUserTyping = typingData => {
     if (typingData.userId !== user.uid) {
+      // Clear existing timeout
+      if (otherUserTypingTimeoutRef.current) {
+        clearTimeout(otherUserTypingTimeoutRef.current);
+        otherUserTypingTimeoutRef.current = null;
+      }
+
       setOtherUserTyping(typingData.isTyping);
+
+      // If user started typing, set a timeout to auto-clear after 5 seconds
+      // This prevents stuck typing indicators if stop event is missed
+      if (typingData.isTyping) {
+        otherUserTypingTimeoutRef.current = setTimeout(() => {
+          setOtherUserTyping(false);
+          otherUserTypingTimeoutRef.current = null;
+        }, 5000);
+      }
     }
   };
 
@@ -422,6 +535,16 @@ const ChatScreen = ({ route, navigation }) => {
     setMessageText('');
     setReplyTo(null);
     setIsSending(true);
+
+    // Stop typing indicator when sending
+    if (isTyping) {
+      setIsTyping(false);
+      SocketService.stopTyping(match.matchId, user.uid);
+    }
+    if (typingTimeoutRef.current) {
+      clearTimeout(typingTimeoutRef.current);
+      typingTimeoutRef.current = null;
+    }
 
     // Build replyTo data if replying
     const replyToData = currentReplyTo
@@ -910,15 +1033,27 @@ const ChatScreen = ({ route, navigation }) => {
                         })
                       : ''}
                   </Text>
-                  {item.isRead ? (
-                    <Ionicons
-                      name="checkmark-done"
-                      size={14}
-                      color="#4CAF50"
-                      style={styles.readIcon}
-                    />
+                  {isPremium ? (
+                    item.isRead ? (
+                      <Ionicons
+                        name="checkmark-done"
+                        size={14}
+                        color="#4CAF50"
+                        style={styles.readIcon}
+                      />
+                    ) : (
+                      <Ionicons name="checkmark" size={14} color="#999" style={styles.readIcon} />
+                    )
                   ) : (
-                    <Ionicons name="checkmark" size={14} color="#999" style={styles.readIcon} />
+                    <View style={styles.premiumHint}>
+                      <Ionicons name="checkmark" size={14} color="#999" style={styles.readIcon} />
+                      <Ionicons
+                        name="diamond-outline"
+                        size={12}
+                        color="#FFB800"
+                        style={styles.premiumDiamond}
+                      />
+                    </View>
                   )}
                 </View>
               )}
@@ -929,9 +1064,9 @@ const ChatScreen = ({ route, navigation }) => {
     );
   };
 
-  // Render typing indicator
+  // Render typing indicator (premium only)
   const renderTypingIndicator = () => {
-    if (!otherUserTyping) return null;
+    if (!otherUserTyping || !isPremium) return null;
 
     return (
       <View style={[styles.messageRow, styles.typingRow]}>
@@ -1121,17 +1256,35 @@ const ChatScreen = ({ route, navigation }) => {
               <View style={styles.headerInfo}>
                 <Text style={styles.headerName}>{getUserDisplayName(match.otherUser)}</Text>
                 <View style={styles.statusRow}>
-                  {otherUserTyping ? (
+                  {isPremium && otherUserTyping ? (
                     <Text style={styles.statusText}>Typing...</Text>
                   ) : isPremium && onlineStatus ? (
                     <>
-                      <View style={styles.onlineDot} />
+                      <View style={styles.onlineDotContainer}>
+                        <Animated.View
+                          style={[
+                            styles.onlineShockwave,
+                            { transform: [{ scale: shockwaveScale }], opacity: shockwaveOpacity },
+                          ]}
+                        />
+                        <View style={styles.onlineDot} />
+                      </View>
                       <Text style={styles.statusText}>Online</Text>
                     </>
-                  ) : lastSeen ? (
-                    <Text style={styles.statusText}>{formatLastSeen(lastSeen)}</Text>
+                  ) : isPremium ? (
+                    <Text style={styles.statusText}>
+                      {lastSeen ? formatLastSeen(lastSeen) : 'New to Hantibink'}
+                    </Text>
                   ) : (
-                    <Text style={styles.statusText}>Matched recently</Text>
+                    <View style={styles.premiumHint}>
+                      <Text style={styles.statusText}>See activity</Text>
+                      <Ionicons
+                        name="diamond-outline"
+                        size={12}
+                        color="#FFB800"
+                        style={styles.premiumDiamond}
+                      />
+                    </View>
                   )}
                 </View>
               </View>
@@ -1483,12 +1636,26 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginTop: 2,
   },
+  onlineDotContainer: {
+    width: 20,
+    height: 20,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 2,
+  },
   onlineDot: {
     width: 8,
     height: 8,
     borderRadius: 4,
     backgroundColor: '#4CAF50',
-    marginRight: 6,
+    position: 'absolute',
+  },
+  onlineShockwave: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: '#4CAF50',
+    position: 'absolute',
   },
   statusText: {
     fontSize: 13,
@@ -1810,6 +1977,13 @@ const styles = StyleSheet.create({
   },
   readIcon: {
     marginLeft: 4,
+  },
+  premiumHint: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  premiumDiamond: {
+    marginLeft: 2,
   },
   typingRow: {
     marginBottom: 8,
