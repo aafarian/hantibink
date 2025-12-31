@@ -24,6 +24,7 @@ const getUserMatches = async (userId, options = {}) => {
             birthDate: true,
             location: true,
             lastActive: true,
+            mainPhotoUrl: true,
             photos: {
               select: { url: true, isMain: true },
               orderBy: { isMain: 'desc' }, // Main photos first
@@ -38,6 +39,7 @@ const getUserMatches = async (userId, options = {}) => {
             birthDate: true,
             location: true,
             lastActive: true,
+            mainPhotoUrl: true,
             photos: {
               select: { url: true, isMain: true },
               orderBy: { isMain: 'desc' }, // Main photos first
@@ -81,6 +83,7 @@ const getUserMatches = async (userId, options = {}) => {
           bio: otherUser.bio,
           location: otherUser.location,
           age,
+          mainPhotoUrl: otherUser.mainPhotoUrl,
           photos: otherUser.photos || [],
           lastActive: otherUser.lastActive,
         },

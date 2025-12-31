@@ -10,14 +10,20 @@ const NO_PHOTO_PLACEHOLDER =
  * @returns {string} URL of the best available photo
  */
 export const getUserProfilePhoto = user => {
-  // Priority 1: mainPhoto (if user has specifically selected one)
-  if (user?.mainPhoto && user.mainPhoto.trim()) {
+  // Priority 1: mainPhotoUrl (stored in database when user sets main photo)
+  if (user?.mainPhotoUrl && user.mainPhotoUrl.trim()) {
+    return user.mainPhotoUrl;
+  }
+
+  // Priority 1b: mainPhoto field (legacy/alternate field name)
+  if (user?.mainPhoto && typeof user.mainPhoto === 'string' && user.mainPhoto.trim()) {
     return user.mainPhoto;
   }
 
   // Priority 2: Main photo from photos array (isMain: true)
+  // Note: With proper API ordering, the main photo should be first in the array
   if (user?.photos && Array.isArray(user.photos) && user.photos.length > 0) {
-    // First, look for the main photo
+    // First, look for the photo marked as main
     const mainPhoto = user.photos.find(photo => {
       if (!photo) return false;
       return photo.isMain === true;
@@ -30,7 +36,7 @@ export const getUserProfilePhoto = user => {
       }
     }
 
-    // Fallback: First valid photo if no main photo is set
+    // Fallback: First valid photo (should be main photo if API orders correctly)
     const validPhotos = user.photos.filter(photo => {
       if (!photo) return false;
       const photoUrl = typeof photo === 'object' ? photo.url : photo;

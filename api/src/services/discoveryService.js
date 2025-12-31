@@ -339,7 +339,10 @@ const getUsersForDiscovery = async (currentUserId, options = {}) => {
       where: baseWhereClause,
       include: {
         photos: {
-          orderBy: { order: 'asc' },
+          orderBy: [
+            { isMain: 'desc' },  // Main photo first
+            { order: 'asc' },    // Then by order
+          ],
         },
         interests: {
           include: {
@@ -390,9 +393,15 @@ const getUsersForDiscovery = async (currentUserId, options = {}) => {
       // eslint-disable-next-line no-unused-vars
       const { password, email, ...userWithoutSensitive } = user;
 
+      // Get main photo URL - prioritize mainPhotoUrl field, then first photo with isMain
+      const mainPhotoUrl = user.mainPhotoUrl ||
+        user.photos?.find(p => p.isMain)?.url ||
+        user.photos?.[0]?.url || null;
+
       return {
         ...userWithoutSensitive,
         age,
+        mainPhotoUrl,
         distance: distance ? Math.round(distance) : null,
         matchScore: score,
         scoreBreakdown: breakdown,

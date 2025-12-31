@@ -28,16 +28,15 @@ const ProfileEditScreen = ({ navigation }) => {
   // Refs for the form
   const profileFormRef = useRef(null);
 
-  // Initialize photos from profile - always sync with userProfile
+  // Initialize photos from profile
+  // PhotoManager handles its own local state for reordering, so we just pass initial data
   useEffect(() => {
     if (userProfile?.photos) {
-      // Always update photos when userProfile changes
-      // This ensures photos stay in sync after API updates
       setPhotos(userProfile.photos);
     } else {
       setPhotos([]);
     }
-  }, [userProfile?.photos]); // Only watch photos array to avoid unnecessary re-renders
+  }, [userProfile?.photos]);
 
   // Initialize form data and track when profile loads
   useEffect(() => {
