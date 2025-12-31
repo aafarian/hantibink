@@ -86,3 +86,71 @@ export const authRequest = (request, token) => {
  * Helper to wait for async operations
  */
 export const wait = (ms) => new Promise(resolve => setTimeout(resolve, ms));
+
+/**
+ * Create a mock Socket.IO instance for testing real-time events
+ */
+export const createMockSocketIO = () => {
+  const emitCalls = [];
+  const mock = {
+    to: function(room) {
+      return {
+        emit: (event, data) => {
+          emitCalls.push({ room, event, data });
+        },
+      };
+    },
+    emit: (event, data) => {
+      emitCalls.push({ room: null, event, data });
+    },
+    getEmitCalls: () => emitCalls,
+    clearEmitCalls: () => emitCalls.length = 0,
+    findEmit: (event, room = null) => {
+      return emitCalls.find(call => call.event === event && (room === null || call.room === room));
+    },
+    countEmits: (event) => {
+      return emitCalls.filter(call => call.event === event).length;
+    },
+  };
+  return mock;
+};
+
+/**
+ * Create a complete discovery scenario with two compatible users
+ * User1 is a male interested in females
+ * User2 is a female interested in males
+ * Both have photos and location set
+ */
+export const createDiscoveryScenario = async (prisma, factories) => {
+  const { userFactory, photoFactory } = factories;
+
+  // Create user1 (male looking for female)
+  const user1Auth = await userFactory.createWithAuth(prisma, {
+    gender: 'MAN',
+    interestedIn: ['WOMAN'],
+    location: 'New York',
+    latitude: 40.7128,
+    longitude: -74.0060,
+    minAge: 18,
+    maxAge: 50,
+    maxDistance: 100,
+    isActive: true,
+  });
+  await photoFactory.create(prisma, user1Auth.user.id, { isMain: true });
+
+  // Create user2 (female looking for male)
+  const user2 = await userFactory.create(prisma, {
+    gender: 'WOMAN',
+    interestedIn: ['MAN'],
+    location: 'New York',
+    latitude: 40.7580,
+    longitude: -73.9855,
+    minAge: 18,
+    maxAge: 50,
+    maxDistance: 100,
+    isActive: true,
+  });
+  await photoFactory.create(prisma, user2.id, { isMain: true });
+
+  return { user1: user1Auth, user2 };
+};
