@@ -19,6 +19,7 @@ import MatchModal from '../components/MatchModal';
 import Logger from '../utils/logger';
 import { getUserProfilePhoto } from '../utils/profileHelpers';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { theme } from '../styles/theme';
 
 const BATCH_SIZE = 10; // Load 10 profiles at a time
 
@@ -491,7 +492,7 @@ const PeopleScreenOptimized = ({ navigation }) => {
     return (
       <SafeAreaView style={styles.container}>
         <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color="#FF6B6B" />
+          <ActivityIndicator size="large" color={theme.colors.primary} />
           <Text style={styles.loadingText}>Finding people near you...</Text>
         </View>
       </SafeAreaView>
@@ -693,7 +694,7 @@ const styles = StyleSheet.create({
     marginBottom: 30,
   },
   addPhotosButton: {
-    backgroundColor: '#FF6B6B',
+    backgroundColor: theme.colors.primary,
     paddingHorizontal: 30,
     paddingVertical: 12,
     borderRadius: 25,

@@ -36,6 +36,7 @@ import { formatLastSeen } from '../utils/timeHelpers';
 import ProfileBottomSheet from '../components/shared/ProfileBottomSheet';
 import GifPicker from '../components/GifPicker';
 import EmojiPicker from 'rn-emoji-keyboard';
+import { theme } from '../styles/theme';
 import BottomSheet, { BottomSheetScrollView, BottomSheetBackdrop } from '@gorhom/bottom-sheet';
 
 const ChatScreen = ({ route, navigation }) => {
@@ -771,7 +772,7 @@ const ChatScreen = ({ route, navigation }) => {
     });
     return (
       <Animated.View style={[styles.swipeActionRight, { transform: [{ translateX }] }]}>
-        <Ionicons name="arrow-undo" size={24} color="#E91E63" />
+        <Ionicons name="arrow-undo" size={24} color={theme.colors.primary} />
       </Animated.View>
     );
   }, []);
@@ -785,7 +786,7 @@ const ChatScreen = ({ route, navigation }) => {
     });
     return (
       <Animated.View style={[styles.swipeActionLeft, { transform: [{ translateX }] }]}>
-        <Ionicons name="arrow-undo" size={24} color="#E91E63" />
+        <Ionicons name="arrow-undo" size={24} color={theme.colors.primary} />
       </Animated.View>
     );
   }, []);
@@ -1212,9 +1213,9 @@ const ChatScreen = ({ route, navigation }) => {
 
   return (
     <>
-      <StatusBar backgroundColor="#FF6B6B" barStyle="light-content" />
+      <StatusBar backgroundColor={theme.colors.primary} barStyle="light-content" />
       {Platform.OS === 'android' && (
-        <View style={{ height: StatusBar.currentHeight, backgroundColor: '#FF6B6B' }} />
+        <View style={{ height: StatusBar.currentHeight, backgroundColor: theme.colors.primary }} />
       )}
       <WrapperComponent style={styles.wrapper}>
         <KeyboardAvoidingView
@@ -1285,7 +1286,7 @@ const ChatScreen = ({ route, navigation }) => {
           {/* Messages */}
           {isLoading ? (
             <View style={styles.loadingContainer}>
-              <ActivityIndicator size="large" color="#E91E63" />
+              <ActivityIndicator size="large" color={theme.colors.primary} />
             </View>
           ) : (
             <>
@@ -1399,7 +1400,7 @@ const ChatScreen = ({ route, navigation }) => {
               <Ionicons
                 name="send"
                 size={20}
-                color={messageText.trim() && !isSending ? '#E91E63' : '#999'}
+                color={messageText.trim() && !isSending ? theme.colors.primary : '#999'}
               />
             </TouchableOpacity>
           </View>
@@ -1539,7 +1540,7 @@ const ChatScreen = ({ route, navigation }) => {
                   onPress={handleAddReactionFromSheet}
                   activeOpacity={0.7}
                 >
-                  <Ionicons name="add-circle-outline" size={24} color="#FF6B6B" />
+                  <Ionicons name="add-circle-outline" size={24} color={theme.colors.primary} />
                   <Text style={styles.addReactionText}>Add reaction</Text>
                 </TouchableOpacity>
               </>
@@ -1554,12 +1555,12 @@ const ChatScreen = ({ route, navigation }) => {
           onClose={handleCloseEmojiPicker}
           theme={{
             backdrop: '#00000080',
-            knob: '#FF6B6B',
+            knob: theme.colors.primary,
             category: {
               icon: '#666',
-              iconActive: '#FF6B6B',
+              iconActive: theme.colors.primary,
               container: '#fff',
-              containerActive: '#FFE4E1',
+              containerActive: 'rgba(211, 47, 47, 0.15)',
             },
             search: {
               background: '#f5f5f5',
@@ -1702,12 +1703,12 @@ const styles = StyleSheet.create({
     maxWidth: '100%',
   },
   ownMessageBubble: {
-    backgroundColor: '#FF6B6B',
+    backgroundColor: theme.colors.primary,
     borderTopRightRadius: 24,
     borderTopLeftRadius: 24,
     borderBottomLeftRadius: 24,
     borderBottomRightRadius: 8,
-    shadowColor: '#FF6B6B',
+    shadowColor: theme.colors.primary,
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.15,
     shadowRadius: 8,
@@ -1774,10 +1775,10 @@ const styles = StyleSheet.create({
   },
   // Colors based on WHO is being quoted
   quotingSelfStandalone: {
-    backgroundColor: 'rgba(255, 107, 107, 0.15)',
+    backgroundColor: 'rgba(211, 47, 47, 0.15)', // theme.colors.primary with opacity
   },
   quotingOtherStandalone: {
-    backgroundColor: 'rgba(103, 58, 183, 0.12)',
+    backgroundColor: 'rgba(21, 101, 192, 0.12)', // theme.colors.secondary with opacity
   },
   quotedReplyBar: {
     width: 3,
@@ -1786,10 +1787,10 @@ const styles = StyleSheet.create({
     marginRight: 8,
   },
   quotingSelfBar: {
-    backgroundColor: '#FF6B6B',
+    backgroundColor: theme.colors.primary,
   },
   quotingOtherBar: {
-    backgroundColor: '#673AB7',
+    backgroundColor: theme.colors.secondary,
   },
   quotedReplyContent: {
     flexShrink: 1,
@@ -1801,10 +1802,10 @@ const styles = StyleSheet.create({
     marginBottom: 2,
   },
   quotingSelfName: {
-    color: '#FF6B6B',
+    color: theme.colors.primary,
   },
   quotingOtherName: {
-    color: '#673AB7',
+    color: theme.colors.secondary,
   },
   quotedReplyText: {
     fontSize: 13,
@@ -1893,7 +1894,7 @@ const styles = StyleSheet.create({
     borderBottomColor: 'transparent',
   },
   reactionsTabActive: {
-    borderBottomColor: '#FF6B6B',
+    borderBottomColor: theme.colors.primary,
   },
   reactionsTabText: {
     fontSize: 14,
@@ -1901,7 +1902,7 @@ const styles = StyleSheet.create({
     fontWeight: '500',
   },
   reactionsTabTextActive: {
-    color: '#FF6B6B',
+    color: theme.colors.primary,
   },
   noReactionsContainer: {
     paddingVertical: 40,
@@ -1947,7 +1948,7 @@ const styles = StyleSheet.create({
   },
   addReactionText: {
     fontSize: 16,
-    color: '#FF6B6B',
+    color: theme.colors.primary,
     marginLeft: 12,
     fontWeight: '500',
   },
@@ -2025,7 +2026,7 @@ const styles = StyleSheet.create({
     width: 3,
     height: '100%',
     minHeight: 32,
-    backgroundColor: '#E91E63',
+    backgroundColor: theme.colors.primary,
     borderRadius: 2,
     marginRight: 8,
   },
@@ -2035,7 +2036,7 @@ const styles = StyleSheet.create({
   replyPreviewName: {
     fontSize: 13,
     fontWeight: '600',
-    color: '#E91E63',
+    color: theme.colors.primary,
     marginBottom: 2,
   },
   replyPreviewMessage: {
@@ -2102,7 +2103,7 @@ const styles = StyleSheet.create({
     width: 44,
     height: 44,
     borderRadius: 22,
-    backgroundColor: '#FF6B6B',
+    backgroundColor: theme.colors.primary,
     justifyContent: 'center',
     alignItems: 'center',
   },

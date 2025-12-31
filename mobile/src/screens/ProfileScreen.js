@@ -17,7 +17,7 @@ import { LoadingScreen } from '../components/LoadingScreen';
 import { capitalizeFirst, formatRelationshipTypes } from '../utils/profileDataUtils';
 import { shouldShowDeveloperOptions, getBuildEnvironment } from '../utils/buildConfig';
 
-// import { theme } from '../styles/theme';
+import { theme } from '../styles/theme';
 // import { commonStyles } from '../styles/commonStyles';
 // Removed Firebase dependencies - now using API-based AuthContext
 
@@ -195,7 +195,7 @@ const ProfileScreen = ({ navigation }) => {
         {/* Profile Completion Guidance */}
         {(!userProfile.photos || userProfile.photos.length === 0 || !userProfile.bio) && (
           <View style={styles.guidanceContainer}>
-            <Ionicons name="sparkles" size={24} color="#FF6B6B" />
+            <Ionicons name="sparkles" size={24} color={theme.colors.primary} />
             <View style={styles.guidanceTextContainer}>
               <Text style={styles.guidanceTitle}>Complete your profile!</Text>
               <Text style={styles.guidanceSubtitle}>
@@ -221,7 +221,7 @@ const ProfileScreen = ({ navigation }) => {
               style={styles.editButton}
               onPress={() => navigation.navigate('ProfileEdit')}
             >
-              <Ionicons name="pencil" size={16} color="#FF6B6B" />
+              <Ionicons name="pencil" size={16} color={theme.colors.primary} />
               <Text style={styles.editButtonText}>Edit</Text>
             </TouchableOpacity>
           </View>
@@ -229,7 +229,7 @@ const ProfileScreen = ({ navigation }) => {
           <View style={styles.infoGrid}>
             <View style={styles.infoCard}>
               <View style={styles.infoIconWrapper}>
-                <Ionicons name="person" size={18} color="#FF6B6B" />
+                <Ionicons name="person" size={18} color={theme.colors.primary} />
               </View>
               <View style={styles.infoContent}>
                 <Text style={styles.infoLabel}>Name & Age</Text>
@@ -242,7 +242,7 @@ const ProfileScreen = ({ navigation }) => {
 
             <View style={styles.infoCard}>
               <View style={styles.infoIconWrapper}>
-                <Ionicons name="location" size={18} color="#FF6B6B" />
+                <Ionicons name="location" size={18} color={theme.colors.primary} />
               </View>
               <View style={styles.infoContent}>
                 <Text style={styles.infoLabel}>Location</Text>
@@ -253,7 +253,7 @@ const ProfileScreen = ({ navigation }) => {
             {userProfile.profession && (
               <View style={styles.infoCard}>
                 <View style={styles.infoIconWrapper}>
-                  <Ionicons name="briefcase" size={18} color="#FF6B6B" />
+                  <Ionicons name="briefcase" size={18} color={theme.colors.primary} />
                 </View>
                 <View style={styles.infoContent}>
                   <Text style={styles.infoLabel}>Work</Text>
@@ -265,7 +265,7 @@ const ProfileScreen = ({ navigation }) => {
             {userProfile.education && (
               <View style={styles.infoCard}>
                 <View style={styles.infoIconWrapper}>
-                  <Ionicons name="school" size={18} color="#FF6B6B" />
+                  <Ionicons name="school" size={18} color={theme.colors.primary} />
                 </View>
                 <View style={styles.infoContent}>
                   <Text style={styles.infoLabel}>Education</Text>
@@ -277,7 +277,7 @@ const ProfileScreen = ({ navigation }) => {
             {userProfile.height && (
               <View style={styles.infoCard}>
                 <View style={styles.infoIconWrapper}>
-                  <Ionicons name="resize" size={18} color="#FF6B6B" />
+                  <Ionicons name="resize" size={18} color={theme.colors.primary} />
                 </View>
                 <View style={styles.infoContent}>
                   <Text style={styles.infoLabel}>Height</Text>
@@ -311,7 +311,7 @@ const ProfileScreen = ({ navigation }) => {
                 <View style={styles.lookingForContainer}>
                   {formatRelationshipTypes(userProfile.relationshipType).map((type, index) => (
                     <View key={index} style={styles.lookingForTag}>
-                      <Ionicons name="heart-outline" size={16} color="#FF6B6B" />
+                      <Ionicons name="heart-outline" size={16} color={theme.colors.primary} />
                       <Text style={styles.lookingForText}>{type}</Text>
                     </View>
                   ))}
@@ -378,7 +378,7 @@ const ProfileScreen = ({ navigation }) => {
               {userProfile.religion && (
                 <View style={styles.lifestyleRow}>
                   <View style={styles.lifestyleIcon}>
-                    <Ionicons name="star" size={20} color="#FF6B6B" />
+                    <Ionicons name="star" size={20} color={theme.colors.primary} />
                   </View>
                   <View style={styles.lifestyleContent}>
                     <Text style={styles.lifestyleLabel}>Religion</Text>
@@ -390,7 +390,7 @@ const ProfileScreen = ({ navigation }) => {
               {userProfile.smoking && (
                 <View style={styles.lifestyleRow}>
                   <View style={styles.lifestyleIcon}>
-                    <Ionicons name="ban" size={20} color="#FF6B6B" />
+                    <Ionicons name="ban" size={20} color={theme.colors.primary} />
                   </View>
                   <View style={styles.lifestyleContent}>
                     <Text style={styles.lifestyleLabel}>Smoking</Text>
@@ -404,7 +404,7 @@ const ProfileScreen = ({ navigation }) => {
               {userProfile.drinking && (
                 <View style={styles.lifestyleRow}>
                   <View style={styles.lifestyleIcon}>
-                    <Ionicons name="wine" size={20} color="#FF6B6B" />
+                    <Ionicons name="wine" size={20} color={theme.colors.primary} />
                   </View>
                   <View style={styles.lifestyleContent}>
                     <Text style={styles.lifestyleLabel}>Drinking</Text>
@@ -418,7 +418,7 @@ const ProfileScreen = ({ navigation }) => {
               {userProfile.travel && (
                 <View style={styles.lifestyleRow}>
                   <View style={styles.lifestyleIcon}>
-                    <Ionicons name="airplane" size={20} color="#FF6B6B" />
+                    <Ionicons name="airplane" size={20} color={theme.colors.primary} />
                   </View>
                   <View style={styles.lifestyleContent}>
                     <Text style={styles.lifestyleLabel}>Travel</Text>
@@ -430,7 +430,7 @@ const ProfileScreen = ({ navigation }) => {
               {userProfile.pets && (
                 <View style={styles.lifestyleRow}>
                   <View style={styles.lifestyleIcon}>
-                    <Ionicons name="paw" size={20} color="#FF6B6B" />
+                    <Ionicons name="paw" size={20} color={theme.colors.primary} />
                   </View>
                   <View style={styles.lifestyleContent}>
                     <Text style={styles.lifestyleLabel}>Pets</Text>
@@ -450,25 +450,25 @@ const ProfileScreen = ({ navigation }) => {
             style={styles.settingItem}
             onPress={() => navigation.navigate('ProfileEdit')}
           >
-            <Ionicons name="settings" size={20} color="#FF6B6B" />
+            <Ionicons name="settings" size={20} color={theme.colors.primary} />
             <Text style={styles.settingText}>Edit Profile</Text>
             <Ionicons name="chevron-forward" size={20} color="#ccc" />
           </TouchableOpacity>
 
           <TouchableOpacity style={styles.settingItem}>
-            <Ionicons name="filter" size={20} color="#FF6B6B" />
+            <Ionicons name="filter" size={20} color={theme.colors.primary} />
             <Text style={styles.settingText}>Preferences</Text>
             <Ionicons name="chevron-forward" size={20} color="#ccc" />
           </TouchableOpacity>
 
           <TouchableOpacity style={styles.settingItem}>
-            <Ionicons name="notifications" size={20} color="#FF6B6B" />
+            <Ionicons name="notifications" size={20} color={theme.colors.primary} />
             <Text style={styles.settingText}>Notifications</Text>
             <Ionicons name="chevron-forward" size={20} color="#ccc" />
           </TouchableOpacity>
 
           <TouchableOpacity style={styles.logoutButton} onPress={handleLogout}>
-            <Ionicons name="log-out-outline" size={20} color="#FF6B6B" />
+            <Ionicons name="log-out-outline" size={20} color={theme.colors.primary} />
             <Text style={styles.logoutText}>Logout</Text>
           </TouchableOpacity>
         </View>
@@ -476,10 +476,16 @@ const ProfileScreen = ({ navigation }) => {
         {/* Developer Settings - Only in Dev/Preview Mode */}
         {shouldShowDeveloperOptions() && (
           <View style={styles.settingsSection}>
-            <Text style={[styles.sectionTitle, { color: '#9b59b6' }]}>Developer Settings</Text>
+            <Text style={[styles.sectionTitle, { color: theme.colors.accent }]}>
+              Developer Settings
+            </Text>
 
             <TouchableOpacity style={styles.settingItem} onPress={handleTogglePremium}>
-              <Ionicons name={devPremium ? 'star' : 'star-outline'} size={20} color="#9b59b6" />
+              <Ionicons
+                name={devPremium ? 'star' : 'star-outline'}
+                size={20}
+                color={theme.colors.accent}
+              />
               <Text style={styles.settingText}>Premium Status</Text>
               <View style={[styles.toggleSwitch, devPremium && styles.toggleSwitchActive]}>
                 <View style={[styles.toggleThumb, devPremium && styles.toggleThumbActive]} />
@@ -620,17 +626,17 @@ const styles = StyleSheet.create({
     flexWrap: 'wrap',
   },
   interestTag: {
-    backgroundColor: '#FFF0F5',
+    backgroundColor: 'rgba(211, 47, 47, 0.08)',
     paddingHorizontal: 14,
     paddingVertical: 8,
     borderRadius: 20,
     marginRight: 8,
     marginBottom: 8,
     borderWidth: 1,
-    borderColor: '#FFE0E6',
+    borderColor: 'rgba(211, 47, 47, 0.15)',
   },
   interestText: {
-    color: '#FF6B6B',
+    color: theme.colors.primary,
     fontSize: 13,
     fontWeight: '500',
   },
@@ -653,14 +659,14 @@ const styles = StyleSheet.create({
   languageTag: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#FFF5F5',
+    backgroundColor: 'rgba(211, 47, 47, 0.05)',
     paddingHorizontal: 12,
     paddingVertical: 6,
     borderRadius: 16,
     marginRight: 8,
     marginBottom: 8,
     borderWidth: 1,
-    borderColor: '#FFE0E0',
+    borderColor: 'rgba(211, 47, 47, 0.12)',
   },
   languageText: {
     fontSize: 14,
@@ -697,7 +703,7 @@ const styles = StyleSheet.create({
     flex: 1,
     fontSize: 16,
     marginLeft: 15,
-    color: '#FF6B6B',
+    color: theme.colors.primary,
     fontWeight: '500',
   },
   centered: {
@@ -707,12 +713,12 @@ const styles = StyleSheet.create({
 
   errorText: {
     fontSize: 16,
-    color: '#FF6B6B',
+    color: theme.colors.primary,
     textAlign: 'center',
     marginBottom: 20,
   },
   retryButton: {
-    backgroundColor: '#FF6B6B',
+    backgroundColor: theme.colors.primary,
     paddingHorizontal: 20,
     paddingVertical: 10,
     borderRadius: 20,
@@ -726,12 +732,12 @@ const styles = StyleSheet.create({
   guidanceContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#FFF0F5',
+    backgroundColor: 'rgba(211, 47, 47, 0.08)',
     margin: 20,
     padding: 16,
     borderRadius: 12,
     borderLeftWidth: 4,
-    borderLeftColor: '#FF6B6B',
+    borderLeftColor: theme.colors.primary,
   },
   guidanceTextContainer: {
     flex: 1,
@@ -740,16 +746,16 @@ const styles = StyleSheet.create({
   guidanceTitle: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#FF6B6B',
+    color: theme.colors.primary,
     marginBottom: 4,
   },
   guidanceSubtitle: {
     fontSize: 14,
-    color: '#FF8A95',
+    color: 'rgba(211, 47, 47, 0.7)',
     lineHeight: 20,
   },
   guidanceButton: {
-    backgroundColor: '#FF6B6B',
+    backgroundColor: theme.colors.primary,
     paddingHorizontal: 16,
     paddingVertical: 8,
     borderRadius: 8,
@@ -773,12 +779,12 @@ const styles = StyleSheet.create({
   lookingForTag: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#FFF0F5',
+    backgroundColor: 'rgba(211, 47, 47, 0.08)',
     paddingHorizontal: 16,
     paddingVertical: 10,
     borderRadius: 25,
     borderWidth: 1,
-    borderColor: '#FFE0E6',
+    borderColor: 'rgba(211, 47, 47, 0.15)',
     marginRight: 8,
     marginBottom: 8,
   },
@@ -786,7 +792,7 @@ const styles = StyleSheet.create({
     marginLeft: 8,
     fontSize: 14,
     fontWeight: '600',
-    color: '#FF6B6B',
+    color: theme.colors.primary,
   },
 
   // Modern Info Section styles
@@ -799,7 +805,7 @@ const styles = StyleSheet.create({
   editButton: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#FFF0F5',
+    backgroundColor: 'rgba(211, 47, 47, 0.08)',
     paddingHorizontal: 12,
     paddingVertical: 6,
     borderRadius: 15,
@@ -807,7 +813,7 @@ const styles = StyleSheet.create({
   editButtonText: {
     marginLeft: 4,
     fontSize: 12,
-    color: '#FF6B6B',
+    color: theme.colors.primary,
     fontWeight: '600',
   },
   infoGrid: {
@@ -824,7 +830,7 @@ const styles = StyleSheet.create({
     width: 36,
     height: 36,
     borderRadius: 18,
-    backgroundColor: '#FFF0F5',
+    backgroundColor: 'rgba(211, 47, 47, 0.08)',
     alignItems: 'center',
     justifyContent: 'center',
     marginRight: 12,
@@ -861,7 +867,7 @@ const styles = StyleSheet.create({
     width: 36,
     height: 36,
     borderRadius: 18,
-    backgroundColor: '#FFF0F5',
+    backgroundColor: 'rgba(211, 47, 47, 0.08)',
     alignItems: 'center',
     justifyContent: 'center',
     marginRight: 12,
@@ -891,7 +897,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   toggleSwitchActive: {
-    backgroundColor: '#9b59b6',
+    backgroundColor: theme.colors.accent,
   },
   toggleThumb: {
     width: 22,
@@ -910,13 +916,13 @@ const styles = StyleSheet.create({
   devInfo: {
     marginTop: 15,
     padding: 12,
-    backgroundColor: '#f8f4ff',
+    backgroundColor: 'rgba(245, 124, 0, 0.08)',
     borderRadius: 8,
   },
   devInfoText: {
     fontSize: 14,
     fontWeight: '600',
-    color: '#9b59b6',
+    color: theme.colors.accent,
     marginBottom: 4,
   },
   devInfoSubtext: {

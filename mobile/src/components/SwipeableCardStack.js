@@ -14,6 +14,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { getUserProfilePhoto } from '../utils/profileHelpers';
 import Logger from '../utils/logger';
 import { formatDistanceAway } from '../utils/distanceUtils';
+import { theme } from '../styles/theme';
 
 const { width, height } = Dimensions.get('window');
 const SWIPE_THRESHOLD = width * 0.25;
@@ -295,7 +296,7 @@ const SwipeableCardStack = forwardRef(
           <View style={styles.noMoreCards}>
             {loadingMore ? (
               <>
-                <ActivityIndicator size="large" color="#FF6B6B" />
+                <ActivityIndicator size="large" color={theme.colors.primary} />
                 <Text style={styles.loadingText}>Finding more people...</Text>
               </>
             ) : (

@@ -7,6 +7,7 @@ import ApiDataService from '../../services/ApiDataService';
 import Logger from '../../utils/logger';
 import { usePhotoViewer } from '../../contexts/PhotoViewerContext';
 import { DraggableGrid } from 'react-native-draggable-grid';
+import { theme } from '../../styles/theme';
 
 /**
  * Reusable PhotoManager component
@@ -388,10 +389,10 @@ const PhotoManager = ({
       {showAddButton && mode === 'edit' && normalizedPhotos.length < maxPhotos && (
         <TouchableOpacity onPress={addPhoto} style={styles.addPhotoButtonWide} disabled={loading}>
           {loading ? (
-            <ActivityIndicator size="small" color="#FF6B6B" />
+            <ActivityIndicator size="small" color={theme.colors.primary} />
           ) : (
             <>
-              <Ionicons name="add" size={24} color="#FF6B6B" />
+              <Ionicons name="add" size={24} color={theme.colors.primary} />
               <Text style={styles.addPhotoText}>
                 Add Photo ({normalizedPhotos.length}/{maxPhotos})
               </Text>
@@ -436,7 +437,7 @@ const styles = StyleSheet.create({
     position: 'absolute',
     top: 5,
     left: 5,
-    backgroundColor: '#FF6B6B',
+    backgroundColor: theme.colors.primary,
     paddingHorizontal: 6,
     paddingVertical: 2,
     borderRadius: 4,
@@ -461,7 +462,7 @@ const styles = StyleSheet.create({
     height: 50,
     borderRadius: 8,
     borderWidth: 2,
-    borderColor: '#FF6B6B',
+    borderColor: theme.colors.primary,
     borderStyle: 'dashed',
     justifyContent: 'center',
     alignItems: 'center',
@@ -470,7 +471,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
   },
   addPhotoText: {
-    color: '#FF6B6B',
+    color: theme.colors.primary,
     fontSize: 14,
     marginLeft: 8,
     textAlign: 'center',

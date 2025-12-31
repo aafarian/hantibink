@@ -17,6 +17,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useAuth } from '../../contexts/AuthContext';
 import { useToast } from '../../contexts/ToastContext';
 import Logger from '../../utils/logger';
+import { theme } from '../../styles/theme';
 
 const SimpleRegisterScreen = ({ navigation }) => {
   const { register } = useAuth();
@@ -609,7 +610,7 @@ const styles = StyleSheet.create({
   },
 
   registerButton: {
-    backgroundColor: '#FF6B6B',
+    backgroundColor: theme.colors.primary,
     borderRadius: 12,
     paddingVertical: 16,
     alignItems: 'center',
@@ -634,7 +635,7 @@ const styles = StyleSheet.create({
     fontSize: 14,
   },
   footerLink: {
-    color: '#FF6B6B',
+    color: theme.colors.primary,
     fontSize: 14,
     fontWeight: 'bold',
   },
@@ -658,11 +659,11 @@ const styles = StyleSheet.create({
   },
 
   inputError: {
-    borderColor: '#FF6B6B',
+    borderColor: theme.colors.primary,
     backgroundColor: '#FFF5F5',
   },
   errorText: {
-    color: '#FF6B6B',
+    color: theme.colors.primary,
     fontSize: 12,
     marginTop: 4,
     marginLeft: 4,

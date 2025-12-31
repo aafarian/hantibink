@@ -22,7 +22,7 @@ export default function App() {
               <FeatureFlagsProvider>
                 <UnreadProvider>
                   <GestureHandlerRootView style={styles.container}>
-                    <StatusBar style="light" backgroundColor="#FF6B6B" translucent={true} />
+                    <StatusBar style="light" backgroundColor="#D32F2F" translucent={true} />
                     <PhotoViewerProvider>
                       <AppNavigator />
                     </PhotoViewerProvider>

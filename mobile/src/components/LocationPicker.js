@@ -4,6 +4,7 @@ import { MaterialIcons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useLocation } from '../contexts/LocationContext';
 import Logger from '../utils/logger';
+import { theme } from '../styles/theme';
 
 /**
  * Reusable location picker component that can be used in registration or anywhere
@@ -124,7 +125,7 @@ const LocationPicker = ({
       case 'permission_denied':
         return (
           <View style={styles.statusContainer}>
-            <MaterialIcons name="location-off" size={48} color="#FF6B6B" />
+            <MaterialIcons name="location-off" size={48} color={theme.colors.primary} />
             <Text style={styles.statusText}>Location access denied</Text>
             <Text style={styles.subtitle}>
               Please enable location access in your device settings to continue.
@@ -135,7 +136,7 @@ const LocationPicker = ({
       case 'error':
         return (
           <View style={styles.statusContainer}>
-            <MaterialIcons name="error" size={48} color="#FF6B6B" />
+            <MaterialIcons name="error" size={48} color={theme.colors.primary} />
             <Text style={styles.statusText}>Unable to get location</Text>
             <Text style={styles.subtitle}>
               Please check your internet connection and try again.
@@ -246,7 +247,7 @@ const styles = StyleSheet.create({
     minHeight: 48,
   },
   locationButtonError: {
-    borderColor: '#FF6B6B',
+    borderColor: theme.colors.primary,
   },
   locationButtonText: {
     flex: 1,

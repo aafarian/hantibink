@@ -20,6 +20,7 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import BottomSheet, { BottomSheetScrollView } from '@gorhom/bottom-sheet';
+import { theme } from '../../styles/theme';
 
 const { height: screenHeight, width: screenWidth } = Dimensions.get('window');
 const statusBarHeight = Platform.OS === 'android' ? StatusBar.currentHeight || 24 : 44;
@@ -544,7 +545,7 @@ const styles = StyleSheet.create({
     marginTop: 4,
   },
   interestBubble: {
-    backgroundColor: '#FFE4E4',
+    backgroundColor: 'rgba(211, 47, 47, 0.1)',
     paddingHorizontal: 16,
     paddingVertical: 8,
     borderRadius: 20,
@@ -553,7 +554,7 @@ const styles = StyleSheet.create({
   },
   interestText: {
     fontSize: 14,
-    color: '#E91E63',
+    color: theme.colors.primary,
     fontWeight: '500',
   },
   actionSection: {
@@ -568,7 +569,7 @@ const styles = StyleSheet.create({
   actionButton: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#FF6B6B',
+    backgroundColor: theme.colors.primary,
     paddingHorizontal: 24,
     paddingVertical: 14,
     borderRadius: 28,

@@ -8,6 +8,7 @@ import { useToast } from '../../contexts/ToastContext';
 import ProfileForm from '../../components/profile/ProfileForm';
 import ApiDataService from '../../services/ApiDataService';
 import Logger from '../../utils/logger';
+import { theme } from '../../styles/theme';
 
 const ProfileDetailsScreen = ({ navigation, route }) => {
   const { register, completeRegistration, refreshUserProfileWithId, user } = useAuth();
@@ -189,11 +190,11 @@ const styles = StyleSheet.create({
     borderTopColor: '#f0f0f0',
   },
   createButton: {
-    backgroundColor: '#FF6B6B',
+    backgroundColor: theme.colors.primary,
     paddingVertical: 16,
     borderRadius: 25,
     alignItems: 'center',
-    shadowColor: '#FF6B6B',
+    shadowColor: theme.colors.primary,
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.3,
     shadowRadius: 8,

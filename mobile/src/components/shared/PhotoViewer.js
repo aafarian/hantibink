@@ -13,6 +13,7 @@ import { Ionicons } from '@expo/vector-icons';
 import BottomSheet, { BottomSheetView } from '@gorhom/bottom-sheet';
 import { PanGestureHandler, State } from 'react-native-gesture-handler';
 import Logger from '../../utils/logger';
+import { theme } from '../../styles/theme';
 
 const { height: screenHeight } = Dimensions.get('window');
 const statusBarHeight = Platform.OS === 'android' ? StatusBar.currentHeight || 24 : 44;
@@ -367,7 +368,7 @@ const styles = StyleSheet.create({
     marginHorizontal: 4,
   },
   activeDot: {
-    backgroundColor: '#FF6B6B',
+    backgroundColor: theme.colors.primary,
     width: 10,
     height: 10,
     borderRadius: 5,

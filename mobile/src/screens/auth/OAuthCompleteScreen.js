@@ -16,6 +16,7 @@ import { useToast } from '../../contexts/ToastContext';
 import ApiClient from '../../services/ApiClient';
 import Logger from '../../utils/logger';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { theme } from '../../styles/theme';
 
 const OAuthCompleteScreen = ({ route }) => {
   const { user: _routeUser, missingFields: _missingFields = [] } = route.params || {};
@@ -113,7 +114,7 @@ const OAuthCompleteScreen = ({ route }) => {
 
         <View style={styles.content}>
           <View style={styles.infoCard}>
-            <Ionicons name="information-circle" size={24} color="#FF6B6B" />
+            <Ionicons name="information-circle" size={24} color={theme.colors.primary} />
             <Text style={styles.infoText}>
               Your age will be shown on your profile. You must be 18 or older to use this app.
             </Text>
@@ -238,7 +239,7 @@ const styles = StyleSheet.create({
     color: '#666',
   },
   continueButton: {
-    backgroundColor: '#FF6B6B',
+    backgroundColor: theme.colors.primary,
     borderRadius: 12,
     paddingVertical: 16,
     alignItems: 'center',
@@ -253,7 +254,7 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
   },
   errorText: {
-    color: '#FF6B6B',
+    color: theme.colors.primary,
     fontSize: 14,
     textAlign: 'center',
     marginTop: 12,

@@ -19,6 +19,7 @@ import Logger from '../../utils/logger';
 import { useToast } from '../../contexts/ToastContext';
 import { useAuth } from '../../contexts/AuthContext';
 import { uploadImageToFirebase } from '../../utils/imageUpload';
+import { theme } from '../../styles/theme';
 
 const ProfileSetupModal = ({ visible, onClose, onComplete, userProfile }) => {
   const { showToast } = useToast();
@@ -896,7 +897,7 @@ const ProfileSetupModal = ({ visible, onClose, onComplete, userProfile }) => {
                   onPress={handlePhotoSelect}
                   disabled={uploadingPhotos}
                 >
-                  <Ionicons name="add" size={40} color="#FF6B6B" />
+                  <Ionicons name="add" size={40} color={theme.colors.primary} />
                 </TouchableOpacity>
               )}
             </View>
@@ -918,14 +919,14 @@ const ProfileSetupModal = ({ visible, onClose, onComplete, userProfile }) => {
             {setupData.location ? (
               <>
                 <View style={styles.locationContainer}>
-                  <Ionicons name="location" size={24} color="#FF6B6B" />
+                  <Ionicons name="location" size={24} color={theme.colors.primary} />
                   <Text style={styles.locationText}>{setupData.location}</Text>
                 </View>
                 <Text style={styles.locationAutoProgressText}>Continuing automatically...</Text>
               </>
             ) : (
               <View style={styles.locationLoadingContainer}>
-                <ActivityIndicator size="large" color="#FF6B6B" />
+                <ActivityIndicator size="large" color={theme.colors.primary} />
                 <Text style={styles.locationLoadingText}>Detecting your location...</Text>
               </View>
             )}
@@ -1055,7 +1056,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#E5E5E5',
   },
   progressDotActive: {
-    backgroundColor: '#FF6B6B',
+    backgroundColor: theme.colors.primary,
     width: 28,
   },
   content: {
@@ -1093,7 +1094,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#FAFAFA',
   },
   optionButtonSelected: {
-    borderColor: '#FF6B6B',
+    borderColor: theme.colors.primary,
     backgroundColor: '#FFF5F5',
   },
   optionText: {
@@ -1102,7 +1103,7 @@ const styles = StyleSheet.create({
     color: '#444',
   },
   optionTextSelected: {
-    color: '#FF6B6B',
+    color: theme.colors.primary,
     fontWeight: '700',
   },
   photosGrid: {
@@ -1143,7 +1144,7 @@ const styles = StyleSheet.create({
     height: 133,
     borderRadius: 12,
     borderWidth: 2,
-    borderColor: '#FF6B6B',
+    borderColor: theme.colors.primary,
     borderStyle: 'dashed',
     alignItems: 'center',
     justifyContent: 'center',
@@ -1159,12 +1160,12 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     gap: 10,
     borderWidth: 2,
-    borderColor: '#FF6B6B',
+    borderColor: theme.colors.primary,
   },
   locationText: {
     fontSize: 17,
     fontWeight: '600',
-    color: '#FF6B6B',
+    color: theme.colors.primary,
   },
   locationLoadingContainer: {
     alignItems: 'center',
@@ -1215,13 +1216,13 @@ const styles = StyleSheet.create({
     fontWeight: '500',
   },
   nextButton: {
-    backgroundColor: '#FF6B6B',
+    backgroundColor: theme.colors.primary,
     paddingHorizontal: 50,
     paddingVertical: 15,
     borderRadius: 30,
     minWidth: 140,
     alignItems: 'center',
-    shadowColor: '#FF6B6B',
+    shadowColor: theme.colors.primary,
     shadowOffset: {
       width: 0,
       height: 4,

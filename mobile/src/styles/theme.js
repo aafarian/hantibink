@@ -1,7 +1,9 @@
 export const theme = {
   colors: {
-    primary: '#FF6B6B',
-    secondary: '#4ECDC4',
+    primary: '#D32F2F', // Armenian red
+    secondary: '#1565C0', // Armenian blue
+    accent: '#F57C00', // Armenian orange
+    premium: '#FFD700', // Gold for premium features
     text: {
       primary: '#333',
       secondary: '#666',

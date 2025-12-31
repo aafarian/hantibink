@@ -11,6 +11,7 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../../contexts/AuthContext';
 import { useToast } from '../../contexts/ToastContext';
+import { theme } from '../../styles/theme';
 
 const ForgotPasswordScreen = ({ navigation }) => {
   const [email, setEmail] = useState('');
@@ -51,7 +52,7 @@ const ForgotPasswordScreen = ({ navigation }) => {
 
       <View style={styles.content}>
         <View style={styles.iconContainer}>
-          <Ionicons name="lock-open" size={80} color="#FF6B6B" />
+          <Ionicons name="lock-open" size={80} color={theme.colors.primary} />
         </View>
 
         <Text style={styles.title}>Forgot Password?</Text>
@@ -60,7 +61,7 @@ const ForgotPasswordScreen = ({ navigation }) => {
         </Text>
 
         <View style={styles.inputContainer}>
-          <Ionicons name="mail" size={20} color="#FF6B6B" style={styles.inputIcon} />
+          <Ionicons name="mail" size={20} color={theme.colors.primary} style={styles.inputIcon} />
           <TextInput
             style={styles.input}
             placeholder="Email"
@@ -156,7 +157,7 @@ const styles = StyleSheet.create({
     color: '#333',
   },
   resetButton: {
-    backgroundColor: '#FF6B6B',
+    backgroundColor: theme.colors.primary,
     borderRadius: 12,
     paddingVertical: 16,
     alignItems: 'center',
@@ -174,7 +175,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   backToLoginText: {
-    color: '#FF6B6B',
+    color: theme.colors.primary,
     fontSize: 16,
     fontWeight: 'bold',
   },

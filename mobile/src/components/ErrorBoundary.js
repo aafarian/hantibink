@@ -2,6 +2,7 @@ import React from 'react';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import Logger from '../utils/logger';
 import { MaterialIcons } from '@expo/vector-icons';
+import { theme } from '../styles/theme';
 
 class ErrorBoundary extends React.Component {
   constructor(props) {
@@ -42,7 +43,7 @@ class ErrorBoundary extends React.Component {
       // Fallback UI
       return (
         <View style={styles.errorContainer}>
-          <MaterialIcons name="error-outline" size={64} color="#FF6B6B" />
+          <MaterialIcons name="error-outline" size={64} color={theme.colors.primary} />
           <Text style={styles.errorTitle}>Oops! Something went wrong</Text>
           <Text style={styles.errorMessage}>
             We've encountered an unexpected error. Please try again.
@@ -104,7 +105,7 @@ const styles = StyleSheet.create({
     lineHeight: 24,
   },
   retryButton: {
-    backgroundColor: '#FF6B6B',
+    backgroundColor: theme.colors.primary,
     paddingHorizontal: 24,
     paddingVertical: 12,
     borderRadius: 8,

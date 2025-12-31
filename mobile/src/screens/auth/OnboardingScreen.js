@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, ScrollView } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { theme } from '../../styles/theme';
 
 const OnboardingScreen = ({ navigation }) => {
   const [currentStep, setCurrentStep] = useState(0);
@@ -64,7 +65,7 @@ const OnboardingScreen = ({ navigation }) => {
 
         <View style={styles.content}>
           <View style={styles.iconContainer}>
-            <Ionicons name={currentStepData.icon} size={80} color="#FF6B6B" />
+            <Ionicons name={currentStepData.icon} size={80} color={theme.colors.primary} />
           </View>
 
           <Text style={styles.title}>{currentStepData.title}</Text>
@@ -147,7 +148,7 @@ const styles = StyleSheet.create({
   },
   subtitle: {
     fontSize: 18,
-    color: '#FF6B6B',
+    color: theme.colors.primary,
     textAlign: 'center',
     marginBottom: 20,
   },
@@ -173,10 +174,10 @@ const styles = StyleSheet.create({
     marginHorizontal: 4,
   },
   stepDotActive: {
-    backgroundColor: '#FF6B6B',
+    backgroundColor: theme.colors.primary,
   },
   nextButton: {
-    backgroundColor: '#FF6B6B',
+    backgroundColor: theme.colors.primary,
     borderRadius: 25,
     paddingVertical: 15,
     paddingHorizontal: 30,

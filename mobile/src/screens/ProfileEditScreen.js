@@ -227,7 +227,7 @@ const ProfileEditScreen = ({ navigation }) => {
         {/* Header */}
         <View style={styles.header}>
           <TouchableOpacity onPress={() => navigation.goBack()} style={styles.headerLeft}>
-            <Ionicons name="arrow-back" size={24} color="#333" />
+            <Ionicons name="arrow-back" size={24} color="#fff" />
           </TouchableOpacity>
           <Text style={styles.headerTitle}>Edit Profile</Text>
           <View style={styles.headerRight}>
@@ -318,9 +318,7 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     paddingHorizontal: 20,
     paddingVertical: 15,
-    borderBottomWidth: 1,
-    borderBottomColor: '#f0f0f0',
-    backgroundColor: '#fff',
+    backgroundColor: theme.colors.primary,
   },
   headerLeft: {
     marginRight: 16,
@@ -328,7 +326,7 @@ const styles = StyleSheet.create({
   headerTitle: {
     fontSize: 18,
     fontWeight: 'bold',
-    color: '#333',
+    color: '#fff',
     flex: 1,
   },
   headerRight: {
@@ -344,15 +342,15 @@ const styles = StyleSheet.create({
     paddingVertical: 6,
     borderRadius: 15,
     borderWidth: 1,
-    borderColor: '#ddd',
+    borderColor: 'rgba(255,255,255,0.5)',
   },
   headerDiscardText: {
     fontSize: 13,
-    color: '#666',
+    color: '#fff',
     fontWeight: '500',
   },
   headerSaveButton: {
-    backgroundColor: '#4CAF50',
+    backgroundColor: '#fff',
     paddingHorizontal: 12,
     paddingVertical: 6,
     borderRadius: 15,
@@ -361,7 +359,7 @@ const styles = StyleSheet.create({
   },
   headerSaveText: {
     fontSize: 13,
-    color: '#fff',
+    color: theme.colors.primary,
     fontWeight: '600',
   },
   bottomButtonsContainer: {
@@ -388,7 +386,7 @@ const styles = StyleSheet.create({
   },
   saveButton: {
     flex: 1,
-    backgroundColor: '#4CAF50',
+    backgroundColor: theme.colors.primary,
     paddingVertical: 14,
     borderRadius: 12,
     alignItems: 'center',
