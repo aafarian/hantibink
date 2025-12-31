@@ -8,6 +8,8 @@ import { useAuth } from '../contexts/AuthContext';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import Logger from '../utils/logger';
 import { kmToMiles } from '../utils/distanceUtils';
+import { theme } from '../styles/theme';
+import ScreenWrapper from '../components/shared/ScreenWrapper';
 
 const FilterScreen = ({ navigation, route }) => {
   const { showSuccess } = useToast();
@@ -169,7 +171,7 @@ const FilterScreen = ({ navigation, route }) => {
       <Switch
         value={value}
         onValueChange={newValue => updateFilter(key, newValue)}
-        trackColor={{ false: '#E5E5EA', true: '#FF6B6B' }}
+        trackColor={{ false: '#E5E5EA', true: theme.colors.primary }}
         thumbColor={value ? '#fff' : '#f4f3f4'}
       />
     </View>
@@ -187,9 +189,9 @@ const FilterScreen = ({ navigation, route }) => {
             maximumValue={_max}
             value={filters[_minKey]}
             onValueChange={value => updateFilter(_minKey, Math.round(value))}
-            minimumTrackTintColor="#FF6B6B"
+            minimumTrackTintColor={theme.colors.primary}
             maximumTrackTintColor="#E5E5EA"
-            thumbTintColor="#FF6B6B"
+            thumbTintColor={theme.colors.primary}
           />
         </View>
         <Text style={styles.sliderValue}>{filters[_maxKey]}</Text>
@@ -202,9 +204,9 @@ const FilterScreen = ({ navigation, route }) => {
           maximumValue={_max}
           value={filters[_maxKey]}
           onValueChange={value => updateFilter(_maxKey, Math.round(value))}
-          minimumTrackTintColor="#FF6B6B"
+          minimumTrackTintColor={theme.colors.primary}
           maximumTrackTintColor="#E5E5EA"
-          thumbTintColor="#FF6B6B"
+          thumbTintColor={theme.colors.primary}
         />
         <Text style={styles.sliderHint}>Max</Text>
       </View>
@@ -236,13 +238,13 @@ const FilterScreen = ({ navigation, route }) => {
   );
 
   return (
-    <View style={styles.container}>
+    <ScreenWrapper>
       {/* Header */}
       <View style={styles.header}>
         <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
-          <MaterialIcons name="arrow-back" size={24} color="#333" />
+          <MaterialIcons name="arrow-back" size={24} color="#fff" />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>Discovery Filters</Text>
+        <Text style={styles.headerTitle}>Filters</Text>
         <TouchableOpacity onPress={resetFilters} style={styles.resetButton}>
           <Text style={styles.resetText}>Reset</Text>
         </TouchableOpacity>
@@ -276,7 +278,7 @@ const FilterScreen = ({ navigation, route }) => {
                     updateFilter('maxAge', values[1]);
                   }}
                   selectedStyle={{
-                    backgroundColor: '#FF6B6B',
+                    backgroundColor: theme.colors.primary,
                     height: 4,
                   }}
                   unselectedStyle={{
@@ -341,7 +343,7 @@ const FilterScreen = ({ navigation, route }) => {
                     updateFilter('maxDistance', values[0]);
                   }}
                   selectedStyle={{
-                    backgroundColor: '#FF6B6B',
+                    backgroundColor: theme.colors.primary,
                     height: 4,
                   }}
                   unselectedStyle={{
@@ -503,25 +505,18 @@ const FilterScreen = ({ navigation, route }) => {
           <Text style={styles.applyButtonText}>Apply Filters</Text>
         </TouchableOpacity>
       </View>
-    </View>
+    </ScreenWrapper>
   );
 };
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#fff',
-  },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
     paddingHorizontal: 16,
-    paddingTop: 60,
-    paddingBottom: 16,
-    backgroundColor: '#fff',
-    borderBottomWidth: 1,
-    borderBottomColor: '#f0f0f0',
+    paddingVertical: 16,
+    backgroundColor: theme.colors.primary,
   },
   backButton: {
     padding: 4,
@@ -529,14 +524,14 @@ const styles = StyleSheet.create({
   headerTitle: {
     fontSize: 18,
     fontWeight: '600',
-    color: '#333',
+    color: '#fff',
   },
   resetButton: {
     padding: 4,
   },
   resetText: {
     fontSize: 16,
-    color: '#FF6B6B',
+    color: '#fff',
     fontWeight: '500',
   },
   content: {
@@ -601,7 +596,7 @@ const styles = StyleSheet.create({
   rangeValue: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#FF6B6B',
+    color: theme.colors.primary,
   },
   rangeSeparator: {
     fontSize: 14,
@@ -656,8 +651,8 @@ const styles = StyleSheet.create({
     margin: 4,
   },
   optionButtonActive: {
-    backgroundColor: '#FF6B6B',
-    borderColor: '#FF6B6B',
+    backgroundColor: theme.colors.primary,
+    borderColor: theme.colors.primary,
   },
   optionText: {
     fontSize: 14,
@@ -680,7 +675,7 @@ const styles = StyleSheet.create({
     borderTopColor: '#f0f0f0',
   },
   applyButton: {
-    backgroundColor: '#FF6B6B',
+    backgroundColor: theme.colors.primary,
     paddingVertical: 16,
     borderRadius: 12,
     alignItems: 'center',

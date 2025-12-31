@@ -4,6 +4,7 @@
  */
 
 import { io } from 'socket.io-client';
+import { AppState } from 'react-native';
 import Logger from '../utils/logger';
 import environment from '../config/environment';
 
@@ -17,6 +18,9 @@ class SocketService {
     this.connectionListeners = new Set();
     this.likedYouListeners = new Set();
     this.userStatusListeners = new Set();
+    this.heartbeatInterval = null;
+    this.appStateSubscription = null;
+    this.isAppActive = true;
   }
 
   /**
@@ -64,6 +68,14 @@ class SocketService {
         Logger.info(`👤 Joining user room: user:${this.userId}`);
       }
 
+      // Start heartbeat to keep online status updated (only if app is active)
+      if (this.isAppActive) {
+        this.startHeartbeat();
+      }
+
+      // Setup AppState listener to track foreground/background
+      this.setupAppStateListener();
+
       // Notify connection listeners
       this.connectionListeners.forEach(callback => callback(true));
     });
@@ -71,6 +83,9 @@ class SocketService {
     this.socket.on('disconnect', reason => {
       this.isConnected = false;
       Logger.warn(`🔌 Disconnected from WebSocket server. Reason: ${reason}`);
+
+      // Stop heartbeat
+      this.stopHeartbeat();
 
       // Notify connection listeners
       this.connectionListeners.forEach(callback => callback(false));
@@ -260,9 +275,74 @@ class SocketService {
   }
 
   /**
+   * Setup AppState listener to track when app is in foreground/background
+   */
+  setupAppStateListener() {
+    // Clean up existing subscription
+    if (this.appStateSubscription) {
+      this.appStateSubscription.remove();
+    }
+
+    this.appStateSubscription = AppState.addEventListener('change', nextAppState => {
+      const wasActive = this.isAppActive;
+      this.isAppActive = nextAppState === 'active';
+
+      if (this.isAppActive && !wasActive) {
+        // App came to foreground - start heartbeat and broadcast online
+        Logger.info('📱 App came to foreground - starting heartbeat');
+        this.startHeartbeat();
+      } else if (!this.isAppActive && wasActive) {
+        // App went to background - stop heartbeat
+        Logger.info('📱 App went to background - stopping heartbeat');
+        this.stopHeartbeat();
+      }
+    });
+  }
+
+  /**
+   * Start heartbeat to keep online status updated
+   * Only runs while app is in the foreground
+   */
+  startHeartbeat() {
+    // Clear any existing heartbeat
+    this.stopHeartbeat();
+
+    // Send heartbeat every 30 seconds while app is active
+    this.heartbeatInterval = setInterval(() => {
+      if (this.socket && this.isConnected && this.userId && this.isAppActive) {
+        this.socket.emit('heartbeat', { userId: this.userId });
+      }
+    }, 30000); // 30 seconds
+
+    // Send initial heartbeat immediately
+    if (this.socket && this.isConnected && this.userId) {
+      this.socket.emit('heartbeat', { userId: this.userId });
+    }
+  }
+
+  /**
+   * Stop heartbeat
+   */
+  stopHeartbeat() {
+    if (this.heartbeatInterval) {
+      clearInterval(this.heartbeatInterval);
+      this.heartbeatInterval = null;
+    }
+  }
+
+  /**
    * Disconnect from WebSocket server
    */
   disconnect() {
+    // Stop heartbeat
+    this.stopHeartbeat();
+
+    // Clean up AppState listener
+    if (this.appStateSubscription) {
+      this.appStateSubscription.remove();
+      this.appStateSubscription = null;
+    }
+
     if (this.socket) {
       Logger.info('🔌 Disconnecting from WebSocket server');
       this.socket.disconnect();

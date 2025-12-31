@@ -2,6 +2,7 @@ import React from 'react';
 import { View, Text, StyleSheet, ScrollView } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import ClickablePhoto from '../shared/ClickablePhoto';
+import { theme } from '../../styles/theme';
 
 /**
  * Read-only photo grid for viewing profile photos
@@ -95,13 +96,13 @@ const styles = StyleSheet.create({
   },
   mainPhoto: {
     borderWidth: 2,
-    borderColor: '#FF6B6B',
+    borderColor: theme.colors.primary,
   },
   mainBadge: {
     position: 'absolute',
     top: 5,
     left: 5,
-    backgroundColor: '#FF6B6B',
+    backgroundColor: theme.colors.primary,
     paddingHorizontal: 6,
     paddingVertical: 2,
     borderRadius: 4,

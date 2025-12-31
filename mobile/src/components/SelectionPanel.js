@@ -10,6 +10,7 @@ import {
   Animated,
 } from 'react-native';
 import { MaterialIcons } from '@expo/vector-icons';
+import { theme } from '../styles/theme';
 
 const { width: _width, height: _height } = Dimensions.get('window');
 
@@ -230,11 +231,11 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   checkboxSelected: {
-    backgroundColor: '#FF6B6B',
-    borderColor: '#FF6B6B',
+    backgroundColor: theme.colors.primary,
+    borderColor: theme.colors.primary,
   },
   confirmButton: {
-    backgroundColor: '#FF6B6B',
+    backgroundColor: theme.colors.primary,
     margin: 20,
     padding: 15,
     borderRadius: 8,

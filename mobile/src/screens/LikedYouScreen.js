@@ -22,6 +22,7 @@ import SocketService from '../services/SocketService';
 import MatchModal from '../components/MatchModal';
 import Logger from '../utils/logger';
 import { useTabNavigation } from '../hooks/useTabNavigation';
+import { theme } from '../styles/theme';
 
 const { width: screenWidth } = Dimensions.get('window');
 const CARD_WIDTH = (screenWidth - 30) / 2; // 2 columns with padding
@@ -562,7 +563,7 @@ const LikedYouScreen = () => {
                 handlePass(item);
               }}
             >
-              <Ionicons name="close" size={20} color="#FF6B6B" />
+              <Ionicons name="close" size={20} color={theme.colors.primary} />
             </TouchableOpacity>
             <TouchableOpacity
               style={[styles.quickActionButton, styles.likeQuickButton]}
@@ -571,7 +572,7 @@ const LikedYouScreen = () => {
                 handleLikeBack(item);
               }}
             >
-              <Ionicons name="heart" size={20} color="#4ECDC4" />
+              <Ionicons name="heart" size={20} color={theme.colors.secondary} />
             </TouchableOpacity>
           </View>
         )}
@@ -613,7 +614,7 @@ const LikedYouScreen = () => {
 
         {isPremium && (
           <View style={styles.premiumBadge}>
-            <Ionicons name="star" size={14} color="#FFD700" />
+            <Ionicons name="star" size={14} color="#B8860B" />
             <Text style={styles.premiumText}>PREMIUM</Text>
           </View>
         )}
@@ -678,7 +679,7 @@ const LikedYouScreen = () => {
                 style={[styles.modalButton, styles.passButton]}
                 onPress={() => handlePass(selectedUser)}
               >
-                <Ionicons name="close" size={24} color="#FF6B6B" />
+                <Ionicons name="close" size={24} color={theme.colors.primary} />
                 <Text style={styles.passButtonText}>Pass</Text>
               </TouchableOpacity>
 
@@ -713,11 +714,11 @@ const LikedYouScreen = () => {
 
           <View style={styles.upgradeFeatures}>
             <View style={styles.featureItem}>
-              <Ionicons name="eye" size={24} color="#4ECDC4" />
+              <Ionicons name="eye" size={24} color={theme.colors.secondary} />
               <Text style={styles.featureText}>See who liked you</Text>
             </View>
             <View style={styles.featureItem}>
-              <Ionicons name="heart" size={24} color="#FF6B6B" />
+              <Ionicons name="heart" size={24} color={theme.colors.primary} />
               <Text style={styles.featureText}>Unlimited likes</Text>
             </View>
             <View style={styles.featureItem}>
@@ -732,7 +733,7 @@ const LikedYouScreen = () => {
 
           <TouchableOpacity style={styles.upgradeModalButton}>
             <LinearGradient
-              colors={['#FF6B6B', '#FF8E53']}
+              colors={[theme.colors.primary, theme.colors.accent]}
               style={styles.upgradeModalButtonGradient}
             >
               <Text style={styles.upgradeModalButtonText}>Get Premium</Text>
@@ -753,7 +754,7 @@ const LikedYouScreen = () => {
   if (loading) {
     return (
       <View style={styles.loadingContainer}>
-        <Ionicons name="heart" size={40} color="#FF6B6B" />
+        <Ionicons name="heart" size={40} color={theme.colors.primary} />
         <Text style={styles.loadingText}>Loading likes...</Text>
       </View>
     );
@@ -764,7 +765,7 @@ const LikedYouScreen = () => {
 
     return (
       <View style={styles.footerLoader}>
-        <ActivityIndicator size="small" color="#FF6B6B" />
+        <ActivityIndicator size="small" color={theme.colors.primary} />
         <Text style={styles.loadingMoreText}>Loading more...</Text>
       </View>
     );
@@ -787,8 +788,8 @@ const LikedYouScreen = () => {
           <RefreshControl
             refreshing={refreshing}
             onRefresh={handleRefresh}
-            colors={['#FF6B6B']}
-            tintColor="#FF6B6B"
+            colors={[theme.colors.primary]}
+            tintColor={theme.colors.primary}
           />
         }
         onEndReached={handleLoadMore}
@@ -855,7 +856,7 @@ const styles = StyleSheet.create({
     color: '#333',
   },
   likeCountBadge: {
-    backgroundColor: '#FF6B6B',
+    backgroundColor: theme.colors.primary,
     borderRadius: 15,
     paddingHorizontal: 12,
     paddingVertical: 4,
@@ -891,7 +892,7 @@ const styles = StyleSheet.create({
     alignSelf: 'flex-start',
   },
   premiumText: {
-    color: '#FFD700',
+    color: '#B8860B', // DarkGoldenRod - better contrast
     fontWeight: 'bold',
     marginLeft: 4,
     fontSize: 12,
@@ -975,7 +976,7 @@ const styles = StyleSheet.create({
     position: 'absolute',
     top: 10,
     left: 10,
-    backgroundColor: '#4ECDC4',
+    backgroundColor: theme.colors.secondary,
     borderRadius: 10,
     paddingHorizontal: 8,
     paddingVertical: 4,
@@ -1114,12 +1115,12 @@ const styles = StyleSheet.create({
     backgroundColor: '#FFE5E5',
   },
   passButtonText: {
-    color: '#FF6B6B',
+    color: theme.colors.primary,
     fontWeight: 'bold',
     marginLeft: 8,
   },
   likeButton: {
-    backgroundColor: '#4ECDC4',
+    backgroundColor: theme.colors.secondary,
   },
   likeButtonText: {
     color: 'white',

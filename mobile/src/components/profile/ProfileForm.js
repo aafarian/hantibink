@@ -13,6 +13,7 @@ import { Ionicons } from '@expo/vector-icons';
 
 import SelectionPanel from '../SelectionPanel';
 import { profileFieldsConfig, transformProfileData } from './ProfileFieldsConfig';
+import { theme } from '../../styles/theme';
 
 /**
  * Reusable ProfileForm component
@@ -394,7 +395,7 @@ const ProfileForm = forwardRef(
                       }}
                       style={styles.removeTagButton}
                     >
-                      <Ionicons name="close-circle" size={16} color="#FF6B6B" />
+                      <Ionicons name="close-circle" size={16} color={theme.colors.primary} />
                     </TouchableOpacity>
                   </View>
                 ))}
@@ -531,7 +532,7 @@ const styles = StyleSheet.create({
     color: '#333',
   },
   required: {
-    color: '#FF6B6B',
+    color: theme.colors.primary,
   },
   counter: {
     fontSize: 12,
@@ -612,8 +613,8 @@ const styles = StyleSheet.create({
     backgroundColor: '#fff',
   },
   bubbleSelected: {
-    backgroundColor: '#FF6B6B',
-    borderColor: '#FF6B6B',
+    backgroundColor: theme.colors.primary,
+    borderColor: theme.colors.primary,
   },
   bubbleText: {
     fontSize: 14,

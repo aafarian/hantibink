@@ -14,6 +14,7 @@ import { ToastProvider } from '../contexts/ToastContext';
 import LocationPromptModal from '../components/LocationPromptModal';
 import Logger from '../utils/logger';
 import { useLocationTracking } from '../hooks/useLocationTracking';
+import { theme } from '../styles/theme';
 
 // Import screens
 import ProfileScreen from '../screens/ProfileScreen';
@@ -72,7 +73,7 @@ const styles = {
     position: 'absolute',
     right: -6,
     top: -3,
-    backgroundColor: '#FF6B6B',
+    backgroundColor: theme.colors.primary,
     borderRadius: 10,
     minWidth: 20,
     height: 20,
@@ -95,7 +96,7 @@ const PeopleStack = () => {
         options={{
           title: 'Discover',
           headerStyle: {
-            backgroundColor: '#FF6B6B',
+            backgroundColor: theme.colors.primary,
           },
           headerTintColor: '#fff',
           headerTitleStyle: {
@@ -107,14 +108,7 @@ const PeopleStack = () => {
         name="Filter"
         component={FilterScreen}
         options={{
-          title: 'Filters',
-          headerStyle: {
-            backgroundColor: '#FF6B6B',
-          },
-          headerTintColor: '#fff',
-          headerTitleStyle: {
-            fontWeight: 'bold',
-          },
+          headerShown: false, // FilterScreen has its own header
         }}
       />
     </Stack.Navigator>
@@ -130,7 +124,7 @@ const ProfileStack = () => {
         options={{
           title: 'My Profile',
           headerStyle: {
-            backgroundColor: '#FF6B6B',
+            backgroundColor: theme.colors.primary,
           },
           headerTintColor: '#fff',
           headerTitleStyle: {
@@ -158,7 +152,7 @@ const MessagesStack = () => {
         options={{
           title: 'Messages',
           headerStyle: {
-            backgroundColor: '#FF6B6B',
+            backgroundColor: theme.colors.primary,
           },
           headerTintColor: '#fff',
           headerTitleStyle: {
@@ -245,7 +239,7 @@ const MainNavigator = () => {
   if (loading) {
     return (
       <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
-        <ActivityIndicator size="large" color="#FF6B6B" />
+        <ActivityIndicator size="large" color={theme.colors.primary} />
       </View>
     );
   }
@@ -256,7 +250,7 @@ const MainNavigator = () => {
         screenOptions={({ route }) => ({
           tabBarIcon: ({ focused, color, size }) =>
             renderTabIcon(route, focused, color, size, unreadConversationCount),
-          tabBarActiveTintColor: '#FF6B6B',
+          tabBarActiveTintColor: theme.colors.primary,
           tabBarInactiveTintColor: 'gray',
           tabBarStyle: {
             backgroundColor: '#ffffff',
@@ -280,7 +274,7 @@ const MainNavigator = () => {
           options={{
             title: 'Liked You',
             headerStyle: {
-              backgroundColor: '#FF6B6B',
+              backgroundColor: theme.colors.primary,
             },
             headerTintColor: '#fff',
             headerTitleStyle: {
@@ -351,6 +345,12 @@ const AppNavigator = () => {
     }
   }, []);
 
+  // Track navigation ready state in a ref so the effect doesn't need to re-run
+  const isNavigationReadyRef = useRef(false);
+  useEffect(() => {
+    isNavigationReadyRef.current = isNavigationReady;
+  }, [isNavigationReady]);
+
   // Handle notification tap to navigate to the correct screen
   useEffect(() => {
     notificationResponseListener.current = Notifications.addNotificationResponseReceivedListener(
@@ -359,7 +359,7 @@ const AppNavigator = () => {
         Logger.info('Notification tapped:', data);
 
         if (data?.type === 'message' && data?.matchId && data?.otherUser) {
-          if (isNavigationReady && navigationRef.current) {
+          if (isNavigationReadyRef.current && navigationRef.current) {
             // Navigate immediately if ready
             navigationRef.current.navigate('Messages', {
               screen: 'Chat',
@@ -383,7 +383,7 @@ const AppNavigator = () => {
         Notifications.removeNotificationSubscription(notificationResponseListener.current);
       }
     };
-  }, [isNavigationReady]);
+  }, []);
 
   // Don't check onboarding flag here - let MainNavigator handle it
   // This was causing a race condition where the flag was being cleared
@@ -395,7 +395,7 @@ const AppNavigator = () => {
       <View
         style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#fff' }}
       >
-        <ActivityIndicator size="large" color="#FF6B6B" />
+        <ActivityIndicator size="large" color={theme.colors.primary} />
       </View>
     );
   }

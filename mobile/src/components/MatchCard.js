@@ -87,7 +87,7 @@ export const MatchCard = ({
           icon: 'chatbubble',
           label: 'Message',
           onPress: onMessagePress,
-          style: { backgroundColor: '#FF6B6B' },
+          style: { backgroundColor: theme.colors.primary },
         },
       ]
     : [];
@@ -283,7 +283,7 @@ const styles = {
     fontWeight: theme.typography.weights.medium,
   },
   matchBadge: {
-    backgroundColor: '#FFE4E1',
+    backgroundColor: 'rgba(211, 47, 47, 0.1)',
     borderRadius: theme.borderRadius.md,
     paddingHorizontal: theme.spacing.sm,
     paddingVertical: theme.spacing.xs,
@@ -292,7 +292,7 @@ const styles = {
     fontSize: theme.typography.sizes.sm,
   },
   unreadBadge: {
-    backgroundColor: '#FF6B6B',
+    backgroundColor: theme.colors.primary,
     borderRadius: 12,
     minWidth: 24,
     height: 24,
@@ -316,7 +316,7 @@ const styles = {
   },
   typingText: {
     fontStyle: 'italic',
-    color: '#FF6B6B',
+    color: theme.colors.primary,
   },
   lastMessageTime: {
     fontSize: theme.typography.sizes.sm,
