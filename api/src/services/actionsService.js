@@ -6,6 +6,14 @@ const {
   sendSuperLikeNotification,
   shouldSendNotification,
 } = require('./notificationService');
+const {
+  canLike,
+  canSuperLike,
+  canUndo,
+  incrementLikeCount,
+  incrementSuperLikeCount,
+  getWhoLikedMeLimit,
+} = require('./premiumService');
 
 const prisma = getPrismaClient();
 
@@ -19,6 +27,25 @@ const likeUser = async (
   io = null,
 ) => {
   try {
+    // Check premium quotas before proceeding
+    if (actionType === 'SUPER_LIKE') {
+      const superLikeCheck = await canSuperLike(senderId);
+      if (!superLikeCheck.allowed) {
+        const error = new Error(superLikeCheck.message);
+        error.code = superLikeCheck.error;
+        error.quotas = superLikeCheck.quotas;
+        throw error;
+      }
+    } else if (actionType === 'LIKE') {
+      const likeCheck = await canLike(senderId);
+      if (!likeCheck.allowed) {
+        const error = new Error(likeCheck.message);
+        error.code = likeCheck.error;
+        error.quotas = likeCheck.quotas;
+        throw error;
+      }
+    }
+
     // Use transaction for all database operations
     const result = await prisma.$transaction(async (tx) => {
       // Check if action already exists
@@ -112,6 +139,13 @@ const likeUser = async (
     });
 
     const { action, match, isMatch } = result;
+
+    // Increment daily quota after successful action
+    if (actionType === 'SUPER_LIKE') {
+      await incrementSuperLikeCount(senderId);
+    } else if (actionType === 'LIKE') {
+      await incrementLikeCount(senderId);
+    }
 
     // Send real-time notification if Socket.IO is available for matches
     if (isMatch && match && io) {
@@ -333,6 +367,15 @@ const getUserActions = async (userId, options = {}) => {
  */
 const undoLastAction = async (userId) => {
   try {
+    // Check if user can undo (premium feature)
+    const undoCheck = await canUndo(userId);
+    if (!undoCheck.allowed) {
+      const error = new Error(undoCheck.message);
+      error.code = undoCheck.error;
+      error.quotas = undoCheck.quotas;
+      throw error;
+    }
+
     // Get the last action
     const lastAction = await prisma.userAction.findFirst({
       where: { senderId: userId },
@@ -423,7 +466,27 @@ const undoLastAction = async (userId) => {
  */
 const getWhoLikedMe = async (userId, options = {}) => {
   try {
-    const { limit = 20, offset = 0 } = options;
+    let { limit = 20 } = options;
+    const { offset = 0 } = options;
+
+    // Check premium status to determine result limit
+    const premiumLimit = await getWhoLikedMeLimit(userId);
+
+    // For free users, limit results to 3 and don't allow pagination beyond that
+    if (!premiumLimit.isPremium) {
+      limit = Math.min(limit, premiumLimit.limit);
+      if (offset >= premiumLimit.limit) {
+        // Free users can't paginate beyond the limit
+        return {
+          users: [],
+          totalCount: 0,
+          totalLikesCount: 0,
+          isPremium: false,
+          premiumRequired: true,
+          message: 'Upgrade to Premium to see everyone who liked you!',
+        };
+      }
+    }
 
     // Get the total count of users who liked the current user (before filtering)
     const totalLikesCount = await prisma.userAction.count({
@@ -532,6 +595,9 @@ const getWhoLikedMe = async (userId, options = {}) => {
       users: transformedLikers,
       totalCount: totalUnactedCount, // Total users who liked you that you haven't acted on
       totalLikesCount, // Total users who liked you (including acted on)
+      isPremium: premiumLimit.isPremium,
+      premiumRequired: !premiumLimit.isPremium && totalUnactedCount > premiumLimit.limit,
+      hiddenCount: !premiumLimit.isPremium ? Math.max(0, totalUnactedCount - premiumLimit.limit) : 0,
     };
   } catch (error) {
     logger.error('❌ Error getting who liked me:', error);

@@ -9,8 +9,24 @@ const {
   undoLastAction,
   getWhoLikedMe,
 } = require('../services/actionsService');
+const { getUserQuotas } = require('../services/premiumService');
 
 const router = express.Router();
+
+/**
+ * Helper to handle premium-related errors
+ */
+const handlePremiumError = (error, res) => {
+  if (error.code === 'PREMIUM_REQUIRED' || error.code === 'DAILY_LIMIT_REACHED') {
+    return res.status(403).json({
+      success: false,
+      error: error.code,
+      message: error.message,
+      quotas: error.quotas,
+    });
+  }
+  return null;
+};
 
 /**
  * @route   GET /api/actions
@@ -23,11 +39,37 @@ router.get('/', (req, res) => {
     availableEndpoints: [
       'POST /like - Like a user',
       'POST /pass - Pass on a user',
-      'POST /super-like - Super like a user',
-      'POST /undo - Undo last action',
+      'POST /super-like - Super like a user (Premium)',
+      'POST /undo - Undo last action (Premium)',
       'GET /history - Get user action history',
+      'GET /quotas - Get daily quotas and limits',
     ],
   });
+});
+
+/**
+ * @route   GET /api/actions/quotas
+ * @desc    Get user's current daily quotas and premium status
+ * @access  Private
+ */
+router.get('/quotas', authenticateJWT, async (req, res) => {
+  try {
+    const quotas = await getUserQuotas(req.user.id);
+
+    res.json({
+      success: true,
+      message: 'Quotas retrieved successfully',
+      data: quotas,
+    });
+  } catch (error) {
+    logger.error('❌ Get quotas error:', error);
+
+    res.status(500).json({
+      success: false,
+      error: 'Failed to get quotas',
+      message: error.message,
+    });
+  }
 });
 
 /**
@@ -51,6 +93,12 @@ router.post('/like', authenticateJWT, actionValidation.like, async (req, res) =>
     });
   } catch (error) {
     logger.error('❌ Like user error:', error);
+
+    // Handle premium-related errors with 403
+    const premiumResponse = handlePremiumError(error, res);
+    if (premiumResponse) {
+      return;
+    }
 
     res.status(400).json({
       success: false,
@@ -102,7 +150,6 @@ router.post('/super-like', authenticateJWT, actionValidation.superLike, async (r
     // Get Socket.IO instance from app
     const io = req.app.get('io');
 
-    // TODO: Check if user has super likes available (premium feature)
     const result = await likeUser(req.user.id, targetUserId, 'SUPER_LIKE', io);
 
     res.json({
@@ -114,6 +161,12 @@ router.post('/super-like', authenticateJWT, actionValidation.superLike, async (r
     });
   } catch (error) {
     logger.error('❌ Super like user error:', error);
+
+    // Handle premium-related errors with 403
+    const premiumResponse = handlePremiumError(error, res);
+    if (premiumResponse) {
+      return;
+    }
 
     res.status(400).json({
       success: false,
@@ -130,7 +183,6 @@ router.post('/super-like', authenticateJWT, actionValidation.superLike, async (r
  */
 router.post('/undo', authenticateJWT, async (req, res) => {
   try {
-    // TODO: Check if user has undo available (premium feature)
     const result = await undoLastAction(req.user.id);
 
     res.json({
@@ -140,6 +192,12 @@ router.post('/undo', authenticateJWT, async (req, res) => {
     });
   } catch (error) {
     logger.error('❌ Undo action error:', error);
+
+    // Handle premium-related errors with 403
+    const premiumResponse = handlePremiumError(error, res);
+    if (premiumResponse) {
+      return;
+    }
 
     res.status(400).json({
       success: false,
@@ -187,7 +245,7 @@ router.get('/history', authenticateJWT, actionValidation.getHistory, async (req,
 router.get('/who-liked-me', authenticateJWT, actionValidation.getWhoLikedMe, async (req, res) => {
   try {
     const { limit = 20, offset = 0 } = req.query;
-    
+
     const result = await getWhoLikedMe(req.user.id, {
       limit: parseInt(limit, 10),
       offset: parseInt(offset, 10),
@@ -199,6 +257,9 @@ router.get('/who-liked-me', authenticateJWT, actionValidation.getWhoLikedMe, asy
       data: result.users,
       totalCount: result.totalCount,
       totalLikesCount: result.totalLikesCount,
+      isPremium: result.isPremium,
+      premiumRequired: result.premiumRequired,
+      hiddenCount: result.hiddenCount,
     });
   } catch (error) {
     logger.error('❌ Get who liked me error:', error);
