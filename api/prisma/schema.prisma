@@ -54,6 +54,19 @@ model User {
   totalMatches           Int            @default(0)
   languages              String[]       @default([])
   pushToken              String?        // Expo push notification token
+
+  // Notification Preferences
+  notifyMessages         Boolean        @default(true)
+  notifyMatches          Boolean        @default(true)
+  notifyLikes            Boolean        @default(true)
+
+  // Password Reset
+  passwordResetToken       String?
+  passwordResetExpiry      DateTime?
+  passwordResetAttempts    Int          @default(0)
+  passwordResetLastRequest DateTime?
+
+  // Relations
   matchesAsUser1         Match[]        @relation("user1Matches")
   matchesAsUser2         Match[]        @relation("user2Matches")
   receivedMessages       Message[]      @relation("receivedMessages")
@@ -69,6 +82,11 @@ model User {
   oauthAccounts          OAuthAccount[]
   mainPhoto              Photo?         @relation("mainPhoto", fields: [mainPhotoId], references: [id])
   messageReactions       MessageReaction[]
+
+  // Moderation Relations
+  mutedMatches           MutedMatch[]
+  blockedUsers           BlockedUser[]  @relation("blockedByUsers")
+  blockedByUsers         BlockedUser[]  @relation("blockedUsers")
 
   @@map("users")
 }
@@ -120,21 +138,24 @@ model UserAction {
 }
 
 model Match {
-  id                String    @id @default(cuid())
-  createdAt         DateTime  @default(now())
-  updatedAt         DateTime  @updatedAt
+  id                String       @id @default(cuid())
+  createdAt         DateTime     @default(now())
+  updatedAt         DateTime     @updatedAt
   user1Id           String
   user2Id           String
-  isActive          Boolean   @default(true)
-  matchedAt         DateTime  @default(now())
+  isActive          Boolean      @default(true)
+  matchedAt         DateTime     @default(now())
   lastMessage       String?
   lastMessageTime   DateTime?
   lastMessageBy     String?
   lastViewedByUser1 DateTime?
   lastViewedByUser2 DateTime?
-  user1             User      @relation("user1Matches", fields: [user1Id], references: [id], onDelete: Cascade)
-  user2             User      @relation("user2Matches", fields: [user2Id], references: [id], onDelete: Cascade)
+  unmatchedBy       String?      // User ID who initiated unmatch
+  unmatchedAt       DateTime?    // When the unmatch occurred
+  user1             User         @relation("user1Matches", fields: [user1Id], references: [id], onDelete: Cascade)
+  user2             User         @relation("user2Matches", fields: [user2Id], references: [id], onDelete: Cascade)
   messages          Message[]
+  mutedBy           MutedMatch[]
 
   @@unique([user1Id, user2Id])
   @@map("matches")
@@ -257,6 +278,30 @@ model Report {
   reporter     User         @relation("reportingUser", fields: [reporterId], references: [id], onDelete: Cascade)
 
   @@map("reports")
+}
+
+model MutedMatch {
+  id        String   @id @default(cuid())
+  createdAt DateTime @default(now())
+  userId    String
+  matchId   String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  match     Match    @relation(fields: [matchId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, matchId])
+  @@map("muted_matches")
+}
+
+model BlockedUser {
+  id        String   @id @default(cuid())
+  createdAt DateTime @default(now())
+  blockerId String   // User who is blocking
+  blockedId String   // User being blocked
+  blocker   User     @relation("blockedByUsers", fields: [blockerId], references: [id], onDelete: Cascade)
+  blocked   User     @relation("blockedUsers", fields: [blockedId], references: [id], onDelete: Cascade)
+
+  @@unique([blockerId, blockedId])
+  @@map("blocked_users")
 }
 
 enum Gender {

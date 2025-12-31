@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { View, FlatList } from 'react-native';
-import { useNavigation, useFocusEffect } from '@react-navigation/native';
+import { useNavigation } from '@react-navigation/native';
 import { useMatchesWithProfiles } from '../hooks/useMatches';
 import { useUnread } from '../contexts/UnreadContext';
 import { LoadingScreen } from '../components/LoadingScreen';
@@ -11,19 +11,14 @@ import { commonStyles } from '../styles/commonStyles';
 
 const MessagesScreen = () => {
   // Unread count now handled globally in UnreadContext
-  const { conversations, loading, error, refresh } = useMatchesWithProfiles();
+  const { conversations, loading, refreshing, error, refresh } = useMatchesWithProfiles();
   const { conversations: unreadConversations } = useUnread();
   const navigation = useNavigation();
 
   // Merge real-time data from UnreadContext with profile data from useMatchesWithProfiles
   const [mergedConversations, setMergedConversations] = useState([]);
 
-  // Refresh when screen comes into focus (e.g., after creating a new match)
-  useFocusEffect(
-    React.useCallback(() => {
-      refresh();
-    }, [refresh])
-  );
+  // Note: Focus-based refresh with throttling is handled in useMatchesWithProfiles hook
 
   useEffect(() => {
     if (!conversations?.length) {
@@ -90,7 +85,7 @@ const MessagesScreen = () => {
             subtitle="Start swiping to find your perfect match!"
           />
         }
-        refreshing={loading}
+        refreshing={refreshing}
         onRefresh={refresh}
         contentContainerStyle={{ padding: theme.spacing.md }}
       />

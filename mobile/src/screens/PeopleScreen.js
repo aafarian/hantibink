@@ -37,6 +37,7 @@ const PeopleScreen = ({ navigation }) => {
   const [currentIndex, setCurrentIndex] = useState(0);
   const [position] = useState(new Animated.ValueXY());
   const [actionLoading, setActionLoading] = useState(false);
+  const [isInitialLoad, setIsInitialLoad] = useState(true);
 
   const [showMatchModal, setShowMatchModal] = useState(false);
   const [matchedUser, setMatchedUser] = useState(null);
@@ -186,6 +187,7 @@ const PeopleScreen = ({ navigation }) => {
     if (result.success) {
       setProfiles(result.data);
       setCurrentIndex(0);
+      setIsInitialLoad(false);
     } else {
       const errorInfo = handleError(result.originalError, result.errorMessage);
       showError(errorInfo.message, {
@@ -308,7 +310,8 @@ const PeopleScreen = ({ navigation }) => {
   };
 
   const renderCard = () => {
-    if (loading) {
+    // Only show full loading screen on initial load
+    if (loading && isInitialLoad) {
       return <LoadingScreen message="Loading profiles..." />;
     }
 

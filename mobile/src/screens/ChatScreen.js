@@ -35,6 +35,8 @@ import { isUserOnline } from '../utils/userHelpers';
 import { formatLastSeen } from '../utils/timeHelpers';
 import ProfileBottomSheet from '../components/shared/ProfileBottomSheet';
 import GifPicker from '../components/GifPicker';
+import ConfirmationModal from '../components/ConfirmationModal';
+import ReportReasonModal from '../components/ReportReasonModal';
 import EmojiPicker from 'rn-emoji-keyboard';
 import { theme } from '../styles/theme';
 import BottomSheet, { BottomSheetScrollView, BottomSheetBackdrop } from '@gorhom/bottom-sheet';
@@ -42,7 +44,7 @@ import BottomSheet, { BottomSheetScrollView, BottomSheetBackdrop } from '@gorhom
 const ChatScreen = ({ route, navigation }) => {
   const { match } = route.params;
   const { user } = useAuth();
-  const { showError, showInfo } = useToast();
+  const { showError, showInfo, showSuccess } = useToast();
   const isPremium = useIsPremium();
   const { openPhotoViewer } = usePhotoViewer();
   const _insets = useSafeAreaInsets();
@@ -69,6 +71,14 @@ const ChatScreen = ({ route, navigation }) => {
   const [showMenu, setShowMenu] = useState(false);
   const [reactionsDetailMessage, setReactionsDetailMessage] = useState(null);
   const [reactionsTab, setReactionsTab] = useState('all'); // 'all', 'you', 'them'
+
+  // Moderation modals state
+  const [showMuteConfirm, setShowMuteConfirm] = useState(false);
+  const [showBlockConfirm, setShowBlockConfirm] = useState(false);
+  const [showUnmatchConfirm, setShowUnmatchConfirm] = useState(false);
+  const [showReportModal, setShowReportModal] = useState(false);
+  const [isMuted, setIsMuted] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   // Refs
   const flatListRef = useRef(null);
@@ -1101,17 +1111,125 @@ const ChatScreen = ({ route, navigation }) => {
           profileSheetRef.current?.open();
           break;
         case 'search':
-        case 'mute':
-        case 'block':
-        case 'unmatch':
-        case 'report':
           showInfo('Coming soon!');
+          break;
+        case 'mute':
+          setShowMuteConfirm(true);
+          break;
+        case 'block':
+          setShowBlockConfirm(true);
+          break;
+        case 'unmatch':
+          setShowUnmatchConfirm(true);
+          break;
+        case 'report':
+          setShowReportModal(true);
           break;
         default:
           break;
       }
     },
     [showInfo]
+  );
+
+  // Load mute status on mount
+  useEffect(() => {
+    const checkMuteStatus = async () => {
+      if (match?.id) {
+        const muted = await ApiDataService.isMatchMuted(match.id);
+        setIsMuted(muted);
+      }
+    };
+    checkMuteStatus();
+  }, [match?.id]);
+
+  // Moderation action handlers
+  const handleMuteToggle = useCallback(async () => {
+    setIsSubmitting(true);
+    try {
+      let success;
+      if (isMuted) {
+        success = await ApiDataService.unmuteMatch(match.id);
+        if (success) {
+          setIsMuted(false);
+          showSuccess('Notifications unmuted');
+        }
+      } else {
+        success = await ApiDataService.muteMatch(match.id);
+        if (success) {
+          setIsMuted(true);
+          showSuccess('Notifications muted');
+        }
+      }
+      if (!success) {
+        showError('Failed to update notification settings');
+      }
+    } catch (error) {
+      Logger.error('Mute toggle error:', error);
+      showError('Something went wrong');
+    } finally {
+      setIsSubmitting(false);
+      setShowMuteConfirm(false);
+    }
+  }, [match?.id, isMuted, showSuccess, showError]);
+
+  const handleBlock = useCallback(async () => {
+    setIsSubmitting(true);
+    try {
+      const success = await ApiDataService.blockUser(match?.otherUser?.id, match?.id);
+      if (success) {
+        showSuccess(`${match?.otherUser?.name || 'User'} has been blocked`);
+        navigation.navigate('MessagesList');
+      } else {
+        showError('Failed to block user');
+      }
+    } catch (error) {
+      Logger.error('Block error:', error);
+      showError('Something went wrong');
+    } finally {
+      setIsSubmitting(false);
+      setShowBlockConfirm(false);
+    }
+  }, [match?.id, match?.otherUser, navigation, showSuccess, showError]);
+
+  const handleUnmatch = useCallback(async () => {
+    setIsSubmitting(true);
+    try {
+      const success = await ApiDataService.unmatch(match?.id);
+      if (success) {
+        showSuccess('Unmatched successfully');
+        navigation.navigate('MessagesList');
+      } else {
+        showError('Failed to unmatch');
+      }
+    } catch (error) {
+      Logger.error('Unmatch error:', error);
+      showError('Something went wrong');
+    } finally {
+      setIsSubmitting(false);
+      setShowUnmatchConfirm(false);
+    }
+  }, [match?.id, navigation, showSuccess, showError]);
+
+  const handleReport = useCallback(
+    async (reason, description) => {
+      setIsSubmitting(true);
+      try {
+        const success = await ApiDataService.reportUser(match?.otherUser?.id, reason, description);
+        if (success) {
+          showSuccess('Report submitted. Thank you for helping keep our community safe.');
+          setShowReportModal(false);
+        } else {
+          showError('Failed to submit report');
+        }
+      } catch (error) {
+        Logger.error('Report error:', error);
+        showError('Something went wrong');
+      } finally {
+        setIsSubmitting(false);
+      }
+    },
+    [match?.otherUser?.id, showSuccess, showError]
   );
 
   // Render menu overlay
@@ -1573,6 +1691,50 @@ const ChatScreen = ({ route, navigation }) => {
           enableSearchBar={true}
           enableRecentlyUsed={true}
           categoryPosition="top"
+        />
+
+        {/* Mute Confirmation Modal */}
+        <ConfirmationModal
+          visible={showMuteConfirm}
+          title={isMuted ? 'Unmute Notifications' : 'Mute Notifications'}
+          message={
+            isMuted
+              ? `You will start receiving notifications from ${match?.otherUser?.name || 'this user'} again.`
+              : `You won't receive notifications from ${match?.otherUser?.name || 'this user'}. You can unmute them anytime.`
+          }
+          confirmText={isMuted ? 'Unmute' : 'Mute'}
+          confirmColor={theme.colors.primary}
+          onConfirm={handleMuteToggle}
+          onCancel={() => setShowMuteConfirm(false)}
+        />
+
+        {/* Block Confirmation Modal */}
+        <ConfirmationModal
+          visible={showBlockConfirm}
+          title={`Block ${match?.otherUser?.name || 'User'}?`}
+          message="They won't be able to see your profile or message you. Your match will be removed. You can unblock them from Settings."
+          confirmText="Block"
+          onConfirm={handleBlock}
+          onCancel={() => setShowBlockConfirm(false)}
+        />
+
+        {/* Unmatch Confirmation Modal */}
+        <ConfirmationModal
+          visible={showUnmatchConfirm}
+          title={`Unmatch with ${match?.otherUser?.name || 'User'}?`}
+          message="This will remove your match and conversation permanently. This action cannot be undone."
+          confirmText="Unmatch"
+          onConfirm={handleUnmatch}
+          onCancel={() => setShowUnmatchConfirm(false)}
+        />
+
+        {/* Report Modal */}
+        <ReportReasonModal
+          visible={showReportModal}
+          userName={match?.otherUser?.name || 'User'}
+          onSubmit={handleReport}
+          onCancel={() => setShowReportModal(false)}
+          isSubmitting={isSubmitting}
         />
       </WrapperComponent>
     </>

@@ -24,6 +24,8 @@ import FilterScreen from '../screens/FilterScreen';
 import LikedYouScreen from '../screens/LikedYouScreen';
 import MessagesScreen from '../screens/MessagesScreen';
 import ChatScreen from '../screens/ChatScreen';
+import PreferencesScreen from '../screens/PreferencesScreen';
+import NotificationSettingsScreen from '../screens/NotificationSettingsScreen';
 
 // Import components
 import ProfileSetupModal from '../components/modals/ProfileSetupModal';
@@ -137,6 +139,20 @@ const ProfileStack = () => {
         component={ProfileEditScreen}
         options={{
           headerShown: false, // ProfileEditScreen has its own header
+        }}
+      />
+      <Stack.Screen
+        name="Preferences"
+        component={PreferencesScreen}
+        options={{
+          headerShown: false, // PreferencesScreen has its own header
+        }}
+      />
+      <Stack.Screen
+        name="NotificationSettings"
+        component={NotificationSettingsScreen}
+        options={{
+          headerShown: false, // NotificationSettingsScreen has its own header
         }}
       />
     </Stack.Navigator>

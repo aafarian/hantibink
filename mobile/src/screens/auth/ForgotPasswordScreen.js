@@ -9,16 +9,16 @@ import {
   Platform,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { useAuth } from '../../contexts/AuthContext';
 import { useToast } from '../../contexts/ToastContext';
 import { theme } from '../../styles/theme';
+import apiClient from '../../services/ApiClient';
+import Logger from '../../utils/logger';
 
 const ForgotPasswordScreen = ({ navigation }) => {
   const [email, setEmail] = useState('');
   const [loading, setLoading] = useState(false);
 
-  const { resetPassword } = useAuth();
-  const { showError, showSuccess } = useToast();
+  const { showError, showInfo } = useToast();
 
   const handleResetPassword = async () => {
     if (!email) {
@@ -26,16 +26,33 @@ const ForgotPasswordScreen = ({ navigation }) => {
       return;
     }
 
-    setLoading(true);
-    const result = await resetPassword(email);
-    setLoading(false);
+    // Basic email validation
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email)) {
+      showError('Please enter a valid email address');
+      return;
+    }
 
-    if (result.success) {
-      showSuccess('Check your email for password reset instructions.', {
-        action: { text: 'Back to Login', onPress: () => navigation.navigate('Login') },
-      });
-    } else {
-      showError(result.error || 'Failed to send password reset email. Please try again.');
+    setLoading(true);
+    try {
+      const response = await apiClient.forgotPassword(email);
+      setLoading(false);
+
+      if (response.success) {
+        Logger.info('Password reset code sent');
+        showInfo('If this email exists, a reset code has been sent');
+        // Navigate to code verification screen
+        navigation.navigate('VerifyResetCode', { email });
+      } else {
+        // Still navigate even on "failure" to prevent email enumeration
+        // The API returns success: true to prevent enumeration anyway
+        showInfo('If this email exists, a reset code has been sent');
+        navigation.navigate('VerifyResetCode', { email });
+      }
+    } catch (error) {
+      setLoading(false);
+      Logger.error('Forgot password error:', error);
+      showError('Something went wrong. Please try again.');
     }
   };
 
@@ -57,7 +74,7 @@ const ForgotPasswordScreen = ({ navigation }) => {
 
         <Text style={styles.title}>Forgot Password?</Text>
         <Text style={styles.subtitle}>
-          Enter your email address and we'll send you a link to reset your password.
+          Enter your email address and we'll send you a code to reset your password.
         </Text>
 
         <View style={styles.inputContainer}>
@@ -78,7 +95,7 @@ const ForgotPasswordScreen = ({ navigation }) => {
           onPress={handleResetPassword}
           disabled={loading}
         >
-          <Text style={styles.resetButtonText}>{loading ? 'Sending...' : 'Send Reset Link'}</Text>
+          <Text style={styles.resetButtonText}>{loading ? 'Sending...' : 'Send Reset Code'}</Text>
         </TouchableOpacity>
 
         <TouchableOpacity style={styles.backToLogin} onPress={() => navigation.navigate('Login')}>

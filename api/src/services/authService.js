@@ -859,10 +859,210 @@ const checkEmailExists = async (email) => {
       where: { email: email.toLowerCase() },
       select: { id: true },
     });
-    
+
     return !!user;
   } catch (error) {
     logger.error('❌ Check email exists error:', error);
+    throw error;
+  }
+};
+
+// ============ PASSWORD RESET FUNCTIONS ============
+
+/**
+ * Generate a 6-digit reset code
+ */
+const generateResetCode = () => {
+  return Math.floor(100000 + Math.random() * 900000).toString();
+};
+
+/**
+ * Request password reset - generates and stores reset code
+ * @param {string} email - User's email address
+ * @returns {object} - Success status and reset code (for email sending)
+ */
+const requestPasswordReset = async (email) => {
+  try {
+    const normalizedEmail = email.toLowerCase();
+
+    // Find user by email
+    const user = await prisma.user.findUnique({
+      where: { email: normalizedEmail },
+      select: {
+        id: true,
+        name: true,
+        passwordResetLastRequest: true,
+      },
+    });
+
+    // Always return success to prevent email enumeration
+    if (!user) {
+      logger.info(`Password reset requested for non-existent email: ${normalizedEmail}`);
+      return { success: true, message: 'If this email exists, a reset code has been sent' };
+    }
+
+    // Generate 6-digit code
+    const resetCode = generateResetCode();
+
+    // Hash the code before storing
+    const bcrypt = require('bcryptjs');
+    const hashedCode = await bcrypt.hash(resetCode, 10);
+
+    // Store hashed code with 15-minute expiry
+    const expiryTime = new Date(Date.now() + 15 * 60 * 1000);
+
+    await prisma.user.update({
+      where: { id: user.id },
+      data: {
+        passwordResetToken: hashedCode,
+        passwordResetExpiry: expiryTime,
+        passwordResetAttempts: 0,
+        passwordResetLastRequest: new Date(),
+      },
+    });
+
+    logger.info(`Password reset code generated for user ${user.id}`);
+
+    return {
+      success: true,
+      message: 'If this email exists, a reset code has been sent',
+      // These are returned for the email service to use
+      _internal: {
+        userId: user.id,
+        userName: user.name,
+        email: normalizedEmail,
+        resetCode,
+      },
+    };
+  } catch (error) {
+    logger.error('❌ Request password reset error:', error);
+    throw error;
+  }
+};
+
+/**
+ * Verify password reset code
+ * @param {string} email - User's email address
+ * @param {string} code - 6-digit reset code
+ * @returns {object} - Reset token on success
+ */
+const verifyPasswordResetCode = async (email, code) => {
+  try {
+    const normalizedEmail = email.toLowerCase();
+
+    const user = await prisma.user.findUnique({
+      where: { email: normalizedEmail },
+      select: {
+        id: true,
+        passwordResetToken: true,
+        passwordResetExpiry: true,
+        passwordResetAttempts: true,
+      },
+    });
+
+    if (!user) {
+      return { success: false, error: 'Invalid email or code' };
+    }
+
+    // Check if attempts exceeded (max 5)
+    if (user.passwordResetAttempts >= 5) {
+      return { success: false, error: 'Too many attempts. Please request a new code.' };
+    }
+
+    // Check if code is expired
+    if (!user.passwordResetExpiry || user.passwordResetExpiry < new Date()) {
+      return { success: false, error: 'Reset code has expired. Please request a new code.' };
+    }
+
+    // Check if no token exists
+    if (!user.passwordResetToken) {
+      return { success: false, error: 'No reset code found. Please request a new code.' };
+    }
+
+    // Verify code
+    const bcrypt = require('bcryptjs');
+    const isValid = await bcrypt.compare(code, user.passwordResetToken);
+
+    if (!isValid) {
+      // Increment failed attempts
+      await prisma.user.update({
+        where: { id: user.id },
+        data: { passwordResetAttempts: { increment: 1 } },
+      });
+
+      const attemptsLeft = 5 - (user.passwordResetAttempts + 1);
+      return {
+        success: false,
+        error: `Invalid code. ${attemptsLeft} attempts remaining.`,
+      };
+    }
+
+    // Generate a short-lived JWT for password update (5 minutes)
+    const { generateToken } = require('../utils/jwt');
+    const resetToken = generateToken({ userId: user.id, purpose: 'password-reset' }, '5m');
+
+    // Clear the reset code (one-time use)
+    await prisma.user.update({
+      where: { id: user.id },
+      data: {
+        passwordResetToken: null,
+        passwordResetAttempts: 0,
+      },
+    });
+
+    logger.info(`Password reset code verified for user ${user.id}`);
+
+    return { success: true, resetToken };
+  } catch (error) {
+    logger.error('❌ Verify password reset code error:', error);
+    throw error;
+  }
+};
+
+/**
+ * Reset password with verified token
+ * @param {string} token - Verified reset JWT
+ * @param {string} newPassword - New password
+ * @returns {object} - Success status
+ */
+const resetPassword = async (token, newPassword) => {
+  try {
+    // Verify the reset token
+    const { verifyToken } = require('../utils/jwt');
+    let decoded;
+
+    try {
+      decoded = verifyToken(token);
+    } catch (error) {
+      return { success: false, error: 'Invalid or expired reset token. Please request a new code.' };
+    }
+
+    // Check token purpose
+    if (decoded.purpose !== 'password-reset') {
+      return { success: false, error: 'Invalid reset token' };
+    }
+
+    // Hash new password
+    const bcrypt = require('bcryptjs');
+    const hashedPassword = await bcrypt.hash(newPassword, 12);
+
+    // Update password and clear reset fields
+    await prisma.user.update({
+      where: { id: decoded.userId },
+      data: {
+        password: hashedPassword,
+        passwordResetToken: null,
+        passwordResetExpiry: null,
+        passwordResetAttempts: 0,
+        passwordResetLastRequest: null,
+      },
+    });
+
+    logger.info(`Password reset completed for user ${decoded.userId}`);
+
+    return { success: true, message: 'Password updated successfully' };
+  } catch (error) {
+    logger.error('❌ Reset password error:', error);
     throw error;
   }
 };
@@ -879,4 +1079,7 @@ module.exports = {
   reorderUserPhotos,
   setMainPhoto,
   checkEmailExists,
+  requestPasswordReset,
+  verifyPasswordResetCode,
+  resetPassword,
 };

@@ -1,6 +1,6 @@
 const logger = require('../utils/logger');
 const { getPrismaClient } = require('../config/database');
-const { sendMessageNotification } = require('./notificationService');
+const { sendMessageNotification, shouldSendNotification } = require('./notificationService');
 const { getReactionsForMessages } = require('./reactionsService');
 
 const prisma = getPrismaClient();
@@ -243,46 +243,52 @@ const sendMessage = async (matchId, senderId, messageData, io = null) => {
     });
 
     if (receiver?.pushToken) {
-      // Get recent unread messages from this sender in this match (for stacking)
-      const recentUnread = await prisma.message.findMany({
-        where: {
-          matchId,
-          senderId,
-          receiverId,
-          isRead: false,
-        },
-        orderBy: { createdAt: 'desc' },
-        take: 5, // Max 5 messages in stacked notification
-        select: { content: true, messageType: true },
-      });
-
-      const unreadCount = recentUnread.length;
-      logger.info(`📊 Notification: ${unreadCount} unread messages from ${message.sender.name}`);
-
-      // Simple notification: count in title, latest message in body
-      const notificationBody = lastMessagePreview.length > 100
-        ? `${lastMessagePreview.substring(0, 100)}...`
-        : lastMessagePreview;
-
-      const title = unreadCount > 1
-        ? `💬 ${message.sender.name} (${unreadCount})`
-        : `💬 ${message.sender.name}`;
-
-      sendMessageNotification(
-        receiver.pushToken,
-        title,
-        notificationBody,
-        {
-          matchId,
-          sender: {
-            id: message.sender.id,
-            name: message.sender.name,
-            photos: message.sender.photos,
+      // Check if user wants message notifications
+      const shouldNotify = await shouldSendNotification(receiverId, 'messages');
+      if (!shouldNotify) {
+        logger.info(`📵 Message notification skipped - user ${receiverId} has messages disabled`);
+      } else {
+        // Get recent unread messages from this sender in this match (for stacking)
+        const recentUnread = await prisma.message.findMany({
+          where: {
+            matchId,
+            senderId,
+            receiverId,
+            isRead: false,
           },
-        }
-      ).catch(err =>
-        logger.error('Failed to send push notification for message:', err)
-      );
+          orderBy: { createdAt: 'desc' },
+          take: 5, // Max 5 messages in stacked notification
+          select: { content: true, messageType: true },
+        });
+
+        const unreadCount = recentUnread.length;
+        logger.info(`📊 Notification: ${unreadCount} unread messages from ${message.sender.name}`);
+
+        // Simple notification: count in title, latest message in body
+        const notificationBody = lastMessagePreview.length > 100
+          ? `${lastMessagePreview.substring(0, 100)}...`
+          : lastMessagePreview;
+
+        const title = unreadCount > 1
+          ? `💬 ${message.sender.name} (${unreadCount})`
+          : `💬 ${message.sender.name}`;
+
+        sendMessageNotification(
+          receiver.pushToken,
+          title,
+          notificationBody,
+          {
+            matchId,
+            sender: {
+              id: message.sender.id,
+              name: message.sender.name,
+              photos: message.sender.photos,
+            },
+          }
+        ).catch(err =>
+          logger.error('Failed to send push notification for message:', err)
+        );
+      }
     }
 
     return transformedMessage;

@@ -62,68 +62,80 @@ export const useMatchesWithProfiles = () => {
   const { user } = useAuth();
   const { loading, error, execute } = useAsyncOperation();
   const [conversations, setConversations] = useState([]);
+  const [isInitialLoad, setIsInitialLoad] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
 
-  const loadMatchesWithProfiles = useCallback(async () => {
-    if (!user?.uid) return { success: false, error: 'No user logged in' };
+  const loadMatchesWithProfiles = useCallback(
+    async (isManualRefresh = false) => {
+      if (!user?.uid) return { success: false, error: 'No user logged in' };
 
-    const result = await execute(
-      async () => {
-        // Get matches
-        const matches = await ApiDataService.getUserMatches();
-
-        // Transform API matches to expected format
-        const conversationsWithProfiles = await Promise.all(
-          (Array.isArray(matches) ? matches : []).map(async match => {
-            // Load messages for this match
-            const messages = await ApiDataService.getMessages(match.id);
-
-            // Calculate unread count using API method
-            const unreadCount = ApiDataService.getUnreadCount(messages, user.uid);
-
-            return {
-              matchId: match.id,
-              match: match,
-              otherUser: match.otherUser,
-              otherUserId: match.otherUser.id,
-              messages: messages,
-              lastMessage: match.lastMessage?.content || null,
-              lastMessageTime: match.lastMessage?.timestamp || null,
-              unreadCount: unreadCount,
-            };
-          })
-        );
-
-        // Filter out failed profile loads and log failures for debugging
-        const validConversations = conversationsWithProfiles.filter(conv => {
-          if (!conv.otherUser) {
-            Logger.warn('Failed to load profile for user:', conv.otherUserId);
-            return false;
-          }
-          return true;
-        });
-
-        const failedCount = conversationsWithProfiles.length - validConversations.length;
-        if (failedCount > 0) {
-          Logger.warn(
-            `${failedCount} profile(s) failed to load out of ${conversationsWithProfiles.length} matches`
-          );
-        }
-
-        return validConversations;
-      },
-      {
-        loadingMessage: `Loading matches with profiles for user: ${user.uid}`,
-        errorMessage: 'Failed to load matches',
-        successMessage: 'Conversations loaded successfully',
+      // Only set refreshing for manual pull-to-refresh
+      if (isManualRefresh) {
+        setRefreshing(true);
       }
-    );
 
-    if (result.success) {
-      setConversations(result.data || []);
-    }
+      const result = await execute(
+        async () => {
+          // Get matches
+          const matches = await ApiDataService.getUserMatches();
 
-    return result;
-  }, [user, execute]);
+          // Transform API matches to expected format
+          const conversationsWithProfiles = await Promise.all(
+            (Array.isArray(matches) ? matches : []).map(async match => {
+              // Load messages for this match
+              const messages = await ApiDataService.getMessages(match.id);
+
+              // Calculate unread count using API method
+              const unreadCount = ApiDataService.getUnreadCount(messages, user.uid);
+
+              return {
+                matchId: match.id,
+                match: match,
+                otherUser: match.otherUser,
+                otherUserId: match.otherUser.id,
+                messages: messages,
+                lastMessage: match.lastMessage?.content || null,
+                lastMessageTime: match.lastMessage?.timestamp || null,
+                unreadCount: unreadCount,
+              };
+            })
+          );
+
+          // Filter out failed profile loads and log failures for debugging
+          const validConversations = conversationsWithProfiles.filter(conv => {
+            if (!conv.otherUser) {
+              Logger.warn('Failed to load profile for user:', conv.otherUserId);
+              return false;
+            }
+            return true;
+          });
+
+          const failedCount = conversationsWithProfiles.length - validConversations.length;
+          if (failedCount > 0) {
+            Logger.warn(
+              `${failedCount} profile(s) failed to load out of ${conversationsWithProfiles.length} matches`
+            );
+          }
+
+          return validConversations;
+        },
+        {
+          loadingMessage: `Loading matches with profiles for user: ${user.uid}`,
+          errorMessage: 'Failed to load matches',
+          successMessage: 'Conversations loaded successfully',
+        }
+      );
+
+      if (result.success) {
+        setConversations(result.data || []);
+        setIsInitialLoad(false);
+      }
+
+      setRefreshing(false);
+      return result;
+    },
+    [user, execute]
+  );
 
   // Load matches when screen comes into focus (throttled)
   const [lastProfileRefresh, setLastProfileRefresh] = useState(null);
@@ -146,9 +158,10 @@ export const useMatchesWithProfiles = () => {
 
   return {
     conversations,
-    loading,
+    loading: isInitialLoad && loading, // Only show loading on initial load
+    refreshing,
     error,
-    refresh: loadMatchesWithProfiles,
+    refresh: () => loadMatchesWithProfiles(true), // Manual refresh
     hasConversations: conversations.length > 0,
     conversationCount: conversations.length,
   };

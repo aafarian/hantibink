@@ -38,6 +38,7 @@ const discoveryRoutes = require('./routes/discovery');
 const actionsRoutes = require('./routes/actions');
 const matchesRoutes = require('./routes/matches');
 const messagesRoutes = require('./routes/messages');
+const moderationRoutes = require('./routes/moderation');
 
 // Initialize Express app and HTTP server
 const app = express();
@@ -181,6 +182,9 @@ apiRouter.use('/matches', matchesRoutes);
 
 // Message routes (protected)
 apiRouter.use('/messages', messagesRoutes);
+
+// Moderation routes (protected)
+apiRouter.use('/moderation', moderationRoutes);
 
 // Mount API router
 app.use('/api/v1', apiRouter);

@@ -213,25 +213,127 @@ router.post('/logout', (req, res) => {
  * @desc    Request password reset
  * @access  Public
  */
-router.post('/forgot-password', (req, res) => {
-  res.json({
-    message: 'Password reset request endpoint!!',
-    endpoint: 'POST /api/auth/forgot-password',
-    status: 'Coming soon - will integrate with email service!!',
-  });
+router.post('/forgot-password', authLimiter, async (req, res) => {
+  try {
+    const { email } = req.body;
+
+    if (!email) {
+      return res.status(400).json({
+        success: false,
+        error: 'Email is required',
+      });
+    }
+
+    const { requestPasswordReset } = require('../services/authService');
+    const { sendPasswordResetEmail } = require('../services/emailService');
+
+    const result = await requestPasswordReset(email);
+
+    // If we have internal data, send the email
+    if (result._internal) {
+      const { userName, email: userEmail, resetCode } = result._internal;
+      await sendPasswordResetEmail(userEmail, userName, resetCode);
+    }
+
+    // Always return success to prevent email enumeration
+    res.json({
+      success: true,
+      message: 'If this email exists, a reset code has been sent',
+    });
+  } catch (error) {
+    logger.error('Forgot password error:', error);
+    // Still return success to prevent enumeration
+    res.json({
+      success: true,
+      message: 'If this email exists, a reset code has been sent',
+    });
+  }
+});
+
+/**
+ * @route   POST /api/auth/verify-reset-code
+ * @desc    Verify password reset code
+ * @access  Public
+ */
+router.post('/verify-reset-code', authLimiter, async (req, res) => {
+  try {
+    const { email, code } = req.body;
+
+    if (!email || !code) {
+      return res.status(400).json({
+        success: false,
+        error: 'Email and code are required',
+      });
+    }
+
+    const { verifyPasswordResetCode } = require('../services/authService');
+    const result = await verifyPasswordResetCode(email, code);
+
+    if (!result.success) {
+      return res.status(400).json({
+        success: false,
+        error: result.error,
+      });
+    }
+
+    res.json({
+      success: true,
+      resetToken: result.resetToken,
+    });
+  } catch (error) {
+    logger.error('Verify reset code error:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to verify code',
+    });
+  }
 });
 
 /**
  * @route   POST /api/auth/reset-password
- * @desc    Reset password
+ * @desc    Reset password with verified token
  * @access  Public
  */
-router.post('/reset-password', (req, res) => {
-  res.json({
-    message: 'Password reset endpoint',
-    endpoint: 'POST /api/auth/reset-password',
-    status: 'Coming soon - will integrate with email service',
-  });
+router.post('/reset-password', async (req, res) => {
+  try {
+    const { token, newPassword } = req.body;
+
+    if (!token || !newPassword) {
+      return res.status(400).json({
+        success: false,
+        error: 'Token and new password are required',
+      });
+    }
+
+    // Validate password strength
+    if (newPassword.length < 6) {
+      return res.status(400).json({
+        success: false,
+        error: 'Password must be at least 6 characters',
+      });
+    }
+
+    const { resetPassword } = require('../services/authService');
+    const result = await resetPassword(token, newPassword);
+
+    if (!result.success) {
+      return res.status(400).json({
+        success: false,
+        error: result.error,
+      });
+    }
+
+    res.json({
+      success: true,
+      message: 'Password updated successfully',
+    });
+  } catch (error) {
+    logger.error('Reset password error:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to reset password',
+    });
+  }
 });
 
 /**
