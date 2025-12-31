@@ -93,7 +93,7 @@ export const wait = (ms) => new Promise(resolve => setTimeout(resolve, ms));
 export const createMockSocketIO = () => {
   const emitCalls = [];
   const mock = {
-    to: function(room) {
+    to(room) {
       return {
         emit: (event, data) => {
           emitCalls.push({ room, event, data });

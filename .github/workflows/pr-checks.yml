@@ -46,6 +46,12 @@ jobs:
         working-directory: api
         run: npx prisma generate
 
+      - name: Push schema to test database
+        working-directory: api
+        env:
+          DATABASE_URL: postgresql://test:test@localhost:5432/hantibink_test
+        run: npx prisma db push --accept-data-loss
+
       - name: Run tests
         working-directory: api
         env:
@@ -54,7 +60,7 @@ jobs:
           JWT_SECRET: test-secret-key-for-ci
           ADMIN_EMAIL: admin@example.com
           NODE_ENV: test
-        run: npm test
+        run: npx vitest run
 
   lint:
     name: Lint

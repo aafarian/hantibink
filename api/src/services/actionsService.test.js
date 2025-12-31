@@ -2,8 +2,6 @@ import { describe, it, expect, beforeEach, vi } from 'vitest';
 import {
   userFactory,
   photoFactory,
-  matchFactory,
-  userActionFactory,
 } from '@test-helpers/factories.js';
 import { createMockSocketIO, wait } from '@test-helpers/test-utils.js';
 

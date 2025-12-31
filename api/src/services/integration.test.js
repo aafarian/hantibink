@@ -2,8 +2,6 @@ import { describe, it, expect, beforeEach, vi } from 'vitest';
 import {
   userFactory,
   photoFactory,
-  matchFactory,
-  messageFactory,
 } from '@test-helpers/factories.js';
 
 // Import all services for integration testing
@@ -11,7 +9,7 @@ const { likeUser, passUser, undoLastAction, getWhoLikedMe } = require('./actions
 const { getUsersForDiscovery } = require('./discoveryService');
 const { getUserMatches, getMatchDetails } = require('./matchesService');
 const { getMessages, sendMessage } = require('./messagesService');
-const { blockUser, isUserBlocked } = require('./moderationService');
+const { blockUser } = require('./moderationService');
 
 describe('Integration Tests', () => {
   beforeEach(() => {

@@ -211,7 +211,8 @@ describe('Discovery Service', () => {
     it('should prioritize users who liked the current user', async () => {
       const user1 = await createEligibleUser('MAN', ['WOMAN']);
       const user2 = await createEligibleUser('WOMAN', ['MAN']);
-      const user3 = await createEligibleUser('WOMAN', ['MAN']);
+      // Create a third user to ensure priority ordering works
+      await createEligibleUser('WOMAN', ['MAN']);
 
       // User2 likes user1 (user1 should see user2 first)
       await userActionFactory.createLike(global.prisma, user2.id, user1.id);
