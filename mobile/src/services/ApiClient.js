@@ -452,6 +452,46 @@ class ApiClient {
     });
   }
 
+  /**
+   * Get notification settings
+   */
+  async getNotificationSettings() {
+    return this.request('/users/notification-settings');
+  }
+
+  /**
+   * Update notification settings
+   */
+  async updateNotificationSettings(settings) {
+    return this.request('/users/notification-settings', {
+      method: 'PUT',
+      body: JSON.stringify(settings),
+    });
+  }
+
+  // ============ PASSWORD RESET METHODS ============
+
+  /**
+   * Request password reset code
+   */
+  async forgotPassword(email) {
+    return this.post('/auth/forgot-password', { email });
+  }
+
+  /**
+   * Verify password reset code
+   */
+  async verifyResetCode(email, code) {
+    return this.post('/auth/verify-reset-code', { email, code });
+  }
+
+  /**
+   * Reset password with verified token
+   */
+  async resetPassword(token, newPassword) {
+    return this.post('/auth/reset-password', { token, newPassword });
+  }
+
   // ============ UTILITY METHODS ============
 
   /**

@@ -380,11 +380,138 @@ router.get('/preferences', authenticateJWT, async (req, res) => {
  * @access  Private
  */
 router.put('/preferences', authenticateJWT, async (req, res) => {
-  res.json({
-    message: 'Update preferences endpoint',
-    endpoint: 'PUT /api/users/preferences',
-    status: 'Coming soon - will implement preference updates',
-  });
+  try {
+    const { interestedIn, ageRange, distance } = req.body;
+
+    const updateData = {};
+    if (interestedIn && Array.isArray(interestedIn)) {
+      updateData.interestedIn = interestedIn;
+    }
+    if (ageRange?.min !== undefined) {
+      updateData.minAge = ageRange.min;
+    }
+    if (ageRange?.max !== undefined) {
+      updateData.maxAge = ageRange.max;
+    }
+    if (distance !== undefined) {
+      updateData.maxDistance = distance;
+    }
+
+    const updatedUser = await prisma.user.update({
+      where: { id: req.user.id },
+      data: updateData,
+      select: {
+        interestedIn: true,
+        minAge: true,
+        maxAge: true,
+        maxDistance: true,
+      },
+    });
+
+    res.json({
+      success: true,
+      message: 'Preferences updated successfully',
+      data: {
+        interestedIn: updatedUser.interestedIn,
+        ageRange: {
+          min: updatedUser.minAge || 18,
+          max: updatedUser.maxAge || 99,
+        },
+        distance: updatedUser.maxDistance || 50,
+      },
+    });
+  } catch (error) {
+    logger.error('❌ Update preferences error:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to update preferences',
+      message: error.message,
+    });
+  }
+});
+
+/**
+ * @route   GET /api/users/notification-settings
+ * @desc    Get user notification settings
+ * @access  Private
+ */
+router.get('/notification-settings', authenticateJWT, async (req, res) => {
+  try {
+    const user = await prisma.user.findUnique({
+      where: { id: req.user.id },
+      select: {
+        notifyMessages: true,
+        notifyMatches: true,
+        notifyLikes: true,
+      },
+    });
+
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        error: 'User not found',
+      });
+    }
+
+    res.json({
+      success: true,
+      data: {
+        messages: user.notifyMessages ?? true,
+        matches: user.notifyMatches ?? true,
+        likes: user.notifyLikes ?? true,
+      },
+    });
+  } catch (error) {
+    logger.error('❌ Get notification settings error:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to get notification settings',
+      message: error.message,
+    });
+  }
+});
+
+/**
+ * @route   PUT /api/users/notification-settings
+ * @desc    Update user notification settings
+ * @access  Private
+ */
+router.put('/notification-settings', authenticateJWT, async (req, res) => {
+  try {
+    const { messages, matches, likes } = req.body;
+
+    const updateData = {};
+    if (messages !== undefined) {updateData.notifyMessages = messages;}
+    if (matches !== undefined) {updateData.notifyMatches = matches;}
+    if (likes !== undefined) {updateData.notifyLikes = likes;}
+
+    const user = await prisma.user.update({
+      where: { id: req.user.id },
+      data: updateData,
+      select: {
+        notifyMessages: true,
+        notifyMatches: true,
+        notifyLikes: true,
+      },
+    });
+
+    res.json({
+      success: true,
+      message: 'Notification settings updated successfully',
+      data: {
+        messages: user.notifyMessages,
+        matches: user.notifyMatches,
+        likes: user.notifyLikes,
+      },
+    });
+  } catch (error) {
+    logger.error('❌ Update notification settings error:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to update notification settings',
+      message: error.message,
+    });
+  }
 });
 
 /**

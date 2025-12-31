@@ -4,6 +4,21 @@ const { getPrismaClient } = require('../config/database');
 
 const prisma = getPrismaClient();
 
+// Initialize SendGrid if API key is provided
+let sgMail = null;
+if (process.env.SENDGRID_API_KEY) {
+  try {
+    sgMail = require('@sendgrid/mail');
+    sgMail.setApiKey(process.env.SENDGRID_API_KEY);
+    logger.info('SendGrid initialized successfully');
+  } catch (error) {
+    logger.warn('SendGrid initialization failed:', error.message);
+  }
+}
+
+const FROM_EMAIL = process.env.FROM_EMAIL || 'noreply@hantibink.com';
+const FROM_NAME = process.env.FROM_NAME || 'Hantibink';
+
 /**
  * Generate a verification token
  */
@@ -194,10 +209,105 @@ const sendWelcomeEmail = async (email, name) => {
   }
 };
 
+/**
+ * Send password reset email with 6-digit code
+ * @param {string} email - Recipient email
+ * @param {string} name - User's name
+ * @param {string} code - 6-digit reset code
+ */
+const sendPasswordResetEmail = async (email, name, code) => {
+  try {
+    const subject = 'Reset Your Hantibink Password';
+    const htmlContent = `
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <meta charset="utf-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <style>
+          body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; line-height: 1.6; color: #333; }
+          .container { max-width: 600px; margin: 0 auto; padding: 20px; }
+          .header { text-align: center; padding: 20px 0; }
+          .logo { font-size: 28px; font-weight: bold; color: #D32F2F; }
+          .content { background: #f9f9f9; border-radius: 12px; padding: 30px; margin: 20px 0; }
+          .code-box { background: #fff; border: 2px solid #D32F2F; border-radius: 8px; padding: 20px; text-align: center; margin: 20px 0; }
+          .code { font-size: 36px; font-weight: bold; letter-spacing: 8px; color: #D32F2F; }
+          .footer { text-align: center; font-size: 12px; color: #999; margin-top: 30px; }
+          .warning { background: #fff3cd; border-radius: 8px; padding: 15px; margin-top: 20px; font-size: 13px; }
+        </style>
+      </head>
+      <body>
+        <div class="container">
+          <div class="header">
+            <div class="logo">Hantibink</div>
+          </div>
+          <div class="content">
+            <h2 style="margin-top: 0;">Hi ${name || 'there'},</h2>
+            <p>We received a request to reset your password. Use the code below to complete the process:</p>
+            <div class="code-box">
+              <div class="code">${code}</div>
+            </div>
+            <p>This code will expire in <strong>15 minutes</strong>.</p>
+            <div class="warning">
+              <strong>Didn't request this?</strong> If you didn't request a password reset, you can safely ignore this email. Your password will remain unchanged.
+            </div>
+          </div>
+          <div class="footer">
+            <p>This email was sent by Hantibink. Please do not reply to this email.</p>
+            <p>&copy; ${new Date().getFullYear()} Hantibink. All rights reserved.</p>
+          </div>
+        </div>
+      </body>
+      </html>
+    `;
+
+    const textContent = `
+Hi ${name || 'there'},
+
+We received a request to reset your password. Use the code below to complete the process:
+
+${code}
+
+This code will expire in 15 minutes.
+
+Didn't request this? If you didn't request a password reset, you can safely ignore this email.
+
+- The Hantibink Team
+    `;
+
+    // Send via SendGrid if available
+    if (sgMail) {
+      await sgMail.send({
+        to: email,
+        from: { email: FROM_EMAIL, name: FROM_NAME },
+        subject,
+        text: textContent,
+        html: htmlContent,
+      });
+      logger.info(`Password reset email sent to ${email} via SendGrid`);
+      return true;
+    }
+
+    // Development fallback - log the code
+    logger.info('========================================');
+    logger.info('PASSWORD RESET CODE (SendGrid not configured)');
+    logger.info(`Email: ${email}`);
+    logger.info(`Code: ${code}`);
+    logger.info('========================================');
+
+    return true;
+  } catch (error) {
+    logger.error('Failed to send password reset email:', error);
+    // Don't throw - we still want to return success to prevent enumeration
+    return false;
+  }
+};
+
 module.exports = {
   sendVerificationEmail,
   createEmailVerification,
   verifyEmailWithToken,
   resendVerificationEmail,
   sendWelcomeEmail,
+  sendPasswordResetEmail,
 };

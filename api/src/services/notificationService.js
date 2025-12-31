@@ -1,4 +1,45 @@
 const logger = require('../utils/logger');
+const { getPrismaClient } = require('../config/database');
+
+const prisma = getPrismaClient();
+
+/**
+ * Check if a notification should be sent based on user preferences
+ * @param {string} userId - User ID to check preferences for
+ * @param {string} type - Notification type: 'messages', 'matches', or 'likes'
+ * @returns {Promise<boolean>} - Whether the notification should be sent
+ */
+async function shouldSendNotification(userId, type) {
+  try {
+    const user = await prisma.user.findUnique({
+      where: { id: userId },
+      select: {
+        notifyMessages: true,
+        notifyMatches: true,
+        notifyLikes: true,
+      },
+    });
+
+    if (!user) {
+      return false;
+    }
+
+    switch (type) {
+      case 'messages':
+        return user.notifyMessages !== false;
+      case 'matches':
+        return user.notifyMatches !== false;
+      case 'likes':
+        return user.notifyLikes !== false;
+      default:
+        return true;
+    }
+  } catch (error) {
+    logger.error('Error checking notification preferences:', error);
+    // Default to sending if we can't check preferences
+    return true;
+  }
+}
 
 /**
  * Send push notification using Expo Push Notification Service
@@ -124,4 +165,5 @@ module.exports = {
   sendMessageNotification,
   sendLikeNotification,
   sendSuperLikeNotification,
+  shouldSendNotification,
 };

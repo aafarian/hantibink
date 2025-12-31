@@ -670,9 +670,6 @@ const styles = StyleSheet.create({
     backgroundColor: '#fff',
     paddingHorizontal: 20,
     paddingVertical: 16,
-    paddingBottom: 34,
-    borderTopWidth: 1,
-    borderTopColor: '#f0f0f0',
   },
   applyButton: {
     backgroundColor: theme.colors.primary,

@@ -4,6 +4,7 @@ const {
   sendMatchNotification,
   sendLikeNotification,
   sendSuperLikeNotification,
+  shouldSendNotification,
 } = require('./notificationService');
 
 const prisma = getPrismaClient();
@@ -155,16 +156,28 @@ const likeUser = async (
           message: "It's a match! 🎉",
         });
 
-        // Send push notifications to both users
+        // Send push notifications to both users (respecting their preferences)
         if (match.user1.pushToken) {
-          sendMatchNotification(match.user1.pushToken, user2Data.name).catch(err =>
-            logger.error('Failed to send push notification to user1:', err)
-          );
+          shouldSendNotification(match.user1Id, 'matches').then(shouldNotify => {
+            if (shouldNotify) {
+              sendMatchNotification(match.user1.pushToken, user2Data.name).catch(err =>
+                logger.error('Failed to send push notification to user1:', err)
+              );
+            } else {
+              logger.info(`📵 Match notification skipped for user1 - matches disabled`);
+            }
+          });
         }
         if (match.user2.pushToken) {
-          sendMatchNotification(match.user2.pushToken, user1Data.name).catch(err =>
-            logger.error('Failed to send push notification to user2:', err)
-          );
+          shouldSendNotification(match.user2Id, 'matches').then(shouldNotify => {
+            if (shouldNotify) {
+              sendMatchNotification(match.user2.pushToken, user1Data.name).catch(err =>
+                logger.error('Failed to send push notification to user2:', err)
+              );
+            } else {
+              logger.info(`📵 Match notification skipped for user2 - matches disabled`);
+            }
+          });
         }
 
         // Also emit an event to update the "Liked You" screen
@@ -194,16 +207,21 @@ const likeUser = async (
         ]);
 
         if (receiver?.pushToken && sender?.name) {
-          if (actionType === 'SUPER_LIKE') {
+          // Check if user wants like notifications
+          const shouldNotify = await shouldSendNotification(receiverId, 'likes');
+          if (!shouldNotify) {
+            logger.info(`📵 Like notification skipped - user ${receiverId} has likes disabled`);
+          } else if (actionType === 'SUPER_LIKE') {
             sendSuperLikeNotification(receiver.pushToken, sender.name).catch(err =>
               logger.error('Failed to send super like notification:', err)
             );
+            logger.info(`📩 Sent ${actionType} notification to user ${receiverId}`);
           } else {
             sendLikeNotification(receiver.pushToken, sender.name).catch(err =>
               logger.error('Failed to send like notification:', err)
             );
+            logger.info(`📩 Sent ${actionType} notification to user ${receiverId}`);
           }
-          logger.info(`📩 Sent ${actionType} notification to user ${receiverId}`);
         }
       } catch (notifError) {
         // Don't fail the action if notification fails

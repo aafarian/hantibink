@@ -455,13 +455,19 @@ const ProfileScreen = ({ navigation }) => {
             <Ionicons name="chevron-forward" size={20} color="#ccc" />
           </TouchableOpacity>
 
-          <TouchableOpacity style={styles.settingItem}>
+          <TouchableOpacity
+            style={styles.settingItem}
+            onPress={() => navigation.navigate('Preferences')}
+          >
             <Ionicons name="filter" size={20} color={theme.colors.primary} />
             <Text style={styles.settingText}>Preferences</Text>
             <Ionicons name="chevron-forward" size={20} color="#ccc" />
           </TouchableOpacity>
 
-          <TouchableOpacity style={styles.settingItem}>
+          <TouchableOpacity
+            style={styles.settingItem}
+            onPress={() => navigation.navigate('NotificationSettings')}
+          >
             <Ionicons name="notifications" size={20} color={theme.colors.primary} />
             <Text style={styles.settingText}>Notifications</Text>
             <Ionicons name="chevron-forward" size={20} color="#ccc" />
@@ -695,8 +701,6 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     paddingVertical: 15,
-    borderTopWidth: 1,
-    borderTopColor: '#f0f0f0',
     marginTop: 10,
   },
   logoutText: {

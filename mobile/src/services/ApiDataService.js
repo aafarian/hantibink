@@ -778,6 +778,142 @@ class ApiDataService {
       return 0;
     }
   }
+
+  // ============ MODERATION METHODS ============
+
+  /**
+   * Mute match notifications
+   */
+  static async muteMatch(matchId) {
+    try {
+      Logger.info('🔇 Muting match via API...');
+      const response = await apiClient.post(`/moderation/mute/${matchId}`);
+      if (response.success) {
+        Logger.success('✅ Match muted');
+        return true;
+      }
+      Logger.error('❌ Failed to mute match:', response.message);
+      return false;
+    } catch (error) {
+      Logger.error('❌ Error muting match:', error);
+      return false;
+    }
+  }
+
+  /**
+   * Unmute match notifications
+   */
+  static async unmuteMatch(matchId) {
+    try {
+      Logger.info('🔔 Unmuting match via API...');
+      const response = await apiClient.delete(`/moderation/mute/${matchId}`);
+      if (response.success) {
+        Logger.success('✅ Match unmuted');
+        return true;
+      }
+      Logger.error('❌ Failed to unmute match:', response.message);
+      return false;
+    } catch (error) {
+      Logger.error('❌ Error unmuting match:', error);
+      return false;
+    }
+  }
+
+  /**
+   * Check if match is muted
+   */
+  static async isMatchMuted(matchId) {
+    try {
+      const response = await apiClient.get(`/moderation/mute/${matchId}/status`);
+      if (response.success) {
+        return response.data?.data?.isMuted || false;
+      }
+      return false;
+    } catch (error) {
+      Logger.error('❌ Error checking mute status:', error);
+      return false;
+    }
+  }
+
+  /**
+   * Block a user
+   */
+  static async blockUser(userId, matchId = null) {
+    try {
+      Logger.info('🚫 Blocking user via API...');
+      const response = await apiClient.post(`/moderation/block/${userId}`, { matchId });
+      if (response.success) {
+        Logger.success('✅ User blocked');
+        return true;
+      }
+      Logger.error('❌ Failed to block user:', response.message);
+      return false;
+    } catch (error) {
+      Logger.error('❌ Error blocking user:', error);
+      return false;
+    }
+  }
+
+  /**
+   * Unblock a user
+   */
+  static async unblockUser(userId) {
+    try {
+      Logger.info('✅ Unblocking user via API...');
+      const response = await apiClient.delete(`/moderation/block/${userId}`);
+      if (response.success) {
+        Logger.success('✅ User unblocked');
+        return true;
+      }
+      Logger.error('❌ Failed to unblock user:', response.message);
+      return false;
+    } catch (error) {
+      Logger.error('❌ Error unblocking user:', error);
+      return false;
+    }
+  }
+
+  /**
+   * Unmatch from a match
+   */
+  static async unmatch(matchId) {
+    try {
+      Logger.info('💔 Unmatching via API...');
+      const response = await apiClient.post(`/moderation/unmatch/${matchId}`);
+      if (response.success) {
+        Logger.success('✅ Unmatched successfully');
+        return true;
+      }
+      Logger.error('❌ Failed to unmatch:', response.message);
+      return false;
+    } catch (error) {
+      Logger.error('❌ Error unmatching:', error);
+      return false;
+    }
+  }
+
+  /**
+   * Report a user
+   */
+  static async reportUser(reportedId, reason, description = null) {
+    try {
+      Logger.info('🚨 Reporting user via API...');
+      const response = await apiClient.post('/moderation/report', {
+        reportedId,
+        reason,
+        description,
+      });
+      if (response.success) {
+        Logger.success('✅ Report submitted');
+        return true;
+      }
+      Logger.error('❌ Failed to submit report:', response.message);
+      return false;
+    } catch (error) {
+      Logger.error('❌ Error submitting report:', error);
+      return false;
+    }
+  }
 }
 
 export default ApiDataService;
