@@ -10,8 +10,6 @@ const {
   canLike,
   canSuperLike,
   canUndo,
-  incrementLikeCount,
-  incrementSuperLikeCount,
   getWhoLikedMeLimit,
 } = require('./premiumService');
 
@@ -135,17 +133,23 @@ const likeUser = async (
         isMatch = true;
       }
 
+      // Increment daily quota inside transaction to prevent race conditions
+      if (actionType === 'SUPER_LIKE') {
+        await tx.user.update({
+          where: { id: senderId },
+          data: { dailySuperLikesUsed: { increment: 1 } },
+        });
+      } else if (actionType === 'LIKE') {
+        await tx.user.update({
+          where: { id: senderId },
+          data: { dailyLikesUsed: { increment: 1 } },
+        });
+      }
+
       return { action, match, isMatch };
     });
 
     const { action, match, isMatch } = result;
-
-    // Increment daily quota after successful action
-    if (actionType === 'SUPER_LIKE') {
-      await incrementSuperLikeCount(senderId);
-    } else if (actionType === 'LIKE') {
-      await incrementLikeCount(senderId);
-    }
 
     // Send real-time notification if Socket.IO is available for matches
     if (isMatch && match && io) {
