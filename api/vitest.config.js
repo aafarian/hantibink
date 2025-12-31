@@ -9,6 +9,13 @@ export default defineConfig({
     include: ['src/**/*.test.js'],
     hookTimeout: 20000, // Increase timeout for database operations
     testTimeout: 10000,
+    // Run tests sequentially to avoid database conflicts
+    pool: 'forks',
+    poolOptions: {
+      forks: {
+        singleFork: true,
+      },
+    },
     coverage: {
       provider: 'v8',
       reporter: ['text', 'json', 'html'],

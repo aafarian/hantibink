@@ -23,8 +23,8 @@ describe('Auth Routes', () => {
         firebaseUid: 'firebase-123',
         name: 'New User',
         birthDate: '1990-01-01',
-        gender: 'MALE',
-        interestedIn: ['FEMALE'],
+        gender: 'MAN',
+        interestedIn: ['WOMAN'],
       };
 
       const response = await request(app)
@@ -53,8 +53,8 @@ describe('Auth Routes', () => {
         firebaseUid: 'firebase-new',
         name: 'New User',
         birthDate: '1990-01-01',
-        gender: 'MALE',
-        interestedIn: ['FEMALE'],
+        gender: 'MAN',
+        interestedIn: ['WOMAN'],
       };
 
       const response = await request(app)
@@ -72,8 +72,8 @@ describe('Auth Routes', () => {
         password: '123', // Too short
         name: 'Test',
         birthDate: '1990-01-01',
-        gender: 'MALE',
-        interestedIn: ['FEMALE'],
+        gender: 'MAN',
+        interestedIn: ['WOMAN'],
       };
 
       const response = await request(app)
