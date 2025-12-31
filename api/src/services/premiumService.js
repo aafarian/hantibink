@@ -61,29 +61,44 @@ const getUserQuotas = async (userId) => {
   let likesUsed = user.dailyLikesUsed;
   let superLikesUsed = user.dailySuperLikesUsed;
 
-  // Reset quotas if needed
+  // Reset quotas if needed using conditional updates to prevent race conditions
+  // Each reset uses updateMany with a WHERE clause on the old timestamp,
+  // ensuring only one concurrent request can successfully reset
   const needsLikesReset = shouldResetQuotas(user.dailyLikesResetAt);
   const needsSuperLikesReset = shouldResetQuotas(user.dailySuperLikesResetAt);
 
-  if (needsLikesReset || needsSuperLikesReset) {
-    const updateData = {};
-
-    if (needsLikesReset) {
-      updateData.dailyLikesUsed = 0;
-      updateData.dailyLikesResetAt = new Date();
+  if (needsLikesReset) {
+    const result = await prisma.user.updateMany({
+      where: {
+        id: userId,
+        dailyLikesResetAt: user.dailyLikesResetAt, // Only update if timestamp hasn't changed
+      },
+      data: {
+        dailyLikesUsed: 0,
+        dailyLikesResetAt: new Date(),
+      },
+    });
+    // If we successfully reset (count > 0), use 0; otherwise re-fetch
+    if (result.count > 0) {
       likesUsed = 0;
     }
+  }
 
-    if (needsSuperLikesReset) {
-      updateData.dailySuperLikesUsed = 0;
-      updateData.dailySuperLikesResetAt = new Date();
+  if (needsSuperLikesReset) {
+    const result = await prisma.user.updateMany({
+      where: {
+        id: userId,
+        dailySuperLikesResetAt: user.dailySuperLikesResetAt, // Only update if timestamp hasn't changed
+      },
+      data: {
+        dailySuperLikesUsed: 0,
+        dailySuperLikesResetAt: new Date(),
+      },
+    });
+    // If we successfully reset (count > 0), use 0; otherwise re-fetch
+    if (result.count > 0) {
       superLikesUsed = 0;
     }
-
-    await prisma.user.update({
-      where: { id: userId },
-      data: updateData,
-    });
   }
 
   return {
@@ -171,30 +186,6 @@ const canUndo = async (userId) => {
 };
 
 /**
- * Increment like count after successful like
- */
-const incrementLikeCount = async (userId) => {
-  await prisma.user.update({
-    where: { id: userId },
-    data: {
-      dailyLikesUsed: { increment: 1 },
-    },
-  });
-};
-
-/**
- * Increment super like count after successful super like
- */
-const incrementSuperLikeCount = async (userId) => {
-  await prisma.user.update({
-    where: { id: userId },
-    data: {
-      dailySuperLikesUsed: { increment: 1 },
-    },
-  });
-};
-
-/**
  * Get the limit for "who liked me" feature
  */
 const getWhoLikedMeLimit = async (userId) => {
@@ -251,8 +242,6 @@ module.exports = {
   canLike,
   canSuperLike,
   canUndo,
-  incrementLikeCount,
-  incrementSuperLikeCount,
   getWhoLikedMeLimit,
   requiresPremium,
 };
