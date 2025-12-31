@@ -50,6 +50,7 @@ jobs:
         working-directory: api
         env:
           DATABASE_URL: postgresql://test:test@localhost:5432/hantibink_test
+          DIRECT_URL: postgresql://test:test@localhost:5432/hantibink_test
         run: npx prisma db push --accept-data-loss
 
       - name: Run tests
