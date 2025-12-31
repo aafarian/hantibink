@@ -66,6 +66,12 @@ model User {
   passwordResetAttempts    Int          @default(0)
   passwordResetLastRequest DateTime?
 
+  // Daily Quotas (for premium features)
+  dailyLikesUsed           Int          @default(0)
+  dailyLikesResetAt        DateTime     @default(now())
+  dailySuperLikesUsed      Int          @default(0)
+  dailySuperLikesResetAt   DateTime     @default(now())
+
   // Relations
   matchesAsUser1         Match[]        @relation("user1Matches")
   matchesAsUser2         Match[]        @relation("user2Matches")
