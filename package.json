@@ -42,6 +42,10 @@
       "cd mobile && prettier --write",
       "cd mobile && eslint --fix"
     ],
+    "api/**/*.js": [
+      "cd api && prettier --write",
+      "cd api && eslint --fix"
+    ],
     "*.{json,md}": [
       "prettier --write"
     ]
