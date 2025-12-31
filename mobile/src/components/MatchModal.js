@@ -2,6 +2,7 @@ import React from 'react';
 import { Modal, View, Text, StyleSheet, TouchableOpacity, Image, Dimensions } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
+import { theme } from '../styles/theme';
 
 const { width: screenWidth } = Dimensions.get('window');
 
@@ -41,7 +42,7 @@ const MatchModal = ({
       <View style={styles.container}>
         <View style={styles.content}>
           <LinearGradient
-            colors={['#FF6B6B', '#FF8E53']}
+            colors={[theme.colors.primary, '#FF8E53']}
             style={styles.header}
             start={{ x: 0, y: 0 }}
             end={{ x: 1, y: 0 }}
@@ -57,7 +58,7 @@ const MatchModal = ({
             </View>
 
             <View style={styles.heartContainer}>
-              <Ionicons name="heart" size={40} color="#FF6B6B" />
+              <Ionicons name="heart" size={40} color={theme.colors.primary} />
             </View>
 
             <View style={styles.photoWrapper}>
@@ -73,7 +74,7 @@ const MatchModal = ({
 
             <TouchableOpacity style={styles.primaryButton} onPress={handleSendMessage}>
               <LinearGradient
-                colors={['#4ECDC4', '#44A08D']}
+                colors={[theme.colors.secondary, '#44A08D']}
                 style={styles.primaryButtonGradient}
                 start={{ x: 0, y: 0 }}
                 end={{ x: 1, y: 0 }}
@@ -133,7 +134,7 @@ const styles = StyleSheet.create({
     height: 100,
     borderRadius: 50,
     borderWidth: 3,
-    borderColor: '#FF6B6B',
+    borderColor: theme.colors.primary,
   },
   photoName: {
     marginTop: 8,

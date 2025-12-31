@@ -29,7 +29,8 @@ const getMessages = async (matchId, userId, options = {}) => {
       throw new Error('Match is no longer active');
     }
 
-    // Get messages in chronological order
+    // Get the most recent messages first, then reverse for chronological display
+    // This ensures we always get the newest messages when there's a limit
     const messages = await prisma.message.findMany({
       where: { matchId },
       include: {
@@ -54,10 +55,13 @@ const getMessages = async (matchId, userId, options = {}) => {
           },
         },
       },
-      orderBy: { createdAt: 'asc' },  // Chronological order
+      orderBy: { createdAt: 'desc' },  // Get newest first
       take: limit,
       skip: offset,
     });
+
+    // Reverse to get chronological order for display
+    messages.reverse();
 
     // Get reactions for all messages
     const messageIds = messages.map((m) => m.id);

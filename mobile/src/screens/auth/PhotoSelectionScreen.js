@@ -15,6 +15,7 @@ import { useToast } from '../../contexts/ToastContext';
 import { useAuth } from '../../contexts/AuthContext';
 import ApiDataService from '../../services/ApiDataService';
 import Logger from '../../utils/logger';
+import { theme } from '../../styles/theme';
 
 const { width } = Dimensions.get('window');
 const photoSize = (width - 60) / 3; // 3 photos per row with spacing
@@ -164,7 +165,7 @@ const PhotoSelectionScreen = ({ navigation, route }) => {
             <MaterialIcons
               name="add-a-photo"
               size={24}
-              color={photos.length >= 6 ? '#999' : '#4ECDC4'}
+              color={photos.length >= 6 ? '#999' : theme.colors.secondary}
             />
             <Text style={[styles.addButtonText, photos.length >= 6 && styles.disabledText]}>
               {photos.length === 0
@@ -187,7 +188,7 @@ const PhotoSelectionScreen = ({ navigation, route }) => {
                   </TouchableOpacity>
                   {/* Cropped indicator */}
                   <View style={styles.croppedBadge}>
-                    <MaterialIcons name="check-circle" size={16} color="#4ECDC4" />
+                    <MaterialIcons name="check-circle" size={16} color={theme.colors.secondary} />
                   </View>
                 </View>
               ))}
@@ -272,7 +273,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     backgroundColor: '#F8F9FA',
     borderWidth: 2,
-    borderColor: '#4ECDC4',
+    borderColor: theme.colors.secondary,
     borderStyle: 'dashed',
     borderRadius: 12,
     paddingVertical: 40,
@@ -281,7 +282,7 @@ const styles = StyleSheet.create({
   },
   addButtonText: {
     fontSize: 16,
-    color: '#4ECDC4',
+    color: theme.colors.secondary,
     fontWeight: '600',
   },
   disabledText: {
@@ -348,7 +349,7 @@ const styles = StyleSheet.create({
     borderTopColor: '#E8E8E8',
   },
   continueButton: {
-    backgroundColor: '#4ECDC4',
+    backgroundColor: theme.colors.secondary,
     paddingVertical: 16,
     borderRadius: 8,
     alignItems: 'center',

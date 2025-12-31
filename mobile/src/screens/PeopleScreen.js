@@ -22,6 +22,7 @@ import MatchModal from '../components/MatchModal';
 import Logger from '../utils/logger';
 import { handleError } from '../utils/errorHandler';
 import { getUserProfilePhoto } from '../utils/profileHelpers';
+import { theme } from '../styles/theme';
 
 const { width } = Dimensions.get('window');
 const SWIPE_THRESHOLD = width * 0.25;
@@ -332,7 +333,7 @@ const PeopleScreen = ({ navigation }) => {
       // Instead, return a placeholder and handle skipping via useEffect at component level
       return (
         <View style={styles.noMoreCards}>
-          <ActivityIndicator size="large" color="#FF6B6B" />
+          <ActivityIndicator size="large" color={theme.colors.primary} />
           <Text style={styles.noMoreCardsText}>Loading next profile...</Text>
         </View>
       );
@@ -439,7 +440,7 @@ const PeopleScreen = ({ navigation }) => {
           })
         }
       >
-        <Ionicons name="filter" size={24} color="#FF6B6B" />
+        <Ionicons name="filter" size={24} color={theme.colors.primary} />
       </TouchableOpacity>
 
       {/* Test Button - Keep for development/testing */}
@@ -491,9 +492,9 @@ const PeopleScreen = ({ navigation }) => {
             disabled={actionLoading}
           >
             {actionLoading ? (
-              <ActivityIndicator size="small" color="#FF6B6B" />
+              <ActivityIndicator size="small" color={theme.colors.primary} />
             ) : (
-              <Ionicons name="close" size={30} color="#FF6B6B" />
+              <Ionicons name="close" size={30} color={theme.colors.primary} />
             )}
           </TouchableOpacity>
 
@@ -503,9 +504,9 @@ const PeopleScreen = ({ navigation }) => {
             disabled={actionLoading}
           >
             {actionLoading ? (
-              <ActivityIndicator size="small" color="#4ECDC4" />
+              <ActivityIndicator size="small" color={theme.colors.secondary} />
             ) : (
-              <Ionicons name="heart" size={30} color="#4ECDC4" />
+              <Ionicons name="heart" size={30} color={theme.colors.secondary} />
             )}
           </TouchableOpacity>
         </View>
@@ -643,9 +644,9 @@ const styles = StyleSheet.create({
   likeText: {
     fontSize: 32,
     fontWeight: 'bold',
-    color: '#4ECDC4',
+    color: theme.colors.secondary,
     borderWidth: 4,
-    borderColor: '#4ECDC4',
+    borderColor: theme.colors.secondary,
     padding: 10,
   },
   dislikeIndicator: {
@@ -657,9 +658,9 @@ const styles = StyleSheet.create({
   dislikeText: {
     fontSize: 32,
     fontWeight: 'bold',
-    color: '#FF6B6B',
+    color: theme.colors.primary,
     borderWidth: 4,
-    borderColor: '#FF6B6B',
+    borderColor: theme.colors.primary,
     padding: 10,
   },
   actionsContainer: {
@@ -701,7 +702,7 @@ const styles = StyleSheet.create({
     marginBottom: 30,
   },
   resetButton: {
-    backgroundColor: '#FF6B6B',
+    backgroundColor: theme.colors.primary,
     paddingHorizontal: 30,
     paddingVertical: 15,
     borderRadius: 25,
@@ -716,7 +717,7 @@ const styles = StyleSheet.create({
     top: 110,
     right: 20,
     zIndex: 1000,
-    backgroundColor: '#4ECDC4',
+    backgroundColor: theme.colors.secondary,
     borderRadius: 20,
     padding: 10,
     shadowColor: '#000',
@@ -756,7 +757,7 @@ const styles = StyleSheet.create({
     lineHeight: 24,
   },
   addPhotosButton: {
-    backgroundColor: '#FF6B6B',
+    backgroundColor: theme.colors.primary,
     paddingHorizontal: 30,
     paddingVertical: 15,
     borderRadius: 25,

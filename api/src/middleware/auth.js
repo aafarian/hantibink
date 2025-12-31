@@ -5,6 +5,30 @@ const { getPrismaClient } = require('../config/database');
 
 const prisma = getPrismaClient();
 
+// Track last activity update per user to throttle database writes
+const lastActivityUpdate = new Map();
+const ACTIVITY_UPDATE_INTERVAL = 30000; // 30 seconds
+
+/**
+ * Update user's lastActive timestamp (throttled to avoid excessive DB writes)
+ */
+const updateLastActive = async (userId) => {
+  const now = Date.now();
+  const lastUpdate = lastActivityUpdate.get(userId) || 0;
+
+  // Only update if more than 30 seconds since last update
+  if (now - lastUpdate > ACTIVITY_UPDATE_INTERVAL) {
+    lastActivityUpdate.set(userId, now);
+    // Update asynchronously - don't block the request
+    prisma.user.update({
+      where: { id: userId },
+      data: { lastActive: new Date() },
+    }).catch(err => {
+      logger.warn('Failed to update lastActive:', err.message);
+    });
+  }
+};
+
 /**
  * JWT Authentication Middleware
  */
@@ -54,7 +78,10 @@ const authenticateJWT = async (req, res, next) => {
     // Attach user to request
     req.user = user;
     req.token = token;
-    
+
+    // Update lastActive to track app usage (throttled)
+    updateLastActive(user.id);
+
     next();
   } catch (error) {
     logger.error('❌ JWT authentication failed:', error);

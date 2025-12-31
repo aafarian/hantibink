@@ -17,6 +17,7 @@ import { useToast } from '../../contexts/ToastContext';
 import Logger from '../../utils/logger';
 import OAuthService from '../../services/OAuthService';
 import ApiClient from '../../services/ApiClient';
+import { theme } from '../../styles/theme';
 
 // Email validation regex
 const EMAIL_REGEX = /^[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}$/i;
@@ -233,14 +234,24 @@ const LoginScreen = ({ navigation }) => {
           {/* API Error Display */}
           {apiError ? (
             <View style={styles.errorContainer}>
-              <Ionicons name="alert-circle" size={20} color="#FF6B6B" style={styles.errorIcon} />
+              <Ionicons
+                name="alert-circle"
+                size={20}
+                color={theme.colors.primary}
+                style={styles.errorIcon}
+              />
               <Text style={styles.errorMessage}>{apiError}</Text>
             </View>
           ) : null}
 
           <View style={styles.fieldWrapper}>
             <View style={[styles.inputContainer, fieldErrors.email && styles.inputError]}>
-              <Ionicons name="mail" size={20} color="#FF6B6B" style={styles.inputIcon} />
+              <Ionicons
+                name="mail"
+                size={20}
+                color={theme.colors.primary}
+                style={styles.inputIcon}
+              />
               <TextInput
                 style={styles.input}
                 placeholder="Email"
@@ -262,7 +273,12 @@ const LoginScreen = ({ navigation }) => {
 
           <View style={styles.fieldWrapper}>
             <View style={[styles.inputContainer, fieldErrors.password && styles.inputError]}>
-              <Ionicons name="lock-closed" size={20} color="#FF6B6B" style={styles.inputIcon} />
+              <Ionicons
+                name="lock-closed"
+                size={20}
+                color={theme.colors.primary}
+                style={styles.inputIcon}
+              />
               <TextInput
                 ref={passwordInputRef}
                 style={styles.input}
@@ -392,11 +408,11 @@ const styles = StyleSheet.create({
     marginBottom: 24,
   },
   forgotPasswordText: {
-    color: '#FF6B6B',
+    color: theme.colors.primary,
     fontSize: 14,
   },
   loginButton: {
-    backgroundColor: '#FF6B6B',
+    backgroundColor: theme.colors.primary,
     borderRadius: 12,
     paddingVertical: 16,
     alignItems: 'center',
@@ -453,7 +469,7 @@ const styles = StyleSheet.create({
     fontSize: 14,
   },
   footerLink: {
-    color: '#FF6B6B',
+    color: theme.colors.primary,
     fontSize: 14,
     fontWeight: 'bold',
   },
@@ -464,11 +480,11 @@ const styles = StyleSheet.create({
     marginBottom: 16,
   },
   inputError: {
-    borderColor: '#FF6B6B',
+    borderColor: theme.colors.primary,
     backgroundColor: '#FFF5F5',
   },
   errorText: {
-    color: '#FF6B6B',
+    color: theme.colors.primary,
     fontSize: 12,
     marginTop: 4,
     marginLeft: 4,

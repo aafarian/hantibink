@@ -1,5 +1,6 @@
 import React, { useState, useCallback, useRef } from 'react';
 import { View, Text, StyleSheet, PanResponder, Dimensions } from 'react-native';
+import { theme } from '../styles/theme';
 
 const { width: screenWidth } = Dimensions.get('window');
 
@@ -191,7 +192,7 @@ const styles = StyleSheet.create({
   value: {
     fontSize: 20,
     fontWeight: '700',
-    color: '#FF6B6B',
+    color: theme.colors.primary,
   },
   rangeDash: {
     width: 20,
@@ -214,7 +215,7 @@ const styles = StyleSheet.create({
   },
   selectedTrack: {
     height: 4,
-    backgroundColor: '#FF6B6B',
+    backgroundColor: theme.colors.primary,
     borderRadius: 2,
     position: 'absolute',
   },
@@ -242,7 +243,7 @@ const styles = StyleSheet.create({
     width: 14,
     height: 14,
     borderRadius: 7,
-    backgroundColor: '#FF6B6B',
+    backgroundColor: theme.colors.primary,
   },
   limitLabels: {
     flexDirection: 'row',

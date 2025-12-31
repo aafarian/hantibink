@@ -432,7 +432,7 @@ async function startServer() {
       // Handle online status updates
       socket.on('update-online-status', async (data) => {
         const { userId, isOnline, matchIds } = data;
-        
+
         // Only broadcast to specific match rooms if matchIds provided
         if (matchIds && Array.isArray(matchIds)) {
           // Broadcast only to user's match rooms
@@ -452,6 +452,37 @@ async function startServer() {
             timestamp: new Date(),
           });
           logger.info(`🟢 User ${userId} online status: ${isOnline} (sent to user room only)`);
+        }
+      });
+
+      // Handle heartbeat to keep lastActive updated
+      socket.on('heartbeat', async (data) => {
+        const { userId } = data;
+        if (!userId) {
+          return;
+        }
+
+        try {
+          const prisma = getPrismaClient();
+          await prisma.user.update({
+            where: { id: userId },
+            data: { lastActive: new Date() },
+          });
+
+          // Broadcast online status to all matches
+          const userData = socketUserMap.get(socket.id);
+          if (userData && userData.matchIds.size > 0) {
+            const onlineData = {
+              userId,
+              isOnline: true,
+              timestamp: new Date(),
+            };
+            userData.matchIds.forEach(matchId => {
+              io.to(`match:${matchId}`).emit('user-online-status', onlineData);
+            });
+          }
+        } catch (error) {
+          // Silent fail for heartbeat - don't spam logs
         }
       });
 
