@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef, useCallback, useEffect } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, ActivityIndicator, Image } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
@@ -8,6 +8,9 @@ import Logger from '../../utils/logger';
 import { usePhotoViewer } from '../../contexts/PhotoViewerContext';
 import { DraggableGrid } from 'react-native-draggable-grid';
 import { theme } from '../../styles/theme';
+
+// Debounce delay for API calls after drag ends
+const REORDER_DEBOUNCE_MS = 800;
 
 /**
  * Reusable PhotoManager component
@@ -24,47 +27,72 @@ const PhotoManager = ({
   onError,
   onSuccess,
   onScrollControl, // Function to control parent scroll
+  onPendingReorderChange: _onPendingReorderChange, // Callback when pending reorder state changes (unused but kept for API compatibility)
 }) => {
   const [loading, setLoading] = useState(false);
-  const [currentOrder, setCurrentOrder] = useState([]);
   const [draggingItem, setDraggingItem] = useState(null);
-  const [lastDragTime, setLastDragTime] = useState(0);
+
+  // LOCAL PHOTOS STATE - This is the source of truth for ordering
+  // Only syncs from props on mount or when photos are added/deleted
+  const [localPhotos, setLocalPhotos] = useState([]);
 
   const { openPhotoViewer } = usePhotoViewer();
 
+  // Refs for debouncing
+  const reorderDebounceRef = useRef(null);
+  const isSavingRef = useRef(false);
+  const lastPhotoCountRef = useRef(0);
+
   // Transform photos to ensure they have proper structure for draggable-grid
-  const normalizePhotos = photoArray => {
+  const normalizePhotos = useCallback(photoArray => {
     if (!Array.isArray(photoArray)) {
       return [];
     }
     return photoArray.map((photo, index) => ({
-      key: photo.id || photo.url || `temp_${index}`, // draggable-grid requires 'key' property
+      key: photo.id || photo.url || `temp_${index}`,
       id: photo.id || photo.url || `temp_${index}`,
       url: typeof photo === 'string' ? photo : photo.url,
-      isMain: photo.isMain || index === 0, // First photo is main if no main set
-      order: photo.order ?? index,
+      isMain: index === 0, // First photo (top-left) is always main
+      order: index,
     }));
-  };
+  }, []);
 
-  const normalizedPhotos = React.useMemo(() => normalizePhotos(photos || []), [photos]);
+  // Initialize local photos from props - only on mount or when photos added/deleted
+  useEffect(() => {
+    const currentCount = photos?.length || 0;
+    const previousCount = lastPhotoCountRef.current;
 
-  // Initialize current order when photos change
-  React.useEffect(() => {
-    const newOrder = normalizedPhotos.map(photo => photo.id);
-    setCurrentOrder(newOrder);
-  }, [normalizedPhotos]);
+    // Only sync from props when:
+    // 1. First mount (localPhotos is empty)
+    // 2. Photo count changed (added or deleted)
+    if (localPhotos.length === 0 || currentCount !== previousCount) {
+      Logger.debug(`🔄 Syncing localPhotos from props (count: ${previousCount} → ${currentCount})`);
+      setLocalPhotos(normalizePhotos(photos));
+      lastPhotoCountRef.current = currentCount;
+    }
+  }, [photos, localPhotos.length, normalizePhotos]);
+
+  // Cleanup debounce timer on unmount
+  useEffect(() => {
+    return () => {
+      if (reorderDebounceRef.current) {
+        clearTimeout(reorderDebounceRef.current);
+      }
+    };
+  }, []);
 
   // Helper function to check if order actually changed
-  const hasOrderChanged = (newData, originalOrder) => {
+  const hasOrderChanged = useCallback((newData, currentPhotos) => {
     const newOrder = newData.map(photo => photo.id);
-    if (newOrder.length !== originalOrder.length) return true;
-    return !newOrder.every((id, index) => id === originalOrder[index]);
-  };
+    const currentOrder = currentPhotos.map(photo => photo.id);
+    if (newOrder.length !== currentOrder.length) return true;
+    return !newOrder.every((id, index) => id === currentOrder[index]);
+  }, []);
 
   // Add new photo
   const addPhoto = async () => {
     try {
-      if (normalizedPhotos.length >= maxPhotos) {
+      if (localPhotos.length >= maxPhotos) {
         onError?.(`Maximum ${maxPhotos} photos allowed`);
         return;
       }
@@ -90,19 +118,21 @@ const PhotoManager = ({
 
         if (mode === 'edit') {
           // Add to API and let the refresh handle the state update
-          await ApiDataService.addUserPhoto(photoUrl, normalizedPhotos.length === 0);
+          await ApiDataService.addUserPhoto(photoUrl, localPhotos.length === 0);
           // Don't update local state - let the profile refresh handle it
           onSuccess?.('Photo added successfully!');
         } else {
           // Only update local state in registration mode
           const newPhoto = {
             id: Date.now().toString(),
+            key: Date.now().toString(),
             url: photoUrl,
-            isMain: normalizedPhotos.length === 0,
-            order: normalizedPhotos.length,
+            isMain: localPhotos.length === 0,
+            order: localPhotos.length,
           };
 
-          const updatedPhotos = [...normalizedPhotos, newPhoto];
+          const updatedPhotos = [...localPhotos, newPhoto];
+          setLocalPhotos(updatedPhotos);
           onPhotosChange?.(updatedPhotos);
           onSuccess?.('Photo added successfully!');
         }
@@ -118,7 +148,7 @@ const PhotoManager = ({
   // Delete photo
   const _deletePhoto = async photoIndex => {
     try {
-      const photo = normalizedPhotos[photoIndex];
+      const photo = localPhotos[photoIndex];
       if (!photo) return;
 
       setLoading(true);
@@ -129,7 +159,7 @@ const PhotoManager = ({
         onSuccess?.('Photo deleted successfully!');
       } else {
         // Only update local state in registration mode or for temp photos
-        const updatedPhotos = normalizedPhotos
+        const updatedPhotos = localPhotos
           .filter((_, index) => index !== photoIndex)
           .map((item, index) => ({
             ...item,
@@ -137,6 +167,7 @@ const PhotoManager = ({
             order: index,
           }));
 
+        setLocalPhotos(updatedPhotos);
         onPhotosChange?.(updatedPhotos);
         if (mode !== 'edit') {
           onSuccess?.('Photo deleted successfully!');
@@ -161,13 +192,15 @@ const PhotoManager = ({
       setLoading(true);
 
       // Reorder array to move selected photo to first position
-      const photo = normalizedPhotos[photoIndex];
-      const otherPhotos = normalizedPhotos.filter((_, index) => index !== photoIndex);
+      const photo = localPhotos[photoIndex];
+      const otherPhotos = localPhotos.filter((_, index) => index !== photoIndex);
       const reorderedPhotos = [photo, ...otherPhotos].map((p, index) => ({
         ...p,
         isMain: index === 0,
         order: index,
       }));
+
+      setLocalPhotos(reorderedPhotos);
 
       if (mode === 'edit') {
         // Update API with new order
@@ -189,7 +222,7 @@ const PhotoManager = ({
     }
   };
 
-  // Handle drag and drop reorder
+  // Handle drag and drop reorder (legacy - unused)
   const _handleReorder = async ({ data }) => {
     try {
       setLoading(true);
@@ -200,6 +233,8 @@ const PhotoManager = ({
         isMain: index === 0,
         order: index,
       }));
+
+      setLocalPhotos(reorderedPhotos);
 
       if (mode === 'edit') {
         // Update API with new order
@@ -219,74 +254,96 @@ const PhotoManager = ({
     }
   };
 
-  // Handle reorder from draggable-grid library
-  const handleDragRelease = async data => {
-    try {
-      // Throttle rapid consecutive drags to prevent conflicts
-      const now = Date.now();
-      if (now - lastDragTime < 300) {
-        Logger.warn('⚠️ Drag too rapid, throttling');
-        return;
-      }
-      setLastDragTime(now);
-
-      // Defensive check: ensure we have valid data
-      if (!Array.isArray(data) || data.length === 0) {
-        Logger.warn('⚠️ Invalid drag data received, ignoring');
+  // Debounced API save function - just saves to backend, doesn't affect local state
+  const saveReorderToApi = useCallback(
+    async photoIds => {
+      if (isSavingRef.current) {
+        Logger.info('⏳ Already saving, skipping');
         return;
       }
 
-      // Defensive check: ensure data length matches expected photo count
-      if (data.length !== normalizedPhotos.length) {
-        Logger.warn('⚠️ Drag data length mismatch, ignoring');
-        return;
-      }
-
-      // Check if order actually changed (prevent micro-drag false positives)
-      if (!hasOrderChanged(data, currentOrder)) {
-        Logger.info('📍 Drag released but no order change detected, ignoring');
-        return;
-      }
-
-      Logger.info(
-        '🏁 Drag released, new order:',
-        data.map(p => p.key || p.id)
-      );
-
-      // data is the new array with updated order
-      const updatedPhotos = data.map((photo, index) => ({
-        ...photo,
-        order: index,
-        isMain: index === 0, // First photo is main
-      }));
-
-      // Update local state immediately for instant UI feedback
-      // Use setTimeout to avoid useInsertionEffect scheduling issues
-      setTimeout(() => {
-        setCurrentOrder(data.map(photo => photo.id));
-        onPhotosChange?.(updatedPhotos);
-      }, 0);
-
-      // Save new order to API
-      if (mode === 'edit') {
-        setLoading(true);
-        const photoIds = data.map(photo => photo.id);
+      try {
+        isSavingRef.current = true;
         Logger.info('💾 Saving photo order to API:', photoIds);
 
         await ApiDataService.reorderUserPhotos(photoIds);
-        onSuccess?.('Photos reordered!');
+        Logger.success('✅ Photo order saved to backend');
+        // Don't show toast for background save - it's seamless
+      } catch (error) {
+        Logger.error('❌ Error saving photo order:', error);
+        onError?.('Failed to save photo order');
+      } finally {
+        isSavingRef.current = false;
       }
-    } catch (error) {
-      Logger.error('❌ Error reordering photos:', error);
-      onError?.('Failed to reorder photos');
-    } finally {
-      setLoading(false);
-      // Use setTimeout to avoid state update conflicts
-      setTimeout(() => {
-        setDraggingItem(null);
-      }, 0);
-    }
-  };
+    },
+    [onError]
+  );
+
+  // Handle reorder from draggable-grid library
+  // Frontend is source of truth - updates local state immediately, debounces API save
+  const handleDragRelease = useCallback(
+    data => {
+      try {
+        // Defensive check: ensure we have valid data
+        if (!Array.isArray(data) || data.length === 0) {
+          Logger.warn('⚠️ Invalid drag data received, ignoring');
+          return;
+        }
+
+        // Defensive check: ensure data length matches expected photo count
+        if (data.length !== localPhotos.length) {
+          Logger.warn('⚠️ Drag data length mismatch, ignoring');
+          return;
+        }
+
+        // Check if order actually changed
+        if (!hasOrderChanged(data, localPhotos)) {
+          Logger.debug('📍 No order change detected, ignoring');
+          return;
+        }
+
+        Logger.info(
+          '🏁 Photo reordered:',
+          data.map(p => p.key || p.id)
+        );
+
+        // Update local state IMMEDIATELY (this is the source of truth)
+        const updatedPhotos = data.map((photo, index) => ({
+          ...photo,
+          order: index,
+          isMain: index === 0, // First photo (top-left) is always main
+        }));
+
+        setLocalPhotos(updatedPhotos);
+
+        // Clear dragging state
+        setTimeout(() => setDraggingItem(null), 0);
+
+        // DEBOUNCED API SAVE: Only save to API after user stops moving photos
+        if (mode === 'edit') {
+          // Clear any existing debounce timer
+          if (reorderDebounceRef.current) {
+            clearTimeout(reorderDebounceRef.current);
+          }
+
+          // Set new debounce timer
+          const photoIds = data.map(photo => photo.id);
+          reorderDebounceRef.current = setTimeout(() => {
+            Logger.info('⏰ Debounce complete, saving to backend');
+            saveReorderToApi(photoIds);
+          }, REORDER_DEBOUNCE_MS);
+        } else {
+          // In non-edit mode (registration), also update parent
+          onPhotosChange?.(updatedPhotos);
+        }
+      } catch (error) {
+        Logger.error('❌ Error handling drag release:', error);
+        onError?.('Failed to reorder photos');
+        setTimeout(() => setDraggingItem(null), 0);
+      }
+    },
+    [localPhotos, hasOrderChanged, mode, onPhotosChange, onError, saveReorderToApi]
+  );
 
   // Handle photo drag start (just logging, scroll control handled by touch)
   const handlePhotoDragStart = startDragItem => {
@@ -307,7 +364,8 @@ const PhotoManager = ({
       return null;
     }
 
-    const currentPosition = currentOrder.indexOf(item.id);
+    // Find position in localPhotos - first position (index 0) is always main
+    const currentPosition = localPhotos.findIndex(p => p.id === item.id);
     const isMain = currentPosition === 0;
     const photoUrl = typeof item === 'string' ? item : item?.url;
     const isDragging = draggingItem === item.id;
@@ -336,11 +394,11 @@ const PhotoManager = ({
     <View style={styles.container}>
       {showTitle && (
         <Text style={styles.title}>
-          Photos ({normalizedPhotos.length}/{maxPhotos})
+          Photos ({localPhotos.length}/{maxPhotos})
         </Text>
       )}
 
-      {normalizedPhotos && normalizedPhotos.length > 0 ? (
+      {localPhotos && localPhotos.length > 0 ? (
         <>
           <View
             onTouchStart={() => onScrollControl?.(false)}
@@ -350,7 +408,7 @@ const PhotoManager = ({
           >
             <DraggableGrid
               numColumns={3}
-              data={normalizedPhotos}
+              data={localPhotos}
               renderItem={renderPhotoItem}
               onDragRelease={handleDragRelease}
               onDragStart={handlePhotoDragStart}
@@ -360,12 +418,12 @@ const PhotoManager = ({
               onItemPress={item => {
                 Logger.info('📸 Photo pressed (quick tap):', item);
                 // Open photo viewer on quick tap
-                if (item && normalizedPhotos.length > 0) {
-                  const photoIndex = normalizedPhotos.findIndex(p => p.id === item.id);
+                if (item && localPhotos.length > 0) {
+                  const photoIndex = localPhotos.findIndex(p => p.id === item.id);
                   if (photoIndex >= 0) {
                     Logger.info('📸 Opening photo viewer for index:', photoIndex);
                     openPhotoViewer({
-                      photos: normalizedPhotos,
+                      photos: localPhotos,
                       initialIndex: photoIndex,
                       showActions: mode === 'edit',
                       title: 'Photo',
@@ -386,7 +444,7 @@ const PhotoManager = ({
       )}
 
       {/* Add Photo Button - Full Width Rectangle */}
-      {showAddButton && mode === 'edit' && normalizedPhotos.length < maxPhotos && (
+      {showAddButton && mode === 'edit' && localPhotos.length < maxPhotos && (
         <TouchableOpacity onPress={addPhoto} style={styles.addPhotoButtonWide} disabled={loading}>
           {loading ? (
             <ActivityIndicator size="small" color={theme.colors.primary} />
@@ -394,7 +452,7 @@ const PhotoManager = ({
             <>
               <Ionicons name="add" size={24} color={theme.colors.primary} />
               <Text style={styles.addPhotoText}>
-                Add Photo ({normalizedPhotos.length}/{maxPhotos})
+                Add Photo ({localPhotos.length}/{maxPhotos})
               </Text>
             </>
           )}

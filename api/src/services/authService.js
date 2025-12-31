@@ -422,7 +422,10 @@ const getUserProfile = async (userId) => {
       where: { id: userId },
       include: {
         photos: {
-          orderBy: { order: 'asc' },
+          orderBy: [
+            { isMain: 'desc' },  // Main photo first
+            { order: 'asc' },    // Then by order
+          ],
         },
         interests: {
           include: {
@@ -643,11 +646,14 @@ const addUserPhoto = async (userId, photoUrl, isMain = false) => {
         },
       });
 
-      // Update user's main photo if this is the main photo
+      // Update user's main photo ID and URL if this is the main photo
       if (shouldBeMain) {
         await tx.user.update({
           where: { id: userId },
-          data: { mainPhotoId: newPhoto.id },
+          data: {
+            mainPhotoId: newPhoto.id,
+            mainPhotoUrl: photoUrl,
+          },
         });
       }
 
@@ -738,14 +744,24 @@ const deleteUserPhoto = async (userId, photoId) => {
 
 /**
  * Reorder user photos
+ * The first photo in the array becomes the main photo
  */
 const reorderUserPhotos = async (userId, photoIds) => {
   try {
+    let newMainPhotoUrl = null;
+
     await prisma.$transaction(async (tx) => {
+      // First, remove main flag from all photos
+      await tx.photo.updateMany({
+        where: { userId },
+        data: { isMain: false },
+      });
+
       for (let i = 0; i < photoIds.length; i++) {
         const photoId = photoIds[i];
-        
-        // Verify photo belongs to user
+        const isMain = i === 0; // First photo is always main
+
+        // Verify photo belongs to user and get URL
         const photo = await tx.photo.findFirst({
           where: { id: photoId, userId },
         });
@@ -754,15 +770,34 @@ const reorderUserPhotos = async (userId, photoIds) => {
           throw new Error(`Photo ${photoId} not found or doesn't belong to user`);
         }
 
-        // Update order
+        // Track the main photo URL
+        if (isMain) {
+          newMainPhotoUrl = photo.url;
+        }
+
+        // Update order and isMain flag
         await tx.photo.update({
           where: { id: photoId },
-          data: { order: i },
+          data: {
+            order: i,
+            isMain,
+          },
+        });
+      }
+
+      // Update user's main photo reference
+      if (photoIds.length > 0) {
+        await tx.user.update({
+          where: { id: userId },
+          data: {
+            mainPhotoId: photoIds[0],
+            mainPhotoUrl: newMainPhotoUrl,
+          },
         });
       }
     });
 
-    logger.info(`✅ Photos reordered for user ${userId}`);
+    logger.info(`✅ Photos reordered for user ${userId}, new main photo: ${photoIds[0]}`);
     return await getUserProfile(userId);
   } catch (error) {
     logger.error('❌ Reorder photos error:', error);
@@ -797,10 +832,13 @@ const setMainPhoto = async (userId, photoId) => {
         data: { isMain: true },
       });
 
-      // Update user's main photo
+      // Update user's main photo ID and URL
       await tx.user.update({
         where: { id: userId },
-        data: { mainPhotoId: photoId },
+        data: {
+          mainPhotoId: photoId,
+          mainPhotoUrl: photo.url,
+        },
       });
     });
 
