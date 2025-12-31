@@ -28,7 +28,7 @@ describe('Actions Service', () => {
     });
 
     it('should create a SUPER_LIKE action successfully', async () => {
-      const user1 = await userFactory.create(global.prisma);
+      const user1 = await userFactory.create(global.prisma, { isPremium: true });
       const user2 = await userFactory.create(global.prisma);
 
       const result = await likeUser(user1.id, user2.id, 'SUPER_LIKE');
@@ -80,7 +80,7 @@ describe('Actions Service', () => {
 
     it('should create match when reverse SUPER_LIKE exists', async () => {
       const user1 = await userFactory.create(global.prisma);
-      const user2 = await userFactory.create(global.prisma);
+      const user2 = await userFactory.create(global.prisma, { isPremium: true });
 
       // User2 super-likes User1
       await likeUser(user2.id, user1.id, 'SUPER_LIKE');
@@ -296,13 +296,13 @@ describe('Actions Service', () => {
 
   describe('undoLastAction', () => {
     it('should throw error when no action to undo', async () => {
-      const user1 = await userFactory.create(global.prisma);
+      const user1 = await userFactory.create(global.prisma, { isPremium: true });
 
       await expect(undoLastAction(user1.id)).rejects.toThrow('No action to undo');
     });
 
     it('should throw error when action is older than 5 minutes', async () => {
-      const user1 = await userFactory.create(global.prisma);
+      const user1 = await userFactory.create(global.prisma, { isPremium: true });
       const user2 = await userFactory.create(global.prisma);
 
       // Create action with old timestamp
@@ -319,7 +319,7 @@ describe('Actions Service', () => {
     });
 
     it('should delete the last action successfully', async () => {
-      const user1 = await userFactory.create(global.prisma);
+      const user1 = await userFactory.create(global.prisma, { isPremium: true });
       const user2 = await userFactory.create(global.prisma);
 
       await likeUser(user1.id, user2.id, 'LIKE');
@@ -338,7 +338,7 @@ describe('Actions Service', () => {
     });
 
     it('should decrement totalLikes when undoing LIKE', async () => {
-      const user1 = await userFactory.create(global.prisma);
+      const user1 = await userFactory.create(global.prisma, { isPremium: true });
       const user2 = await userFactory.create(global.prisma, { totalLikes: 0 });
 
       await likeUser(user1.id, user2.id, 'LIKE');
@@ -355,7 +355,7 @@ describe('Actions Service', () => {
     });
 
     it('should deactivate match when undoing LIKE that created it', async () => {
-      const user1 = await userFactory.create(global.prisma);
+      const user1 = await userFactory.create(global.prisma, { isPremium: true });
       const user2 = await userFactory.create(global.prisma);
 
       // Create mutual likes (creates match)
@@ -384,7 +384,7 @@ describe('Actions Service', () => {
     });
 
     it('should decrement totalMatches for both users when deactivating match', async () => {
-      const user1 = await userFactory.create(global.prisma, { totalMatches: 0 });
+      const user1 = await userFactory.create(global.prisma, { isPremium: true, totalMatches: 0 });
       const user2 = await userFactory.create(global.prisma, { totalMatches: 0 });
 
       // Create mutual likes
@@ -407,7 +407,7 @@ describe('Actions Service', () => {
     });
 
     it('should NOT deactivate match if reverse action was PASS', async () => {
-      const user1 = await userFactory.create(global.prisma);
+      const user1 = await userFactory.create(global.prisma, { isPremium: true });
       const user2 = await userFactory.create(global.prisma);
 
       // User2 passed, then user1 liked
@@ -431,7 +431,7 @@ describe('Actions Service', () => {
     });
 
     it('should return the undone action details', async () => {
-      const user1 = await userFactory.create(global.prisma);
+      const user1 = await userFactory.create(global.prisma, { isPremium: true });
       const user2 = await userFactory.create(global.prisma);
 
       await likeUser(user1.id, user2.id, 'LIKE');
@@ -482,7 +482,7 @@ describe('Actions Service', () => {
 
     it('should include action type (LIKE vs SUPER_LIKE)', async () => {
       const user1 = await userFactory.create(global.prisma);
-      const user2 = await userFactory.create(global.prisma);
+      const user2 = await userFactory.create(global.prisma, { isPremium: true });
       await photoFactory.create(global.prisma, user2.id, { isMain: true });
 
       await likeUser(user2.id, user1.id, 'SUPER_LIKE');

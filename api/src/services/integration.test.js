@@ -162,7 +162,7 @@ describe('Integration Tests', () => {
 
   describe('Undo Flow', () => {
     it('Like creates match -> Undo removes match and restores counters', async () => {
-      const userA = await userFactory.create(global.prisma, { totalMatches: 0 });
+      const userA = await userFactory.create(global.prisma, { isPremium: true, totalMatches: 0 });
       const userB = await userFactory.create(global.prisma, { totalMatches: 0, totalLikes: 0 });
 
       // User B likes User A first
@@ -195,7 +195,7 @@ describe('Integration Tests', () => {
     });
 
     it('Pass user -> Undo allows user to reappear in discovery', async () => {
-      const userA = await createDiscoverableUser('MAN', ['WOMAN']);
+      const userA = await createDiscoverableUser('MAN', ['WOMAN'], { isPremium: true });
       const userB = await createDiscoverableUser('WOMAN', ['MAN']);
 
       // Verify User B appears in discovery
