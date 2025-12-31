@@ -13,8 +13,8 @@ export const userFactory = {
       firebaseUid: faker.string.uuid(),
       name: faker.person.fullName(),
       birthDate,
-      gender: faker.helpers.arrayElement(['MALE', 'FEMALE', 'NON_BINARY', 'OTHER']),
-      interestedIn: faker.helpers.arrayElements(['MALE', 'FEMALE', 'NON_BINARY'], { min: 1, max: 2 }),
+      gender: faker.helpers.arrayElement(['MAN', 'WOMAN', 'OTHER']),
+      interestedIn: faker.helpers.arrayElements(['MAN', 'WOMAN', 'OTHER'], { min: 1, max: 2 }),
       bio: faker.lorem.paragraph(),
       profession: faker.person.jobTitle(),
       education: faker.helpers.arrayElement([
@@ -147,5 +147,137 @@ export const interestFactory = {
       interests.push(interest);
     }
     return interests;
+  },
+};
+
+// UserInterest factory - links users to interests
+export const userInterestFactory = {
+  create: async (prisma, userId, interestId) => {
+    return prisma.userInterest.create({
+      data: { userId, interestId },
+    });
+  },
+
+  addInterestsToUser: async (prisma, userId, interestNames) => {
+    const interests = [];
+    const userInterests = [];
+
+    for (const name of interestNames) {
+      // Find or create interest (handle unique constraint)
+      let interest = await prisma.interest.findUnique({
+        where: { name },
+      });
+
+      if (!interest) {
+        interest = await prisma.interest.create({
+          data: { name },
+        });
+      }
+      interests.push(interest);
+
+      // Create user interest link
+      const userInterest = await prisma.userInterest.create({
+        data: { userId, interestId: interest.id },
+      });
+      userInterests.push(userInterest);
+    }
+
+    return { interests, userInterests };
+  },
+};
+
+// UserAction factory - likes, passes, super likes
+export const userActionFactory = {
+  build: (senderId, receiverId, action = 'LIKE', overrides = {}) => ({
+    senderId,
+    receiverId,
+    action,
+    ...overrides,
+  }),
+
+  create: async (prisma, senderId, receiverId, action = 'LIKE', overrides = {}) => {
+    const data = userActionFactory.build(senderId, receiverId, action, overrides);
+    return prisma.userAction.create({ data });
+  },
+
+  createLike: async (prisma, senderId, receiverId) => {
+    return userActionFactory.create(prisma, senderId, receiverId, 'LIKE');
+  },
+
+  createPass: async (prisma, senderId, receiverId) => {
+    return userActionFactory.create(prisma, senderId, receiverId, 'PASS');
+  },
+
+  createSuperLike: async (prisma, senderId, receiverId) => {
+    return userActionFactory.create(prisma, senderId, receiverId, 'SUPER_LIKE');
+  },
+};
+
+// Message factory
+export const messageFactory = {
+  build: (matchId, senderId, receiverId, overrides = {}) => ({
+    matchId,
+    senderId,
+    receiverId,
+    content: faker.lorem.sentence(),
+    messageType: 'TEXT',
+    ...overrides,
+  }),
+
+  create: async (prisma, matchId, senderId, receiverId, overrides = {}) => {
+    const data = messageFactory.build(matchId, senderId, receiverId, overrides);
+    return prisma.message.create({ data });
+  },
+
+  createMany: async (prisma, matchId, senderId, receiverId, count = 5) => {
+    const messages = [];
+    for (let i = 0; i < count; i++) {
+      const message = await messageFactory.create(prisma, matchId, senderId, receiverId);
+      messages.push(message);
+    }
+    return messages;
+  },
+};
+
+// MessageReaction factory
+export const messageReactionFactory = {
+  create: async (prisma, messageId, userId, emoji = '❤️') => {
+    return prisma.messageReaction.create({
+      data: { messageId, userId, emoji },
+    });
+  },
+};
+
+// BlockedUser factory
+export const blockedUserFactory = {
+  create: async (prisma, blockerId, blockedId) => {
+    return prisma.blockedUser.create({
+      data: { blockerId, blockedId },
+    });
+  },
+};
+
+// MutedMatch factory
+export const mutedMatchFactory = {
+  create: async (prisma, userId, matchId) => {
+    return prisma.mutedMatch.create({
+      data: { userId, matchId },
+    });
+  },
+};
+
+// Report factory
+export const reportFactory = {
+  build: (reporterId, reportedId, reason = 'SPAM', overrides = {}) => ({
+    reporterId,
+    reportedId,
+    reason,
+    status: 'PENDING',
+    ...overrides,
+  }),
+
+  create: async (prisma, reporterId, reportedId, reason = 'SPAM', overrides = {}) => {
+    const data = reportFactory.build(reporterId, reportedId, reason, overrides);
+    return prisma.report.create({ data });
   },
 };

@@ -62,11 +62,14 @@ beforeAll(async () => {
 // Clear database before each test suite
 beforeEach(async () => {
   // Clear data in the correct order to respect foreign key constraints
+  await global.prisma.messageReaction.deleteMany();
+  await global.prisma.message.deleteMany();
+  await global.prisma.mutedMatch.deleteMany();
+  await global.prisma.match.deleteMany();
+  await global.prisma.blockedUser.deleteMany();
+  await global.prisma.userAction.deleteMany();
   await global.prisma.userInterest.deleteMany();
   await global.prisma.interest.deleteMany();
-  await global.prisma.message.deleteMany();
-  await global.prisma.match.deleteMany();
-  await global.prisma.userAction.deleteMany();
   await global.prisma.notification.deleteMany();
   await global.prisma.photo.deleteMany();
   await global.prisma.report.deleteMany();

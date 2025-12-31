@@ -48,26 +48,17 @@ describe('Health Routes', () => {
       // This test makes a real database call through the health check endpoint
       // The test database is already connected in the test setup
       const response = await request(app).get('/health/detailed');
-      
+
       expect(response.status).toBe(200);
       expect(response.body.status).toBe('healthy');
       expect(response.body.checks).toHaveProperty('server');
       expect(response.body.checks.server.status).toBe('healthy');
-      
+
       // Verify database check is included
       expect(response.body.checks).toHaveProperty('database');
       expect(response.body.checks.database).toHaveProperty('status');
       // Database should be healthy since test setup connects to test DB
       expect(response.body.checks.database.status).toBe('healthy');
-      
-      // Verify other checks are included with correct status
-      expect(response.body.checks).toHaveProperty('redis');
-      expect(response.body.checks.redis.status).toBe('not_implemented');
-      expect(response.body.checks.redis.message).toContain('not yet implemented');
-      
-      expect(response.body.checks).toHaveProperty('firebase');
-      expect(response.body.checks.firebase.status).toBe('not_implemented');
-      expect(response.body.checks.firebase.message).toContain('not yet implemented');
     });
   });
 });

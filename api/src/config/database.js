@@ -105,6 +105,10 @@ async function disconnectDatabase() {
  * Get the Prisma client instance
  */
 function getPrismaClient() {
+  // Use global test Prisma instance if available (set by test setup)
+  if (global.prisma) {
+    return global.prisma;
+  }
   if (!prisma) {
     initializePrisma();
   }
