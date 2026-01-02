@@ -32,7 +32,7 @@ describe('Actions Routes', () => {
     });
 
     it('should return quotas for authenticated user', async () => {
-      const { user, accessToken } = await userFactory.createWithAuth(global.prisma);
+      const { accessToken } = await userFactory.createWithAuth(global.prisma);
 
       const response = await request(app)
         .get('/api/actions/quotas')
