@@ -187,6 +187,10 @@ const SimpleRegisterScreen = ({ navigation }) => {
       errors.password = 'Password must be at least 6 characters';
       showError('Password must be at least 6 characters');
       hasErrors = true;
+    } else if (!/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)/.test(formData.password)) {
+      errors.password = 'Password must contain uppercase, lowercase, and a number';
+      showError('Password must contain uppercase, lowercase, and a number');
+      hasErrors = true;
     } else if (formData.password !== formData.confirmPassword) {
       errors.confirmPassword = 'Passwords do not match';
       showError('Passwords do not match');
