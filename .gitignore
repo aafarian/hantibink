@@ -49,7 +49,7 @@ docs/
 CODEBASE_ANALYSIS.md
 COMPREHENSIVE_FIXES_PROMPT.md
 
-# Firebase service accounts
+# Firebase service accounts and config
 firebase-service-account.json
 firebase-admin-sdk*.json
 google-services.json

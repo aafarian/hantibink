@@ -133,8 +133,6 @@ const SimpleRegisterScreen = ({ navigation }) => {
           error = 'Password is required';
         } else if (value.length < 6) {
           error = 'Password must be at least 6 characters';
-        } else if (!/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)/.test(value)) {
-          error = 'Password must contain uppercase, lowercase, and a number';
         }
         // Also validate confirmPassword if it has a value
         if (formData.confirmPassword) {
@@ -225,12 +223,6 @@ const SimpleRegisterScreen = ({ navigation }) => {
     } else if (formData.password.length < 6) {
       errors.password = 'Password must be at least 6 characters';
       showError('Password must be at least 6 characters');
-      hasErrors = true;
-    } else if (!/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)/.test(formData.password)) {
-      errors.password = 'Password must contain uppercase, lowercase, and a number';
-      showError(
-        'Password must contain at least one uppercase letter, one lowercase letter, and one number'
-      );
       hasErrors = true;
     } else if (formData.password !== formData.confirmPassword) {
       errors.confirmPassword = 'Passwords do not match';
@@ -431,9 +423,7 @@ const SimpleRegisterScreen = ({ navigation }) => {
               </View>
               {fieldErrors.password && <Text style={styles.errorText}>{fieldErrors.password}</Text>}
               {!fieldErrors.password && formData.password.length === 0 && (
-                <Text style={styles.helperText}>
-                  Min 6 chars with uppercase, lowercase & number
-                </Text>
+                <Text style={styles.helperText}>Minimum 6 characters</Text>
               )}
             </View>
 

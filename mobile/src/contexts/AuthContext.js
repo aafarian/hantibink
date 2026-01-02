@@ -518,14 +518,59 @@ export const AuthProvider = ({ children }) => {
   };
 
   /**
-   * Reset password (placeholder - needs API endpoint)
+   * Request password reset code
    */
-  const resetPassword = async email => {
+  const requestPasswordReset = async email => {
     try {
       Logger.info('📧 Password reset requested for:', email);
-      // TODO: Implement password reset API endpoint
-      Logger.warn('⚠️ Password reset not yet implemented in API');
-      return { success: false, error: 'Password reset not yet available' };
+      const response = await apiClient.forgotPassword(email);
+
+      if (response.success) {
+        Logger.success('✅ Password reset code sent');
+        return { success: true, message: response.message };
+      } else {
+        return { success: false, error: response.message || 'Failed to send reset code' };
+      }
+    } catch (error) {
+      Logger.error('❌ Password reset request error:', error);
+      return { success: false, error: error.message };
+    }
+  };
+
+  /**
+   * Verify password reset code
+   */
+  const verifyResetCode = async (email, code) => {
+    try {
+      Logger.info('🔐 Verifying reset code for:', email);
+      const response = await apiClient.verifyResetCode(email, code);
+
+      if (response.success) {
+        Logger.success('✅ Reset code verified');
+        return { success: true, resetToken: response.resetToken };
+      } else {
+        return { success: false, error: response.error || 'Invalid or expired code' };
+      }
+    } catch (error) {
+      Logger.error('❌ Reset code verification error:', error);
+      return { success: false, error: error.message };
+    }
+  };
+
+  /**
+   * Reset password with verified token
+   */
+  const resetPassword = async (token, newPassword) => {
+    try {
+      Logger.info('🔐 Resetting password...');
+      const response = await apiClient.resetPassword(token, newPassword);
+
+      if (response.success) {
+        Logger.success('✅ Password reset successfully');
+        return { success: true, message: 'Password updated successfully' };
+      } else {
+        return { success: false, error: response.error || 'Failed to reset password' };
+      }
     } catch (error) {
       Logger.error('❌ Password reset error:', error);
       return { success: false, error: error.message };
@@ -533,14 +578,23 @@ export const AuthProvider = ({ children }) => {
   };
 
   /**
-   * Complete onboarding (placeholder)
+   * Complete onboarding - marks profile setup as complete
    */
-  const completeOnboarding = async () => {
+  const completeOnboarding = async (setupData = {}) => {
     try {
       Logger.info('✅ Completing onboarding...');
-      // TODO: Update onboarding status via API
-      Logger.warn('⚠️ Onboarding completion not yet implemented in API');
-      return { success: true };
+
+      const response = await ApiDataService.completeProfileSetup(setupData);
+
+      if (response.success) {
+        Logger.success('✅ Onboarding completed successfully');
+        // Refresh user profile to get updated state
+        await refreshUserProfile();
+        return { success: true };
+      } else {
+        Logger.error('❌ Failed to complete onboarding:', response.error);
+        return { success: false, error: response.error };
+      }
     } catch (error) {
       Logger.error('❌ Complete onboarding error:', error);
       return { success: false, error: error.message };
@@ -570,6 +624,59 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
+  // ============ OAUTH HELPER METHODS ============
+
+  /**
+   * Set tokens for OAuth flow
+   * Stores the access token and refresh token via apiClient
+   * @param {string} accessToken - The JWT access token
+   * @param {string} refreshToken - The JWT refresh token (optional)
+   */
+  const setToken = async (accessToken, refreshToken = null) => {
+    try {
+      await apiClient.setTokens(accessToken, refreshToken);
+      Logger.info('🔑 OAuth tokens stored');
+    } catch (error) {
+      Logger.error('❌ Failed to store OAuth tokens:', error);
+      throw error;
+    }
+  };
+
+  /**
+   * Set user for OAuth flow
+   * Updates user and userProfile state, and sets up socket connection
+   */
+  const setUserForOAuth = async userData => {
+    try {
+      // Set user state compatible with existing interface
+      setUser({
+        uid: userData.id,
+        email: userData.email,
+        displayName: userData.name,
+      });
+
+      // Set user profile
+      const transformedProfile = transformApiProfileToFirebaseFormat(userData);
+      setUserProfile(transformedProfile);
+
+      // Connect to WebSocket for real-time features
+      SocketService.connect(userData.id);
+      SocketService.updateOnlineStatus(userData.id, true);
+
+      // Register for push notifications
+      setTimeout(() => {
+        registerForPushNotificationsAsync().catch(error => {
+          Logger.warn('📱 Push notification registration failed after OAuth:', error);
+        });
+      }, 1500);
+
+      Logger.success('✅ OAuth user set successfully');
+    } catch (error) {
+      Logger.error('❌ Failed to set OAuth user:', error);
+      throw error;
+    }
+  };
+
   // ============ CONTEXT VALUE ============
 
   const value = {
@@ -582,11 +689,17 @@ export const AuthProvider = ({ children }) => {
     completeOnboarding,
     login,
     logout,
+    requestPasswordReset,
+    verifyResetCode,
     resetPassword,
     updateUserProfile,
     refreshUserProfile,
     refreshUserProfileWithId,
     checkEmailExists,
+
+    // OAuth helpers
+    setToken,
+    setUserForOAuth, // For OAuth flows to set user after authentication
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

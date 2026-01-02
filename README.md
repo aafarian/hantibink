@@ -2,208 +2,330 @@
 
 A modern dating app connecting the Armenian community worldwide.
 
-## 🚀 Live Deployment
-
-- **API**: https://hantibink-api-wxmdtvzfzq-uc.a.run.app
-- **Database**: Supabase PostgreSQL
-- **Storage**: Firebase Storage
-- **Authentication**: Firebase Auth
-
-## 🏗️ Monorepo Structure
+## Architecture
 
 ```
 hantibink/
-├── mobile/          # React Native app (iOS & Android)
-├── api/             # Backend API (Node.js/Express)
-├── scripts/         # Deployment and utility scripts
-├── CLAUDE.md        # Development guidelines
-└── README.md        # You are here
+├── mobile/          # React Native app (Expo)
+├── api/             # Node.js/Express backend
+├── scripts/         # Dev and deployment scripts
+└── CLAUDE.md        # AI assistant guidelines
 ```
 
-## 🚀 Quick Start
+| Layer        | Dev              | Production          |
+| ------------ | ---------------- | ------------------- |
+| **Mobile**   | Expo Dev Client  | EAS Build (APK/IPA) |
+| **API**      | localhost:3000   | Google Cloud Run    |
+| **Database** | Local PostgreSQL | Supabase            |
+| **Storage**  | Firebase Storage | Firebase Storage    |
+
+---
+
+## Quick Start
 
 ### Prerequisites
 
 - Node.js 18+
-- npm or yarn
-- Docker (for testing and local development)
-- Expo CLI (`npm install -g @expo/cli`)
-- iOS Simulator (Mac) or Android Studio
+- PostgreSQL (local)
+- Expo CLI: `npm install -g @expo/cli`
+- EAS CLI: `npm install -g eas-cli`
 
-### Development (from root directory)
+### 1. Clone & Install
 
 ```bash
-# Install all dependencies
+git clone <repo-url>
+cd hantibink
 npm run install:all
-
-# Run both API and Mobile app
-npm run dev
-
-# Run with tunnel (for device testing)
-npm run dev:tunnel
-
-# Run mobile with production API
-npm run dev:prod-api
 ```
 
-### Testing (from root directory)
+### 2. Set Up Local Database
 
 ```bash
-# Run API tests (auto-starts test database)
-npm test
+# Create local databases
+npm run setup:db
 
-# Run tests once
-npm run test:run
-
-# Run with coverage
-npm run test:coverage
-
-# Open test UI
-npm run test:ui
-
-# CI mode (full test suite)
-npm run test:ci
+# Or manually:
+createdb hantibink_dev
+createdb hantibink_test
 ```
 
-## 📱 Tech Stack
+### 3. Configure Environment
 
-### Mobile App
+```bash
+# API environment
+cp api/.env.example api/.env
+# Edit api/.env with your local PostgreSQL credentials
+```
 
-- **Framework**: React Native with Expo
-- **Navigation**: React Navigation 7
-- **State Management**: React Context + Hooks
-- **Forms**: React Hook Form
-- **Authentication**: Firebase Auth
-- **Database**: Cloud Firestore
-- **Storage**: Firebase Storage
-- **Location**: Expo Location API
-- **Code Quality**: ESLint + Prettier + Husky
+### 4. Run Migrations
 
-### Backend API
+```bash
+cd api
+npx prisma migrate deploy
+npx prisma generate
+```
 
-- **Runtime**: Node.js 18+
-- **Framework**: Express.js
-- **Database**: PostgreSQL (Supabase) with Prisma ORM
-- **Authentication**: JWT + Firebase Admin
-- **Real-time**: Socket.io
-- **File Storage**: Firebase Storage
-- **Deployment**: Google Cloud Run (Docker)
+### 5. Start Development
 
-## 🎯 Core Features
+```bash
+# From root - starts both API and mobile
+npm run dev
+```
 
-### ✅ Implemented
+This will:
 
-- **User Registration & Authentication**
-  - Multi-step profile creation
-  - Photo upload with validation
-  - Privacy-focused location detection
-  - Form validation and error handling
-
-- **Profile Management**
-  - Comprehensive user profiles
-  - Multiple photo support
-  - Preference settings
-  - Language selection (Western/Eastern Armenian)
-
-- **Location Services**
-  - GPS-based location detection
-  - City-level privacy (no exact addresses)
-  - Multiple location options selection
-  - Automatic reverse geocoding
-
-- **Code Quality & Development**
-  - Production-ready error handling
-  - Centralized logging system
-  - Auto-formatting on save
-  - Pre-commit hooks
-  - Environment variable security
-
-- **Backend API**
-  - RESTful API with Express
-  - Database with Prisma ORM
-  - Real-time messaging with Socket.IO
-  - Rate limiting and security middleware
-  - Deployed to Google Cloud Run
-
-- **Matching System**
-  - Like/dislike functionality
-  - Mutual match detection
-  - Liked You page
-  - Discovery feed with filters
-
-- **Real-time Features**
-  - Instant messaging
-  - Online status indicators
-  - Typing indicators
-  - Match notifications
-
-### 🔄 In Development
-
-- **Push Notifications**: Firebase Cloud Messaging
-- **Premium Features**: Advanced filters and boosts
-- **Video Profiles**: Short introduction videos
-
-### 📋 Planned
-
-- **Events Integration**: Community gatherings
-- **Cultural Features**: Armenian holidays and traditions
-- **Family Connections**: Introduce family friends feature
-- **Voice Notes**: Audio messages in chat
-
-## 🔧 Development
-
-### Environment Setup
-
-1. **Clone and setup**:
-
-   ```bash
-   git clone <repo-url>
-   cd hantibink
-   cd mobile
-   cp .env.example .env
-   # Fill in your Firebase and API keys
-   ```
-
-2. **Install dependencies**:
-
-   ```bash
-   npm install
-   ```
-
-3. **Start development**:
-   ```bash
-   npm start
-   ```
-
-### Code Quality
-
-- **Linting**: ESLint with React Native rules
-- **Formatting**: Prettier with consistent style
-- **Pre-commit**: Automatic formatting and linting
-- **Error Handling**: Error boundaries and graceful fallbacks
-
-## 📚 Documentation
-
-- [Mobile App Setup](./mobile/README.md)
-- [API Documentation](./api/README.md)
-- [Database Schema](./api/prisma/schema.prisma)
-- [Project Guidelines](./CLAUDE.md)
-
-## 🔐 Security & Privacy
-
-- Environment variables for all sensitive data
-- Privacy-focused location handling (city-level only)
-- Secure authentication with Firebase
-- No hardcoded API keys in repository
-
-## 🤝 Contributing
-
-This is currently a private repository. See [CLAUDE.md](./CLAUDE.md) for development guidelines and coding standards.
-
-## 📄 License
-
-Private - All rights reserved.
+- Auto-detect your local IP
+- Start API on port 3000
+- Start Expo Metro bundler
+- Show QR code to connect your phone
 
 ---
 
-**Built with ❤️ for the Armenian community**
+## Development Workflow
+
+### Daily Development
+
+```bash
+# Start everything (API + Mobile)
+npm run dev
+
+# Or start separately:
+npm run api          # API only
+cd mobile && npm start  # Mobile only
+```
+
+### Running Tests
+
+```bash
+npm test             # Run all tests
+npm run test:coverage # With coverage report
+```
+
+### Linting
+
+```bash
+npm run lint         # Check all
+npm run lint:fix     # Auto-fix issues
+```
+
+---
+
+## Building Apps
+
+### Development Build (for testing new native features)
+
+Development builds include the Expo dev client and connect to your local API.
+
+```bash
+# Android
+npm run build:dev
+
+# iOS
+npm run build:dev:ios
+```
+
+After building:
+
+1. Download the APK/IPA from EAS
+2. Install on your device
+3. Run `npm run dev` on your computer
+4. Open the app - it will connect to your local API
+
+### Production Build (for release)
+
+Production builds connect to Cloud Run API and Supabase.
+
+```bash
+# Android
+npm run build:prod
+
+# iOS
+npm run build:prod:ios
+```
+
+---
+
+## Over-the-Air (OTA) Updates
+
+For JS-only changes (no native code changes), use OTA updates instead of full builds:
+
+```bash
+cd mobile
+
+# Preview channel (for testing)
+npx eas update --branch preview --message "Description of changes"
+
+# Production channel
+npx eas update --branch production --message "Description of changes"
+```
+
+**When to use OTA vs Full Build:**
+
+- **OTA Update**: JS/styling changes, bug fixes, new screens
+- **Full Build**: New native packages, app.config.js changes, SDK upgrades
+
+---
+
+## Deployment
+
+### API Deployment (Cloud Run)
+
+```bash
+cd api
+./deploy.sh
+```
+
+Or manually:
+
+```bash
+gcloud run deploy hantibink-api \
+  --source . \
+  --region us-central1 \
+  --allow-unauthenticated
+```
+
+### Database Migrations (Production)
+
+```bash
+cd api
+# Set production DATABASE_URL temporarily
+DATABASE_URL="<supabase-url>" npx prisma migrate deploy
+```
+
+---
+
+## Environment Separation
+
+| Environment     | Database                            | API            | Mobile Build Profile |
+| --------------- | ----------------------------------- | -------------- | -------------------- |
+| **Development** | Local PostgreSQL (`hantibink_dev`)  | localhost:3000 | `development`        |
+| **Test**        | Local PostgreSQL (`hantibink_test`) | -              | -                    |
+| **Production**  | Supabase                            | Cloud Run      | `production`         |
+
+### Key Files
+
+- `api/.env` - Local API config (gitignored)
+- `api/.env.example` - Template for new devs
+- `mobile/.env.development` - Mobile dev config
+- `mobile/.env.production` - Mobile prod config
+- `mobile/eas.json` - EAS build profiles
+
+---
+
+## Tech Stack
+
+### Mobile
+
+- React Native + Expo SDK 54
+- React Navigation 7
+- Socket.IO (real-time messaging)
+- Firebase Storage (photos)
+
+### API
+
+- Node.js + Express
+- Prisma ORM
+- PostgreSQL
+- Socket.IO
+- JWT Authentication
+
+### Infrastructure
+
+- Google Cloud Run (API hosting)
+- Supabase (Production database)
+- Firebase (Storage, Push notifications)
+- EAS (Mobile builds)
+
+---
+
+## Roadmap
+
+### Completed
+
+- [x] User registration & authentication
+- [x] Profile management with photos
+- [x] Discovery feed with filters
+- [x] Like/dislike/match system
+- [x] Real-time messaging
+- [x] Online status indicators
+- [x] Push notifications
+- [x] Google OAuth (native)
+
+### In Progress
+
+- [ ] Registration flow simplification
+- [ ] Photo upload improvements
+- [ ] Onboarding UX fixes
+
+### Planned
+
+- [ ] Apple Sign-In
+- [ ] Premium subscriptions (Stripe)
+- [ ] Video profiles
+- [ ] Voice messages
+- [ ] Events integration
+- [ ] Advanced matching algorithm
+
+---
+
+## Useful Commands
+
+```bash
+# Development
+npm run dev              # Start all services
+npm run dev:tunnel       # With ngrok tunnel
+npm test                 # Run tests
+
+# Building
+npm run build:dev        # Dev APK
+npm run build:prod       # Production APK
+
+# Database
+npm run setup:db         # Create local databases
+npm run migrate:dev      # Run migrations
+cd api && npx prisma studio  # Database GUI
+
+# Deployment
+cd api && ./deploy.sh    # Deploy API
+cd mobile && npx eas update  # OTA update
+```
+
+---
+
+## Troubleshooting
+
+### "Database does not exist"
+
+```bash
+npm run setup:db
+cd api && npx prisma migrate deploy
+```
+
+### "Cannot connect to API from phone"
+
+- Ensure phone and computer are on same WiFi
+- Check that `npm run dev` shows your correct local IP
+- Try `npm run dev:tunnel` for network issues
+
+### "Native module not found" (after adding new package)
+
+```bash
+npm run build:dev  # Need a new native build
+```
+
+### EAS Build fails with missing secrets
+
+```bash
+eas env:list --environment production  # Check what's configured
+eas env:create --name VAR_NAME --value "value" --environment production
+```
+
+---
+
+## Contributing
+
+See [CLAUDE.md](./CLAUDE.md) for coding standards and guidelines.
+
+---
+
+**Built for the Armenian community**

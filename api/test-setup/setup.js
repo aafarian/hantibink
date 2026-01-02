@@ -7,9 +7,37 @@ import Logger from '../src/utils/logger.js';
 // Set test environment - use environment variables with defaults for local dev
 process.env.NODE_ENV = 'test';
 process.env.JWT_SECRET = process.env.JWT_SECRET || 'test-secret-key-for-testing';
-process.env.DATABASE_URL = process.env.TEST_DATABASE_URL || process.env.DATABASE_URL;
-process.env.DIRECT_URL = process.env.TEST_DIRECT_URL || process.env.DIRECT_URL;
 process.env.ADMIN_EMAIL = process.env.ADMIN_EMAIL || 'admin@example.com';
+
+// CRITICAL: Require separate test database to prevent wiping dev/prod data
+// Only validate on first run (before we override DATABASE_URL)
+const testDbUrl = process.env.TEST_DATABASE_URL;
+
+if (!testDbUrl) {
+  throw new Error(
+    'TEST_DATABASE_URL is required to run tests. ' +
+    'Set it to a separate test database to prevent data loss. ' +
+    'Example: TEST_DATABASE_URL=postgresql://user:pass@localhost:5432/myapp_test'
+  );
+}
+
+// Only check if DATABASE_URL hasn't been overridden yet
+// (i.e., this is the first time setup is running)
+if (!global.__TEST_DB_VALIDATED__) {
+  const devDbUrl = process.env.DATABASE_URL;
+
+  if (testDbUrl === devDbUrl) {
+    throw new Error(
+      'TEST_DATABASE_URL must be different from DATABASE_URL to prevent data loss.'
+    );
+  }
+
+  // Mark as validated so subsequent runs don't fail
+  global.__TEST_DB_VALIDATED__ = true;
+}
+
+process.env.DATABASE_URL = testDbUrl;
+process.env.DIRECT_URL = process.env.TEST_DIRECT_URL || testDbUrl;
 
 // Suppress logs during tests (except errors)
 if (process.env.NODE_ENV === 'test') {

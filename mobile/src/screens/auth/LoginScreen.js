@@ -33,7 +33,7 @@ const LoginScreen = ({ navigation }) => {
   const scrollViewRef = useRef(null);
   const passwordInputRef = useRef(null);
 
-  const { login, setUser, setToken } = useAuth();
+  const { login, setUserForOAuth, setToken } = useAuth();
   const { showSuccess, showError } = useToast();
 
   // Real-time field validation
@@ -152,8 +152,17 @@ const LoginScreen = ({ navigation }) => {
       // Get Google OAuth token (OAuthService is already instantiated)
       const googleResult = await OAuthService.signInWithGoogle();
 
-      if (!googleResult || (!googleResult.idToken && !googleResult.accessToken)) {
-        throw new Error('Failed to get Google authentication token');
+      // Check if sign-in was successful
+      if (!googleResult || !googleResult.success) {
+        // Handle user cancellation silently
+        if (googleResult?.error === 'User cancelled') {
+          return;
+        }
+        throw new Error(googleResult?.error || 'Failed to get Google authentication token');
+      }
+
+      if (!googleResult.idToken && !googleResult.accessToken) {
+        throw new Error('No authentication token received from Google');
       }
 
       // Send tokens to our backend (ApiClient is already instantiated)
@@ -166,14 +175,11 @@ const LoginScreen = ({ navigation }) => {
         const { user, token, refreshToken, isNewUser, requiresSetup, missingFields } =
           response.data.data;
 
-        // Store tokens
-        await setToken(token);
-        if (refreshToken) {
-          await ApiClient.setRefreshToken(refreshToken);
-        }
+        // Store tokens (pass both access and refresh token)
+        await setToken(token, refreshToken);
 
         // Set user in auth context
-        await setUser(user);
+        await setUserForOAuth(user);
 
         if (isNewUser || requiresSetup) {
           // OAuth users need to complete profile (usually birthDate)

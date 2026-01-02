@@ -176,10 +176,17 @@ const ProfileSetupModal = ({ visible, onClose, onComplete, userProfile }) => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [currentStep, steps, locationData, visible, hasDetectedLocation]);
 
+  // Track if modal was previously visible to detect fresh opens
+  const wasVisibleRef = useRef(false);
+
   // Build steps when modal becomes visible
   useEffect(() => {
     // Only recalculate steps when modal becomes visible
     if (visible && userProfile) {
+      // Check if this is a fresh open (was closed, now open)
+      const isFreshOpen = !wasVisibleRef.current;
+      wasVisibleRef.current = true;
+
       const buildSteps = async () => {
         const missingSteps = [];
 
@@ -270,12 +277,21 @@ const ProfileSetupModal = ({ visible, onClose, onComplete, userProfile }) => {
         }
 
         setSteps(missingSteps);
-        setCurrentStep(0); // Reset to first step when modal opens
+        // Only reset to first step on fresh modal open, not on profile updates
+        if (isFreshOpen) {
+          Logger.info('📱 Fresh modal open, resetting to step 0');
+          setCurrentStep(0);
+        } else {
+          Logger.info('📱 Profile updated while modal open, keeping current step:', currentStep);
+        }
       };
 
       buildSteps();
+    } else if (!visible) {
+      // Reset the ref when modal closes
+      wasVisibleRef.current = false;
     }
-  }, [visible, userProfile]); // Include userProfile in dependencies
+  }, [visible, userProfile, currentStep]); // Include currentStep for logging
 
   // Reset hasDetectedLocation when modal closes and cleanup timer
   useEffect(() => {
@@ -944,65 +960,64 @@ const ProfileSetupModal = ({ visible, onClose, onComplete, userProfile }) => {
   }
 
   return (
-    <Modal
-      visible={visible}
-      animationType="slide"
-      presentationStyle="pageSheet"
-      onRequestClose={onClose}
-    >
-      <View style={styles.container}>
-        <View style={styles.header}>
-          <TouchableOpacity onPress={onClose} style={styles.closeButton}>
-            <Ionicons name="close" size={24} color="#666" />
-          </TouchableOpacity>
-          <Text style={styles.headerTitle}>Complete Your Profile</Text>
-          <View style={{ width: 40 }} />
-        </View>
-
-        <Text style={styles.headerSubtitle}>Help others discover you better</Text>
-
-        <View style={styles.progressContainer}>
-          {steps.map((_, index) => (
-            <View
-              key={index}
-              style={[styles.progressDot, index <= currentStep && styles.progressDotActive]}
-            />
-          ))}
-        </View>
-
-        <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
-          {renderStepContent()}
-        </ScrollView>
-
-        <View style={styles.footer}>
-          <View style={styles.footerLeft}>
-            {currentStep > 0 ? (
-              <TouchableOpacity
-                style={styles.backButton}
-                onPress={() => setCurrentStep(currentStep - 1)}
-              >
-                <Text style={styles.backButtonText}>Back</Text>
-              </TouchableOpacity>
-            ) : (
-              <TouchableOpacity style={styles.skipButton} onPress={onClose}>
-                <Text style={styles.skipButtonText}>Skip for now</Text>
-              </TouchableOpacity>
-            )}
+    <Modal visible={visible} animationType="slide" transparent={true} onRequestClose={onClose}>
+      <View style={styles.modalOverlay}>
+        {/* Backdrop - tap to dismiss */}
+        <TouchableOpacity style={styles.backdrop} activeOpacity={1} onPress={onClose} />
+        <View style={styles.container}>
+          <View style={styles.header}>
+            <TouchableOpacity onPress={onClose} style={styles.closeButton}>
+              <Ionicons name="close" size={24} color="#666" />
+            </TouchableOpacity>
+            <Text style={styles.headerTitle}>Complete Your Profile</Text>
+            <View style={{ width: 40 }} />
           </View>
 
-          <TouchableOpacity
-            style={[styles.nextButton, (loading || uploadingPhotos) && styles.nextButtonDisabled]}
-            onPress={handleNext}
-            disabled={loading || uploadingPhotos}
-          >
-            {loading || uploadingPhotos ? (
-              <ActivityIndicator color="#FFF" />
-            ) : (
-              <Text style={styles.nextButtonText}>
-                {currentStep === steps.length - 1 ? 'Finish Setup' : 'Next'}
-              </Text>
-            )}
-          </TouchableOpacity>
+          <Text style={styles.headerSubtitle}>Help others discover you better</Text>
+
+          <View style={styles.progressContainer}>
+            {steps.map((_, index) => (
+              <View
+                key={index}
+                style={[styles.progressDot, index <= currentStep && styles.progressDotActive]}
+              />
+            ))}
+          </View>
+
+          <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
+            {renderStepContent()}
+          </ScrollView>
+
+          <View style={styles.footer}>
+            <View style={styles.footerLeft}>
+              {currentStep > 0 ? (
+                <TouchableOpacity
+                  style={styles.backButton}
+                  onPress={() => setCurrentStep(currentStep - 1)}
+                >
+                  <Text style={styles.backButtonText}>Back</Text>
+                </TouchableOpacity>
+              ) : (
+                <TouchableOpacity style={styles.skipButton} onPress={onClose}>
+                  <Text style={styles.skipButtonText}>Skip for now</Text>
+                </TouchableOpacity>
+              )}
+            </View>
+
+            <TouchableOpacity
+              style={[styles.nextButton, (loading || uploadingPhotos) && styles.nextButtonDisabled]}
+              onPress={handleNext}
+              disabled={loading || uploadingPhotos}
+            >
+              {loading || uploadingPhotos ? (
+                <ActivityIndicator color="#FFF" />
+              ) : (
+                <Text style={styles.nextButtonText}>
+                  {currentStep === steps.length - 1 ? 'Finish Setup' : 'Next'}
+                </Text>
+              )}
+            </TouchableOpacity>
+          </View>
         </View>
       </View>
     </Modal>
@@ -1010,9 +1025,24 @@ const ProfileSetupModal = ({ visible, onClose, onComplete, userProfile }) => {
 };
 
 const styles = StyleSheet.create({
-  container: {
+  modalOverlay: {
     flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'flex-end',
+  },
+  backdrop: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+  },
+  container: {
     backgroundColor: '#FFF',
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    maxHeight: '92%',
+    minHeight: '70%',
   },
   header: {
     flexDirection: 'row',
