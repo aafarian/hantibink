@@ -699,7 +699,7 @@ export const AuthProvider = ({ children }) => {
 
     // OAuth helpers
     setToken,
-    setUser: setUserForOAuth, // Export as setUser for compatibility with LoginScreen
+    setUserForOAuth, // For OAuth flows to set user after authentication
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

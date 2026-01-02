@@ -33,7 +33,7 @@ const LoginScreen = ({ navigation }) => {
   const scrollViewRef = useRef(null);
   const passwordInputRef = useRef(null);
 
-  const { login, setUser, setToken } = useAuth();
+  const { login, setUserForOAuth, setToken } = useAuth();
   const { showSuccess, showError } = useToast();
 
   // Real-time field validation
@@ -179,7 +179,7 @@ const LoginScreen = ({ navigation }) => {
         await setToken(token, refreshToken);
 
         // Set user in auth context
-        await setUser(user);
+        await setUserForOAuth(user);
 
         if (isNewUser || requiresSetup) {
           // OAuth users need to complete profile (usually birthDate)
