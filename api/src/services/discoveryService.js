@@ -405,13 +405,13 @@ const getUsersForDiscovery = async (currentUserId, options = {}) => {
     // Calculate match scores for all users
     const scoredUsers = users.map((user) => {
       const age = calculateAge(user.birthDate);
-      
+
       // Calculate distance
       let distance = null;
       if (
-        currentUser.latitude && 
-        currentUser.longitude && 
-        user.latitude && 
+        currentUser.latitude &&
+        currentUser.longitude &&
+        user.latitude &&
         user.longitude
       ) {
         distance = calculateDistance(
@@ -442,7 +442,7 @@ const getUsersForDiscovery = async (currentUserId, options = {}) => {
         ...userWithoutSensitive,
         age,
         mainPhotoUrl,
-        distance: distance ? Math.round(distance) : null,
+        distance: distance !== null ? Math.round(distance) : null,
         matchScore: score,
         scoreBreakdown: breakdown,
         sharedInterestsCount: calculateSharedInterests(

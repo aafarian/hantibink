@@ -20,6 +20,7 @@ import ApiDataService from '../services/ApiDataService';
 import apiClient from '../services/ApiClient';
 import SocketService from '../services/SocketService';
 import MatchModal from '../components/MatchModal';
+import PremiumUpgradeModal from '../components/modals/PremiumUpgradeModal';
 import Logger from '../utils/logger';
 import { useTabNavigation } from '../hooks/useTabNavigation';
 import { theme } from '../styles/theme';
@@ -697,60 +698,6 @@ const LikedYouScreen = () => {
     </Modal>
   );
 
-  // Upgrade modal
-  const renderUpgradeModal = () => (
-    <Modal
-      visible={showUpgradeModal}
-      animationType="fade"
-      transparent={true}
-      onRequestClose={() => setShowUpgradeModal(false)}
-    >
-      <View style={styles.upgradeModalContainer}>
-        <View style={styles.upgradeModalContent}>
-          <LinearGradient colors={['#FFD700', '#FFA500']} style={styles.upgradeModalHeader}>
-            <Ionicons name="star" size={40} color="white" />
-            <Text style={styles.upgradeModalTitle}>Unlock Premium</Text>
-          </LinearGradient>
-
-          <View style={styles.upgradeFeatures}>
-            <View style={styles.featureItem}>
-              <Ionicons name="eye" size={24} color={theme.colors.secondary} />
-              <Text style={styles.featureText}>See who liked you</Text>
-            </View>
-            <View style={styles.featureItem}>
-              <Ionicons name="heart" size={24} color={theme.colors.primary} />
-              <Text style={styles.featureText}>Unlimited likes</Text>
-            </View>
-            <View style={styles.featureItem}>
-              <Ionicons name="arrow-undo" size={24} color="#9C27B0" />
-              <Text style={styles.featureText}>Undo swipes</Text>
-            </View>
-            <View style={styles.featureItem}>
-              <Ionicons name="star" size={24} color="#FFD700" />
-              <Text style={styles.featureText}>5 Super Likes per day</Text>
-            </View>
-          </View>
-
-          <TouchableOpacity style={styles.upgradeModalButton}>
-            <LinearGradient
-              colors={[theme.colors.primary, theme.colors.accent]}
-              style={styles.upgradeModalButtonGradient}
-            >
-              <Text style={styles.upgradeModalButtonText}>Get Premium</Text>
-            </LinearGradient>
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={styles.upgradeModalClose}
-            onPress={() => setShowUpgradeModal(false)}
-          >
-            <Text style={styles.upgradeModalCloseText}>Maybe Later</Text>
-          </TouchableOpacity>
-        </View>
-      </View>
-    </Modal>
-  );
-
   if (loading) {
     return (
       <View style={styles.loadingContainer}>
@@ -798,7 +745,7 @@ const LikedYouScreen = () => {
       />
 
       {renderUserModal()}
-      {renderUpgradeModal()}
+      <PremiumUpgradeModal visible={showUpgradeModal} onClose={() => setShowUpgradeModal(false)} />
 
       {/* Match Modal */}
       {showMatchModal && matchedUser && (
@@ -1126,62 +1073,6 @@ const styles = StyleSheet.create({
     color: 'white',
     fontWeight: 'bold',
     marginLeft: 8,
-  },
-  upgradeModalContainer: {
-    flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.7)',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  upgradeModalContent: {
-    backgroundColor: 'white',
-    borderRadius: 25,
-    width: '85%',
-    overflow: 'hidden',
-  },
-  upgradeModalHeader: {
-    alignItems: 'center',
-    padding: 30,
-  },
-  upgradeModalTitle: {
-    color: 'white',
-    fontSize: 24,
-    fontWeight: 'bold',
-    marginTop: 10,
-  },
-  upgradeFeatures: {
-    padding: 20,
-  },
-  featureItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 20,
-  },
-  featureText: {
-    marginLeft: 15,
-    fontSize: 16,
-    color: '#333',
-  },
-  upgradeModalButton: {
-    margin: 20,
-  },
-  upgradeModalButtonGradient: {
-    paddingVertical: 15,
-    borderRadius: 25,
-    alignItems: 'center',
-  },
-  upgradeModalButtonText: {
-    color: 'white',
-    fontSize: 18,
-    fontWeight: 'bold',
-  },
-  upgradeModalClose: {
-    paddingVertical: 15,
-    alignItems: 'center',
-  },
-  upgradeModalCloseText: {
-    color: '#666',
-    fontSize: 16,
   },
   footerLoader: {
     paddingVertical: 20,
