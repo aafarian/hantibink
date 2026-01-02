@@ -35,19 +35,30 @@ export const milesToKm = miles => {
 export const formatDistance = (distanceInKm, preference = 'both') => {
   if (distanceInKm === null || distanceInKm === undefined || distanceInKm < 0)
     return 'Unknown distance';
-  if (distanceInKm === 0) return 'Very close';
 
   const miles = kmToMiles(distanceInKm);
   const km = Math.round(distanceInKm);
 
+  // Handle very small distances (less than 1 mile / ~1.6 km)
+  if (miles < 1 || distanceInKm < 1.6) {
+    switch (preference) {
+      case 'km':
+        return km < 1 ? 'Less than 1 km' : `${km} km`;
+      case 'miles':
+      case 'both':
+      default:
+        return 'Less than 1 mile';
+    }
+  }
+
   switch (preference) {
     case 'miles':
-      return `${miles} miles`;
+      return `${miles} ${miles === 1 ? 'mile' : 'miles'}`;
     case 'km':
       return `${km} km`;
     case 'both':
     default:
-      return `${miles} miles (${km} km)`;
+      return `${miles} ${miles === 1 ? 'mile' : 'miles'} (${km} km)`;
   }
 };
 
@@ -59,5 +70,8 @@ export const formatDistance = (distanceInKm, preference = 'both') => {
  */
 export const formatDistanceAway = (distanceInKm, preference = 'both') => {
   const distance = formatDistance(distanceInKm, preference);
-  return distance === 'Unknown distance' ? distance : `${distance} away`;
+  if (distance === 'Unknown distance') {
+    return distance;
+  }
+  return `${distance} away`;
 };

@@ -1,14 +1,7 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import {
-  View,
-  Text,
-  StyleSheet,
-  TouchableOpacity,
-  SafeAreaView,
-  ActivityIndicator,
-  ScrollView,
-  RefreshControl,
-} from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, ActivityIndicator } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect } from '@react-navigation/native';
 import { useAuth } from '../contexts/AuthContext';
@@ -19,6 +12,7 @@ import SocketService from '../services/SocketService';
 import SwipeableCardStack from '../components/SwipeableCardStack';
 import MatchModal from '../components/MatchModal';
 import ProfileSetupModal from '../components/modals/ProfileSetupModal';
+import PremiumUpgradeModal from '../components/modals/PremiumUpgradeModal';
 import Logger from '../utils/logger';
 import { getUserProfilePhoto } from '../utils/profileHelpers';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -29,6 +23,7 @@ const BATCH_SIZE = 10; // Load 10 profiles at a time
 const PeopleScreenOptimized = ({ navigation }) => {
   const { user, userProfile, refreshUserProfile } = useAuth();
   const { showError } = useToast();
+  const insets = useSafeAreaInsets();
   const [showSetupModal, setShowSetupModal] = useState(false);
   const { navigateToChat } = useTabNavigation();
 
@@ -36,11 +31,11 @@ const PeopleScreenOptimized = ({ navigation }) => {
   const [profiles, setProfiles] = useState([]);
   const [isLoading, setIsLoading] = useState(true); // Start as loading to prevent race condition
   const [isLoadingMore, setIsLoadingMore] = useState(false);
-  const [refreshing, setRefreshing] = useState(false);
   const [hasMore, setHasMore] = useState(true);
   const [showMatchModal, setShowMatchModal] = useState(false);
   const [matchedUser, setMatchedUser] = useState(null);
   const [hasInitialized, setHasInitialized] = useState(false);
+  const [showUpgradeModal, setShowUpgradeModal] = useState(false);
 
   // Track processed profiles to avoid duplicates
   const processedIds = useRef(new Set());
@@ -286,23 +281,9 @@ const PeopleScreenOptimized = ({ navigation }) => {
       }
     } finally {
       setIsLoading(false);
-      setRefreshing(false);
       setHasInitialized(true); // Mark as initialized after first load
     }
   };
-
-  // Handle pull-to-refresh
-  const handleRefresh = useCallback(() => {
-    Logger.info('🔄 Pull-to-refresh triggered');
-    setRefreshing(true);
-    // Clear processed IDs to allow re-fetching all profiles
-    processedIds.current.clear();
-    setProfiles([]);
-    setHasMore(true);
-    setHasInitialized(false);
-    loadInitialProfiles();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [filters]);
 
   // Load more profiles when running low
   const loadMoreProfiles = useCallback(async () => {
@@ -539,10 +520,10 @@ const PeopleScreenOptimized = ({ navigation }) => {
   }
 
   return (
-    <SafeAreaView style={styles.container}>
-      {/* Floating Filter Button */}
+    <View style={styles.container}>
+      {/* Filter Button - positioned below tab navigator title */}
       <TouchableOpacity
-        style={styles.floatingFilterButton}
+        style={[styles.filterButton, { top: insets.top + 10 }]}
         onPress={() =>
           navigation.navigate('Filter', {
             userPreferences: filters,
@@ -568,20 +549,8 @@ const PeopleScreenOptimized = ({ navigation }) => {
         <Ionicons name="options-outline" size={24} color="#666" />
       </TouchableOpacity>
 
-      {/* Card Stack with Pull-to-Refresh */}
-      <ScrollView
-        style={styles.cardStackScrollView}
-        contentContainerStyle={styles.cardStackContainer}
-        scrollEnabled={false}
-        refreshControl={
-          <RefreshControl
-            refreshing={refreshing}
-            onRefresh={handleRefresh}
-            colors={[theme.colors.primary]}
-            tintColor={theme.colors.primary}
-          />
-        }
-      >
+      {/* Fullscreen Card Stack */}
+      <View style={styles.cardStackContainer}>
         <SwipeableCardStack
           ref={cardStackRef}
           profiles={profiles}
@@ -590,16 +559,23 @@ const PeopleScreenOptimized = ({ navigation }) => {
           onNeedMore={loadMoreProfiles}
           loadingMore={isLoadingMore}
         />
-      </ScrollView>
+      </View>
 
-      {/* Action Buttons */}
+      {/* Floating Action Buttons */}
       {profiles.length > 0 && (
-        <View style={styles.actionButtons}>
+        <View style={[styles.actionButtons, { bottom: 10 }]}>
           <TouchableOpacity
-            style={[styles.actionButton, styles.rewindButton]}
-            disabled={true} // Will implement undo later
+            style={[styles.actionButton, styles.undoButton]}
+            onPress={() => {
+              if (!userProfile?.isPremium) {
+                setShowUpgradeModal(true);
+              } else {
+                // TODO: Implement undo functionality
+                cardStackRef.current?.undo?.();
+              }
+            }}
           >
-            <Ionicons name="refresh" size={30} color="#FFA500" />
+            <Ionicons name="arrow-undo" size={24} color="#FFB300" />
           </TouchableOpacity>
 
           <TouchableOpacity
@@ -610,17 +586,23 @@ const PeopleScreenOptimized = ({ navigation }) => {
           </TouchableOpacity>
 
           <TouchableOpacity
+            style={[styles.actionButton, styles.superLikeButton]}
+            onPress={() => {
+              if (!userProfile?.isPremium) {
+                setShowUpgradeModal(true);
+              } else {
+                cardStackRef.current?.swipeRight();
+              }
+            }}
+          >
+            <Ionicons name="star" size={28} color="#00BCD4" />
+          </TouchableOpacity>
+
+          <TouchableOpacity
             style={[styles.actionButton, styles.likeButton]}
             onPress={() => cardStackRef.current?.swipeRight()}
           >
             <Ionicons name="heart" size={30} color="#4CAF50" />
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={[styles.actionButton, styles.superLikeButton]}
-            disabled={!userProfile?.isPremium}
-          >
-            <Ionicons name="star" size={30} color="#00BCD4" />
           </TouchableOpacity>
         </View>
       )}
@@ -638,7 +620,10 @@ const PeopleScreenOptimized = ({ navigation }) => {
           onKeepSwiping={handleKeepSwiping}
         />
       )}
-    </SafeAreaView>
+
+      {/* Premium Upgrade Modal */}
+      <PremiumUpgradeModal visible={showUpgradeModal} onClose={() => setShowUpgradeModal(false)} />
+    </View>
   );
 };
 
@@ -647,9 +632,8 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#f8f9fa',
   },
-  floatingFilterButton: {
+  filterButton: {
     position: 'absolute',
-    top: 10,
     right: 20,
     width: 44,
     height: 44,
@@ -657,52 +641,39 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(255, 255, 255, 0.95)',
     justifyContent: 'center',
     alignItems: 'center',
-    zIndex: 10,
+    zIndex: 100,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.15,
-    shadowRadius: 3,
-    elevation: 5,
-  },
-  cardStackScrollView: {
-    flex: 1,
+    shadowOpacity: 0.2,
+    shadowRadius: 4,
+    elevation: 8,
   },
   cardStackContainer: {
     flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
   },
   actionButtons: {
     flexDirection: 'row',
     justifyContent: 'center',
     alignItems: 'center',
-    paddingVertical: 15,
     paddingHorizontal: 40,
-    backgroundColor: 'transparent', // No background to block cards
     position: 'absolute',
-    bottom: 5, // Just above the tab bar
     left: 0,
     right: 0,
-    zIndex: 10, // Above the cards
+    zIndex: 100,
   },
   actionButton: {
-    width: 64,
-    height: 64,
-    borderRadius: 32,
-    backgroundColor: 'rgba(255, 255, 255, 0.95)', // Slightly transparent white
+    width: 60,
+    height: 60,
+    borderRadius: 30,
+    backgroundColor: 'rgba(255, 255, 255, 0.95)',
     justifyContent: 'center',
     alignItems: 'center',
-    marginHorizontal: 12,
+    marginHorizontal: 10,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.25,
-    shadowRadius: 5,
+    shadowOpacity: 0.2,
+    shadowRadius: 6,
     elevation: 8,
-  },
-  rewindButton: {
-    width: 50,
-    height: 50,
-    borderRadius: 25,
   },
   passButton: {
     borderWidth: 2,
@@ -718,6 +689,13 @@ const styles = StyleSheet.create({
     borderRadius: 25,
     borderWidth: 2,
     borderColor: '#00BCD4',
+  },
+  undoButton: {
+    width: 46,
+    height: 46,
+    borderRadius: 23,
+    borderWidth: 2,
+    borderColor: '#FFB300',
   },
   loadingContainer: {
     flex: 1,

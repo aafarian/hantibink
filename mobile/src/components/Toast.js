@@ -1,7 +1,17 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { View, Text, StyleSheet, Animated, TouchableOpacity } from 'react-native';
+import {
+  View,
+  Text,
+  StyleSheet,
+  Animated,
+  TouchableOpacity,
+  Modal,
+  ScrollView,
+  Pressable,
+} from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import Logger from '../utils/logger';
 
 const Toast = ({
   message,
@@ -16,7 +26,7 @@ const Toast = ({
   const [slideAnim] = useState(new Animated.Value(-100));
   const onHideRef = useRef(onHide);
   const timerRef = useRef(null);
-  const [expanded, setExpanded] = useState(false);
+  const [showModal, setShowModal] = useState(false);
 
   // Keep onHide reference fresh
   useEffect(() => {
@@ -29,15 +39,13 @@ const Toast = ({
       duration: 300,
       useNativeDriver: true,
     }).start(() => {
-      // Use ref to avoid stale closure
       onHideRef.current?.();
     });
   }, [slideAnim]);
 
   useEffect(() => {
     if (visible) {
-      // Reset expanded state when new toast appears
-      setExpanded(false);
+      setShowModal(false);
 
       // Slide down
       Animated.timing(slideAnim, {
@@ -46,8 +54,8 @@ const Toast = ({
         useNativeDriver: true,
       }).start();
 
-      // Auto hide after duration only if autoHide is true and not expanded
-      if (autoHide && !expanded) {
+      // Auto hide after duration
+      if (autoHide) {
         timerRef.current = setTimeout(() => {
           hideToast();
         }, duration);
@@ -60,7 +68,7 @@ const Toast = ({
         }
       };
     }
-  }, [visible, autoHide, duration, hideToast, slideAnim, expanded]);
+  }, [visible, autoHide, duration, hideToast, slideAnim]);
 
   const getToastStyle = () => {
     switch (type) {
@@ -68,87 +76,141 @@ const Toast = ({
         return {
           backgroundColor: '#4CAF50',
           iconName: 'checkmark-circle',
+          title: 'Success',
         };
       case 'error':
         return {
           backgroundColor: '#F44336',
           iconName: 'alert-circle',
+          title: 'Error',
         };
       case 'warning':
         return {
           backgroundColor: '#FF9800',
           iconName: 'warning',
+          title: 'Warning',
         };
       default:
         return {
           backgroundColor: '#2196F3',
           iconName: 'information-circle',
+          title: 'Info',
         };
     }
+  };
+
+  const handleToastPress = () => {
+    // Clear auto-hide timer when opening modal
+    if (timerRef.current) {
+      clearTimeout(timerRef.current);
+      timerRef.current = null;
+    }
+    setShowModal(true);
+  };
+
+  const handleReportError = () => {
+    // TODO: Implement error reporting (email, API, etc.)
+    Logger.info('Error report requested:', message);
+    handleCloseModal();
+  };
+
+  const handleCloseModal = () => {
+    setShowModal(false);
+    hideToast();
   };
 
   if (!visible) return null;
 
   const toastStyle = getToastStyle();
 
-  // Check if message is long enough to need expansion
-  const isLongMessage = message && message.length > 60;
-
-  const handleMessagePress = () => {
-    if (isLongMessage) {
-      setExpanded(!expanded);
-      // Clear auto-hide timer when expanded
-      if (!expanded && timerRef.current) {
-        clearTimeout(timerRef.current);
-        timerRef.current = null;
-      }
-    }
-  };
-
   return (
-    <Animated.View
-      style={[
-        styles.container,
-        {
-          backgroundColor: toastStyle.backgroundColor,
-          paddingTop: insets.top + 10,
-          transform: [{ translateY: slideAnim }],
-        },
-      ]}
-    >
-      <View style={styles.content}>
-        <TouchableOpacity
-          style={styles.messageContainer}
-          onPress={handleMessagePress}
-          activeOpacity={isLongMessage ? 0.7 : 1}
-        >
-          <Ionicons name={toastStyle.iconName} size={20} color="#fff" style={styles.icon} />
-          <View style={styles.messageTextContainer}>
-            <Text style={styles.message} numberOfLines={expanded ? undefined : 2}>
-              {message}
-            </Text>
+    <>
+      <Animated.View
+        style={[
+          styles.container,
+          {
+            backgroundColor: toastStyle.backgroundColor,
+            paddingTop: insets.top + 10,
+            transform: [{ translateY: slideAnim }],
+          },
+        ]}
+      >
+        <TouchableOpacity style={styles.content} onPress={handleToastPress} activeOpacity={0.8}>
+          <View style={styles.messageContainer}>
+            <Ionicons name={toastStyle.iconName} size={20} color="#fff" style={styles.icon} />
+            <View style={styles.messageTextContainer}>
+              <Text style={styles.message} numberOfLines={2}>
+                {message}
+              </Text>
+              <Text style={styles.tapHint}>Tap for details</Text>
+            </View>
           </View>
-        </TouchableOpacity>
 
-        <View style={styles.actions}>
-          {action && (
+          <View style={styles.actions}>
+            {action && (
+              <TouchableOpacity
+                style={styles.actionButton}
+                onPress={e => {
+                  e.stopPropagation();
+                  action.onPress();
+                  hideToast();
+                }}
+              >
+                <Text style={styles.actionText}>{action.text}</Text>
+              </TouchableOpacity>
+            )}
+
             <TouchableOpacity
-              style={styles.actionButton}
-              onPress={() => {
-                action.onPress();
+              style={styles.closeButton}
+              onPress={e => {
+                e.stopPropagation();
                 hideToast();
               }}
             >
-              <Text style={styles.actionText}>{action.text}</Text>
+              <Ionicons name="close" size={20} color="#fff" />
             </TouchableOpacity>
-          )}
+          </View>
+        </TouchableOpacity>
+      </Animated.View>
 
-          <TouchableOpacity style={styles.closeButton} onPress={hideToast}>
-            <Ionicons name="close" size={20} color="#fff" />
-          </TouchableOpacity>
-        </View>
-      </View>
-    </Animated.View>
+      {/* Error Details Modal */}
+      <Modal visible={showModal} transparent animationType="fade" onRequestClose={handleCloseModal}>
+        <Pressable style={styles.modalOverlay} onPress={handleCloseModal}>
+          <Pressable style={styles.modalContent} onPress={e => e.stopPropagation()}>
+            <View style={[styles.modalHeader, { backgroundColor: toastStyle.backgroundColor }]}>
+              <Ionicons name={toastStyle.iconName} size={24} color="#fff" />
+              <Text style={styles.modalTitle}>{toastStyle.title}</Text>
+              <TouchableOpacity onPress={handleCloseModal} style={styles.modalCloseButton}>
+                <Ionicons name="close" size={24} color="#fff" />
+              </TouchableOpacity>
+            </View>
+
+            <ScrollView style={styles.modalBody} showsVerticalScrollIndicator={false}>
+              <Text style={styles.modalMessage} selectable>
+                {message}
+              </Text>
+            </ScrollView>
+
+            <View style={styles.modalFooter}>
+              <TouchableOpacity
+                style={[styles.modalButton, styles.reportButton]}
+                onPress={handleReportError}
+              >
+                <Ionicons name="mail-outline" size={18} color="#555" />
+                <Text style={styles.reportButtonText}>Report</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={[styles.modalButton, styles.dismissButton]}
+                onPress={handleCloseModal}
+              >
+                <Text style={styles.dismissButtonText}>Dismiss</Text>
+              </TouchableOpacity>
+            </View>
+          </Pressable>
+        </Pressable>
+      </Modal>
+    </>
   );
 };
 
@@ -162,10 +224,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 15,
     paddingBottom: 15,
     shadowColor: '#000',
-    shadowOffset: {
-      width: 0,
-      height: 2,
-    },
+    shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.25,
     shadowRadius: 3.84,
     elevation: 5,
@@ -188,10 +247,15 @@ const styles = StyleSheet.create({
     marginTop: 2,
   },
   message: {
-    flex: 1,
-    fontSize: 16,
+    fontSize: 15,
     color: '#fff',
     fontWeight: '500',
+    lineHeight: 20,
+  },
+  tapHint: {
+    fontSize: 12,
+    color: 'rgba(255,255,255,0.7)',
+    marginTop: 4,
   },
   actions: {
     flexDirection: 'row',
@@ -212,6 +276,78 @@ const styles = StyleSheet.create({
   },
   closeButton: {
     padding: 4,
+  },
+  // Modal styles
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 20,
+  },
+  modalContent: {
+    backgroundColor: '#fff',
+    borderRadius: 16,
+    width: '100%',
+    maxWidth: 400,
+    maxHeight: '70%',
+    overflow: 'hidden',
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 16,
+  },
+  modalTitle: {
+    flex: 1,
+    fontSize: 18,
+    fontWeight: '600',
+    color: '#fff',
+    marginLeft: 12,
+  },
+  modalCloseButton: {
+    padding: 4,
+  },
+  modalBody: {
+    padding: 20,
+    maxHeight: 300,
+  },
+  modalMessage: {
+    fontSize: 15,
+    color: '#333',
+    lineHeight: 22,
+  },
+  modalFooter: {
+    flexDirection: 'row',
+    padding: 16,
+    borderTopWidth: 1,
+    borderTopColor: '#eee',
+    gap: 12,
+  },
+  modalButton: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 12,
+    borderRadius: 8,
+    gap: 8,
+  },
+  reportButton: {
+    backgroundColor: '#f5f5f5',
+  },
+  reportButtonText: {
+    fontSize: 15,
+    fontWeight: '500',
+    color: '#555',
+  },
+  dismissButton: {
+    backgroundColor: '#333',
+  },
+  dismissButtonText: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: '#fff',
   },
 });
 
