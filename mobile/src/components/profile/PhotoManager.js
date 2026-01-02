@@ -146,7 +146,7 @@ const PhotoManager = ({
   };
 
   // Delete photo
-  const _deletePhoto = async photoIndex => {
+  const deletePhoto = async photoIndex => {
     try {
       const photo = localPhotos[photoIndex];
       if (!photo) return;
@@ -181,8 +181,8 @@ const PhotoManager = ({
     }
   };
 
-  // Set main photo (unused but kept for potential future use)
-  const _setMainPhoto = async photoIndex => {
+  // Set main photo - moves selected photo to first position
+  const setMainPhoto = async photoIndex => {
     try {
       if (photoIndex === 0) {
         onError?.('This photo is already your main photo');
@@ -427,6 +427,8 @@ const PhotoManager = ({
                       initialIndex: photoIndex,
                       showActions: mode === 'edit',
                       title: 'Photo',
+                      onDelete: mode === 'edit' ? deletePhoto : undefined,
+                      onSetMain: mode === 'edit' ? setMainPhoto : undefined,
                     });
                   }
                 }

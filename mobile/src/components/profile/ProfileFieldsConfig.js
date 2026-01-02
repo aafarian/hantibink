@@ -16,6 +16,7 @@ export const educationOptions = [
   'Professional Degree',
   'Trade School',
   'Other',
+  'Prefer not to say',
 ];
 
 // Height options (4'6" to 7'2" with CM conversions)
@@ -31,6 +32,7 @@ export const heightOptions = (() => {
       options.push(`${feet}'${inches}" (${cm}cm)`);
     }
   }
+  options.push('Prefer not to say');
   return options;
 })();
 
@@ -60,10 +62,10 @@ export const religionOptions = [
 ];
 
 // Smoking options
-export const smokingOptions = ['Never', 'Sometimes', 'Regularly'];
+export const smokingOptions = ['Never', 'Sometimes', 'Regularly', 'Prefer not to say'];
 
 // Drinking options
-export const drinkingOptions = ['Never', 'Socially', 'Regularly'];
+export const drinkingOptions = ['Never', 'Socially', 'Regularly', 'Prefer not to say'];
 
 // Interest options
 export const interestOptions = [
@@ -265,6 +267,12 @@ export const transformProfileData = {
         return; // Don't include in the cleaned object
       }
 
+      // "Prefer not to say" clears the field - explicitly set to null
+      if (value === 'Prefer not to say') {
+        cleaned[key] = null;
+        return;
+      }
+
       // Handle interestedIn conversion from display value to API format
       if (key === 'interestedIn') {
         if (value === 'EVERYONE') {
@@ -285,10 +293,18 @@ export const transformProfileData = {
         return;
       }
 
-      // Handle arrays
+      // Handle arrays - for interests/languages send empty array, for others send null to clear
       if (Array.isArray(value)) {
         if (value.length > 0) {
           cleaned[key] = value;
+        } else {
+          // interests and languages expect arrays, others can be null
+          if (key === 'interests' || key === 'languages') {
+            cleaned[key] = [];
+          } else {
+            // relationshipType can be null to clear
+            cleaned[key] = null;
+          }
         }
         return;
       }

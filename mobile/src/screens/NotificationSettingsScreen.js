@@ -16,9 +16,8 @@ import { theme } from '../styles/theme';
 import ScreenWrapper from '../components/shared/ScreenWrapper';
 
 const NotificationSettingsScreen = ({ navigation }) => {
-  const { showSuccess, showError } = useToast();
+  const { showError } = useToast();
   const [loading, setLoading] = useState(true);
-  const [saving, setSaving] = useState(false);
   const [settings, setSettings] = useState({
     messages: true,
     matches: true,
@@ -47,25 +46,21 @@ const NotificationSettingsScreen = ({ navigation }) => {
   const updateSetting = async (key, value) => {
     const previousSettings = { ...settings };
 
-    // Optimistic update
+    // Optimistic update - switch provides visual feedback, no toast needed
     setSettings(prev => ({ ...prev, [key]: value }));
 
     try {
-      setSaving(true);
       const response = await apiClient.updateNotificationSettings({ [key]: value });
-      if (response.success) {
-        showSuccess('Settings updated');
-      } else {
+      if (!response.success) {
         // Revert on failure
         setSettings(previousSettings);
         showError(response.message || 'Failed to update settings');
       }
+      // Silent success - the switch position is the feedback
     } catch (error) {
       Logger.error('Failed to update notification settings:', error);
       setSettings(previousSettings);
       showError('Failed to update settings');
-    } finally {
-      setSaving(false);
     }
   };
 
@@ -83,7 +78,6 @@ const NotificationSettingsScreen = ({ navigation }) => {
         onValueChange={value => updateSetting(key, value)}
         trackColor={{ false: '#E5E5EA', true: theme.colors.primary }}
         thumbColor={settings[key] ? '#fff' : '#f4f3f4'}
-        disabled={saving}
       />
     </View>
   );

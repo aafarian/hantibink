@@ -6,6 +6,8 @@ import {
   TouchableOpacity,
   SafeAreaView,
   ActivityIndicator,
+  ScrollView,
+  RefreshControl,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect } from '@react-navigation/native';
@@ -16,6 +18,7 @@ import ApiDataService from '../services/ApiDataService';
 import SocketService from '../services/SocketService';
 import SwipeableCardStack from '../components/SwipeableCardStack';
 import MatchModal from '../components/MatchModal';
+import ProfileSetupModal from '../components/modals/ProfileSetupModal';
 import Logger from '../utils/logger';
 import { getUserProfilePhoto } from '../utils/profileHelpers';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -24,14 +27,16 @@ import { theme } from '../styles/theme';
 const BATCH_SIZE = 10; // Load 10 profiles at a time
 
 const PeopleScreenOptimized = ({ navigation }) => {
-  const { user, userProfile } = useAuth();
+  const { user, userProfile, refreshUserProfile } = useAuth();
   const { showError } = useToast();
+  const [showSetupModal, setShowSetupModal] = useState(false);
   const { navigateToChat } = useTabNavigation();
 
   // State
   const [profiles, setProfiles] = useState([]);
   const [isLoading, setIsLoading] = useState(true); // Start as loading to prevent race condition
   const [isLoadingMore, setIsLoadingMore] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
   const [hasMore, setHasMore] = useState(true);
   const [showMatchModal, setShowMatchModal] = useState(false);
   const [matchedUser, setMatchedUser] = useState(null);
@@ -281,9 +286,23 @@ const PeopleScreenOptimized = ({ navigation }) => {
       }
     } finally {
       setIsLoading(false);
+      setRefreshing(false);
       setHasInitialized(true); // Mark as initialized after first load
     }
   };
+
+  // Handle pull-to-refresh
+  const handleRefresh = useCallback(() => {
+    Logger.info('🔄 Pull-to-refresh triggered');
+    setRefreshing(true);
+    // Clear processed IDs to allow re-fetching all profiles
+    processedIds.current.clear();
+    setProfiles([]);
+    setHasMore(true);
+    setHasInitialized(false);
+    loadInitialProfiles();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [filters]);
 
   // Load more profiles when running low
   const loadMoreProfiles = useCallback(async () => {
@@ -449,19 +468,39 @@ const PeopleScreenOptimized = ({ navigation }) => {
   }, []);
 
   // Don't show discovery if profile is incomplete
-  // The setup modal is now handled at the app level in AppNavigator
   if (userProfile && !isProfileComplete()) {
     return (
       <SafeAreaView style={styles.container}>
-        <View style={styles.loadingContainer}>
-          <Text style={styles.loadingText}>Complete your profile to start discovering people</Text>
+        <View style={styles.incompleteProfileContainer}>
+          <View style={styles.incompleteIconContainer}>
+            <Ionicons name="heart-outline" size={60} color={theme.colors.primary} />
+          </View>
+          <Text style={styles.incompleteTitle}>Almost there!</Text>
+          <Text style={styles.incompleteSubtitle}>
+            Complete your profile to start discovering amazing people nearby
+          </Text>
           <TouchableOpacity
-            style={styles.addPhotosButton}
-            onPress={() => navigation.navigate('Profile', { screen: 'ProfileMain' })}
+            style={styles.completeProfileButton}
+            onPress={() => setShowSetupModal(true)}
           >
-            <Text style={styles.addPhotosButtonText}>Go to Profile</Text>
+            <Ionicons name="sparkles" size={20} color="#fff" style={{ marginRight: 8 }} />
+            <Text style={styles.completeProfileButtonText}>Complete Profile</Text>
           </TouchableOpacity>
         </View>
+
+        <ProfileSetupModal
+          visible={showSetupModal}
+          onClose={() => setShowSetupModal(false)}
+          onComplete={async () => {
+            setShowSetupModal(false);
+            if (refreshUserProfile) {
+              setTimeout(() => {
+                refreshUserProfile();
+              }, 500);
+            }
+          }}
+          userProfile={userProfile}
+        />
       </SafeAreaView>
     );
   }
@@ -529,8 +568,20 @@ const PeopleScreenOptimized = ({ navigation }) => {
         <Ionicons name="options-outline" size={24} color="#666" />
       </TouchableOpacity>
 
-      {/* Card Stack */}
-      <View style={styles.cardStackContainer}>
+      {/* Card Stack with Pull-to-Refresh */}
+      <ScrollView
+        style={styles.cardStackScrollView}
+        contentContainerStyle={styles.cardStackContainer}
+        scrollEnabled={false}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={handleRefresh}
+            colors={[theme.colors.primary]}
+            tintColor={theme.colors.primary}
+          />
+        }
+      >
         <SwipeableCardStack
           ref={cardStackRef}
           profiles={profiles}
@@ -539,7 +590,7 @@ const PeopleScreenOptimized = ({ navigation }) => {
           onNeedMore={loadMoreProfiles}
           loadingMore={isLoadingMore}
         />
-      </View>
+      </ScrollView>
 
       {/* Action Buttons */}
       {profiles.length > 0 && (
@@ -613,6 +664,9 @@ const styles = StyleSheet.create({
     shadowRadius: 3,
     elevation: 5,
   },
+  cardStackScrollView: {
+    flex: 1,
+  },
   cardStackContainer: {
     flex: 1,
     alignItems: 'center',
@@ -680,6 +734,53 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     paddingHorizontal: 40,
+  },
+  incompleteProfileContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: 40,
+    backgroundColor: '#fff',
+  },
+  incompleteIconContainer: {
+    width: 120,
+    height: 120,
+    borderRadius: 60,
+    backgroundColor: `${theme.colors.primary}15`,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 24,
+  },
+  incompleteTitle: {
+    fontSize: 28,
+    fontWeight: 'bold',
+    color: '#333',
+    marginBottom: 12,
+  },
+  incompleteSubtitle: {
+    fontSize: 16,
+    color: '#666',
+    textAlign: 'center',
+    lineHeight: 24,
+    marginBottom: 32,
+  },
+  completeProfileButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: theme.colors.primary,
+    paddingHorizontal: 32,
+    paddingVertical: 16,
+    borderRadius: 30,
+    shadowColor: theme.colors.primary,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 5,
+  },
+  completeProfileButtonText: {
+    color: '#fff',
+    fontSize: 18,
+    fontWeight: '600',
   },
   noPhotosTitle: {
     fontSize: 20,

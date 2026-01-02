@@ -232,11 +232,11 @@ const likeUser = async (
     // This lets users know someone is interested in them
     if (!isMatch && (actionType === 'LIKE' || actionType === 'SUPER_LIKE')) {
       try {
-        // Get receiver's push token and sender's name
+        // Get receiver's push token and premium status, and sender's name
         const [receiver, sender] = await Promise.all([
           prisma.user.findUnique({
             where: { id: receiverId },
-            select: { pushToken: true },
+            select: { pushToken: true, isPremium: true },
           }),
           prisma.user.findUnique({
             where: { id: senderId },
@@ -250,12 +250,12 @@ const likeUser = async (
           if (!shouldNotify) {
             logger.info(`📵 Like notification skipped - user ${receiverId} has likes disabled`);
           } else if (actionType === 'SUPER_LIKE') {
-            sendSuperLikeNotification(receiver.pushToken, sender.name).catch(err =>
-              logger.error('Failed to send super like notification:', err)
+            sendSuperLikeNotification(receiver.pushToken, sender.name, receiver.isPremium).catch(
+              err => logger.error('Failed to send super like notification:', err)
             );
             logger.info(`📩 Sent ${actionType} notification to user ${receiverId}`);
           } else {
-            sendLikeNotification(receiver.pushToken, sender.name).catch(err =>
+            sendLikeNotification(receiver.pushToken, sender.name, receiver.isPremium).catch(err =>
               logger.error('Failed to send like notification:', err)
             );
             logger.info(`📩 Sent ${actionType} notification to user ${receiverId}`);

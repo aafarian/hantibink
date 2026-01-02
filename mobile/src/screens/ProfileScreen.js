@@ -6,7 +6,6 @@ import {
   ScrollView,
   TouchableOpacity,
   AppState,
-  Alert,
   Image,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
@@ -16,23 +15,28 @@ import { useToast } from '../contexts/ToastContext';
 import { LoadingScreen } from '../components/LoadingScreen';
 import { capitalizeFirst, formatRelationshipTypes } from '../utils/profileDataUtils';
 import { shouldShowDeveloperOptions, getBuildEnvironment } from '../utils/buildConfig';
+import ProfileSetupModal from '../components/modals/ProfileSetupModal';
 
 import { theme } from '../styles/theme';
 // import { commonStyles } from '../styles/commonStyles';
 // Removed Firebase dependencies - now using API-based AuthContext
 
 const ProfileScreen = ({ navigation }) => {
-  const {
-    logout,
-    user,
-    userProfile: authUserProfile,
-    refreshUserProfile,
-    updateUserProfile,
-  } = useAuth();
+  const { user, userProfile: authUserProfile, refreshUserProfile, updateUserProfile } = useAuth();
   const { showSuccess, showError } = useToast();
   const [userProfile, setUserProfile] = useState(null);
   const [loading, setLoading] = useState(true);
   const [devPremium, setDevPremium] = useState(false);
+  const [showSetupModal, setShowSetupModal] = useState(false);
+
+  // Check if user is missing required fields for matching
+  const needsRequiredFields =
+    userProfile &&
+    (!userProfile.birthDate ||
+      !userProfile.gender ||
+      !userProfile.interestedIn?.length ||
+      !userProfile.photos?.length ||
+      !userProfile.location);
 
   useEffect(() => {
     if (authUserProfile) {
@@ -91,47 +95,8 @@ const ProfileScreen = ({ navigation }) => {
     }
   };
 
-  const handleLogout = async () => {
-    // Show proper confirmation dialog for destructive action
-    Alert.alert('Logout', 'Are you sure you want to logout?', [
-      {
-        text: 'Cancel',
-        style: 'cancel',
-      },
-      {
-        text: 'Logout',
-        style: 'destructive',
-        onPress: performLogout,
-      },
-    ]);
-  };
-
-  const performLogout = async () => {
-    try {
-      Logger.info('🚪 User confirmed logout...');
-
-      // Logout via API-based AuthContext
-
-      const result = await logout();
-
-      if (result.success) {
-        showSuccess('Logged out successfully! 👋');
-        Logger.success('✅ User logged out successfully');
-      } else {
-        Logger.error('❌ Logout failed:', result.error);
-        showError(result.error || 'Failed to logout', {
-          action: { text: 'Try Again', onPress: performLogout },
-        });
-      }
-    } catch (error) {
-      Logger.error('❌ Logout error:', error);
-      showError(error.message || 'Failed to logout', {
-        action: { text: 'Try Again', onPress: performLogout },
-      });
-    }
-  };
-
   // Photo management is now handled by ProfileEditScreen
+  // Account management (logout, delete) is now in AccountSettingsScreen
 
   if (loading) {
     return <LoadingScreen message="Loading profile..." />;
@@ -192,23 +157,18 @@ const ProfileScreen = ({ navigation }) => {
           )}
         </View>
 
-        {/* Profile Completion Guidance */}
-        {(!userProfile.photos || userProfile.photos.length === 0 || !userProfile.bio) && (
+        {/* Required Fields Guidance - Shows when missing required fields for matching */}
+        {needsRequiredFields && (
           <View style={styles.guidanceContainer}>
-            <Ionicons name="sparkles" size={24} color={theme.colors.primary} />
+            <Ionicons name="alert-circle" size={24} color={theme.colors.primary} />
             <View style={styles.guidanceTextContainer}>
-              <Text style={styles.guidanceTitle}>Complete your profile!</Text>
+              <Text style={styles.guidanceTitle}>Complete your profile to start matching</Text>
               <Text style={styles.guidanceSubtitle}>
-                {!userProfile.photos || userProfile.photos.length === 0
-                  ? 'Add photos and details to start matching with others'
-                  : 'Add bio and details to attract better matches'}
+                Add your details to discover and be discovered by others
               </Text>
             </View>
-            <TouchableOpacity
-              style={styles.guidanceButton}
-              onPress={() => navigation.navigate('ProfileEdit')}
-            >
-              <Text style={styles.guidanceButtonText}>Edit Profile</Text>
+            <TouchableOpacity style={styles.guidanceButton} onPress={() => setShowSetupModal(true)}>
+              <Text style={styles.guidanceButtonText}>Complete</Text>
             </TouchableOpacity>
           </View>
         )}
@@ -473,9 +433,13 @@ const ProfileScreen = ({ navigation }) => {
             <Ionicons name="chevron-forward" size={20} color="#ccc" />
           </TouchableOpacity>
 
-          <TouchableOpacity style={styles.logoutButton} onPress={handleLogout}>
-            <Ionicons name="log-out-outline" size={20} color={theme.colors.primary} />
-            <Text style={styles.logoutText}>Logout</Text>
+          <TouchableOpacity
+            style={styles.settingItem}
+            onPress={() => navigation.navigate('AccountSettings')}
+          >
+            <Ionicons name="person-circle" size={20} color={theme.colors.primary} />
+            <Text style={styles.settingText}>Account</Text>
+            <Ionicons name="chevron-forward" size={20} color="#ccc" />
           </TouchableOpacity>
         </View>
 
@@ -511,6 +475,22 @@ const ProfileScreen = ({ navigation }) => {
 
         {/* Edit functionality moved to ProfileEditScreen */}
       </ScrollView>
+
+      {/* Profile Setup Modal - Opens when user clicks "Complete" button */}
+      <ProfileSetupModal
+        visible={showSetupModal}
+        onClose={() => setShowSetupModal(false)}
+        onComplete={async () => {
+          setShowSetupModal(false);
+          // Refresh profile after completing setup
+          if (refreshUserProfile) {
+            setTimeout(() => {
+              refreshUserProfile();
+            }, 500);
+          }
+        }}
+        userProfile={userProfile}
+      />
     </View>
   );
 };
@@ -697,19 +677,6 @@ const styles = StyleSheet.create({
     marginLeft: 15,
     color: '#333',
   },
-  logoutButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingVertical: 15,
-    marginTop: 10,
-  },
-  logoutText: {
-    flex: 1,
-    fontSize: 16,
-    marginLeft: 15,
-    color: theme.colors.primary,
-    fontWeight: '500',
-  },
   centered: {
     justifyContent: 'center',
     alignItems: 'center',
@@ -770,7 +737,6 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '600',
   },
-
   // Looking For section styles
   lookingForSection: {
     marginTop: 20,

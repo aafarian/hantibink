@@ -26,6 +26,7 @@ import MessagesScreen from '../screens/MessagesScreen';
 import ChatScreen from '../screens/ChatScreen';
 import PreferencesScreen from '../screens/PreferencesScreen';
 import NotificationSettingsScreen from '../screens/NotificationSettingsScreen';
+import AccountSettingsScreen from '../screens/AccountSettingsScreen';
 
 // Import components
 import ProfileSetupModal from '../components/modals/ProfileSetupModal';
@@ -155,6 +156,13 @@ const ProfileStack = () => {
           headerShown: false, // NotificationSettingsScreen has its own header
         }}
       />
+      <Stack.Screen
+        name="AccountSettings"
+        component={AccountSettingsScreen}
+        options={{
+          headerShown: false, // AccountSettingsScreen has its own header
+        }}
+      />
     </Stack.Navigator>
   );
 };
@@ -192,65 +200,18 @@ const MainNavigator = () => {
   const { loading, userProfile, refreshUserProfile, user } = useAuth();
   const { unreadConversationCount } = useUnread();
   const [showSetupModal, setShowSetupModal] = React.useState(false);
-  const [hasCheckedProfile, setHasCheckedProfile] = React.useState(false);
 
   // Enable automatic location tracking only when user is authenticated
   useLocationTracking(!!user && !!userProfile, 5); // Update every 5 minutes
 
-  // Check if profile needs setup (missing critical fields)
+  // Auto-modal disabled - users now see guidance on ProfileScreen and can tap to open modal
+  // Clear any stale registration flag on mount
   React.useEffect(() => {
-    const checkProfileSetup = async () => {
-      // First check if we have the registration flag
-      const shouldShowOnboarding = await AsyncStorage.getItem('@HantibinkShowOnboarding');
-
-      // If we have the registration flag, show modal immediately
-      // Don't wait for full profile to load
-      if (shouldShowOnboarding === 'true' && !hasCheckedProfile) {
-        Logger.info('Registration flag detected - showing modal immediately');
-        setShowSetupModal(true);
-        setHasCheckedProfile(true);
-
-        // Clear the registration flag AFTER showing modal
-        // Delay clearing to ensure modal is definitely shown
-        setTimeout(async () => {
-          await AsyncStorage.removeItem('@HantibinkShowOnboarding');
-          Logger.info('Cleared onboarding flag after showing modal');
-        }, 1000);
-        return; // Exit early since we're showing the modal
-      }
-
-      // Otherwise check if profile needs setup based on data
-      if (userProfile && !hasCheckedProfile) {
-        const needsSetup =
-          !userProfile.gender ||
-          !userProfile.interestedIn ||
-          userProfile.interestedIn.length === 0 ||
-          !userProfile.photos ||
-          userProfile.photos.length === 0;
-
-        Logger.info('Profile setup check:', {
-          hasGender: !!userProfile.gender,
-          interestedIn: userProfile.interestedIn,
-          hasPhotos: userProfile.photos?.length > 0,
-          photosCount: userProfile.photos?.length || 0,
-          photos: userProfile.photos,
-          hasLocation: !!userProfile.location,
-          needsSetup,
-          fromRegistration: false,
-        });
-
-        if (needsSetup) {
-          Logger.info('Profile needs setup - showing modal', {
-            reason: 'Missing required fields',
-          });
-          setShowSetupModal(true);
-        }
-        setHasCheckedProfile(true);
-      }
+    const clearStaleFlags = async () => {
+      await AsyncStorage.removeItem('@HantibinkShowOnboarding');
     };
-
-    checkProfileSetup();
-  }, [userProfile, hasCheckedProfile]);
+    clearStaleFlags();
+  }, []);
 
   if (loading) {
     return (
@@ -396,7 +357,8 @@ const AppNavigator = () => {
 
     return () => {
       if (notificationResponseListener.current) {
-        Notifications.removeNotificationSubscription(notificationResponseListener.current);
+        // Use the remove method on the subscription object
+        notificationResponseListener.current.remove();
       }
     };
   }, []);

@@ -9,6 +9,7 @@ import { useToast } from '../contexts/ToastContext';
 import ProfileForm from '../components/profile/ProfileForm';
 import PhotoManager from '../components/profile/PhotoManager';
 import { transformProfileData } from '../components/profile/ProfileFieldsConfig';
+import ProfileCompletionBar from '../components/profile/ProfileCompletionBar';
 import Logger from '../utils/logger';
 import ApiDataService from '../services/ApiDataService';
 import { theme } from '../styles/theme';
@@ -22,6 +23,7 @@ const ProfileEditScreen = ({ navigation }) => {
   const [hasChanges, setHasChanges] = useState(false);
   const [hasFormChanges, setHasFormChanges] = useState(false); // Track form changes separately
   const [initialFormData, setInitialFormData] = useState(null);
+  const [currentFormData, setCurrentFormData] = useState(null); // Track live form data for completion bar
   const [changedFields, setChangedFields] = useState(new Set());
   const [validationErrors, setValidationErrors] = useState({});
 
@@ -53,6 +55,9 @@ const ProfileEditScreen = ({ navigation }) => {
   // Handle form data changes - track individual field changes and validation
   const handleFormDataChange = (newFormData, fieldErrors = {}) => {
     if (!initialFormData) return;
+
+    // Store current form data for live completion calculation
+    setCurrentFormData(newFormData);
 
     // Update validation errors with real-time validation
     const currentErrors = { ...fieldErrors };
@@ -131,6 +136,7 @@ const ProfileEditScreen = ({ navigation }) => {
       setHasChanges(false);
       setHasFormChanges(false);
       setValidationErrors({});
+      setCurrentFormData(initialFormData); // Reset completion bar
 
       showSuccess('Changes discarded');
     }
@@ -142,8 +148,8 @@ const ProfileEditScreen = ({ navigation }) => {
       setSaving(true);
 
       // Get form data from the ProfileForm component
-      const currentFormData = profileFormRef.current?.getFormData();
-      if (!currentFormData) {
+      const formDataToSave = profileFormRef.current?.getFormData();
+      if (!formDataToSave) {
         setSaving(false);
         return;
       }
@@ -165,7 +171,7 @@ const ProfileEditScreen = ({ navigation }) => {
       Logger.info('📝 Saving profile with current form data');
 
       // Transform the form data for API submission
-      const apiData = transformProfileData.toApi(currentFormData);
+      const apiData = transformProfileData.toApi(formDataToSave);
 
       // Update profile via API with transformed data
       const success = await ApiDataService.updateUserProfile(apiData);
@@ -252,6 +258,9 @@ const ProfileEditScreen = ({ navigation }) => {
             )}
           </View>
         </View>
+
+        {/* Profile Completion Bar - Compact sticky version */}
+        <ProfileCompletionBar userProfile={userProfile} formData={currentFormData} compact />
 
         {/* Profile Form */}
         <ProfileForm

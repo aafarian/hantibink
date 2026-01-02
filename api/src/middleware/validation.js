@@ -36,22 +36,13 @@ const authValidation = {
     body('password')
       .notEmpty().withMessage('Password is required')
       .isLength({ min: 6 }).withMessage('Password must be at least 6 characters')
-      .isLength({ max: 100 }).withMessage('Password must be less than 100 characters')
-      .matches(/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)/).withMessage('Password must contain at least one uppercase letter, one lowercase letter, and one number'),
+      .isLength({ max: 100 }).withMessage('Password must be less than 100 characters'),
     body('name')
       .notEmpty().withMessage('Name is required')
       .isLength({ min: 2, max: 50 }).withMessage('Name must be between 2 and 50 characters')
       .matches(/^[a-zA-Z\s]+$/).withMessage('Name can only contain letters and spaces')
       .trim(),
-    body('birthDate')
-      .notEmpty().withMessage('Birth date is required')
-      .isISO8601().withMessage('Invalid date format')
-      .custom((value) => {
-        const age = Math.floor((new Date() - new Date(value)) / 31557600000);
-        if (age < 18) {throw new Error('You must be at least 18 years old');}
-        if (age > 100) {throw new Error('Invalid birth date');}
-        return true;
-      }),
+    // birthDate is now collected during gatekeeping, not registration
     // Gender is now OPTIONAL for registration
     body('gender')
       .optional()
@@ -116,8 +107,7 @@ const authValidation = {
       .isString().withMessage('Token must be a string'),
     body('newPassword')
       .notEmpty().withMessage('New password is required')
-      .isLength({ min: 6 }).withMessage('Password must be at least 6 characters')
-      .matches(/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)/).withMessage('Password must contain at least one uppercase letter, one lowercase letter, and one number'),
+      .isLength({ min: 6 }).withMessage('Password must be at least 6 characters'),
     handleValidationErrors,
   ],
 };
@@ -322,8 +312,18 @@ const messageValidation = {
  * Profile validation rules
  */
 const profileValidation = {
-  // New endpoint for completing profile setup (gender, interestedIn, location required)
+  // New endpoint for completing profile setup (birthDate, gender, interestedIn, location required)
   completeSetup: [
+    body('birthDate')
+      .optional() // birthDate might already be set
+      .isISO8601().withMessage('Invalid date format')
+      .custom((value) => {
+        if (!value) {return true;}
+        const age = Math.floor((new Date() - new Date(value)) / 31557600000);
+        if (age < 18) {throw new Error('You must be at least 18 years old');}
+        if (age > 100) {throw new Error('Invalid birth date');}
+        return true;
+      }),
     body('gender')
       .optional() // Gender might already be set
       .isIn(['MAN', 'WOMAN', 'OTHER', 'man', 'woman', 'other']).withMessage('Invalid gender')
