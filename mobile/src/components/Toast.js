@@ -16,6 +16,7 @@ const Toast = ({
   const [slideAnim] = useState(new Animated.Value(-100));
   const onHideRef = useRef(onHide);
   const timerRef = useRef(null);
+  const [expanded, setExpanded] = useState(false);
 
   // Keep onHide reference fresh
   useEffect(() => {
@@ -35,6 +36,9 @@ const Toast = ({
 
   useEffect(() => {
     if (visible) {
+      // Reset expanded state when new toast appears
+      setExpanded(false);
+
       // Slide down
       Animated.timing(slideAnim, {
         toValue: 0,
@@ -42,8 +46,8 @@ const Toast = ({
         useNativeDriver: true,
       }).start();
 
-      // Auto hide after duration only if autoHide is true
-      if (autoHide) {
+      // Auto hide after duration only if autoHide is true and not expanded
+      if (autoHide && !expanded) {
         timerRef.current = setTimeout(() => {
           hideToast();
         }, duration);
@@ -56,7 +60,7 @@ const Toast = ({
         }
       };
     }
-  }, [visible, autoHide, duration, hideToast, slideAnim]);
+  }, [visible, autoHide, duration, hideToast, slideAnim, expanded]);
 
   const getToastStyle = () => {
     switch (type) {
@@ -87,6 +91,20 @@ const Toast = ({
 
   const toastStyle = getToastStyle();
 
+  // Check if message is long enough to need expansion
+  const isLongMessage = message && message.length > 60;
+
+  const handleMessagePress = () => {
+    if (isLongMessage) {
+      setExpanded(!expanded);
+      // Clear auto-hide timer when expanded
+      if (!expanded && timerRef.current) {
+        clearTimeout(timerRef.current);
+        timerRef.current = null;
+      }
+    }
+  };
+
   return (
     <Animated.View
       style={[
@@ -99,12 +117,18 @@ const Toast = ({
       ]}
     >
       <View style={styles.content}>
-        <View style={styles.messageContainer}>
+        <TouchableOpacity
+          style={styles.messageContainer}
+          onPress={handleMessagePress}
+          activeOpacity={isLongMessage ? 0.7 : 1}
+        >
           <Ionicons name={toastStyle.iconName} size={20} color="#fff" style={styles.icon} />
-          <Text style={styles.message} numberOfLines={2}>
-            {message}
-          </Text>
-        </View>
+          <View style={styles.messageTextContainer}>
+            <Text style={styles.message} numberOfLines={expanded ? undefined : 2}>
+              {message}
+            </Text>
+          </View>
+        </TouchableOpacity>
 
         <View style={styles.actions}>
           {action && (
@@ -154,10 +178,14 @@ const styles = StyleSheet.create({
   messageContainer: {
     flex: 1,
     flexDirection: 'row',
-    alignItems: 'center',
+    alignItems: 'flex-start',
+  },
+  messageTextContainer: {
+    flex: 1,
   },
   icon: {
     marginRight: 10,
+    marginTop: 2,
   },
   message: {
     flex: 1,

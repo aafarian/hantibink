@@ -7,6 +7,7 @@
 if (process.env.NODE_ENV !== 'production') {
   require('dotenv').config();
 }
+
 const express = require('express');
 const cors = require('cors');
 const helmet = require('helmet');
@@ -18,6 +19,27 @@ const { Server } = require('socket.io');
 
 // Import configurations and middleware
 const logger = require('./utils/logger');
+
+// ===== DATABASE ENVIRONMENT VALIDATION =====
+// Prevent accidental use of wrong database
+(function validateDatabaseEnvironment() {
+  const dbUrl = process.env.DATABASE_URL || '';
+  const nodeEnv = process.env.NODE_ENV || 'development';
+
+  // Safety check: In production, ensure we're not using localhost
+  if (nodeEnv === 'production') {
+    if (dbUrl.includes('localhost') || dbUrl.includes('127.0.0.1')) {
+      logger.error('❌ NODE_ENV is "production" but DATABASE_URL points to localhost!');
+      logger.error('❌ Production must use a remote database. Exiting.');
+      process.exit(1);
+    }
+  }
+
+  // Log which database we're connecting to (sanitized)
+  const sanitizedUrl = dbUrl.replace(/:[^:@]+@/, ':****@');
+  logger.info(`📊 Database environment: ${nodeEnv}`);
+  logger.info(`📊 Database URL: ${sanitizedUrl.substring(0, 60)}...`);
+})();
 
 logger.info('Starting Hantibink API Server...');
 const { errorHandler } = require('./middleware/errorHandler');

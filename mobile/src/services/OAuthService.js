@@ -6,15 +6,15 @@
 import * as AuthSession from 'expo-auth-session';
 import * as WebBrowser from 'expo-web-browser';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import Constants from 'expo-constants';
 import Logger from '../utils/logger';
 import OAUTH_CONFIG from '../config/oauth';
 import { Platform } from 'react-native';
+import { GoogleSignin, statusCodes } from '@react-native-google-signin/google-signin';
 
 // Ensure web browser sessions complete properly
 WebBrowser.maybeCompleteAuthSession();
 
-// Google discovery document
+// Google discovery document (for web fallback)
 const discovery = {
   authorizationEndpoint: 'https://accounts.google.com/o/oauth2/v2/auth',
   tokenEndpoint: 'https://oauth2.googleapis.com/token',
@@ -27,7 +27,8 @@ const getOAuthConfig = () => {
 
   return {
     google: {
-      clientId: OAUTH_CONFIG.google[env],
+      // Web client ID - used for getting idToken on native platforms
+      webClientId: OAUTH_CONFIG.google[env],
       scopes: ['openid', 'profile', 'email'],
     },
     facebook: {
@@ -43,99 +44,188 @@ const getOAuthConfig = () => {
 
 class OAuthService {
   constructor() {
-    // Check if running in Expo Go
-    const isExpoGo = Constants.appOwnership === 'expo';
+    this.isNativeGoogleSignIn = Platform.OS !== 'web';
+    this.googleSignInConfigured = false;
 
-    if (Platform.OS === 'web') {
-      // Web platform
-      this.redirectUri = AuthSession.makeRedirectUri({
-        useProxy: false,
-      });
-    } else if (isExpoGo) {
-      // Running in Expo Go - must use proxy
-      this.redirectUri = AuthSession.makeRedirectUri({
-        useProxy: true,
-        projectNameForProxy: '@antoafarian/hantibink',
-      });
-    } else {
-      // Development build or standalone app - use custom scheme
-      this.redirectUri = AuthSession.makeRedirectUri({
-        scheme: 'hantibink',
-        useProxy: false,
-      });
+    // Configure Google Sign-In for native platforms
+    if (this.isNativeGoogleSignIn) {
+      try {
+        const config = getOAuthConfig();
+        GoogleSignin.configure({
+          webClientId: config.google.webClientId,
+          offlineAccess: false,
+          scopes: config.google.scopes,
+        });
+        this.googleSignInConfigured = true;
+        Logger.info('✅ Native Google Sign-In configured');
+      } catch (error) {
+        Logger.error('❌ Failed to configure Google Sign-In:', error);
+      }
     }
 
-    Logger.info('🔐 OAuth redirect URI:', this.redirectUri);
+    // For web platform, set up redirect URI
+    if (Platform.OS === 'web') {
+      this.redirectUri = AuthSession.makeRedirectUri({ useProxy: false });
+      this.useProxy = false;
+    }
+
     Logger.info('📱 Platform:', Platform.OS);
-    Logger.info('📦 App Ownership:', Constants.appOwnership || 'standalone');
+    Logger.info('🔐 Using native Google Sign-In:', this.isNativeGoogleSignIn);
   }
 
   /**
-   * Sign in with Google using AuthSession
+   * Sign in with Google
+   * Uses native Google Sign-In for iOS/Android, falls back to AuthSession for web
    */
   async signInWithGoogle() {
     try {
       Logger.info('🔐 Starting Google sign-in...');
+      Logger.info('📱 Platform:', Platform.OS);
+      Logger.info('🔐 Using native sign-in:', this.isNativeGoogleSignIn);
 
+      // Use native Google Sign-In for iOS/Android
+      if (this.isNativeGoogleSignIn) {
+        return await this.nativeGoogleSignIn();
+      }
+
+      // Fall back to AuthSession for web
+      return await this.webGoogleSignIn();
+    } catch (error) {
+      Logger.error('❌ Google sign-in error:', error);
+      return {
+        success: false,
+        error: error.message || 'Google sign-in failed',
+      };
+    }
+  }
+
+  /**
+   * Native Google Sign-In for iOS/Android
+   */
+  async nativeGoogleSignIn() {
+    try {
+      if (!this.googleSignInConfigured) {
+        Logger.error('❌ Google Sign-In not configured');
+        return {
+          success: false,
+          error: 'Google Sign-In not configured',
+        };
+      }
+
+      // Check if user is already signed in
+      const isSignedIn = await GoogleSignin.hasPreviousSignIn();
+      if (isSignedIn) {
+        Logger.info('📱 User was previously signed in, signing out first...');
+        await GoogleSignin.signOut();
+      }
+
+      // Trigger sign-in flow
+      Logger.info('📱 Triggering native Google Sign-In...');
+      await GoogleSignin.hasPlayServices({ showPlayServicesUpdateDialog: true });
+      const userInfo = await GoogleSignin.signIn();
+
+      Logger.info('📱 Got user info:', {
+        hasUser: !!userInfo,
+        hasIdToken: !!userInfo?.data?.idToken,
+        email: userInfo?.data?.user?.email,
+      });
+
+      // Get the ID token
+      const idToken = userInfo?.data?.idToken;
+
+      if (!idToken) {
+        Logger.error('❌ No ID token received from Google Sign-In');
+        return {
+          success: false,
+          error: 'No ID token received from Google',
+        };
+      }
+
+      Logger.success('✅ Native Google Sign-In successful');
+      return {
+        success: true,
+        provider: 'google',
+        idToken: idToken,
+        accessToken: null, // Native sign-in gives us idToken, not accessToken
+        user: {
+          email: userInfo?.data?.user?.email || '',
+          name: userInfo?.data?.user?.name || '',
+          firstName: userInfo?.data?.user?.givenName || '',
+          lastName: userInfo?.data?.user?.familyName || '',
+          photo: userInfo?.data?.user?.photo || '',
+          emailVerified: true,
+          providerId: userInfo?.data?.user?.id || '',
+        },
+      };
+    } catch (error) {
+      Logger.error('❌ Native Google sign-in error:', error);
+      Logger.error('❌ Error code:', error.code);
+
+      // Handle specific error codes
+      if (error.code === statusCodes.SIGN_IN_CANCELLED) {
+        return {
+          success: false,
+          error: 'User cancelled',
+        };
+      } else if (error.code === statusCodes.IN_PROGRESS) {
+        return {
+          success: false,
+          error: 'Sign-in already in progress',
+        };
+      } else if (error.code === statusCodes.PLAY_SERVICES_NOT_AVAILABLE) {
+        return {
+          success: false,
+          error: 'Google Play Services not available',
+        };
+      }
+
+      return {
+        success: false,
+        error: error.message || 'Google sign-in failed',
+      };
+    }
+  }
+
+  /**
+   * Web-based Google Sign-In using AuthSession (fallback for web platform)
+   */
+  async webGoogleSignIn() {
+    try {
       const config = getOAuthConfig();
 
-      // For web platform, use different response type
-      const isWeb = Platform.OS === 'web';
-
-      // Create the auth request - use appropriate response type based on platform
       const request = new AuthSession.AuthRequest({
-        clientId: config.google.clientId,
+        clientId: config.google.webClientId,
         scopes: config.google.scopes,
-        // Use IdToken for native platforms, Token for web
-        responseType: isWeb ? AuthSession.ResponseType.Token : AuthSession.ResponseType.IdToken,
+        responseType: AuthSession.ResponseType.Token,
         redirectUri: this.redirectUri,
         prompt: AuthSession.Prompt.SelectAccount,
+        usePKCE: false,
         extraParams: {
-          // Add nonce for security
           nonce: Math.random().toString(36).substring(7),
-          // For web, we may need explicit access type
-          ...(isWeb && { access_type: 'online' }),
+          access_type: 'online',
         },
       });
 
-      Logger.info('📤 OAuth Request:', {
-        clientId: config.google.clientId,
+      Logger.info('📤 Web OAuth Request:', {
+        clientId: config.google.webClientId,
         redirectUri: this.redirectUri,
-        responseType: request.responseType,
-        platform: Platform.OS,
       });
 
-      // Check if running in Expo Go
-      const isExpoGo = Constants.appOwnership === 'expo';
-
-      // Prompt for authentication
       const result = await request.promptAsync(discovery, {
-        useProxy: isExpoGo && Platform.OS !== 'web', // Only use proxy for Expo Go
+        useProxy: this.useProxy,
       });
 
       Logger.info('🔍 OAuth Result:', {
         type: result.type,
         hasParams: !!result.params,
-        hasAuthentication: !!result.authentication,
         error: result.error,
-        errorCode: result.errorCode,
       });
 
       if (result.type === 'success') {
-        // Get tokens from the response
         const { params, authentication } = result;
-
-        // Try to get ID token from params or authentication
         const idToken = params?.id_token || authentication?.idToken;
         const accessToken = params?.access_token || authentication?.accessToken;
 
-        Logger.info('📦 Token info:', {
-          hasIdToken: !!idToken,
-          hasAccessToken: !!accessToken,
-        });
-
-        // If we have an access token but no ID token (common on web),
-        // we'll send the access token to the backend
         if (idToken || accessToken) {
           Logger.success('✅ Got tokens from Google');
           return {
@@ -144,7 +234,6 @@ class OAuthService {
             idToken: idToken || null,
             accessToken: accessToken || null,
             user: {
-              // These will be populated by the backend
               email: '',
               name: '',
               firstName: '',
@@ -155,44 +244,24 @@ class OAuthService {
             },
           };
         } else {
-          Logger.error('❌ No tokens in response');
-          Logger.error('Full params:', params);
-          Logger.error('Full authentication:', authentication);
           return {
             success: false,
             error: 'No tokens received from Google',
           };
         }
-      } else if (result.type === 'cancel') {
-        Logger.info('❌ Google sign-in cancelled by user');
+      } else if (result.type === 'cancel' || result.type === 'dismiss') {
         return {
           success: false,
           error: 'Sign-in cancelled',
         };
-      } else if (result.type === 'dismiss') {
-        Logger.error('❌ Google sign-in dismissed');
-        return {
-          success: false,
-          error: 'Authentication window closed',
-        };
-      } else if (result.type === 'error') {
-        Logger.error('❌ Google sign-in error:', {
-          error: result.error,
-          errorCode: result.errorCode,
-        });
-        return {
-          success: false,
-          error: result.error?.message || result.errorCode || 'Authentication failed',
-        };
       } else {
-        Logger.error('❌ Unknown result type:', result.type);
         return {
           success: false,
-          error: 'Authentication failed',
+          error: result.error?.message || 'Authentication failed',
         };
       }
     } catch (error) {
-      Logger.error('❌ Google sign-in error:', error);
+      Logger.error('❌ Web Google sign-in error:', error);
       return {
         success: false,
         error: error.message || 'Google sign-in failed',

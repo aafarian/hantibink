@@ -26,6 +26,7 @@
     "test:ci": "cd api && npm run test:ci",
     "migrate:dev": "cd api && npm run migrate:dev",
     "migrate:status": "cd api && npm run migrate:status",
+    "setup:db": "bash scripts/setup-local-dbs.sh",
     "install:all": "npm install && cd mobile && npm install && cd ../api && npm install",
     "clean:all": "rm -rf node_modules mobile/node_modules api/node_modules && npm run install:all",
     "doctor": "cd mobile && npx expo-doctor"

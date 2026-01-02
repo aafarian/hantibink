@@ -60,6 +60,7 @@ module.exports = () => {
             color: '#D32F2F',
           },
         ],
+        '@react-native-google-signin/google-signin',
       ],
       extra: {
         eas: {
