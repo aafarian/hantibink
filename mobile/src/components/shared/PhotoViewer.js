@@ -8,6 +8,7 @@ import {
   Dimensions,
   StatusBar,
   Platform,
+  Alert,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import BottomSheet, { BottomSheetView } from '@gorhom/bottom-sheet';
@@ -131,15 +132,28 @@ const PhotoViewer = forwardRef(
       [handlePrevious, handleNext, handleClose]
     );
 
-    const _handleSetMain = useCallback(() => {
+    const isMainPhoto = currentPhotoIndex === 0;
+
+    const handleSetMain = useCallback(() => {
+      if (isMainPhoto) return;
       onSetMain?.(currentPhotoIndex);
       handleClose();
-    }, [currentPhotoIndex, onSetMain, handleClose]);
+    }, [currentPhotoIndex, onSetMain, handleClose, isMainPhoto]);
+
+    const canDelete = photos.length > 1;
 
     const handleDelete = useCallback(() => {
+      if (!canDelete) {
+        Alert.alert(
+          'Cannot Delete',
+          'You need at least one photo on your profile. Add another photo before deleting this one.',
+          [{ text: 'OK' }]
+        );
+        return;
+      }
       onDelete?.(currentPhotoIndex);
       handleClose();
-    }, [currentPhotoIndex, onDelete, handleClose]);
+    }, [currentPhotoIndex, onDelete, handleClose, canDelete]);
 
     if (!photos.length) return null;
 
@@ -162,16 +176,36 @@ const PhotoViewer = forwardRef(
             <View style={styles.gestureWrapper}>
               {/* Header */}
               <View style={styles.header}>
-                <View style={styles.headerLeft}>
+                <TouchableOpacity onPress={handleClose} style={styles.backButton}>
+                  <Ionicons name="arrow-back" size={24} color="#666" />
+                </TouchableOpacity>
+                <View style={styles.headerCenter}>
                   <Text style={styles.headerTitle}>
                     {photos.length > 1
                       ? `${title} (${currentPhotoIndex + 1}/${photos.length})`
                       : title}
                   </Text>
                 </View>
-                <TouchableOpacity onPress={handleClose} style={styles.closeButton}>
-                  <Ionicons name="close" size={24} color="#666" />
-                </TouchableOpacity>
+                <View style={styles.headerActions}>
+                  {/* Make Main Button - only show if not already main and onSetMain provided */}
+                  {showActions && onSetMain && !isMainPhoto && (
+                    <TouchableOpacity onPress={handleSetMain} style={styles.headerActionButton}>
+                      <Ionicons name="star" size={22} color={theme.colors.primary} />
+                    </TouchableOpacity>
+                  )}
+                  {/* Delete Button */}
+                  {showActions && onDelete && (
+                    <TouchableOpacity
+                      onPress={handleDelete}
+                      style={[
+                        styles.headerActionButton,
+                        !canDelete && styles.headerActionButtonDisabled,
+                      ]}
+                    >
+                      <Ionicons name="trash" size={22} color={canDelete ? '#FF4444' : '#ccc'} />
+                    </TouchableOpacity>
+                  )}
+                </View>
               </View>
 
               {/* Photo Display */}
@@ -232,22 +266,9 @@ const PhotoViewer = forwardRef(
                   </View>
                 )}
 
-                {/* Action Buttons */}
-                {showActions && (
+                {/* Custom Action Buttons (if any) */}
+                {showActions && actionButtons.length > 0 && (
                   <View style={styles.actionButtons}>
-                    {onDelete && (
-                      <TouchableOpacity
-                        style={[styles.actionButton, styles.deleteButton]}
-                        onPress={handleDelete}
-                      >
-                        <Ionicons name="trash" size={20} color="#FF4444" />
-                        <Text style={[styles.actionButtonText, styles.deleteButtonText]}>
-                          Delete
-                        </Text>
-                      </TouchableOpacity>
-                    )}
-
-                    {/* Custom action buttons */}
                     {actionButtons.map((button, index) => (
                       <TouchableOpacity
                         key={index}
@@ -307,21 +328,38 @@ const styles = StyleSheet.create({
     borderBottomColor: '#f0f0f0',
     flexShrink: 0, // Prevent shrinking
   },
-  headerLeft: {
-    flex: 1,
-  },
-  headerTitle: {
-    color: '#333',
-    fontSize: 18,
-    fontWeight: '600',
-  },
-  closeButton: {
+  backButton: {
     backgroundColor: '#f8f9fa',
     borderRadius: 20,
     width: 40,
     height: 40,
     justifyContent: 'center',
     alignItems: 'center',
+  },
+  headerCenter: {
+    flex: 1,
+    alignItems: 'center',
+  },
+  headerActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  headerActionButton: {
+    backgroundColor: '#f8f9fa',
+    borderRadius: 20,
+    width: 40,
+    height: 40,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  headerActionButtonDisabled: {
+    opacity: 0.5,
+  },
+  headerTitle: {
+    color: '#333',
+    fontSize: 18,
+    fontWeight: '600',
   },
   photoContainer: {
     height: 400, // Fixed height for photo display
@@ -390,18 +428,11 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#e9ecef',
   },
-  deleteButton: {
-    backgroundColor: '#fff5f5',
-    borderColor: '#fed7d7',
-  },
   actionButtonText: {
     marginLeft: 8,
     fontSize: 14,
     fontWeight: '600',
     color: '#333',
-  },
-  deleteButtonText: {
-    color: '#FF4444',
   },
   customContent: {
     backgroundColor: '#fff',

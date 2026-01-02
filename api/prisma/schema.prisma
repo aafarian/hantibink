@@ -18,7 +18,7 @@ model User {
   password               String?        // Nullable for OAuth/phone auth
   firebaseUid            String?        @unique
   name                   String
-  birthDate              DateTime
+  birthDate              DateTime?      // Nullable - collected during gatekeeping
   gender                 Gender?        // Nullable until profile setup
   interestedIn           Gender[]       // Empty array until profile setup
   bio                    String?

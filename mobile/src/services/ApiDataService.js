@@ -914,6 +914,27 @@ class ApiDataService {
       return false;
     }
   }
+
+  // ============ ACCOUNT METHODS ============
+
+  /**
+   * Delete user account and all associated data
+   */
+  static async deleteAccount() {
+    try {
+      Logger.info('🗑️ Deleting account via API...');
+      const response = await apiClient.delete('/users/account');
+      if (response.success) {
+        Logger.success('✅ Account deleted successfully');
+        return { success: true };
+      }
+      Logger.error('❌ Failed to delete account:', response.message);
+      return { success: false, error: response.message || 'Failed to delete account' };
+    } catch (error) {
+      Logger.error('❌ Error deleting account:', error);
+      return { success: false, error: error.message || 'Failed to delete account' };
+    }
+  }
 }
 
 export default ApiDataService;

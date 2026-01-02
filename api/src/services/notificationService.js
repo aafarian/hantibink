@@ -139,22 +139,24 @@ async function sendMessageNotification(pushToken, title, body, navigationData = 
 
 /**
  * Send notification for a new like
+ * Only premium users see who liked them
  */
-async function sendLikeNotification(pushToken, likerName) {
+async function sendLikeNotification(pushToken, likerName, isPremium = false) {
   return sendPushNotification(pushToken, {
     title: '💖 Someone likes you!',
-    body: `${likerName} likes you!`,
+    body: isPremium ? `${likerName} likes you!` : 'Someone likes you! Upgrade to see who.',
     data: { type: 'like' },
   });
 }
 
 /**
  * Send notification for a super like
+ * Only premium users see who super liked them
  */
-async function sendSuperLikeNotification(pushToken, likerName) {
+async function sendSuperLikeNotification(pushToken, likerName, isPremium = false) {
   return sendPushNotification(pushToken, {
     title: '⭐ Super Like!',
-    body: `${likerName} super liked you!`,
+    body: isPremium ? `${likerName} super liked you!` : 'Someone super liked you! Upgrade to see who.',
     data: { type: 'superlike' },
   });
 }

@@ -11,6 +11,8 @@ import {
   ActivityIndicator,
   Platform,
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import DateTimePicker from '@react-native-community/datetimepicker';
 import * as ImagePicker from 'expo-image-picker';
 import * as Location from 'expo-location';
 import { Ionicons } from '@expo/vector-icons';
@@ -24,13 +26,17 @@ import { theme } from '../../styles/theme';
 const ProfileSetupModal = ({ visible, onClose, onComplete, userProfile }) => {
   const { showToast } = useToast();
   const { user } = useAuth();
+  const insets = useSafeAreaInsets();
   const [currentStep, setCurrentStep] = useState(0);
   const [loading, setLoading] = useState(false);
   const [uploadingPhotos, setUploadingPhotos] = useState(false);
   const [hasDetectedLocation, setHasDetectedLocation] = useState(false);
   const autoProgressionTimerRef = useRef(null);
   const [steps, setSteps] = useState([]); // Move this up before useEffects that depend on it
+  const [stepsLoading, setStepsLoading] = useState(true); // Track if steps are being calculated
+  const [showDatePicker, setShowDatePicker] = useState(Platform.OS === 'ios'); // Always show on iOS
   const [setupData, setSetupData] = useState({
+    birthDate: userProfile?.birthDate ? new Date(userProfile.birthDate) : null,
     gender: userProfile?.gender || '',
     interestedIn: userProfile?.interestedIn || [],
     photos: userProfile?.photos || [],
@@ -64,6 +70,9 @@ const ProfileSetupModal = ({ visible, onClose, onComplete, userProfile }) => {
         });
 
         return {
+          birthDate: userProfile.birthDate
+            ? new Date(userProfile.birthDate)
+            : prev.birthDate || null,
           gender: userProfile.gender || prev.gender || '',
           interestedIn: userProfile.interestedIn || prev.interestedIn || [],
           photos: hasLocalPhotos ? prev.photos : userProfile.photos || [],
@@ -187,10 +196,15 @@ const ProfileSetupModal = ({ visible, onClose, onComplete, userProfile }) => {
       const isFreshOpen = !wasVisibleRef.current;
       wasVisibleRef.current = true;
 
-      const buildSteps = async () => {
+      const buildSteps = () => {
         const missingSteps = [];
 
         // Check what's missing and add only those steps
+        // birthDate first - critical for age verification
+        if (!userProfile.birthDate) {
+          missingSteps.push({ title: 'Your Birthday', key: 'birthDate' });
+        }
+
         if (!userProfile.gender) {
           missingSteps.push({ title: 'Your Gender', key: 'gender' });
         }
@@ -203,84 +217,32 @@ const ProfileSetupModal = ({ visible, onClose, onComplete, userProfile }) => {
           missingSteps.push({ title: 'Add Photos', key: 'photos' });
         }
 
-        // Check if we need location step - based on permissions, not stored location
-        // This handles the case where user revokes permissions later
-        try {
-          const { status } = await Location.getForegroundPermissionsAsync();
-          if (status !== 'granted') {
-            // Permissions not granted, need to show location step
-            Logger.info('📍 Location permissions not granted, adding location step');
-            missingSteps.push({ title: 'Your Location', key: 'location' });
-          } else if (!userProfile.location || !userProfile.latitude || !userProfile.longitude) {
-            // Permissions granted but no location stored - try to get it silently
-            Logger.info(
-              '📍 Location permissions granted but no location stored, getting location silently...'
-            );
-
-            try {
-              const location = await Location.getCurrentPositionAsync({});
-              const { latitude, longitude } = location.coords;
-
-              // Reverse geocode to get city name
-              const reverseGeocode = await Location.reverseGeocodeAsync({
-                latitude,
-                longitude,
-              });
-
-              if (reverseGeocode[0]) {
-                const { city, region, country } = reverseGeocode[0];
-                // Build location string with proper fallbacks
-                const locationName = city || region || 'Unknown Location';
-                const locationString = country ? `${locationName}, ${country}` : locationName;
-
-                // Update both location states
-                const locationInfo = {
-                  location: locationString,
-                  latitude,
-                  longitude,
-                };
-
-                setLocationData(locationInfo);
-                setSetupData(prev => ({
-                  ...prev,
-                  ...locationInfo,
-                }));
-
-                // Immediately update the user's location in the database
-                try {
-                  await ApiDataService.updateUserProfile({
-                    location: locationString,
-                    latitude,
-                    longitude,
-                    locationEnabled: true,
-                  });
-                  Logger.success('📍 Location obtained and saved silently:', locationString);
-                } catch (error) {
-                  Logger.error('Failed to update location:', error);
-                }
-              } else {
-                // Couldn't get location details, add the step
-                Logger.warn('📍 Could not reverse geocode location');
-                missingSteps.push({ title: 'Your Location', key: 'location' });
-              }
-            } catch (error) {
-              Logger.warn('📍 Could not get current position:', error);
-              // Add location step as fallback
-              missingSteps.push({ title: 'Your Location', key: 'location' });
-            }
-          }
-          // If permissions are granted AND location is stored, we don't need the step
-        } catch (error) {
-          Logger.warn('Could not check location permissions:', error);
-          // Add location step as fallback
+        // Check if we need location step - just check if location is stored
+        // Location will be fetched when user reaches that step
+        if (!userProfile.location || !userProfile.latitude || !userProfile.longitude) {
           missingSteps.push({ title: 'Your Location', key: 'location' });
         }
 
         setSteps(missingSteps);
-        // Only reset to first step on fresh modal open, not on profile updates
+        setStepsLoading(false); // Steps are now calculated
+
+        // Handle step adjustments
         if (isFreshOpen) {
           Logger.info('📱 Fresh modal open, resetting to step 0');
           setCurrentStep(0);
+        } else if (missingSteps.length === 0) {
+          // All steps completed, close the modal
+          Logger.info('📱 All steps completed, closing modal');
+          onComplete && onComplete({});
+        } else if (currentStep >= missingSteps.length) {
+          // Current step is out of bounds, adjust to last step
+          Logger.info(
+            '📱 CurrentStep out of bounds, adjusting:',
+            currentStep,
+            '->',
+            missingSteps.length - 1
+          );
+          setCurrentStep(missingSteps.length - 1);
         } else {
           Logger.info('📱 Profile updated while modal open, keeping current step:', currentStep);
         }
@@ -290,8 +252,9 @@ const ProfileSetupModal = ({ visible, onClose, onComplete, userProfile }) => {
     } else if (!visible) {
       // Reset the ref when modal closes
       wasVisibleRef.current = false;
+      setStepsLoading(true); // Reset for next open
     }
-  }, [visible, userProfile, currentStep]); // Include currentStep for logging
+  }, [visible, userProfile, currentStep, onComplete]); // Include currentStep for logging
 
   // Reset hasDetectedLocation when modal closes and cleanup timer
   useEffect(() => {
@@ -318,6 +281,37 @@ const ProfileSetupModal = ({ visible, onClose, onComplete, userProfile }) => {
   const handleGenderSelect = useCallback(gender => {
     setSetupData(prev => ({ ...prev, gender }));
   }, []);
+
+  const handleBirthDateChange = useCallback((event, selectedDate) => {
+    if (Platform.OS === 'android') {
+      setShowDatePicker(false);
+    }
+    if (selectedDate) {
+      setSetupData(prev => ({ ...prev, birthDate: selectedDate }));
+    }
+  }, []);
+
+  // Calculate age from birthDate
+  const getAge = useCallback(birthDate => {
+    if (!birthDate) return null;
+    const today = new Date();
+    const birth = new Date(birthDate);
+    let age = today.getFullYear() - birth.getFullYear();
+    const monthDiff = today.getMonth() - birth.getMonth();
+    if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birth.getDate())) {
+      age--;
+    }
+    return age;
+  }, []);
+
+  // Validate age is 18-100
+  const isValidAge = useCallback(
+    birthDate => {
+      const age = getAge(birthDate);
+      return age !== null && age >= 18 && age <= 100;
+    },
+    [getAge]
+  );
 
   const handleInterestedInToggle = useCallback(option => {
     setSetupData(prev => {
@@ -471,6 +465,11 @@ const ProfileSetupModal = ({ visible, onClose, onComplete, userProfile }) => {
         let updateData = {};
 
         switch (stepKey) {
+          case 'birthDate':
+            if (setupData.birthDate) {
+              updateData = { birthDate: setupData.birthDate.toISOString() };
+            }
+            break;
           case 'gender':
             if (setupData.gender) {
               updateData = { gender: setupData.gender };
@@ -514,8 +513,8 @@ const ProfileSetupModal = ({ visible, onClose, onComplete, userProfile }) => {
                       );
                       const downloadURL = await uploadImageToFirebase(
                         photo.uri,
-                        user?.uid || 'temp',
-                        `photo_${Date.now()}_${i}`
+                        userProfile?.id || user?.uid || 'temp',
+                        'profile-photos'
                       );
                       uploadedPhotos.push({ url: downloadURL });
                       Logger.success(`✅ Uploaded photo ${i + 1}:`, downloadURL);
@@ -550,19 +549,8 @@ const ProfileSetupModal = ({ visible, onClose, onComplete, userProfile }) => {
                   };
                 });
 
-                // Also save to API immediately
-                Logger.info('💾 Saving uploaded photos to API...');
-                for (let i = 0; i < uploadedPhotos.length; i++) {
-                  const photo = uploadedPhotos[i];
-                  if (photo.url) {
-                    try {
-                      await ApiDataService.addUserPhoto(photo.url, i === 0);
-                      Logger.success(`✅ Photo ${i + 1} saved to API`);
-                    } catch (error) {
-                      Logger.error(`Failed to save photo ${i + 1} to API:`, error);
-                    }
-                  }
-                }
+                // Photos will be saved to API in handleComplete via complete-setup endpoint
+                // Don't save here to avoid duplicates
 
                 // Return the uploaded photos so handleNext can pass them to handleComplete
                 Logger.success('🎉 All photos uploaded and saved successfully:', uploadedPhotos);
@@ -604,7 +592,7 @@ const ProfileSetupModal = ({ visible, onClose, onComplete, userProfile }) => {
         return false;
       }
     },
-    [setupData, user, showToast]
+    [setupData, user, showToast, userProfile]
   );
 
   const handleCompleteWithPhotos = useCallback(
@@ -631,6 +619,9 @@ const ProfileSetupModal = ({ visible, onClose, onComplete, userProfile }) => {
 
         // Final save with all data to ensure completeness
         const completeData = {
+          ...(finalSetupData.birthDate
+            ? { birthDate: finalSetupData.birthDate.toISOString() }
+            : {}),
           gender: finalSetupData.gender,
           interestedIn: finalSetupData.interestedIn,
           photos: finalSetupData.photos.map(p => p.id || p.url || p),
@@ -710,6 +701,7 @@ const ProfileSetupModal = ({ visible, onClose, onComplete, userProfile }) => {
       // Final save with all data to ensure completeness
       // Only include photos if the photos step was part of this setup
       const completeData = {
+        ...(finalSetupData.birthDate ? { birthDate: finalSetupData.birthDate.toISOString() } : {}),
         gender: finalSetupData.gender,
         interestedIn: finalSetupData.interestedIn,
         ...(photosStepIncluded && finalSetupData.photos.length > 0
@@ -746,9 +738,28 @@ const ProfileSetupModal = ({ visible, onClose, onComplete, userProfile }) => {
   }, [setupData, locationData, showToast, onComplete, steps]);
 
   const handleNext = useCallback(async () => {
-    const currentStepKey = steps[currentStep].key;
+    const currentStepData = steps[currentStep];
+
+    // Guard against undefined step
+    if (!currentStepData) {
+      Logger.warn('handleNext called with undefined step');
+      return;
+    }
+
+    const currentStepKey = currentStepData.key;
 
     // Validate current step (skip validation if already filled from profile)
+    if (currentStepKey === 'birthDate') {
+      if (!setupData.birthDate) {
+        showToast('Please select your birth date', 'error');
+        return;
+      }
+      if (!isValidAge(setupData.birthDate)) {
+        showToast('You must be between 18 and 100 years old', 'error');
+        return;
+      }
+    }
+
     if (currentStepKey === 'gender' && !setupData.gender) {
       showToast('Please select your gender', 'error');
       return;
@@ -820,12 +831,74 @@ const ProfileSetupModal = ({ visible, onClose, onComplete, userProfile }) => {
     handleCompleteWithPhotos,
     saveStepData,
     loading,
+    isValidAge,
   ]);
 
   const renderStepContent = () => {
     const step = steps[currentStep];
 
+    // Guard against undefined step (can happen during state transitions)
+    if (!step) {
+      return (
+        <View style={styles.stepContent}>
+          <ActivityIndicator size="large" color={theme.colors.primary} />
+        </View>
+      );
+    }
+
+    // Default date for picker (18 years ago)
+    const defaultDate = new Date();
+    defaultDate.setFullYear(defaultDate.getFullYear() - 25);
+
+    // Min date (100 years ago)
+    const minDate = new Date();
+    minDate.setFullYear(minDate.getFullYear() - 100);
+
+    // Max date (18 years ago)
+    const maxDate = new Date();
+    maxDate.setFullYear(maxDate.getFullYear() - 18);
+
     switch (step.key) {
+      case 'birthDate':
+        return (
+          <View style={styles.stepContent}>
+            <Text style={styles.stepTitle}>When's your birthday?</Text>
+            <Text style={styles.helperText}>You must be at least 18 years old</Text>
+
+            {Platform.OS === 'android' && !showDatePicker && (
+              <TouchableOpacity
+                style={styles.datePickerButton}
+                onPress={() => setShowDatePicker(true)}
+              >
+                <Ionicons name="calendar" size={24} color={theme.colors.primary} />
+                <Text style={styles.datePickerButtonText}>
+                  {setupData.birthDate
+                    ? setupData.birthDate.toLocaleDateString('en-US', {
+                        year: 'numeric',
+                        month: 'long',
+                        day: 'numeric',
+                      })
+                    : 'Select your birthday'}
+                </Text>
+              </TouchableOpacity>
+            )}
+
+            {(Platform.OS === 'ios' || showDatePicker) && (
+              <View style={styles.datePickerContainer}>
+                <DateTimePicker
+                  value={setupData.birthDate || defaultDate}
+                  mode="date"
+                  display="spinner"
+                  onChange={handleBirthDateChange}
+                  minimumDate={minDate}
+                  maximumDate={maxDate}
+                  style={styles.datePicker}
+                />
+              </View>
+            )}
+          </View>
+        );
+
       case 'gender':
         return (
           <View style={styles.stepContent}>
@@ -954,8 +1027,8 @@ const ProfileSetupModal = ({ visible, onClose, onComplete, userProfile }) => {
     }
   };
 
-  // Don't render modal if there are no missing steps
-  if (steps.length === 0) {
+  // Don't render modal if there are no missing steps (after steps are calculated)
+  if (!stepsLoading && steps.length === 0) {
     return null;
   }
 
@@ -984,11 +1057,24 @@ const ProfileSetupModal = ({ visible, onClose, onComplete, userProfile }) => {
             ))}
           </View>
 
-          <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
-            {renderStepContent()}
+          <ScrollView
+            style={styles.content}
+            contentContainerStyle={styles.scrollContentContainer}
+            showsVerticalScrollIndicator={false}
+            keyboardShouldPersistTaps="handled"
+            nestedScrollEnabled={true}
+          >
+            {stepsLoading ? (
+              <View style={styles.loadingContainer}>
+                <ActivityIndicator size="large" color={theme.colors.primary} />
+                <Text style={styles.loadingText}>Loading...</Text>
+              </View>
+            ) : (
+              renderStepContent()
+            )}
           </ScrollView>
 
-          <View style={styles.footer}>
+          <View style={[styles.footer, { paddingBottom: Math.max(insets.bottom, 20) }]}>
             <View style={styles.footerLeft}>
               {currentStep > 0 ? (
                 <TouchableOpacity
@@ -1091,8 +1177,23 @@ const styles = StyleSheet.create({
   },
   content: {
     flex: 1,
+  },
+  scrollContentContainer: {
     paddingHorizontal: 25,
     paddingTop: 10,
+    paddingBottom: 20,
+    flexGrow: 1,
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingVertical: 50,
+  },
+  loadingText: {
+    marginTop: 15,
+    fontSize: 16,
+    color: '#666',
   },
   stepContent: {
     paddingTop: 10,
@@ -1110,6 +1211,34 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     marginTop: 8,
     lineHeight: 22,
+  },
+  datePickerButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: 35,
+    padding: 18,
+    borderRadius: 16,
+    borderWidth: 2,
+    borderColor: '#F0F0F0',
+    backgroundColor: '#FAFAFA',
+    gap: 12,
+  },
+  datePickerButtonText: {
+    fontSize: 17,
+    fontWeight: '600',
+    color: '#444',
+  },
+  datePickerContainer: {
+    marginTop: 25,
+    alignItems: 'center',
+    backgroundColor: '#FAFAFA',
+    borderRadius: 16,
+    padding: 10,
+  },
+  datePicker: {
+    width: '100%',
+    height: 180,
   },
   optionsContainer: {
     marginTop: 35,

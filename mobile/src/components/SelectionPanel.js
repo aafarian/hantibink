@@ -9,6 +9,7 @@ import {
   ScrollView,
   Animated,
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { MaterialIcons } from '@expo/vector-icons';
 import { theme } from '../styles/theme';
 
@@ -26,6 +27,8 @@ const SelectionPanel = ({
   placeholder: _placeholder = 'Select an option',
   initialScrollIndex = 0,
 }) => {
+  const insets = useSafeAreaInsets();
+
   // Handle both selectedValues and selectedOption for backward compatibility
   const actualSelectedValues = multiSelect
     ? selectedValues || []
@@ -91,7 +94,7 @@ const SelectionPanel = ({
           ]}
         >
           <TouchableOpacity
-            style={styles.panel}
+            style={[styles.panel, { paddingBottom: Math.max(20, insets.bottom + 10) }]}
             activeOpacity={1}
             onPress={() => {}} // Prevent closing when tapping inside panel
           >
@@ -170,7 +173,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#fff',
     borderTopLeftRadius: 20,
     borderTopRightRadius: 20,
-    paddingBottom: 20,
+    // paddingBottom is applied dynamically based on safe area insets
   },
   header: {
     flexDirection: 'row',

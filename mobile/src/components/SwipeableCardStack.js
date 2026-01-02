@@ -55,7 +55,7 @@ const SwipeableCard = ({ profile, isTop, position, scale, opacity }) => {
       <LinearGradient colors={['transparent', 'rgba(0,0,0,0.8)']} style={styles.gradient}>
         <View style={styles.cardInfo}>
           <Text style={styles.cardName}>
-            {profile.name}, {profile.age} ({profile.gender?.toLowerCase() || 'unknown'})
+            {profile.name}, {profile.age}
           </Text>
           {profile.distance !== null && profile.distance !== undefined && (
             <View style={styles.locationRow}>

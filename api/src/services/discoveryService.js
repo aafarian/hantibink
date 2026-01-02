@@ -176,6 +176,46 @@ const calculateMatchScore = (currentUser, otherUser, filters = {}) => {
 /**
  * Get users for discovery/swiping with flexible matching
  */
+/**
+ * Helper for strict single-value filters (education, smoking, drinking)
+ * Handles case-insensitive comparison and "doesn't matter" option
+ * @returns {boolean} true if user passes the filter, false if filtered out
+ */
+const passesStrictSingleValueFilter = (userValue, filterValues) => {
+  const normalizedFilter = filterValues.map(v => v.toLowerCase());
+
+  // "Doesn't matter" means no filtering
+  if (normalizedFilter.includes("doesn't matter")) {
+    return true;
+  }
+
+  // No value set - filter out when strict
+  if (!userValue) {
+    return false;
+  }
+
+  // Check if user's value matches any filter value (case-insensitive)
+  return normalizedFilter.includes(userValue.toLowerCase());
+};
+
+/**
+ * Helper for strict multi-value filters (languages, relationshipType)
+ * Handles case-insensitive comparison and inclusive matching (any match passes)
+ * @returns {boolean} true if user passes the filter, false if filtered out
+ */
+const passesStrictMultiValueFilter = (userValues, filterValues) => {
+  const normalizedFilter = filterValues.map(v => v.toLowerCase());
+  const normalizedUser = (userValues || []).map(v => v.toLowerCase());
+
+  // No values set - filter out when strict
+  if (normalizedUser.length === 0) {
+    return false;
+  }
+
+  // Check if ANY user value matches ANY filter value (inclusive)
+  return normalizedUser.some(val => normalizedFilter.includes(val));
+};
+
 const getUsersForDiscovery = async (currentUserId, options = {}) => {
   try {
     // First check if user is eligible for discovery and get full profile
@@ -491,46 +531,47 @@ const getUsersForDiscovery = async (currentUserId, options = {}) => {
           }
         }
         
-        // Strict relationship type filter
+        // Strict relationship type filter (inclusive - user just needs ONE matching type)
         if (defaultFilters.strictRelationshipType && defaultFilters.relationshipType.length > 0) {
-          const userTypes = Array.isArray(user.relationshipType) 
-            ? user.relationshipType 
-            : (user.relationshipType ? [user.relationshipType] : []);
-          const hasMatch = userTypes.some(type => defaultFilters.relationshipType.includes(type));
-          if (!hasMatch && userTypes.length > 0) {
+          // Parse user's relationship types (could be array, comma-separated string, or single value)
+          let userTypes = [];
+          if (Array.isArray(user.relationshipType)) {
+            userTypes = user.relationshipType;
+          } else if (user.relationshipType) {
+            userTypes = user.relationshipType.includes(',')
+              ? user.relationshipType.split(',').map(s => s.trim())
+              : [user.relationshipType];
+          }
+
+          if (!passesStrictMultiValueFilter(userTypes, defaultFilters.relationshipType)) {
             passesFilters = false;
           }
         }
-        
-        // Strict education filter
+
+        // Strict education filter (case-insensitive)
         if (defaultFilters.strictEducation && defaultFilters.education.length > 0) {
-          if (!defaultFilters.education.includes("Doesn't matter") && 
-              user.education && !defaultFilters.education.includes(user.education)) {
+          if (!passesStrictSingleValueFilter(user.education, defaultFilters.education)) {
             passesFilters = false;
           }
         }
-        
-        // Strict smoking filter
+
+        // Strict smoking filter (case-insensitive)
         if (defaultFilters.strictSmoking && defaultFilters.smoking.length > 0) {
-          if (!defaultFilters.smoking.includes("Doesn't matter") && 
-              user.smoking && !defaultFilters.smoking.includes(user.smoking)) {
+          if (!passesStrictSingleValueFilter(user.smoking, defaultFilters.smoking)) {
             passesFilters = false;
           }
         }
-        
-        // Strict drinking filter
+
+        // Strict drinking filter (case-insensitive)
         if (defaultFilters.strictDrinking && defaultFilters.drinking.length > 0) {
-          if (!defaultFilters.drinking.includes("Doesn't matter") && 
-              user.drinking && !defaultFilters.drinking.includes(user.drinking)) {
+          if (!passesStrictSingleValueFilter(user.drinking, defaultFilters.drinking)) {
             passesFilters = false;
           }
         }
-        
-        // Strict languages filter
+
+        // Strict languages filter (case-insensitive)
         if (defaultFilters.strictLanguages && defaultFilters.languages.length > 0) {
-          const userLanguages = user.languages || [];
-          const hasLanguageMatch = userLanguages.some(lang => defaultFilters.languages.includes(lang));
-          if (!hasLanguageMatch && userLanguages.length > 0) {
+          if (!passesStrictMultiValueFilter(user.languages, defaultFilters.languages)) {
             passesFilters = false;
           }
         }

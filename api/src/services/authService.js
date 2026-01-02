@@ -27,6 +27,8 @@ const registerUser = async (userData) => {
       name: !!name,
       email: !!email,
       password: !!password,
+    });
+    logger.debug('🔹 Gatekeeping data (collected after registration):', {
       birthDate: !!birthDate,
     });
     logger.debug('🔹 Optional setup data (for discovery):', {
@@ -101,7 +103,8 @@ const registerUser = async (userData) => {
           name,
           email,
           password: hashedPassword,
-          birthDate: new Date(birthDate),
+          // birthDate is now optional - collected during gatekeeping flow
+          ...(birthDate && { birthDate: new Date(birthDate) }),
           gender: genderEnum,
           interestedIn: interestedInEnum,
           firebaseUid,
@@ -206,7 +209,7 @@ const registerUser = async (userData) => {
     // Don't check location since it's auto-detected on the client
     // Note: Photos are required for a complete profile, but users can skip the setup modal
     // This ensures they're prompted to add photos but aren't blocked from using the app
-    const requiresSetup = !user.gender || !user.interestedIn || user.interestedIn.length === 0 || !hasPhotos;
+    const requiresSetup = !user.birthDate || !user.gender || !user.interestedIn || user.interestedIn.length === 0 || !hasPhotos;
     const isDiscoverable = !requiresSetup && hasPhotos;
     
     // Update user's onboarding stage and discoverability

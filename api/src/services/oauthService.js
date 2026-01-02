@@ -51,31 +51,44 @@ const handleOAuthAuth = async (provider, providerData) => {
         provider,
         providerId,
       },
-      include: { user: true },
+      include: {
+        user: {
+          include: {
+            photos: {
+              orderBy: { order: 'asc' },
+            },
+          },
+        },
+      },
     });
-    
+
     if (existingOAuth) {
       // User exists, log them in
-      const { token, refreshToken } = generateTokenPair({
-        id: existingOAuth.user.id,
+      const { accessToken, refreshToken } = generateTokenPair({
+        userId: existingOAuth.user.id,
         email: existingOAuth.user.email,
       });
-      
+
       logger.info(`✅ OAuth login successful for ${email}`);
-      
+
       return {
         success: true,
         isNewUser: false,
         user: existingOAuth.user,
-        token,
+        token: accessToken,
         refreshToken,
         requiresSetup: !existingOAuth.user.hasCompletedOnboarding,
       };
     }
-    
+
     // Check if email already exists (user might have registered with email/password)
     const existingUser = await prisma.user.findUnique({
       where: { email },
+      include: {
+        photos: {
+          orderBy: { order: 'asc' },
+        },
+      },
     });
     
     if (existingUser) {
@@ -96,24 +109,26 @@ const handleOAuthAuth = async (provider, providerData) => {
         });
       }
       
-      const { token, refreshToken } = generateTokenPair({
-        id: existingUser.id,
+      const { accessToken, refreshToken } = generateTokenPair({
+        userId: existingUser.id,
         email: existingUser.email,
       });
-      
+
       logger.info(`✅ OAuth account linked to existing user ${email}`);
-      
+
       return {
         success: true,
         isNewUser: false,
         user: existingUser,
-        token,
+        token: accessToken,
         refreshToken,
         requiresSetup: !existingUser.hasCompletedOnboarding,
       };
     }
     
     // Create new user with OAuth
+    // birthDate is now nullable, so OAuth users can be created without it
+    // They'll be prompted to complete their profile via the gatekeeping flow
     const newUser = await prisma.user.create({
       data: {
         email,
@@ -121,31 +136,53 @@ const handleOAuthAuth = async (provider, providerData) => {
         emailVerified,
         mainPhotoUrl: picture,
         registrationMethod: provider.toUpperCase(),
-        onboardingStage: 'OAUTH_NEEDS_BIRTHDAY', // OAuth users need to provide birthday
+        onboardingStage: 'REGISTERED', // New users need to complete setup
         oauthAccounts: {
           create: {
             provider,
             providerId,
           },
         },
+        // Create a Photo record from Google profile picture if available
+        ...(picture && {
+          photos: {
+            create: {
+              url: picture,
+              order: 0,
+              isMain: true,
+            },
+          },
+        }),
+      },
+      // Include photos in the response so the mobile app has them immediately
+      include: {
+        photos: {
+          orderBy: { order: 'asc' },
+        },
       },
     });
     
-    const { token, refreshToken } = generateTokenPair({
-      id: newUser.id,
+    const { accessToken, refreshToken } = generateTokenPair({
+      userId: newUser.id,
       email: newUser.email,
     });
-    
+
     logger.info(`✅ New user registered via ${provider}: ${email}`);
-    
+
+    // Build list of missing fields dynamically
+    const missingFields = ['birthDate', 'gender', 'interestedIn', 'location'];
+    if (!picture) {
+      missingFields.push('photos');
+    }
+
     return {
       success: true,
       isNewUser: true,
       user: newUser,
-      token,
+      token: accessToken,
       refreshToken,
       requiresSetup: true,
-      missingFields: ['birthDate'], // OAuth doesn't provide birthdate
+      missingFields,
     };
   } catch (error) {
     logger.error(`OAuth ${provider} error:`, error);

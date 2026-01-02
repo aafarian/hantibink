@@ -516,15 +516,44 @@ router.put('/notification-settings', authenticateJWT, async (req, res) => {
 
 /**
  * @route   DELETE /api/users/account
- * @desc    Delete user account
+ * @desc    Delete user account and all associated data
  * @access  Private
  */
 router.delete('/account', authenticateJWT, async (req, res) => {
-  res.json({
-    message: 'Delete user account endpoint',
-    endpoint: 'DELETE /api/users/account',
-    status: 'Coming soon - will implement account deletion with data cleanup',
-  });
+  try {
+    const userId = req.user.id;
+
+    logger.info(`🗑️ Starting account deletion for user: ${userId}`);
+
+    // Delete the user - cascade will handle all related data
+    // (photos, matches, messages, actions, oauth accounts, etc.)
+    await prisma.user.delete({
+      where: { id: userId },
+    });
+
+    logger.info(`✅ Account deleted successfully for user: ${userId}`);
+
+    res.json({
+      success: true,
+      message: 'Account deleted successfully. All your data has been removed.',
+    });
+  } catch (error) {
+    logger.error('❌ Delete account error:', error);
+
+    if (error.code === 'P2025') {
+      return res.status(404).json({
+        success: false,
+        error: 'Account not found',
+        message: 'This account may have already been deleted.',
+      });
+    }
+
+    res.status(500).json({
+      success: false,
+      error: 'Account deletion failed',
+      message: 'Unable to delete account at this time. Please try again later.',
+    });
+  }
 });
 
 /**

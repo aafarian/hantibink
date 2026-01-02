@@ -520,13 +520,17 @@ async function startServer() {
         if (userData && userData.userId) {
           const { userId, matchIds } = userData;
 
-          // Update lastActive in database
+          // Update lastActive in database (use updateMany to avoid errors if user was deleted)
           try {
             const prisma = getPrismaClient();
-            await prisma.user.update({
+            const result = await prisma.user.updateMany({
               where: { id: userId },
               data: { lastActive: new Date() },
             });
+            // If no records were updated, user was probably deleted
+            if (result.count === 0) {
+              logger.info(`🔴 User ${userId} already deleted, skipping lastActive update`);
+            }
           } catch (error) {
             logger.warn('🔴 Could not update lastActive:', error.message);
           }

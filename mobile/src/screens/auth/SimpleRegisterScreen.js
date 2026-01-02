@@ -11,7 +11,6 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { MaterialIcons } from '@expo/vector-icons';
-import DateTimePicker from '@react-native-community/datetimepicker';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 import { useAuth } from '../../contexts/AuthContext';
@@ -26,12 +25,9 @@ const SimpleRegisterScreen = ({ navigation }) => {
     password: '',
     confirmPassword: '',
     name: '',
-    birthDate: null,
-    age: null,
   });
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
-  const [showDatePicker, setShowDatePicker] = useState(false);
   const [loading, setLoading] = useState(false);
   const [fieldErrors, setFieldErrors] = useState({}); // Track field-specific errors
   const [hasValidationErrors, setHasValidationErrors] = useState(true); // Track if form has errors - start as true
@@ -73,24 +69,13 @@ const SimpleRegisterScreen = ({ navigation }) => {
         formData.password &&
         formData.password.length >= 6 &&
         formData.confirmPassword &&
-        formData.confirmPassword === formData.password &&
-        formData.birthDate &&
-        formData.age >= 18;
+        formData.confirmPassword === formData.password;
 
       setHasValidationErrors(!isValid);
     };
 
     checkFormValidity();
   }, [formData, fieldErrors]);
-
-  // Validate all text fields when clicking on non-input elements
-  const validateTextFields = () => {
-    // Validate all text fields that have values
-    if (formData.name) validateField('name', formData.name);
-    if (formData.email) validateField('email', formData.email);
-    if (formData.password) validateField('password', formData.password);
-    if (formData.confirmPassword) validateField('confirmPassword', formData.confirmPassword);
-  };
 
   // Gender and interestedIn options are imported from ProfileFieldsConfig for consistency
 
@@ -159,28 +144,6 @@ const SimpleRegisterScreen = ({ navigation }) => {
     setHasValidationErrors(Object.keys(newErrors).length > 0);
   };
 
-  const calculateAge = birthDate => {
-    const today = new Date();
-    const birth = new Date(birthDate);
-    let age = today.getFullYear() - birth.getFullYear();
-    const monthDiff = today.getMonth() - birth.getMonth();
-
-    if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birth.getDate())) {
-      age--;
-    }
-
-    return age;
-  };
-
-  const handleDateChange = (event, selectedDate) => {
-    // Don't close modal automatically - only update the value
-    if (selectedDate) {
-      const age = calculateAge(selectedDate);
-      updateField('birthDate', selectedDate.toISOString());
-      updateField('age', age);
-    }
-  };
-
   const validateEmail = async email => {
     if (!email) {
       const newErrors = { ...fieldErrors, email: 'Email is required' };
@@ -224,6 +187,10 @@ const SimpleRegisterScreen = ({ navigation }) => {
       errors.password = 'Password must be at least 6 characters';
       showError('Password must be at least 6 characters');
       hasErrors = true;
+    } else if (!/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)/.test(formData.password)) {
+      errors.password = 'Password must contain uppercase, lowercase, and a number';
+      showError('Password must contain uppercase, lowercase, and a number');
+      hasErrors = true;
     } else if (formData.password !== formData.confirmPassword) {
       errors.confirmPassword = 'Passwords do not match';
       showError('Passwords do not match');
@@ -234,13 +201,6 @@ const SimpleRegisterScreen = ({ navigation }) => {
     if (!formData.name.trim()) {
       errors.name = 'Name is required';
       showError('Name is required');
-      hasErrors = true;
-    }
-
-    // Age validation
-    if (!formData.age || formData.age < 18) {
-      errors.birthDate = 'You must be at least 18 years old';
-      showError('You must be at least 18 years old');
       hasErrors = true;
     }
 
@@ -256,19 +216,17 @@ const SimpleRegisterScreen = ({ navigation }) => {
       Logger.info('🔄 Creating account with minimal info...');
 
       // Create account with minimal required data
+      // birthDate, gender, interestedIn, location collected during gatekeeping
       const userData = {
         email: formData.email,
         password: formData.password,
         name: formData.name,
-        birthDate: formData.birthDate,
-        // No gender, interestedIn, or location for minimal registration
       };
 
       // Debug log to see what we're sending
       Logger.info('🔍 Minimal registration data being sent:', {
         email: userData.email,
         name: userData.name,
-        birthDate: userData.birthDate,
       });
 
       // Register user via API (normal login flow)
@@ -461,28 +419,6 @@ const SimpleRegisterScreen = ({ navigation }) => {
                 <Text style={styles.errorText}>{fieldErrors.confirmPassword}</Text>
               )}
             </View>
-
-            {/* Birth Date */}
-            <View style={styles.fieldContainer}>
-              <Text style={styles.label}>Birthday *</Text>
-              <TouchableOpacity
-                style={[styles.dateButton, fieldErrors.birthDate && styles.inputError]}
-                onPress={() => {
-                  validateTextFields(); // Validate text fields when clicking date picker
-                  setShowDatePicker(true);
-                }}
-              >
-                <Text style={[styles.dateText, !formData.birthDate && styles.placeholderText]}>
-                  {formData.birthDate
-                    ? new Date(formData.birthDate).toLocaleDateString()
-                    : 'Select your birthday'}
-                </Text>
-                <MaterialIcons name="calendar-today" size={20} color="#666" />
-              </TouchableOpacity>
-              {fieldErrors.birthDate && (
-                <Text style={styles.errorText}>{fieldErrors.birthDate}</Text>
-              )}
-            </View>
           </View>
           {/* Register Button */}
           <View style={styles.buttonContainer}>
@@ -507,23 +443,6 @@ const SimpleRegisterScreen = ({ navigation }) => {
             </View>
           </View>
         </ScrollView>
-
-        {/* Date Picker Modal */}
-        {showDatePicker && (
-          <DateTimePicker
-            testID="dateTimePicker"
-            value={formData.birthDate ? new Date(formData.birthDate) : new Date()}
-            mode="date"
-            is24Hour={true}
-            display="spinner"
-            onChange={(event, selectedDate) => {
-              setShowDatePicker(false);
-              handleDateChange(event, selectedDate);
-            }}
-            maximumDate={new Date()}
-            minimumDate={new Date(1940, 0, 1)}
-          />
-        )}
       </KeyboardAvoidingView>
     </SafeAreaView>
   );
@@ -629,25 +548,6 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: 'bold',
   },
-  dateButton: {
-    backgroundColor: '#fff',
-    borderRadius: 12,
-    paddingHorizontal: 16,
-    paddingVertical: 16,
-    borderWidth: 1,
-    borderColor: '#e0e0e0',
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-  },
-  dateText: {
-    fontSize: 16,
-    color: '#333',
-  },
-  placeholderText: {
-    color: '#999',
-  },
-
   inputError: {
     borderColor: theme.colors.primary,
     backgroundColor: '#FFF5F5',
