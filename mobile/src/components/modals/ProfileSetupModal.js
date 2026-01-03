@@ -604,6 +604,7 @@ const ProfileSetupModal = ({ visible, onClose, onComplete, userProfile }) => {
         if (!uploadedPhotos || !Array.isArray(uploadedPhotos) || uploadedPhotos.length === 0) {
           Logger.error('❌ Invalid uploadedPhotos:', uploadedPhotos);
           showToast('No photos to save', 'error');
+          setLoading(false);
           return;
         }
 
@@ -653,7 +654,7 @@ const ProfileSetupModal = ({ visible, onClose, onComplete, userProfile }) => {
           // This prevents the modal from staying open if onComplete has issues
           onClose();
 
-          // Then trigger refresh and callback in background
+          // Then trigger refresh and callback after modal animation completes
           setTimeout(() => {
             try {
               // Refresh user profile to get updated data
@@ -668,7 +669,7 @@ const ProfileSetupModal = ({ visible, onClose, onComplete, userProfile }) => {
               // Don't show error - setup already succeeded and modal is closed
               Logger.warn('Post-completion callback error (setup succeeded):', callbackError);
             }
-          }, 100);
+          }, 300); // 300ms to allow modal animation to complete
         } else {
           Logger.error('❌ Profile setup returned failure:', response);
           throw new Error(response?.message || 'Setup failed');
@@ -761,7 +762,7 @@ const ProfileSetupModal = ({ visible, onClose, onComplete, userProfile }) => {
         // This prevents the modal from staying open if onComplete has issues
         onClose();
 
-        // Then trigger refresh and callback in background
+        // Then trigger refresh and callback after modal animation completes
         setTimeout(() => {
           try {
             // Refresh user profile to get updated data
@@ -776,7 +777,7 @@ const ProfileSetupModal = ({ visible, onClose, onComplete, userProfile }) => {
             // Don't show error - setup already succeeded and modal is closed
             Logger.warn('Post-completion callback error (setup succeeded):', callbackError);
           }
-        }, 100);
+        }, 300); // 300ms to allow modal animation to complete
       } else {
         Logger.error('❌ Profile setup returned failure:', response);
         throw new Error(response?.message || 'Setup failed');
