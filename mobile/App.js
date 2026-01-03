@@ -4,6 +4,8 @@ import { StyleSheet } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { Provider as PaperProvider } from 'react-native-paper';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
+import * as Sentry from '@sentry/react-native';
+import Constants from 'expo-constants';
 import ErrorBoundary from './src/components/ErrorBoundary';
 import { AuthProvider } from './src/contexts/AuthContext';
 import { ToastProvider } from './src/contexts/ToastContext';
@@ -12,7 +14,26 @@ import { FeatureFlagsProvider } from './src/contexts/FeatureFlagsContext';
 import { PhotoViewerProvider } from './src/contexts/PhotoViewerContext';
 import AppNavigator from './src/navigation/AppNavigator';
 
-export default function App() {
+// Initialize Sentry
+const SENTRY_DSN = Constants.expoConfig?.extra?.sentryDsn;
+if (SENTRY_DSN) {
+  Sentry.init({
+    dsn: SENTRY_DSN,
+    environment: __DEV__ ? 'development' : 'production',
+    enableAutoSessionTracking: true,
+    tracesSampleRate: __DEV__ ? 1.0 : 0.1,
+    debug: __DEV__,
+    beforeSend(event) {
+      // Don't send events in development
+      if (__DEV__) {
+        return null;
+      }
+      return event;
+    },
+  });
+}
+
+function App() {
   return (
     <ErrorBoundary>
       <PaperProvider>
@@ -42,3 +63,6 @@ const styles = StyleSheet.create({
     flex: 1,
   },
 });
+
+// Wrap with Sentry for automatic error tracking
+export default Sentry.wrap(App);

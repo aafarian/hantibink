@@ -8,6 +8,24 @@ if (process.env.NODE_ENV !== 'production') {
   require('dotenv').config();
 }
 
+// Initialize Sentry FIRST - before any other imports
+const Sentry = require('@sentry/node');
+
+if (process.env.SENTRY_DSN) {
+  Sentry.init({
+    dsn: process.env.SENTRY_DSN,
+    environment: process.env.NODE_ENV || 'development',
+    tracesSampleRate: process.env.NODE_ENV === 'production' ? 0.1 : 1.0, // 10% in prod, 100% in dev
+    beforeSend(event) {
+      // Don't send events in development unless explicitly enabled
+      if (process.env.NODE_ENV === 'development' && !process.env.SENTRY_DEBUG) {
+        return null;
+      }
+      return event;
+    },
+  });
+}
+
 const express = require('express');
 const cors = require('cors');
 const helmet = require('helmet');

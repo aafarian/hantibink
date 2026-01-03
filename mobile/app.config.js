@@ -61,11 +61,19 @@ module.exports = () => {
           },
         ],
         '@react-native-google-signin/google-signin',
+        [
+          '@sentry/react-native/expo',
+          {
+            organization: process.env.SENTRY_ORG,
+            project: process.env.SENTRY_PROJECT,
+          },
+        ],
       ],
       extra: {
         eas: {
           projectId: '316f94ce-dca3-4d3d-868a-5885e6704f84',
         },
+        sentryDsn: process.env.SENTRY_DSN,
       },
       runtimeVersion: {
         policy: 'appVersion',

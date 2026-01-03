@@ -5,6 +5,25 @@ const logger = require('../utils/logger');
 
 const prisma = getPrismaClient();
 
+/**
+ * Check if a Google profile picture is the default avatar (not a real photo)
+ * Default avatars contain patterns like "/a/default-user" or are placeholder images
+ */
+const isDefaultGoogleAvatar = (pictureUrl) => {
+  if (!pictureUrl) {
+    return true;
+  }
+
+  // Google's default avatars have these patterns
+  const defaultPatterns = [
+    '/a/default-user',
+    '/a-/default-user',
+    'googleusercontent.com/a/A', // Default avatar pattern (single letter avatars)
+  ];
+
+  return defaultPatterns.some(pattern => pictureUrl.includes(pattern));
+};
+
 // Initialize Google OAuth client
 const googleClient = new OAuth2Client(
   process.env.GOOGLE_CLIENT_ID,
@@ -129,12 +148,16 @@ const handleOAuthAuth = async (provider, providerData) => {
     // Create new user with OAuth
     // birthDate is now nullable, so OAuth users can be created without it
     // They'll be prompted to complete their profile via the gatekeeping flow
+
+    // Only use the Google picture if it's a real photo, not the default avatar
+    const hasRealPhoto = picture && !isDefaultGoogleAvatar(picture);
+
     const newUser = await prisma.user.create({
       data: {
         email,
         name,
         emailVerified,
-        mainPhotoUrl: picture,
+        mainPhotoUrl: hasRealPhoto ? picture : null,
         registrationMethod: provider.toUpperCase(),
         onboardingStage: 'REGISTERED', // New users need to complete setup
         oauthAccounts: {
@@ -143,8 +166,8 @@ const handleOAuthAuth = async (provider, providerData) => {
             providerId,
           },
         },
-        // Create a Photo record from Google profile picture if available
-        ...(picture && {
+        // Create a Photo record from Google profile picture if available (skip default avatars)
+        ...(hasRealPhoto && {
           photos: {
             create: {
               url: picture,
@@ -171,7 +194,7 @@ const handleOAuthAuth = async (provider, providerData) => {
 
     // Build list of missing fields dynamically
     const missingFields = ['birthDate', 'gender', 'interestedIn', 'location'];
-    if (!picture) {
+    if (!hasRealPhoto) {
       missingFields.push('photos');
     }
 
