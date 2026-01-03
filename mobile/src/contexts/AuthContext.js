@@ -5,7 +5,7 @@ import SocketService from '../services/SocketService';
 import Logger from '../utils/logger';
 import { uploadImageToFirebase } from '../utils/imageUpload';
 import * as Location from 'expo-location';
-import { registerForPushNotificationsAsync } from '../utils/notifications';
+import { registerForPushNotificationsAsync, clearPushTokenAsync } from '../utils/notifications';
 
 /**
  * Transform API profile format to Firebase format
@@ -495,6 +495,10 @@ export const AuthProvider = ({ children }) => {
   const logout = async () => {
     try {
       Logger.info('👋 Logging out from API...');
+
+      // Clear push token FIRST (before API logout invalidates the token)
+      // This ensures we don't receive notifications meant for this account
+      await clearPushTokenAsync();
 
       // Logout from API
       await ApiDataService.logout();

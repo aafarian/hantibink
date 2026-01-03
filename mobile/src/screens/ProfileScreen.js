@@ -515,7 +515,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     width: '100%',
-    height: 300,
+    height: 350,
   },
   blurredBackground: {
     position: 'absolute',
@@ -536,9 +536,9 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(0, 0, 0, 0.3)',
   },
   mainPhoto: {
-    width: 200,
-    height: 250,
-    borderRadius: 12,
+    width: 260,
+    height: 350,
+    borderRadius: 0,
     zIndex: 2,
   },
   editPill: {

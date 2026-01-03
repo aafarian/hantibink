@@ -120,7 +120,10 @@ const ProfileEditScreen = ({ navigation }) => {
   };
 
   const handlePhotoSuccess = async message => {
-    showSuccess(message);
+    // Only show toast if message provided (skip for silent operations like reorder)
+    if (message) {
+      showSuccess(message);
+    }
     // Refresh profile to get updated photo data
     await refreshUserProfile();
   };

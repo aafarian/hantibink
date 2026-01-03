@@ -593,53 +593,75 @@ const LikedYouScreen = () => {
     return (
       <View style={styles.header}>
         <View style={styles.headerContent}>
-          <Text style={styles.headerTitle}>Who Liked You</Text>
-          <View style={styles.likeCountBadge}>
-            <Text style={styles.likeCountText}>{totalLikesCount}</Text>
+          <View style={styles.headerLeft}>
+            <View style={styles.likeCountBadge}>
+              <Ionicons name="heart" size={14} color="white" />
+              <Text style={styles.likeCountText}>{totalLikesCount}</Text>
+            </View>
+            <Text style={styles.headerSubtitle}>
+              {totalLikesCount === 1 ? 'person likes you' : 'people like you'}
+            </Text>
           </View>
+
+          {isPremium && (
+            <View style={styles.premiumBadge}>
+              <Ionicons name="diamond" size={12} color={theme.colors.premium} />
+              <Text style={styles.premiumText}>Premium</Text>
+            </View>
+          )}
         </View>
 
         {!isPremium && incomingLikes.length > 0 && (
           <TouchableOpacity style={styles.upgradeButton} onPress={() => setShowUpgradeModal(true)}>
-            <LinearGradient
-              colors={['#FFD700', '#FFA500']}
-              style={styles.upgradeGradient}
-              start={{ x: 0, y: 0 }}
-              end={{ x: 1, y: 0 }}
-            >
-              <Ionicons name="star" size={16} color="white" />
-              <Text style={styles.upgradeButtonText}>See Who Liked You</Text>
-            </LinearGradient>
+            <Ionicons name="diamond-outline" size={18} color="white" />
+            <Text style={styles.upgradeButtonText}>Unlock to see who</Text>
           </TouchableOpacity>
-        )}
-
-        {isPremium && (
-          <View style={styles.premiumBadge}>
-            <Ionicons name="star" size={14} color="#B8860B" />
-            <Text style={styles.premiumText}>PREMIUM</Text>
-          </View>
         )}
       </View>
     );
   };
 
-  const renderEmptyState = () => (
-    <View style={styles.emptyState}>
-      <View style={styles.emptyIconContainer}>
-        <Ionicons name="heart-outline" size={80} color="#E0E0E0" />
+  const renderEmptyState = () => {
+    // Show premium upsell for free users
+    if (!isPremium) {
+      return (
+        <View style={styles.emptyState}>
+          <View style={[styles.emptyIconContainer, styles.premiumIconContainer]}>
+            <Ionicons name="diamond" size={60} color={theme.colors.premium} />
+          </View>
+          <Text style={styles.emptyTitle}>See Who Likes You</Text>
+          <Text style={styles.emptySubtitle}>
+            Upgrade to Premium to see everyone who has liked your profile and match instantly.
+          </Text>
+          <TouchableOpacity
+            style={styles.emptyUpgradeButton}
+            onPress={() => setShowUpgradeModal(true)}
+          >
+            <Text style={styles.emptyUpgradeButtonText}>Upgrade to Premium</Text>
+          </TouchableOpacity>
+        </View>
+      );
+    }
+
+    // Premium users with no likes
+    return (
+      <View style={styles.emptyState}>
+        <View style={styles.emptyIconContainer}>
+          <Ionicons name="heart-outline" size={80} color="#E0E0E0" />
+        </View>
+        <Text style={styles.emptyTitle}>No Likes Yet</Text>
+        <Text style={styles.emptySubtitle}>
+          Don't worry! Keep swiping and updating your profile to get more likes.
+        </Text>
+        <View style={styles.tipContainer}>
+          <Text style={styles.tipTitle}>Pro Tips:</Text>
+          <Text style={styles.tipText}>• Add more photos to your profile</Text>
+          <Text style={styles.tipText}>• Write an interesting bio</Text>
+          <Text style={styles.tipText}>• Be active and swipe daily</Text>
+        </View>
       </View>
-      <Text style={styles.emptyTitle}>No Likes Yet</Text>
-      <Text style={styles.emptySubtitle}>
-        Don't worry! Keep swiping and updating your profile to get more likes.
-      </Text>
-      <View style={styles.tipContainer}>
-        <Text style={styles.tipTitle}>💡 Pro Tips:</Text>
-        <Text style={styles.tipText}>• Add more photos to your profile</Text>
-        <Text style={styles.tipText}>• Write an interesting bio</Text>
-        <Text style={styles.tipText}>• Be active and swipe daily</Text>
-      </View>
-    </View>
-  );
+    );
+  };
 
   // User detail modal
   const renderUserModal = () => (
@@ -787,61 +809,66 @@ const styles = StyleSheet.create({
   },
   header: {
     backgroundColor: 'white',
-    padding: 20,
+    paddingHorizontal: 16,
+    paddingVertical: 14,
     borderBottomWidth: 1,
-    borderBottomColor: '#f0f0f0',
+    borderBottomColor: theme.colors.border.light,
   },
   headerContent: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    marginBottom: 10,
   },
-  headerTitle: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    color: '#333',
+  headerLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+  },
+  headerSubtitle: {
+    fontSize: 15,
+    color: theme.colors.text.secondary,
   },
   likeCountBadge: {
     backgroundColor: theme.colors.primary,
-    borderRadius: 15,
-    paddingHorizontal: 12,
-    paddingVertical: 4,
+    borderRadius: 16,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
   },
   likeCountText: {
     color: 'white',
-    fontWeight: 'bold',
+    fontWeight: '600',
     fontSize: 14,
   },
   upgradeButton: {
-    marginTop: 10,
-  },
-  upgradeGradient: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingVertical: 12,
-    paddingHorizontal: 20,
-    borderRadius: 25,
+    backgroundColor: theme.colors.primary,
+    paddingVertical: 10,
+    paddingHorizontal: 16,
+    borderRadius: 20,
+    marginTop: 12,
+    gap: 8,
   },
   upgradeButtonText: {
     color: 'white',
-    fontWeight: 'bold',
-    marginLeft: 8,
-    fontSize: 16,
+    fontWeight: '600',
+    fontSize: 15,
   },
   premiumBadge: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#FFF8DC',
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 15,
-    alignSelf: 'flex-start',
+    backgroundColor: `${theme.colors.premium}15`,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 12,
+    gap: 4,
   },
   premiumText: {
-    color: '#B8860B', // DarkGoldenRod - better contrast
-    fontWeight: 'bold',
-    marginLeft: 4,
+    color: theme.colors.premium,
+    fontWeight: '600',
     fontSize: 12,
   },
   gridContainer: {
@@ -988,6 +1015,26 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: '#666',
     marginBottom: 5,
+  },
+  premiumIconContainer: {
+    backgroundColor: `${theme.colors.premium}20`,
+    width: 100,
+    height: 100,
+    borderRadius: 50,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  emptyUpgradeButton: {
+    backgroundColor: theme.colors.primary,
+    paddingVertical: 14,
+    paddingHorizontal: 32,
+    borderRadius: 25,
+    marginTop: 10,
+  },
+  emptyUpgradeButtonText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: '600',
   },
   modalContainer: {
     flex: 1,

@@ -2,7 +2,10 @@ const express = require('express');
 const rateLimit = require('express-rate-limit');
 const logger = require('../utils/logger');
 const { authValidation } = require('../middleware/validation');
-const { authenticateJWT } = require('../middleware/auth');
+const { authenticateJWT, optionalAuth } = require('../middleware/auth');
+const { getPrismaClient } = require('../config/database');
+
+const prisma = getPrismaClient();
 const {
   registerUser,
   loginUser,
@@ -196,16 +199,32 @@ router.post('/refresh', authValidation.refreshToken, async (req, res) => {
 
 /**
  * @route   POST /api/auth/logout
- * @desc    Logout user (client-side token removal)
- * @access  Private
+ * @desc    Logout user and clear push token
+ * @access  Private (optional - still succeeds if token invalid)
  */
-router.post('/logout', (req, res) => {
-  // For JWT tokens, logout is handled client-side by removing the token
-  // In the future, you might want to implement token blacklisting
-  res.json({
-    success: true,
-    message: 'Logout successful',
-  });
+router.post('/logout', optionalAuth, async (req, res) => {
+  try {
+    // If user is authenticated, clear their push token
+    if (req.user?.id) {
+      await prisma.user.update({
+        where: { id: req.user.id },
+        data: { pushToken: null },
+      });
+      logger.info(`🔔 Cleared push token for user ${req.user.id} on logout`);
+    }
+
+    res.json({
+      success: true,
+      message: 'Logout successful',
+    });
+  } catch (error) {
+    logger.error('Error during logout:', error);
+    // Still return success - logout should always succeed from client perspective
+    res.json({
+      success: true,
+      message: 'Logout successful',
+    });
+  }
 });
 
 /**

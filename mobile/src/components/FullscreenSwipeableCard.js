@@ -1,5 +1,5 @@
 import React, { useCallback, useMemo } from 'react';
-import { View, Text, StyleSheet, Dimensions, Image, ScrollView } from 'react-native';
+import { View, Text, StyleSheet, Dimensions, Image, ScrollView, Pressable } from 'react-native';
 import Animated, { useAnimatedStyle, interpolate, Extrapolation } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -17,7 +17,12 @@ const HERO_HEIGHT = SCREEN_HEIGHT * 0.55;
  * - Clean label/value pairs for single fields
  * - Chips for multi-select fields (interests, languages)
  */
-const FullscreenSwipeableCard = ({ profile, translateX, isTop = false }) => {
+const FullscreenSwipeableCard = ({
+  profile,
+  translateX,
+  isTop = false,
+  onPhotoPress, // Callback to handle photo viewing at parent level
+}) => {
   const insets = useSafeAreaInsets();
   const scrollViewRef = React.useRef(null);
 
@@ -57,6 +62,39 @@ const FullscreenSwipeableCard = ({ profile, translateX, isTop = false }) => {
     };
   });
 
+  // Helper to format relationship type
+  const formatRelationshipType = relationshipType => {
+    if (!relationshipType) return null;
+    if (Array.isArray(relationshipType)) {
+      if (relationshipType.length === 0) return null;
+      return relationshipType
+        .map(t => t.charAt(0).toUpperCase() + t.slice(1).replace('-', ' '))
+        .join(', ');
+    }
+    return relationshipType;
+  };
+
+  // Helper to format lifestyle fields
+  const formatSmoking = smoking => {
+    if (!smoking) return null;
+    const map = {
+      never: 'Non-smoker',
+      sometimes: 'Social smoker',
+      regularly: 'Smoker',
+    };
+    return map[smoking] || smoking;
+  };
+
+  const formatDrinking = drinking => {
+    if (!drinking) return null;
+    const map = {
+      never: 'Non-drinker',
+      socially: 'Social drinker',
+      regularly: 'Regular drinker',
+    };
+    return map[drinking] || drinking;
+  };
+
   // Build profile sections with photos distributed throughout
   const buildProfileSections = useCallback(() => {
     if (!profile) return [];
@@ -80,6 +118,7 @@ const FullscreenSwipeableCard = ({ profile, translateX, isTop = false }) => {
         sections.push({
           type: 'photo',
           data: photos[photoIndex],
+          photoIndex: photoIndex, // Track index for expansion
           key: `photo-${photoIndex}`,
         });
         photoIndex++;
@@ -89,101 +128,94 @@ const FullscreenSwipeableCard = ({ profile, translateX, isTop = false }) => {
       return false;
     };
 
-    // BLOCK 1: Bio
-    if (profile.bio) {
-      sections.push({
-        type: 'bio',
-        data: profile.bio,
-        key: 'bio',
-      });
-      lastWasPhoto = false;
-    }
+    // BLOCK 1: Bio (always show, with placeholder if empty)
+    sections.push({
+      type: 'bio',
+      data: profile.bio || null,
+      key: 'bio',
+    });
+    lastWasPhoto = false;
 
-    // Photo break after bio (or divider if no bio)
+    // Photo break after bio
     addPhotoWithDivider();
 
-    // BLOCK 2: All info fields together
-    const infoFields = [];
+    // BLOCK 2: Essentials - always show these core fields
+    const essentialFields = [];
 
-    if (profile.location) {
-      infoFields.push({
-        label: 'Location',
-        value: profile.location,
-        icon: 'location-outline',
-      });
-    }
+    // Location - always show
+    essentialFields.push({
+      label: 'Location',
+      value: profile.location || null,
+      icon: 'location-outline',
+      placeholder: 'Not specified',
+    });
+
+    // Looking for - always show
+    const relationshipText = formatRelationshipType(profile.relationshipType);
+    essentialFields.push({
+      label: 'Looking for',
+      value: relationshipText,
+      icon: 'heart-outline',
+      placeholder: 'Not specified',
+    });
+
+    // Work - always show
+    essentialFields.push({
+      label: 'Work',
+      value: profile.profession || null,
+      icon: 'briefcase-outline',
+      placeholder: 'Not specified',
+    });
+
+    // Education - always show
+    essentialFields.push({
+      label: 'Education',
+      value: profile.education || null,
+      icon: 'school-outline',
+      placeholder: 'Not specified',
+    });
+
+    sections.push({
+      type: 'essentials',
+      data: essentialFields,
+      key: 'essentials',
+    });
+    lastWasPhoto = false;
+
+    // Photo break after essentials
+    addPhotoWithDivider();
+
+    // BLOCK 3: Details - only show fields that have values
+    const detailFields = [];
 
     if (profile.height) {
-      infoFields.push({
+      detailFields.push({
         label: 'Height',
         value: profile.height,
         icon: 'resize-outline',
       });
     }
 
-    if (profile.profession) {
-      infoFields.push({
-        label: 'Work',
-        value: profile.profession,
-        icon: 'briefcase-outline',
-      });
-    }
-
-    if (profile.education) {
-      infoFields.push({
-        label: 'Education',
-        value: profile.education,
-        icon: 'school-outline',
-      });
-    }
-
-    if (profile.relationshipType) {
-      const typeText = Array.isArray(profile.relationshipType)
-        ? profile.relationshipType
-            .map(t => t.charAt(0).toUpperCase() + t.slice(1).replace('-', ' '))
-            .join(', ')
-        : profile.relationshipType;
-      infoFields.push({
-        label: 'Looking for',
-        value: typeText,
-        icon: 'heart-outline',
-      });
-    }
-
     if (profile.religion) {
-      infoFields.push({
+      detailFields.push({
         label: 'Religion',
         value: profile.religion,
         icon: 'sparkles-outline',
       });
     }
 
-    if (profile.smoking) {
-      const smokingText =
-        profile.smoking === 'never'
-          ? 'Non-smoker'
-          : profile.smoking === 'sometimes'
-            ? 'Social smoker'
-            : profile.smoking === 'regularly'
-              ? 'Smoker'
-              : profile.smoking;
-      infoFields.push({
+    const smokingText = formatSmoking(profile.smoking);
+    if (smokingText) {
+      detailFields.push({
         label: 'Smoking',
         value: smokingText,
         icon: 'flame-outline',
       });
     }
 
-    if (profile.drinking) {
-      const drinkingText =
-        profile.drinking === 'never'
-          ? 'Non-drinker'
-          : profile.drinking === 'socially'
-            ? 'Social drinker'
-            : profile.drinking === 'regularly'
-              ? 'Regular drinker'
-              : profile.drinking;
-      infoFields.push({
+    const drinkingText = formatDrinking(profile.drinking);
+    if (drinkingText) {
+      detailFields.push({
         label: 'Drinking',
         value: drinkingText,
         icon: 'wine-outline',
@@ -191,7 +223,7 @@ const FullscreenSwipeableCard = ({ profile, translateX, isTop = false }) => {
     }
 
     if (profile.pets) {
-      infoFields.push({
+      detailFields.push({
         label: 'Pets',
         value: profile.pets,
         icon: 'paw-outline',
@@ -199,46 +231,42 @@ const FullscreenSwipeableCard = ({ profile, translateX, isTop = false }) => {
     }
 
     if (profile.travel) {
-      infoFields.push({
+      detailFields.push({
         label: 'Travel',
         value: profile.travel,
         icon: 'airplane-outline',
       });
     }
 
-    if (infoFields.length > 0) {
+    if (detailFields.length > 0) {
       sections.push({
-        type: 'info-fields',
-        data: infoFields,
-        key: 'info-fields',
+        type: 'details',
+        data: detailFields,
+        key: 'details',
       });
       lastWasPhoto = false;
+
+      // Photo break after details
+      addPhotoWithDivider();
     }
 
-    // Photo break after info fields
-    addPhotoWithDivider();
-
-    // BLOCK 3: Languages + Interests together (tags block)
+    // BLOCK 4: Languages (always show)
     const hasLanguages = profile.languages && profile.languages.length > 0;
+    sections.push({
+      type: 'languages',
+      data: hasLanguages ? profile.languages : null,
+      key: 'languages',
+    });
+    lastWasPhoto = false;
+
+    // BLOCK 5: Interests (always show)
     const hasInterests = profile.interests && profile.interests.length > 0;
-
-    if (hasLanguages) {
-      sections.push({
-        type: 'languages',
-        data: profile.languages,
-        key: 'languages',
-      });
-      lastWasPhoto = false;
-    }
-
-    if (hasInterests) {
-      sections.push({
-        type: 'interests',
-        data: profile.interests,
-        key: 'interests',
-      });
-      lastWasPhoto = false;
-    }
+    sections.push({
+      type: 'interests',
+      data: hasInterests ? profile.interests : null,
+      key: 'interests',
+    });
+    lastWasPhoto = false;
 
     // Add all remaining photos with dividers between them
     while (addPhotoWithDivider()) {}
@@ -246,16 +274,28 @@ const FullscreenSwipeableCard = ({ profile, translateX, isTop = false }) => {
     return sections;
   }, [profile, photos]);
 
-  // Render a single info field with label and value
-  const renderInfoField = (field, index, isLast) => (
-    <View key={index} style={[styles.infoField, !isLast && styles.infoFieldBorder]}>
-      <Text style={styles.infoLabel}>{field.label}</Text>
-      <View style={styles.infoValueRow}>
-        <Ionicons name={field.icon} size={18} color="#666" style={styles.infoIcon} />
-        <Text style={styles.infoValue}>{field.value}</Text>
+  // Render a single info field with label and value (supports placeholders)
+  const renderInfoField = (field, index, isLast) => {
+    const hasValue = field.value !== null && field.value !== undefined && field.value !== '';
+    const displayValue = hasValue ? field.value : field.placeholder || 'Not specified';
+
+    return (
+      <View key={index} style={[styles.infoField, !isLast && styles.infoFieldBorder]}>
+        <Text style={styles.infoLabel}>{field.label}</Text>
+        <View style={styles.infoValueRow}>
+          <Ionicons
+            name={field.icon}
+            size={18}
+            color={hasValue ? '#666' : '#ccc'}
+            style={styles.infoIcon}
+          />
+          <Text style={[styles.infoValue, !hasValue && styles.placeholderValue]}>
+            {displayValue}
+          </Text>
+        </View>
       </View>
-    </View>
-  );
+    );
+  };
 
   // Render chip for multi-select items
   const renderChip = (text, index) => (
@@ -268,9 +308,16 @@ const FullscreenSwipeableCard = ({ profile, translateX, isTop = false }) => {
     switch (section.type) {
       case 'photo':
         return (
-          <View style={styles.photoSection} key={section.key}>
+          <Pressable
+            style={styles.photoSection}
+            key={section.key}
+            onPress={() => handlePhotoPress(section.photoIndex)}
+          >
             <Image source={{ uri: section.data }} style={styles.sectionPhoto} resizeMode="cover" />
-          </View>
+            <View style={styles.photoExpandHint}>
+              <Ionicons name="expand-outline" size={20} color="#fff" />
+            </View>
+          </Pressable>
         );
 
       case 'photo-divider':
@@ -284,13 +331,32 @@ const FullscreenSwipeableCard = ({ profile, translateX, isTop = false }) => {
         return (
           <View style={styles.section} key={section.key}>
             <Text style={styles.sectionTitle}>About me</Text>
-            <Text style={styles.bioText}>{section.data}</Text>
+            {section.data ? (
+              <Text style={styles.bioText}>{section.data}</Text>
+            ) : (
+              <Text style={styles.placeholderText}>
+                {profile?.name || 'This person'} hasn't written a bio yet
+              </Text>
+            )}
           </View>
         );
 
-      case 'info-fields':
+      case 'essentials':
         return (
           <View style={styles.section} key={section.key}>
+            <Text style={styles.sectionTitle}>Essentials</Text>
+            <View style={styles.infoFieldsContainer}>
+              {section.data.map((field, index) =>
+                renderInfoField(field, index, index === section.data.length - 1)
+              )}
+            </View>
+          </View>
+        );
+
+      case 'details':
+        return (
+          <View style={styles.section} key={section.key}>
+            <Text style={styles.sectionTitle}>More about me</Text>
             <View style={styles.infoFieldsContainer}>
               {section.data.map((field, index) =>
                 renderInfoField(field, index, index === section.data.length - 1)
@@ -303,9 +369,13 @@ const FullscreenSwipeableCard = ({ profile, translateX, isTop = false }) => {
         return (
           <View style={styles.section} key={section.key}>
             <Text style={styles.sectionTitle}>Languages</Text>
-            <View style={styles.chipContainer}>
-              {section.data.map((lang, index) => renderChip(lang, index))}
-            </View>
+            {section.data ? (
+              <View style={styles.chipContainer}>
+                {section.data.map((lang, index) => renderChip(lang, index))}
+              </View>
+            ) : (
+              <Text style={styles.placeholderText}>No languages specified</Text>
+            )}
           </View>
         );
 
@@ -313,15 +383,19 @@ const FullscreenSwipeableCard = ({ profile, translateX, isTop = false }) => {
         return (
           <View style={styles.section} key={section.key}>
             <Text style={styles.sectionTitle}>Interests</Text>
-            <View style={styles.chipContainer}>
-              {section.data.map((interest, index) => {
-                const interestName =
-                  typeof interest === 'object'
-                    ? interest.interest?.name || interest.name
-                    : interest;
-                return renderChip(interestName, index);
-              })}
-            </View>
+            {section.data ? (
+              <View style={styles.chipContainer}>
+                {section.data.map((interest, index) => {
+                  const interestName =
+                    typeof interest === 'object'
+                      ? interest.interest?.name || interest.name
+                      : interest;
+                  return renderChip(interestName, index);
+                })}
+              </View>
+            ) : (
+              <Text style={styles.placeholderText}>No interests specified</Text>
+            )}
           </View>
         );
 
@@ -331,6 +405,14 @@ const FullscreenSwipeableCard = ({ profile, translateX, isTop = false }) => {
   };
 
   const profileSections = useMemo(() => buildProfileSections(), [buildProfileSections]);
+
+  // Handle photo tap to expand - delegate to parent to avoid gesture conflicts
+  const handlePhotoPress = useCallback(
+    photoIndex => {
+      onPhotoPress?.(photos, photoIndex);
+    },
+    [onPhotoPress, photos]
+  );
 
   // Reset scroll when profile changes
   React.useEffect(() => {
@@ -350,7 +432,7 @@ const FullscreenSwipeableCard = ({ profile, translateX, isTop = false }) => {
         bounces={true}
       >
         {/* Hero Photo Section */}
-        <View style={styles.heroContainer}>
+        <Pressable style={styles.heroContainer} onPress={() => handlePhotoPress(0)}>
           <Image
             source={{ uri: photos[0] || getUserProfilePhoto(profile) }}
             style={styles.heroImage}
@@ -383,7 +465,7 @@ const FullscreenSwipeableCard = ({ profile, translateX, isTop = false }) => {
               )}
             </View>
           </View>
-        </View>
+        </Pressable>
 
         {/* Profile sections with distributed photos */}
         {profileSections.map(section => renderSection(section))}
@@ -473,10 +555,19 @@ const styles = StyleSheet.create({
   photoSection: {
     width: SCREEN_WIDTH,
     height: SCREEN_WIDTH * 1.25,
+    position: 'relative',
   },
   sectionPhoto: {
     width: '100%',
     height: '100%',
+  },
+  photoExpandHint: {
+    position: 'absolute',
+    bottom: 12,
+    right: 12,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    borderRadius: 20,
+    padding: 8,
   },
   photoDivider: {
     height: 50,
@@ -509,6 +600,18 @@ const styles = StyleSheet.create({
     fontSize: 16,
     lineHeight: 24,
     color: '#333',
+  },
+  // Placeholder text for empty fields
+  placeholderText: {
+    fontSize: 15,
+    lineHeight: 22,
+    color: '#999',
+    fontStyle: 'italic',
+  },
+  placeholderValue: {
+    color: '#bbb',
+    fontStyle: 'italic',
+    fontWeight: '400',
   },
   // Info fields (label + value pairs)
   infoFieldsContainer: {

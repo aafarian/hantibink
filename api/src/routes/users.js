@@ -599,4 +599,42 @@ router.post('/push-token', authenticateJWT, async (req, res) => {
   }
 });
 
+/**
+ * @route   POST /api/users/push-token/clear
+ * @desc    Clear push token from all users (used during logout)
+ * @access  Public (token is device-specific, safe to clear by value)
+ */
+router.post('/push-token/clear', async (req, res) => {
+  try {
+    const { pushToken } = req.body;
+
+    if (!pushToken) {
+      return res.status(400).json({
+        success: false,
+        error: 'Push token is required',
+      });
+    }
+
+    // Clear this push token from ALL users who have it
+    // This handles the case where multiple accounts used the same device
+    const result = await prisma.user.updateMany({
+      where: { pushToken },
+      data: { pushToken: null },
+    });
+
+    logger.info(`🔔 Cleared push token from ${result.count} user(s) on logout`);
+    res.json({
+      success: true,
+      message: 'Push token cleared successfully',
+      clearedCount: result.count,
+    });
+  } catch (error) {
+    logger.error('Error clearing push token:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to clear push token',
+    });
+  }
+});
+
 module.exports = router;

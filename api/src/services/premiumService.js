@@ -13,7 +13,7 @@ const LIMITS = {
     dailyLikes: 10,
     dailySuperLikes: 0,
     canUndo: false,
-    whoLikedMeLimit: 3, // Can only see 3 people who liked them
+    whoLikedMeLimit: Infinity, // API returns all, frontend shows blurred for non-premium
   },
   PREMIUM: {
     dailyLikes: Infinity,

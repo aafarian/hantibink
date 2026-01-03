@@ -5,6 +5,10 @@ import { Platform } from 'react-native';
 import Logger from './logger';
 import ApiClient from '../services/ApiClient';
 
+// EAS Project ID - configured in app.config.js, with fallback for local development
+const EAS_PROJECT_ID =
+  Constants.expoConfig?.extra?.eas?.projectId || '316f94ce-dca3-4d3d-868a-5885e6704f84';
+
 // Configure notification behavior - wrapped in try-catch to prevent crash on module load
 try {
   Notifications.setNotificationHandler({
@@ -95,12 +99,8 @@ export async function registerForPushNotificationsAsync() {
       return false;
     }
 
-    // Get the project ID from Constants or use hardcoded value
-    const projectId =
-      Constants.expoConfig?.extra?.eas?.projectId || '316f94ce-dca3-4d3d-868a-5885e6704f84';
-
     // Get Expo push token
-    const token = await Notifications.getExpoPushTokenAsync({ projectId });
+    const token = await Notifications.getExpoPushTokenAsync({ projectId: EAS_PROJECT_ID });
 
     Logger.info('📱 Push token obtained:', token.data);
 
@@ -139,6 +139,36 @@ export function addNotificationReceivedListener(callback) {
  */
 export function addNotificationResponseReceivedListener(callback) {
   return Notifications.addNotificationResponseReceivedListener(callback);
+}
+
+/**
+ * Clear push token from backend (call during logout)
+ * This ensures notifications don't go to the wrong user after account switch
+ * @returns {Promise<boolean>} Whether clearing was successful
+ */
+export async function clearPushTokenAsync() {
+  try {
+    if (!Device.isDevice) {
+      return true; // No token to clear on simulator
+    }
+
+    // Get current push token
+    const token = await Notifications.getExpoPushTokenAsync({ projectId: EAS_PROJECT_ID });
+
+    if (token?.data) {
+      // Clear from backend - this will remove from ALL users who have this token
+      await ApiClient.post('/users/push-token/clear', {
+        pushToken: token.data,
+      });
+      Logger.info('🔔 Push token cleared from server');
+    }
+
+    return true;
+  } catch (error) {
+    // Don't fail logout if this fails
+    Logger.warn('📱 Could not clear push token:', error.message);
+    return false;
+  }
 }
 
 /**
