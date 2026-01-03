@@ -1,9 +1,10 @@
-import React from 'react';
-import { View, Text, ScrollView, TouchableOpacity, StyleSheet, Alert } from 'react-native';
+import React, { useState, useEffect, useCallback } from 'react';
+import { View, Text, ScrollView, TouchableOpacity, StyleSheet, Alert, Switch } from 'react-native';
 import { MaterialIcons, Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../contexts/AuthContext';
 import { useToast } from '../contexts/ToastContext';
 import ApiDataService from '../services/ApiDataService';
+import ApiClient from '../services/ApiClient';
 import Logger from '../utils/logger';
 import { theme } from '../styles/theme';
 import ScreenWrapper from '../components/shared/ScreenWrapper';
@@ -11,6 +12,48 @@ import ScreenWrapper from '../components/shared/ScreenWrapper';
 const AccountSettingsScreen = ({ navigation }) => {
   const { logout, userProfile } = useAuth();
   const { showSuccess, showError } = useToast();
+  const [isProfilePaused, setIsProfilePaused] = useState(false);
+  const [isPauseLoading, setIsPauseLoading] = useState(false);
+
+  // Load pause status on mount
+  const loadPauseStatus = useCallback(async () => {
+    try {
+      const response = await ApiClient.get('/users/profile/pause-status');
+      if (response.success && response.data?.success) {
+        setIsProfilePaused(response.data.data.isProfilePaused);
+      }
+    } catch (error) {
+      Logger.error('Failed to load pause status:', error);
+    }
+  }, []);
+
+  useEffect(() => {
+    loadPauseStatus();
+  }, [loadPauseStatus]);
+
+  const handlePauseToggle = async value => {
+    setIsPauseLoading(true);
+    try {
+      const endpoint = value ? '/users/profile/pause' : '/users/profile/resume';
+      const response = await ApiClient.put(endpoint);
+
+      if (response.success && response.data?.success) {
+        setIsProfilePaused(value);
+        showSuccess(
+          value
+            ? "Profile paused - you won't appear in discovery"
+            : "Profile resumed - you're visible again"
+        );
+      } else {
+        showError('Failed to update profile status');
+      }
+    } catch (error) {
+      Logger.error('Failed to toggle pause:', error);
+      showError('Failed to update profile status');
+    } finally {
+      setIsPauseLoading(false);
+    }
+  };
 
   const handleLogout = () => {
     Alert.alert('Logout', 'Are you sure you want to logout?', [
@@ -117,6 +160,34 @@ const AccountSettingsScreen = ({ navigation }) => {
               <Text style={styles.accountInfoLabel}>Email</Text>
               <Text style={styles.accountInfoValue}>{userProfile?.email || 'Not available'}</Text>
             </View>
+          </View>
+        </View>
+
+        {/* Visibility Section */}
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Visibility</Text>
+        </View>
+
+        <View style={styles.settingsContainer}>
+          <View style={styles.settingItem}>
+            <View style={styles.settingIcon}>
+              <Ionicons name="eye-off-outline" size={24} color={theme.colors.primary} />
+            </View>
+            <View style={styles.settingContent}>
+              <Text style={styles.settingLabel}>Pause Profile</Text>
+              <Text style={styles.settingDescription}>
+                {isProfilePaused
+                  ? "You're hidden from discovery"
+                  : 'Hide from discovery temporarily'}
+              </Text>
+            </View>
+            <Switch
+              value={isProfilePaused}
+              onValueChange={handlePauseToggle}
+              disabled={isPauseLoading}
+              trackColor={{ false: '#e0e0e0', true: `${theme.colors.primary}80` }}
+              thumbColor={isProfilePaused ? theme.colors.primary : '#f4f3f4'}
+            />
           </View>
         </View>
 

@@ -38,6 +38,8 @@ model User {
   mainPhotoUrl           String?
   registrationMethod     String?
   isActive               Boolean        @default(true)
+  isProfilePaused        Boolean        @default(false)
+  pausedAt               DateTime?
   isPremium              Boolean        @default(false)
   hasCompletedOnboarding Boolean        @default(false)
   onboardingStage        OnboardingStage @default(REGISTERED)

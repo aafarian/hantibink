@@ -4,6 +4,7 @@
  */
 
 const winston = require('winston');
+const Sentry = require('@sentry/node');
 const path = require('path');
 
 // Create logs directory if it doesn't exist
@@ -80,6 +81,23 @@ const logger = winston.createLogger({
   transports,
   exitOnError: false,
 });
+
+// Wrap error method to also report to Sentry
+const originalError = logger.error.bind(logger);
+logger.error = (message, ...args) => {
+  // Call original Winston error logging
+  originalError(message, ...args);
+
+  // Report to Sentry if initialized
+  if (process.env.SENTRY_DSN) {
+    const error = args.find(arg => arg instanceof Error);
+    if (error) {
+      Sentry.captureException(error);
+    } else {
+      Sentry.captureMessage(typeof message === 'string' ? message : JSON.stringify(message), 'error');
+    }
+  }
+};
 
 // Add request logging helper
 logger.logRequest = (req, res, next) => {
