@@ -25,7 +25,7 @@ import { theme } from '../../styles/theme';
 
 const ProfileSetupModal = ({ visible, onClose, onComplete, userProfile }) => {
   const { showToast } = useToast();
-  const { user } = useAuth();
+  const { user, refreshUserProfile } = useAuth();
   const insets = useSafeAreaInsets();
   const [currentStep, setCurrentStep] = useState(0);
   const [loading, setLoading] = useState(false);
@@ -600,6 +600,14 @@ const ProfileSetupModal = ({ visible, onClose, onComplete, userProfile }) => {
       try {
         setLoading(true);
 
+        // Ensure photos array is valid
+        if (!uploadedPhotos || !Array.isArray(uploadedPhotos) || uploadedPhotos.length === 0) {
+          Logger.error('❌ Invalid uploadedPhotos:', uploadedPhotos);
+          showToast('No photos to save', 'error');
+          setLoading(false);
+          return;
+        }
+
         // Ensure we have the latest location data and uploaded photos
         const finalSetupData = {
           ...setupData,
@@ -611,7 +619,7 @@ const ProfileSetupModal = ({ visible, onClose, onComplete, userProfile }) => {
         Logger.info('📤 Completing profile setup with uploaded photos:', {
           gender: finalSetupData.gender,
           interestedIn: finalSetupData.interestedIn,
-          photosCount: finalSetupData.photos.length,
+          photosCount: finalSetupData.photos?.length || 0,
           location: finalSetupData.location,
           latitude: finalSetupData.latitude,
           longitude: finalSetupData.longitude,
@@ -632,31 +640,49 @@ const ProfileSetupModal = ({ visible, onClose, onComplete, userProfile }) => {
 
         Logger.info('📤 Sending to complete-setup endpoint:', completeData);
         const response = await ApiDataService.completeProfileSetup(completeData);
+        Logger.info('📤 Complete-setup response:', response);
 
         // Handle both { success: true, data: ... } and direct data response
         const isSuccess = response?.success || (response && !response.error);
         const responseData = response?.data || response;
 
         if (isSuccess) {
+          Logger.success('✅ Profile setup API call succeeded, closing modal');
           showToast('Profile setup complete!', 'success');
-          // Close modal and let parent handle refresh
-          try {
-            onComplete(responseData);
-          } catch (callbackError) {
-            // Don't show error if onComplete fails - setup already succeeded
-            Logger.warn('onComplete callback error (setup succeeded):', callbackError);
-          }
+
+          // IMPORTANT: Close modal FIRST before any callbacks
+          // This prevents the modal from staying open if onComplete has issues
+          onClose();
+
+          // Then trigger refresh and callback after modal animation completes
+          setTimeout(() => {
+            try {
+              // Refresh user profile to get updated data
+              if (refreshUserProfile) {
+                refreshUserProfile();
+              }
+              // Call onComplete if provided
+              if (onComplete) {
+                onComplete(responseData);
+              }
+            } catch (callbackError) {
+              // Don't show error - setup already succeeded and modal is closed
+              Logger.warn('Post-completion callback error (setup succeeded):', callbackError);
+            }
+          }, 300); // 300ms to allow modal animation to complete
         } else {
+          Logger.error('❌ Profile setup returned failure:', response);
           throw new Error(response?.message || 'Setup failed');
         }
       } catch (error) {
         Logger.error('Profile setup error:', error);
-        showToast('Failed to complete setup', 'error');
+        const errorMessage = error?.message || 'Unknown error';
+        showToast(`Setup failed: ${errorMessage}`, 'error');
       } finally {
         setLoading(false);
       }
     },
-    [setupData, locationData, showToast, onComplete]
+    [setupData, locationData, showToast, onComplete, onClose, refreshUserProfile]
   );
 
   const handleComplete = useCallback(async () => {
@@ -677,7 +703,7 @@ const ProfileSetupModal = ({ visible, onClose, onComplete, userProfile }) => {
 
       // Only validate photos if the photos step was included
       if (photosStepIncluded) {
-        const hasUnuploadedPhotos = finalSetupData.photos.some(photo => photo.uri && !photo.url);
+        const hasUnuploadedPhotos = finalSetupData.photos?.some(photo => photo.uri && !photo.url);
         if (hasUnuploadedPhotos) {
           Logger.error(
             '❌ CRITICAL: Found unuploaded photos at completion time. This should not happen!'
@@ -698,9 +724,8 @@ const ProfileSetupModal = ({ visible, onClose, onComplete, userProfile }) => {
         interestedIn: finalSetupData.interestedIn,
         photosStepIncluded,
         photosCount: photosStepIncluded
-          ? finalSetupData.photos.length
+          ? finalSetupData.photos?.length || 0
           : 'N/A (user already has photos)',
-        photos: photosStepIncluded ? finalSetupData.photos : 'N/A (user already has photos)',
         location: finalSetupData.location,
         latitude: finalSetupData.latitude,
         longitude: finalSetupData.longitude,
@@ -712,7 +737,7 @@ const ProfileSetupModal = ({ visible, onClose, onComplete, userProfile }) => {
         ...(finalSetupData.birthDate ? { birthDate: finalSetupData.birthDate.toISOString() } : {}),
         gender: finalSetupData.gender,
         interestedIn: finalSetupData.interestedIn,
-        ...(photosStepIncluded && finalSetupData.photos.length > 0
+        ...(photosStepIncluded && finalSetupData.photos?.length > 0
           ? {
               photos: finalSetupData.photos.map(p => p.id || p.url || p),
             }
@@ -724,34 +749,48 @@ const ProfileSetupModal = ({ visible, onClose, onComplete, userProfile }) => {
 
       Logger.info('📤 Sending to complete-setup endpoint:', completeData);
       const response = await ApiDataService.completeProfileSetup(completeData);
-
-      Logger.info('📍 API response:', response);
+      Logger.info('📤 Complete-setup response:', response);
 
       // Handle both { success: true, data: ... } and direct data response
       const isSuccess = response?.success || (response && !response.error);
       const responseData = response?.data || response;
 
       if (isSuccess) {
+        Logger.success('✅ Profile setup API call succeeded, closing modal');
         showToast('Profile setup complete!', 'success');
-        // Close modal and let parent handle refresh
-        Logger.info('📍 Calling onComplete to close modal...');
-        try {
-          onComplete(responseData);
-          Logger.info('📍 onComplete called successfully');
-        } catch (callbackError) {
-          // Don't show error if onComplete fails - setup already succeeded
-          Logger.warn('onComplete callback error (setup succeeded):', callbackError);
-        }
+
+        // IMPORTANT: Close modal FIRST before any callbacks
+        // This prevents the modal from staying open if onComplete has issues
+        onClose();
+
+        // Then trigger refresh and callback after modal animation completes
+        setTimeout(() => {
+          try {
+            // Refresh user profile to get updated data
+            if (refreshUserProfile) {
+              refreshUserProfile();
+            }
+            // Call onComplete if provided
+            if (onComplete) {
+              onComplete(responseData);
+            }
+          } catch (callbackError) {
+            // Don't show error - setup already succeeded and modal is closed
+            Logger.warn('Post-completion callback error (setup succeeded):', callbackError);
+          }
+        }, 300); // 300ms to allow modal animation to complete
       } else {
+        Logger.error('❌ Profile setup returned failure:', response);
         throw new Error(response?.message || 'Setup failed');
       }
     } catch (error) {
       Logger.error('Profile setup error:', error);
-      showToast('Failed to complete setup', 'error');
+      const errorMessage = error?.message || 'Unknown error';
+      showToast(`Setup failed: ${errorMessage}`, 'error');
     } finally {
       setLoading(false);
     }
-  }, [setupData, locationData, showToast, onComplete, steps]);
+  }, [setupData, locationData, showToast, onComplete, onClose, refreshUserProfile, steps]);
 
   const handleNext = useCallback(async () => {
     const currentStepData = steps[currentStep];
