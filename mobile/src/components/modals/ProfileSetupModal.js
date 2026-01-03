@@ -676,7 +676,8 @@ const ProfileSetupModal = ({ visible, onClose, onComplete, userProfile }) => {
         }
       } catch (error) {
         Logger.error('Profile setup error:', error);
-        showToast('Failed to complete setup', 'error');
+        const errorMessage = error?.message || 'Unknown error';
+        showToast(`Setup failed: ${errorMessage}`, 'error');
       } finally {
         setLoading(false);
       }
@@ -784,7 +785,8 @@ const ProfileSetupModal = ({ visible, onClose, onComplete, userProfile }) => {
       }
     } catch (error) {
       Logger.error('Profile setup error:', error);
-      showToast('Failed to complete setup', 'error');
+      const errorMessage = error?.message || 'Unknown error';
+      showToast(`Setup failed: ${errorMessage}`, 'error');
     } finally {
       setLoading(false);
     }
