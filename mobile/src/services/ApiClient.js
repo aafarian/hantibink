@@ -172,6 +172,11 @@ class ApiClient {
       // Handle successful responses
       if (response.ok) {
         Logger.success(`✅ API Success: ${options.method || 'GET'} ${endpoint}`);
+        // Unwrap API response if it follows { success, data, ...rest } pattern
+        if (data?.success && 'data' in data) {
+          const { success: _apiSuccess, data: innerData, ...rest } = data;
+          return { success: true, data: innerData, ...rest, status: response.status };
+        }
         return { success: true, data, status: response.status };
       }
 
@@ -197,6 +202,11 @@ class ApiClient {
             Logger.success(
               `✅ API Success (after refresh): ${options.method || 'GET'} ${endpoint}`
             );
+            // Unwrap API response if it follows { success, data, ...rest } pattern
+            if (retryData?.success && 'data' in retryData) {
+              const { success: _apiSuccess, data: innerData, ...rest } = retryData;
+              return { success: true, data: innerData, ...rest, status: retryResponse.status };
+            }
             return { success: true, data: retryData, status: retryResponse.status };
           }
         }
@@ -295,7 +305,7 @@ class ApiClient {
     });
 
     if (response.success) {
-      const { tokens } = response.data.data;
+      const { tokens } = response.data;
       if (tokens && tokens.accessToken && tokens.refreshToken) {
         await this.setTokens(tokens.accessToken, tokens.refreshToken);
       } else {
@@ -328,7 +338,7 @@ class ApiClient {
     });
 
     if (response.success) {
-      const { tokens } = response.data.data;
+      const { tokens } = response.data;
       if (tokens && tokens.accessToken && tokens.refreshToken) {
         await this.setTokens(tokens.accessToken, tokens.refreshToken);
       } else {
@@ -349,7 +359,7 @@ class ApiClient {
     });
 
     if (response.success) {
-      const { tokens } = response.data.data;
+      const { tokens } = response.data;
       if (tokens && tokens.accessToken && tokens.refreshToken) {
         await this.setTokens(tokens.accessToken, tokens.refreshToken);
       } else {

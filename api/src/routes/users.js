@@ -637,4 +637,109 @@ router.post('/push-token/clear', async (req, res) => {
   }
 });
 
+/**
+ * @route   PUT /api/users/profile/pause
+ * @desc    Pause profile (hide from discovery)
+ * @access  Private
+ */
+router.put('/profile/pause', authenticateJWT, async (req, res) => {
+  try {
+    const user = await prisma.user.update({
+      where: { id: req.user.id },
+      data: {
+        isProfilePaused: true,
+        pausedAt: new Date(),
+      },
+      select: {
+        id: true,
+        isProfilePaused: true,
+        pausedAt: true,
+      },
+    });
+
+    logger.info(`⏸️ User ${req.user.id} paused their profile`);
+    res.json({
+      success: true,
+      message: 'Profile paused successfully. You will not appear in discovery.',
+      data: user,
+    });
+  } catch (error) {
+    logger.error('Error pausing profile:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to pause profile',
+    });
+  }
+});
+
+/**
+ * @route   PUT /api/users/profile/resume
+ * @desc    Resume profile (show in discovery again)
+ * @access  Private
+ */
+router.put('/profile/resume', authenticateJWT, async (req, res) => {
+  try {
+    const user = await prisma.user.update({
+      where: { id: req.user.id },
+      data: {
+        isProfilePaused: false,
+        pausedAt: null,
+      },
+      select: {
+        id: true,
+        isProfilePaused: true,
+        pausedAt: true,
+      },
+    });
+
+    logger.info(`▶️ User ${req.user.id} resumed their profile`);
+    res.json({
+      success: true,
+      message: 'Profile resumed. You are now visible in discovery.',
+      data: user,
+    });
+  } catch (error) {
+    logger.error('Error resuming profile:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to resume profile',
+    });
+  }
+});
+
+/**
+ * @route   GET /api/users/profile/pause-status
+ * @desc    Get current pause status
+ * @access  Private
+ */
+router.get('/profile/pause-status', authenticateJWT, async (req, res) => {
+  try {
+    const user = await prisma.user.findUnique({
+      where: { id: req.user.id },
+      select: {
+        isProfilePaused: true,
+        pausedAt: true,
+      },
+    });
+
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        error: 'User not found',
+      });
+    }
+
+    res.json({
+      success: true,
+      data: user,
+    });
+  } catch (error) {
+    logger.error('Error getting pause status:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to get pause status',
+    });
+  }
+});
+
 module.exports = router;

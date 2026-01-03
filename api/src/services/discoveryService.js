@@ -345,6 +345,7 @@ const getUsersForDiscovery = async (currentUserId, options = {}) => {
     const baseWhereClause = {
       id: { notIn: allExcludedIds },
       isActive: true,
+      isProfilePaused: false, // Exclude users who paused their profile
     };
 
     // In strict mode, only get users matching preferences

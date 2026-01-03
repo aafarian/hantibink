@@ -531,7 +531,7 @@ export const AuthProvider = ({ children }) => {
 
       if (response.success) {
         Logger.success('✅ Password reset code sent');
-        return { success: true, message: response.message };
+        return { success: true, message: response.data?.message };
       } else {
         return { success: false, error: response.message || 'Failed to send reset code' };
       }
@@ -551,7 +551,7 @@ export const AuthProvider = ({ children }) => {
 
       if (response.success) {
         Logger.success('✅ Reset code verified');
-        return { success: true, resetToken: response.resetToken };
+        return { success: true, resetToken: response.data?.resetToken };
       } else {
         return { success: false, error: response.error || 'Invalid or expired code' };
       }

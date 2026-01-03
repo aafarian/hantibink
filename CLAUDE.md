@@ -49,6 +49,22 @@
 
 - Test the actual functionality, not just the code compilation
 
+### Code Review
+
+Before committing any significant changes, **ALWAYS** review the code like a senior staff engineer, checking for:
+
+1. **Redundant/Reusable Code** - Extract repeated logic into helper functions or shared utilities
+2. **Unused Code** - Remove dead code, unused imports, and commented-out blocks
+3. **Bad Practices** - Anti-patterns, security vulnerabilities (OWASP top 10), memory leaks
+4. **Potential Improvements** - Better algorithms, cleaner abstractions, more readable code
+5. **Edge Cases** - Null/undefined handling, empty arrays, network failures, race conditions
+6. **Potential Errors** - Type mismatches, async/await issues, unhandled promise rejections
+7. **Missing Tests** - Identify critical paths that should have test coverage
+8. **API Response Handling** - Ensure all API responses are properly unwrapped (check `response.data.data` vs `response.data`)
+9. **State Management** - Verify optimistic updates revert on failure, loading states are handled
+10. **Database Operations** - Check for missing null checks, proper error handling, transaction usage where needed
+11. **Memoization & Caching** - Use `useMemo`/`useCallback` for expensive computations and stable references; consider API response caching for frequently accessed, rarely-changing data
+
 ### Performance
 
 - Use `useCallback` and `useMemo` for expensive operations in React components

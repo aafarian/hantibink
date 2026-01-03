@@ -28,8 +28,8 @@ const NotificationSettingsScreen = ({ navigation }) => {
     try {
       setLoading(true);
       const response = await apiClient.getNotificationSettings();
-      if (response.success && response.data?.data) {
-        setSettings(response.data.data);
+      if (response.success && response.data) {
+        setSettings(response.data);
       }
     } catch (error) {
       Logger.error('Failed to load notification settings:', error);

@@ -19,7 +19,7 @@ class ApiDataService {
 
       if (response.success) {
         Logger.success('✅ User profile loaded from API');
-        return response.data.data;
+        return response.data;
       } else {
         Logger.error('❌ Failed to get user profile from API:', response.message);
         return null;
@@ -113,7 +113,7 @@ class ApiDataService {
 
       if (response.success) {
         Logger.success('✅ User registered via API');
-        return response.data.data;
+        return response.data;
       } else {
         Logger.error('❌ Failed to register user via API:', response.message);
         throw new Error(response.message || 'Registration failed');
@@ -135,7 +135,7 @@ class ApiDataService {
 
       if (response.success) {
         Logger.success('✅ User logged in via API');
-        return response.data.data;
+        return response.data;
       } else {
         Logger.error('❌ Failed to login user via API:', response.message);
         throw new Error(response.message || 'Login failed');
@@ -162,7 +162,7 @@ class ApiDataService {
 
       if (response.success) {
         Logger.success('✅ User preferences loaded from API');
-        return response.data.data;
+        return response.data;
       } else {
         Logger.error('❌ Failed to get user preferences from API:', response.message);
         return null;
@@ -268,7 +268,7 @@ class ApiDataService {
 
       if (response.success) {
         Logger.success('✅ Photo added via API');
-        return response.data.data;
+        return response.data;
       } else {
         Logger.error('❌ Failed to add photo via API:', response.message);
         throw new Error(response.message || 'Photo upload failed');
@@ -290,7 +290,7 @@ class ApiDataService {
 
       if (response.success) {
         Logger.success('✅ Photo deleted via API');
-        return response.data.data;
+        return response.data;
       } else {
         Logger.error('❌ Failed to delete photo via API:', response.message);
         throw new Error(response.message || 'Photo deletion failed');
@@ -312,7 +312,7 @@ class ApiDataService {
 
       if (response.success) {
         Logger.success('✅ Photos reordered via API');
-        return response.data.data;
+        return response.data;
       } else {
         Logger.error('❌ Failed to reorder photos via API:', response.message);
         throw new Error(response.message || 'Photo reordering failed');
@@ -334,7 +334,7 @@ class ApiDataService {
 
       if (response.success) {
         Logger.success('✅ Main photo set via API');
-        return response.data.data;
+        return response.data;
       } else {
         Logger.error('❌ Failed to set main photo via API:', response.message);
         throw new Error(response.message || 'Set main photo failed');
@@ -385,10 +385,9 @@ class ApiDataService {
       const response = await apiClient.get(`/discovery/users?${queryParams}`);
 
       if (response.success) {
-        Logger.success(
-          `✅ Discovery users loaded from API (${response.data?.data?.length || 0} users)`
-        );
-        return response.data?.data || response.data || [];
+        const users = response.data || [];
+        Logger.success(`✅ Discovery users loaded from API (${users.length || 0} users)`);
+        return users;
       } else {
         Logger.error('❌ Failed to get discovery users from API:', response.message);
         // Throw error to allow proper error handling in the UI
@@ -448,11 +447,9 @@ class ApiDataService {
 
       if (response.success && response.data) {
         Logger.success('✅ User passed via API');
-        // Extract the actual data from the nested structure
-        const result = response.data.data || response.data;
         return {
           success: true,
-          action: result.action,
+          action: response.data.action,
           isMatch: false,
         };
       } else {
@@ -501,7 +498,7 @@ class ApiDataService {
         Logger.success('✅ Action undone via API');
         return {
           success: true,
-          undoneAction: response.data?.undoneAction || response.data,
+          undoneAction: response.data.undoneAction,
         };
       } else {
         Logger.error('❌ Failed to undo action via API:', response.message);
@@ -542,7 +539,7 @@ class ApiDataService {
 
       if (response.success) {
         Logger.success('✅ User actions loaded from API');
-        return response.data?.data || response.data || [];
+        return response.data || [];
       } else {
         Logger.error('❌ Failed to get user actions from API:', response.message);
         return [];
@@ -572,7 +569,7 @@ class ApiDataService {
 
       if (response.success) {
         Logger.success('✅ User matches loaded from API');
-        return response.data?.data || response.data || [];
+        return response.data || [];
       } else {
         Logger.error('❌ Failed to get user matches from API:', response.message || response.error);
         throw new Error(response.message || response.error || 'Failed to get matches');
@@ -650,7 +647,7 @@ class ApiDataService {
 
       if (response.success) {
         Logger.success('✅ Messages loaded from API');
-        return response.data?.data || response.data || [];
+        return response.data || [];
       } else {
         Logger.error('❌ Failed to get messages from API:', response.message);
         return [];
@@ -691,9 +688,7 @@ class ApiDataService {
 
       if (response.success) {
         Logger.success('✅ Message sent via API');
-        // response.data is the API response body { success, message, data }
-        // response.data.data is the actual message object with id, content, etc.
-        return response.data?.data || response.data;
+        return response.data;
       } else {
         Logger.error('❌ Failed to send message via API:', response.message);
         throw new Error(response.message || 'Message sending failed');
@@ -864,7 +859,7 @@ class ApiDataService {
     try {
       const response = await apiClient.get(`/moderation/mute/${matchId}/status`);
       if (response.success) {
-        return response.data?.data?.isMuted || false;
+        return response.data?.isMuted || false;
       }
       return false;
     } catch (error) {
