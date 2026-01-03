@@ -600,11 +600,11 @@ router.post('/push-token', authenticateJWT, async (req, res) => {
 });
 
 /**
- * @route   DELETE /api/users/push-token
+ * @route   POST /api/users/push-token/clear
  * @desc    Clear push token from all users (used during logout)
  * @access  Public (token is device-specific, safe to clear by value)
  */
-router.delete('/push-token', async (req, res) => {
+router.post('/push-token/clear', async (req, res) => {
   try {
     const { pushToken } = req.body;
 
