@@ -47,6 +47,7 @@ const LikedYouScreen = () => {
   const [pendingMatchToast, setPendingMatchToast] = useState(false);
   const [hasShownUpgradeHint, setHasShownUpgradeHint] = useState(false);
   const [totalLikesCount, setTotalLikesCount] = useState(0); // Track the total count
+  const [loadingAction, setLoadingAction] = useState(null); // Track which user action is loading { userId, type: 'like' | 'pass' }
   const timeoutRef = useRef(null);
   const BATCH_SIZE = 10;
 
@@ -387,13 +388,14 @@ const LikedYouScreen = () => {
 
   // Handle match modal actions
   const handleSendMessage = useCallback(() => {
-    setShowMatchModal(false);
-
     // Capture the matched user data before clearing
     const userToNavigate = matchedUser;
-    setMatchedUser(null); // Clear matched user after capturing
 
-    // Small delay to ensure modal closes before navigation
+    // Close modal and clear state immediately
+    setShowMatchModal(false);
+    setMatchedUser(null);
+
+    // Navigate after a longer delay to ensure modal is fully unmounted
     setTimeout(() => {
       if (userToNavigate) {
         // Navigate directly to the chat with this match
@@ -408,7 +410,7 @@ const LikedYouScreen = () => {
         };
         navigateToChat(matchData);
       }
-    }, 100);
+    }, 300); // Longer delay to ensure modal animation completes
   }, [matchedUser, navigateToChat]);
 
   const handleKeepSwiping = useCallback(() => {
@@ -421,6 +423,9 @@ const LikedYouScreen = () => {
       setShowUpgradeModal(true);
       return;
     }
+
+    // Set loading state
+    setLoadingAction({ userId: profile.id, type: 'like' });
 
     try {
       const result = await ApiDataService.likeUser(profile.id);
@@ -470,6 +475,8 @@ const LikedYouScreen = () => {
     } catch (error) {
       Logger.error('Failed to like back:', error);
       showError('Could not like back. Please try again.');
+    } finally {
+      setLoadingAction(null);
     }
   };
 
@@ -478,6 +485,9 @@ const LikedYouScreen = () => {
       setShowUpgradeModal(true);
       return;
     }
+
+    // Set loading state
+    setLoadingAction({ userId: profile.id, type: 'pass' });
 
     try {
       const result = await ApiDataService.passUser(profile.id);
@@ -499,6 +509,8 @@ const LikedYouScreen = () => {
     } catch (error) {
       Logger.error('Failed to pass:', error);
       showError('Could not pass. Please try again.');
+    } finally {
+      setLoadingAction(null);
     }
   };
 
@@ -563,8 +575,13 @@ const LikedYouScreen = () => {
                 e.stopPropagation();
                 handlePass(item);
               }}
+              disabled={loadingAction?.userId === item.id}
             >
-              <Ionicons name="close" size={20} color={theme.colors.primary} />
+              {loadingAction?.userId === item.id && loadingAction?.type === 'pass' ? (
+                <ActivityIndicator size="small" color={theme.colors.primary} />
+              ) : (
+                <Ionicons name="close" size={20} color={theme.colors.primary} />
+              )}
             </TouchableOpacity>
             <TouchableOpacity
               style={[styles.quickActionButton, styles.likeQuickButton]}
@@ -572,8 +589,13 @@ const LikedYouScreen = () => {
                 e.stopPropagation();
                 handleLikeBack(item);
               }}
+              disabled={loadingAction?.userId === item.id}
             >
-              <Ionicons name="heart" size={20} color={theme.colors.secondary} />
+              {loadingAction?.userId === item.id && loadingAction?.type === 'like' ? (
+                <ActivityIndicator size="small" color={theme.colors.secondary} />
+              ) : (
+                <Ionicons name="heart" size={20} color={theme.colors.secondary} />
+              )}
             </TouchableOpacity>
           </View>
         )}
@@ -701,17 +723,31 @@ const LikedYouScreen = () => {
               <TouchableOpacity
                 style={[styles.modalButton, styles.passButton]}
                 onPress={() => handlePass(selectedUser)}
+                disabled={loadingAction?.userId === selectedUser?.id}
               >
-                <Ionicons name="close" size={24} color={theme.colors.primary} />
-                <Text style={styles.passButtonText}>Pass</Text>
+                {loadingAction?.userId === selectedUser?.id && loadingAction?.type === 'pass' ? (
+                  <ActivityIndicator size="small" color={theme.colors.primary} />
+                ) : (
+                  <>
+                    <Ionicons name="close" size={24} color={theme.colors.primary} />
+                    <Text style={styles.passButtonText}>Pass</Text>
+                  </>
+                )}
               </TouchableOpacity>
 
               <TouchableOpacity
                 style={[styles.modalButton, styles.likeButton]}
                 onPress={() => handleLikeBack(selectedUser)}
+                disabled={loadingAction?.userId === selectedUser?.id}
               >
-                <Ionicons name="heart" size={24} color="white" />
-                <Text style={styles.likeButtonText}>Like Back</Text>
+                {loadingAction?.userId === selectedUser?.id && loadingAction?.type === 'like' ? (
+                  <ActivityIndicator size="small" color="white" />
+                ) : (
+                  <>
+                    <Ionicons name="heart" size={24} color="white" />
+                    <Text style={styles.likeButtonText}>Like Back</Text>
+                  </>
+                )}
               </TouchableOpacity>
             </View>
           </View>
