@@ -30,8 +30,8 @@ const PreferencesScreen = ({ navigation }) => {
     try {
       setLoading(true);
       const response = await apiClient.getUserPreferences();
-      if (response.success && response.data?.data) {
-        const data = response.data.data;
+      if (response.success && response.data) {
+        const data = response.data;
         setPreferences({
           interestedIn: data.interestedIn || [],
           ageRange: data.ageRange || { min: 18, max: 50 },

@@ -173,7 +173,7 @@ const LoginScreen = ({ navigation }) => {
 
       if (response.success && response.data) {
         const { user, token, refreshToken, isNewUser, requiresSetup, missingFields } =
-          response.data.data;
+          response.data;
 
         // Store tokens (pass both access and refresh token)
         await setToken(token, refreshToken);

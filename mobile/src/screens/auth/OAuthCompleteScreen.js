@@ -75,7 +75,7 @@ const OAuthCompleteScreen = ({ route }) => {
         Logger.info('OAuth profile completed successfully');
 
         // Update user in context
-        await setUser(response.data.data);
+        await setUser(response.data);
 
         // Set flag to show onboarding
         await AsyncStorage.setItem('@HantibinkShowOnboarding', 'true');

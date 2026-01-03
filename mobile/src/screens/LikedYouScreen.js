@@ -74,13 +74,13 @@ const LikedYouScreen = () => {
           `/actions/who-liked-me?limit=${BATCH_SIZE}&offset=${currentOffset}`
         );
 
-        // ApiClient returns { success: true, data: actualApiResponse }
-        // The actual API response has { success, message, data: likesArray, totalCount }
-        if (response.success && response.data) {
+        // ApiClient unwraps API response, so response.data is the likes array
+        // Extra fields like totalCount are at response.totalCount
+        if (response.success) {
           // Extract the likes array and total count from the response
-          const responseData = response.data.data || [];
-          const totalCount = response.data.totalCount || 0;
-          const totalLikesCountFromAPI = response.data.totalLikesCount || 0;
+          const responseData = response.data || [];
+          const totalCount = response.totalCount || 0;
+          const totalLikesCountFromAPI = response.totalLikesCount || 0;
 
           // Set the total count
           setTotalLikesCount(totalCount);

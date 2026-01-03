@@ -19,8 +19,8 @@ const AccountSettingsScreen = ({ navigation }) => {
   const loadPauseStatus = useCallback(async () => {
     try {
       const response = await ApiClient.get('/users/profile/pause-status');
-      if (response.success && response.data?.success) {
-        setIsProfilePaused(response.data.data.isProfilePaused);
+      if (response.success) {
+        setIsProfilePaused(response.data.isProfilePaused);
       }
     } catch (error) {
       Logger.error('Failed to load pause status:', error);
@@ -37,7 +37,7 @@ const AccountSettingsScreen = ({ navigation }) => {
       const endpoint = value ? '/users/profile/pause' : '/users/profile/resume';
       const response = await ApiClient.put(endpoint);
 
-      if (response.success && response.data?.success) {
+      if (response.success) {
         setIsProfilePaused(value);
         showSuccess(
           value
