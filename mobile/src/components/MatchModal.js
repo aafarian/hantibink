@@ -1,5 +1,14 @@
 import React from 'react';
-import { Modal, View, Text, StyleSheet, TouchableOpacity, Image, Dimensions } from 'react-native';
+import {
+  Modal,
+  View,
+  Text,
+  StyleSheet,
+  TouchableOpacity,
+  Image,
+  Dimensions,
+  Pressable,
+} from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { theme } from '../styles/theme';
@@ -20,37 +29,44 @@ const MatchModal = ({
   const safeCurrentPhoto = currentUserPhoto || 'https://via.placeholder.com/150';
   const safeMatchedPhoto = matchedUserPhoto || 'https://via.placeholder.com/150';
 
-  // Handle send message with proper modal closing
+  // Handle send message - parent handles modal closing and navigation
   const handleSendMessage = () => {
-    if (onClose) onClose();
     if (onSendMessage) {
-      // Small delay to ensure modal animates out
-      setTimeout(() => {
-        onSendMessage();
-      }, 100);
+      onSendMessage();
     }
   };
 
-  // Handle keep swiping
+  // Handle keep swiping - parent handles modal closing
   const handleKeepSwiping = () => {
-    if (onClose) onClose();
-    if (onKeepSwiping) onKeepSwiping();
+    if (onKeepSwiping) {
+      onKeepSwiping();
+    }
   };
 
   return (
     <Modal animationType="fade" transparent={true} visible={visible} onRequestClose={onClose}>
-      <View style={styles.container}>
-        <View style={styles.content}>
+      <View style={styles.overlay}>
+        {/* Tappable background to dismiss */}
+        <Pressable style={styles.dismissArea} onPress={onClose} />
+
+        <View style={styles.container}>
+          {/* Close button */}
+          <TouchableOpacity style={styles.closeIcon} onPress={onClose}>
+            <Ionicons name="close" size={24} color={theme.colors.text.secondary} />
+          </TouchableOpacity>
+
+          {/* Header with gradient */}
           <LinearGradient
             colors={[theme.colors.primary, '#FF8E53']}
             style={styles.header}
             start={{ x: 0, y: 0 }}
             end={{ x: 1, y: 0 }}
           >
-            <Text style={styles.title}>It's a Match! 🎉</Text>
-            <Text style={styles.subtitle}>You and {matchedUserName} liked each other!</Text>
+            <Text style={styles.title}>It's a Match!</Text>
+            <Text style={styles.subtitle}>You and {matchedUserName} liked each other</Text>
           </LinearGradient>
 
+          {/* Photos section */}
           <View style={styles.photosContainer}>
             <View style={styles.photoWrapper}>
               <Image source={{ uri: safeCurrentPhoto }} style={styles.photo} />
@@ -58,7 +74,9 @@ const MatchModal = ({
             </View>
 
             <View style={styles.heartContainer}>
-              <Ionicons name="heart" size={40} color={theme.colors.primary} />
+              <View style={styles.heartBadge}>
+                <Ionicons name="heart" size={28} color={theme.colors.primary} />
+              </View>
             </View>
 
             <View style={styles.photoWrapper}>
@@ -67,21 +85,19 @@ const MatchModal = ({
             </View>
           </View>
 
+          {/* Actions */}
           <View style={styles.actions}>
-            <TouchableOpacity style={styles.secondaryButton} onPress={handleKeepSwiping}>
-              <Text style={styles.secondaryButtonText}>Keep Swiping</Text>
+            <TouchableOpacity
+              style={styles.primaryButton}
+              onPress={handleSendMessage}
+              activeOpacity={0.8}
+            >
+              <Ionicons name="chatbubble-ellipses" size={20} color={theme.colors.text.white} />
+              <Text style={styles.primaryButtonText}>Send Message</Text>
             </TouchableOpacity>
 
-            <TouchableOpacity style={styles.primaryButton} onPress={handleSendMessage}>
-              <LinearGradient
-                colors={[theme.colors.secondary, '#44A08D']}
-                style={styles.primaryButtonGradient}
-                start={{ x: 0, y: 0 }}
-                end={{ x: 1, y: 0 }}
-              >
-                <Ionicons name="chatbubble-ellipses" size={20} color="white" />
-                <Text style={styles.primaryButtonText}>Send Message</Text>
-              </LinearGradient>
+            <TouchableOpacity style={styles.secondaryButton} onPress={handleKeepSwiping}>
+              <Text style={styles.secondaryButtonText}>Keep Swiping</Text>
             </TouchableOpacity>
           </View>
         </View>
@@ -91,40 +107,56 @@ const MatchModal = ({
 };
 
 const styles = StyleSheet.create({
-  container: {
+  overlay: {
     flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.7)',
+    backgroundColor: theme.colors.background.overlay,
     justifyContent: 'center',
     alignItems: 'center',
   },
-  content: {
-    backgroundColor: 'white',
-    borderRadius: 25,
-    width: screenWidth * 0.85,
-    maxWidth: 350,
+  dismissArea: {
+    ...StyleSheet.absoluteFillObject,
+  },
+  container: {
+    backgroundColor: theme.colors.background.primary,
+    borderRadius: theme.borderRadius.xxl,
+    width: screenWidth * 0.88,
+    maxWidth: 380,
     overflow: 'hidden',
+    ...theme.shadows.large,
+  },
+  closeIcon: {
+    position: 'absolute',
+    top: theme.spacing.md,
+    right: theme.spacing.md,
+    padding: theme.spacing.xs,
+    zIndex: 10,
+    backgroundColor: 'rgba(255,255,255,0.9)',
+    borderRadius: theme.borderRadius.round,
   },
   header: {
-    padding: 25,
+    paddingVertical: theme.spacing.xxl,
+    paddingHorizontal: theme.spacing.xl,
     alignItems: 'center',
   },
   title: {
-    fontSize: 28,
-    fontWeight: 'bold',
-    color: 'white',
-    marginBottom: 8,
+    fontSize: theme.typography.sizes.xxxl,
+    fontWeight: theme.typography.weights.bold,
+    color: theme.colors.text.white,
+    marginBottom: theme.spacing.xs,
   },
   subtitle: {
-    fontSize: 16,
-    color: 'white',
+    fontSize: theme.typography.sizes.md,
+    color: theme.colors.text.white,
     textAlign: 'center',
+    opacity: 0.9,
   },
   photosContainer: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    padding: 30,
-    gap: 15,
+    paddingVertical: theme.spacing.xxl,
+    paddingHorizontal: theme.spacing.lg,
+    gap: theme.spacing.md,
   },
   photoWrapper: {
     alignItems: 'center',
@@ -137,45 +169,51 @@ const styles = StyleSheet.create({
     borderColor: theme.colors.primary,
   },
   photoName: {
-    marginTop: 8,
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#333',
+    marginTop: theme.spacing.sm,
+    fontSize: theme.typography.sizes.md,
+    fontWeight: theme.typography.weights.semibold,
+    color: theme.colors.text.primary,
   },
   heartContainer: {
-    marginHorizontal: 10,
+    marginHorizontal: theme.spacing.sm,
+  },
+  heartBadge: {
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    backgroundColor: `${theme.colors.primary}15`,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   actions: {
-    padding: 20,
-    gap: 12,
+    paddingHorizontal: theme.spacing.xl,
+    paddingBottom: theme.spacing.xl,
+    gap: theme.spacing.md,
   },
   primaryButton: {
-    width: '100%',
-  },
-  primaryButtonGradient: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: 14,
-    borderRadius: 25,
-    gap: 8,
+    backgroundColor: theme.colors.secondary,
+    paddingVertical: theme.spacing.lg,
+    borderRadius: theme.borderRadius.round,
+    gap: theme.spacing.sm,
+    ...theme.shadows.medium,
   },
   primaryButtonText: {
-    color: 'white',
-    fontSize: 16,
-    fontWeight: 'bold',
+    color: theme.colors.text.white,
+    fontSize: theme.typography.sizes.lg,
+    fontWeight: theme.typography.weights.bold,
   },
   secondaryButton: {
-    paddingVertical: 14,
-    borderRadius: 25,
-    borderWidth: 2,
-    borderColor: '#E0E0E0',
+    paddingVertical: theme.spacing.md,
+    borderRadius: theme.borderRadius.round,
     alignItems: 'center',
   },
   secondaryButtonText: {
-    color: '#666',
-    fontSize: 16,
-    fontWeight: '600',
+    color: theme.colors.text.muted,
+    fontSize: theme.typography.sizes.md,
+    fontWeight: theme.typography.weights.medium,
   },
 });
 
