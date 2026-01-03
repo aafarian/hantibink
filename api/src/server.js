@@ -24,7 +24,6 @@ if (process.env.SENTRY_DSN) {
       return event;
     },
   });
-  // Note: Can't use logger here as it's not imported yet - this runs before express
 }
 
 const express = require('express');
