@@ -88,16 +88,17 @@ export const AuthProvider = ({ children }) => {
 
             Logger.success('✅ User session restored from API');
           } else {
-            Logger.warn('⚠️ API session exists but no profile found');
-            await apiClient.clearTokens();
+            // Don't clear tokens when profile fetch fails - could be rate limiting,
+            // network issues, or other temporary failures. User will need to re-login
+            // manually only if their session is truly invalid.
+            Logger.warn('⚠️ Profile fetch failed but keeping session - might be temporary');
           }
         } else {
           Logger.info('ℹ️ No existing API session found');
         }
       } catch (error) {
         Logger.error('❌ Error initializing hybrid auth:', error);
-        // Don't clear tokens here - let user try to login if needed
-        // await apiClient.clearTokens();
+        // Don't clear tokens on errors - might be network issues
       } finally {
         setLoading(false);
       }
