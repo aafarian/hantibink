@@ -34,6 +34,12 @@ model User {
   location               String?        // Required for discovery, but nullable initially
   latitude               Float?
   longitude              Float?
+
+  // Discovery Preferences
+  minAge                 Int            @default(18)
+  maxAge                 Int            @default(99)
+  maxDistance            Int            @default(50)  // in kilometers
+
   mainPhotoId            String?
   mainPhotoUrl           String?
   registrationMethod     String?

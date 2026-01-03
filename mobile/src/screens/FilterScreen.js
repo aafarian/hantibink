@@ -1,19 +1,28 @@
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
-import { View, Text, ScrollView, TouchableOpacity, StyleSheet, Switch } from 'react-native';
-import Slider from '@react-native-community/slider';
+import React, { useState, useEffect, useMemo } from 'react';
+import {
+  View,
+  Text,
+  ScrollView,
+  TouchableOpacity,
+  StyleSheet,
+  Switch,
+  ActivityIndicator,
+} from 'react-native';
 import MultiSlider from '@ptomasroos/react-native-multi-slider';
 import { MaterialIcons } from '@expo/vector-icons';
 import { useToast } from '../contexts/ToastContext';
 import { useAuth } from '../contexts/AuthContext';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import apiClient from '../services/ApiClient';
 import Logger from '../utils/logger';
 import { kmToMiles } from '../utils/distanceUtils';
 import { theme } from '../styles/theme';
 import ScreenWrapper from '../components/shared/ScreenWrapper';
 
 const FilterScreen = ({ navigation, route }) => {
-  const { showSuccess } = useToast();
+  const { showSuccess, showError } = useToast();
   const { userProfile: _userProfile } = useAuth();
+  const [loading, setLoading] = useState(true);
 
   // Get current filters from route params or use defaults
   const currentFilters = useMemo(
@@ -22,90 +31,82 @@ const FilterScreen = ({ navigation, route }) => {
   );
   const onSaveCallback = route?.params?.onSavePreferences;
 
-  const [filters, setFilters] = useState({
-    // Age Range
+  // Core preferences (synced with database via API)
+  const [corePreferences, setCorePreferences] = useState({
     minAge: currentFilters.minAge || 18,
-    maxAge: currentFilters.maxAge || 50,
+    maxAge: currentFilters.maxAge || 99,
+    maxDistance: currentFilters.maxDistance || 50,
+  });
+
+  // Advanced filters (stored in AsyncStorage only)
+  const [advancedFilters, setAdvancedFilters] = useState({
     strictAge: currentFilters.strictAge || false,
-
-    // Distance
-    maxDistance: currentFilters.maxDistance || 100,
     strictDistance: currentFilters.strictDistance || false,
-
-    // Always require photos (no longer configurable)
-    // onlyWithPhotos is always true now
-
-    // Advanced filters
     relationshipType: currentFilters.relationshipType || [],
     strictRelationshipType: currentFilters.strictRelationshipType || false,
-
     education: currentFilters.education || [],
     strictEducation: currentFilters.strictEducation || false,
-
     smoking: currentFilters.smoking || [],
     strictSmoking: currentFilters.strictSmoking || false,
-
     drinking: currentFilters.drinking || [],
     strictDrinking: currentFilters.strictDrinking || false,
-
     languages: currentFilters.languages || [],
     strictLanguages: currentFilters.strictLanguages || false,
-
     hasKids: currentFilters.hasKids || null,
     wantsKids: currentFilters.wantsKids || null,
-
-    // Height range (in cm)
     heightMin: currentFilters.heightMin || null,
     heightMax: currentFilters.heightMax || null,
   });
 
-  const loadSavedFilters = useCallback(async () => {
-    try {
-      const savedFilters = await AsyncStorage.getItem('@HantibinkFilters');
-      if (savedFilters) {
-        const parsed = JSON.parse(savedFilters);
-        // Only apply saved filters if no route params were provided
-        // Route params take priority over saved filters
-        setFilters(prev => {
-          const hasRouteParams = Object.keys(currentFilters).length > 0;
-          if (hasRouteParams) {
-            // Route params exist, don't override them
-            return prev;
-          } else {
-            // No route params, use saved filters
-            return { ...prev, ...parsed };
-          }
-        });
-        Logger.info('Loaded saved filters:', parsed);
-      }
-    } catch (error) {
-      Logger.error('Failed to load saved filters:', error);
-    }
-  }, [currentFilters]); // currentFilters is used inside, so it's a dependency
-
-  // Load saved filters on mount
+  // Load preferences on mount
   useEffect(() => {
-    loadSavedFilters();
-  }, [loadSavedFilters]);
+    const loadPreferences = async () => {
+      try {
+        setLoading(true);
 
-  const saveFilters = async filtersToSave => {
-    try {
-      await AsyncStorage.setItem('@HantibinkFilters', JSON.stringify(filtersToSave));
-      Logger.info('Filters saved to storage');
-    } catch (error) {
-      Logger.error('Failed to save filters:', error);
-    }
+        // Load core preferences from API
+        const response = await apiClient.getUserPreferences();
+        if (response.success && response.data) {
+          const data = response.data;
+          setCorePreferences({
+            minAge: data.ageRange?.min || 18,
+            maxAge: data.ageRange?.max || 99,
+            maxDistance: data.distance || 50,
+          });
+        }
+
+        // Load advanced filters from AsyncStorage
+        const savedFilters = await AsyncStorage.getItem('@HantibinkAdvancedFilters');
+        if (savedFilters) {
+          const parsed = JSON.parse(savedFilters);
+          setAdvancedFilters(prev => ({ ...prev, ...parsed }));
+        }
+      } catch (error) {
+        Logger.error('Failed to load preferences:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadPreferences();
+  }, []);
+
+  const updateCorePreference = (key, value) => {
+    setCorePreferences(prev => ({
+      ...prev,
+      [key]: value,
+    }));
   };
 
-  const updateFilter = (key, value) => {
-    setFilters(prev => ({
+  const updateAdvancedFilter = (key, value) => {
+    setAdvancedFilters(prev => ({
       ...prev,
       [key]: value,
     }));
   };
 
   const toggleArrayFilter = (key, value) => {
-    setFilters(prev => ({
+    setAdvancedFilters(prev => ({
       ...prev,
       [key]: prev[key].includes(value)
         ? prev[key].filter(item => item !== value)
@@ -114,29 +115,54 @@ const FilterScreen = ({ navigation, route }) => {
   };
 
   const applyFilters = async () => {
-    // Save filters to storage
-    await saveFilters(filters);
+    try {
+      // Save core preferences to API (syncs with PreferencesScreen)
+      const apiPayload = {
+        ageRange: { min: corePreferences.minAge, max: corePreferences.maxAge },
+        distance: corePreferences.maxDistance,
+      };
+      const response = await apiClient.updateUserPreferences(apiPayload);
+      if (!response.success) {
+        showError('Failed to save preferences');
+        return;
+      }
 
-    // Log the applied filters
-    Logger.info('Applying filters:', filters);
+      // Save advanced filters to AsyncStorage
+      await AsyncStorage.setItem('@HantibinkAdvancedFilters', JSON.stringify(advancedFilters));
 
-    // Call the callback if provided (for PeopleScreen)
-    if (onSaveCallback) {
-      onSaveCallback(filters);
+      // Combine all filters for the callback
+      const allFilters = {
+        ...corePreferences,
+        ...advancedFilters,
+      };
+
+      Logger.info('Applying filters:', allFilters);
+
+      // Call the callback if provided (for PeopleScreen)
+      if (onSaveCallback) {
+        onSaveCallback(allFilters);
+      }
+
+      showSuccess('Filters updated successfully!');
+      navigation.goBack();
+    } catch (error) {
+      Logger.error('Failed to save filters:', error);
+      showError('Failed to save filters');
     }
-
-    showSuccess('Filters updated successfully!');
-    navigation.goBack();
   };
 
-  const resetFilters = () => {
-    const defaultFilters = {
+  const resetFilters = async () => {
+    // Reset core preferences to defaults
+    setCorePreferences({
       minAge: 18,
-      maxAge: 50,
+      maxAge: 99,
+      maxDistance: 50,
+    });
+
+    // Reset advanced filters to defaults
+    setAdvancedFilters({
       strictAge: false,
-      maxDistance: 100,
       strictDistance: false,
-      // Photos always required - no longer a filter option
       relationshipType: [],
       strictRelationshipType: false,
       education: [],
@@ -151,8 +177,7 @@ const FilterScreen = ({ navigation, route }) => {
       wantsKids: null,
       heightMin: null,
       heightMax: null,
-    };
-    setFilters(defaultFilters);
+    });
   };
 
   const renderSection = (title, children) => (
@@ -162,7 +187,7 @@ const FilterScreen = ({ navigation, route }) => {
     </View>
   );
 
-  const renderToggle = (label, description, key, value) => (
+  const renderToggle = (label, description, key, value, isAdvanced = true) => (
     <View style={styles.toggleContainer}>
       <View style={styles.toggleTextContainer}>
         <Text style={styles.toggleLabel}>{label}</Text>
@@ -170,46 +195,12 @@ const FilterScreen = ({ navigation, route }) => {
       </View>
       <Switch
         value={value}
-        onValueChange={newValue => updateFilter(key, newValue)}
+        onValueChange={newValue =>
+          isAdvanced ? updateAdvancedFilter(key, newValue) : updateCorePreference(key, newValue)
+        }
         trackColor={{ false: '#E5E5EA', true: theme.colors.primary }}
         thumbColor={value ? '#fff' : '#f4f3f4'}
       />
-    </View>
-  );
-
-  const _renderSlider = (_label, _minKey, _maxKey, _min, _max, _unit = '') => (
-    <View style={styles.sliderContainer}>
-      <Text style={styles.sliderLabel}>{_label}</Text>
-      <View style={styles.sliderRow}>
-        <Text style={styles.sliderValue}>{filters[_minKey]}</Text>
-        <View style={styles.sliderTrack}>
-          <Slider
-            style={styles.slider}
-            minimumValue={_min}
-            maximumValue={_max}
-            value={filters[_minKey]}
-            onValueChange={value => updateFilter(_minKey, Math.round(value))}
-            minimumTrackTintColor={theme.colors.primary}
-            maximumTrackTintColor="#E5E5EA"
-            thumbTintColor={theme.colors.primary}
-          />
-        </View>
-        <Text style={styles.sliderValue}>{filters[_maxKey]}</Text>
-      </View>
-      <View style={styles.sliderRow}>
-        <Text style={styles.sliderHint}>Min</Text>
-        <Slider
-          style={styles.slider}
-          minimumValue={filters[_minKey]}
-          maximumValue={_max}
-          value={filters[_maxKey]}
-          onValueChange={value => updateFilter(_maxKey, Math.round(value))}
-          minimumTrackTintColor={theme.colors.primary}
-          maximumTrackTintColor="#E5E5EA"
-          thumbTintColor={theme.colors.primary}
-        />
-        <Text style={styles.sliderHint}>Max</Text>
-      </View>
     </View>
   );
 
@@ -222,12 +213,15 @@ const FilterScreen = ({ navigation, route }) => {
             key={option}
             style={[
               styles.optionButton,
-              filters[key].includes(option) && styles.optionButtonActive,
+              advancedFilters[key].includes(option) && styles.optionButtonActive,
             ]}
             onPress={() => toggleArrayFilter(key, option)}
           >
             <Text
-              style={[styles.optionText, filters[key].includes(option) && styles.optionTextActive]}
+              style={[
+                styles.optionText,
+                advancedFilters[key].includes(option) && styles.optionTextActive,
+              ]}
             >
               {option}
             </Text>
@@ -236,6 +230,57 @@ const FilterScreen = ({ navigation, route }) => {
       </View>
     </View>
   );
+
+  const sliderStyles = {
+    selectedStyle: {
+      backgroundColor: theme.colors.primary,
+      height: 4,
+    },
+    unselectedStyle: {
+      backgroundColor: '#E5E5EA',
+      height: 4,
+    },
+    markerStyle: {
+      backgroundColor: '#FFF',
+      height: 28,
+      width: 28,
+      borderRadius: 14,
+      shadowColor: '#000',
+      shadowOffset: { width: 0, height: 2 },
+      shadowOpacity: 0.15,
+      shadowRadius: 4,
+      elevation: 4,
+    },
+    pressedMarkerStyle: {
+      height: 32,
+      width: 32,
+      borderRadius: 16,
+    },
+    containerStyle: {
+      height: 40,
+    },
+    trackStyle: {
+      height: 4,
+      borderRadius: 2,
+    },
+  };
+
+  if (loading) {
+    return (
+      <ScreenWrapper>
+        <View style={styles.header}>
+          <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
+            <MaterialIcons name="arrow-back" size={24} color="#fff" />
+          </TouchableOpacity>
+          <Text style={styles.headerTitle}>Filters</Text>
+          <View style={{ width: 50 }} />
+        </View>
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator size="large" color={theme.colors.primary} />
+        </View>
+      </ScreenWrapper>
+    );
+  }
 
   return (
     <ScreenWrapper>
@@ -260,54 +305,24 @@ const FilterScreen = ({ navigation, route }) => {
               <View style={styles.rangeHeader}>
                 <Text style={styles.rangeLabel}>Age Range</Text>
                 <View style={styles.rangeValues}>
-                  <Text style={styles.rangeValue}>{filters.minAge}</Text>
+                  <Text style={styles.rangeValue}>{corePreferences.minAge}</Text>
                   <Text style={styles.rangeSeparator}>-</Text>
-                  <Text style={styles.rangeValue}>{filters.maxAge}</Text>
+                  <Text style={styles.rangeValue}>{corePreferences.maxAge}</Text>
                   <Text style={styles.rangeUnit}>years</Text>
                 </View>
               </View>
               <View style={styles.multiSliderContainer}>
                 <MultiSlider
-                  values={[filters.minAge, filters.maxAge]}
+                  values={[corePreferences.minAge, corePreferences.maxAge]}
                   min={18}
                   max={100}
                   step={1}
                   sliderLength={280}
                   onValuesChange={values => {
-                    updateFilter('minAge', values[0]);
-                    updateFilter('maxAge', values[1]);
+                    updateCorePreference('minAge', values[0]);
+                    updateCorePreference('maxAge', values[1]);
                   }}
-                  selectedStyle={{
-                    backgroundColor: theme.colors.primary,
-                    height: 4,
-                  }}
-                  unselectedStyle={{
-                    backgroundColor: '#E5E5EA',
-                    height: 4,
-                  }}
-                  markerStyle={{
-                    backgroundColor: '#FFF',
-                    height: 28,
-                    width: 28,
-                    borderRadius: 14,
-                    shadowColor: '#000',
-                    shadowOffset: { width: 0, height: 2 },
-                    shadowOpacity: 0.15,
-                    shadowRadius: 4,
-                    elevation: 4,
-                  }}
-                  pressedMarkerStyle={{
-                    height: 32,
-                    width: 32,
-                    borderRadius: 16,
-                  }}
-                  containerStyle={{
-                    height: 40,
-                  }}
-                  trackStyle={{
-                    height: 4,
-                    borderRadius: 2,
-                  }}
+                  {...sliderStyles}
                 />
                 <View style={styles.sliderLabels}>
                   <Text style={styles.sliderMinLabel}>18</Text>
@@ -318,7 +333,8 @@ const FilterScreen = ({ navigation, route }) => {
                 'Strict age preference',
                 'Only show people within this age range',
                 'strictAge',
-                filters.strictAge
+                advancedFilters.strictAge,
+                true
               )}
             </View>
 
@@ -327,53 +343,23 @@ const FilterScreen = ({ navigation, route }) => {
               <View style={styles.rangeHeader}>
                 <Text style={styles.rangeLabel}>Maximum Distance</Text>
                 <View style={styles.rangeValues}>
-                  <Text style={styles.rangeValue}>{kmToMiles(filters.maxDistance)}</Text>
+                  <Text style={styles.rangeValue}>{kmToMiles(corePreferences.maxDistance)}</Text>
                   <Text style={styles.rangeUnit}>mi</Text>
-                  <Text style={styles.rangeSeparator}>({filters.maxDistance} km)</Text>
+                  <Text style={styles.rangeSeparator}>({corePreferences.maxDistance} km)</Text>
                 </View>
               </View>
               <View style={styles.multiSliderContainer}>
                 <MultiSlider
-                  values={[filters.maxDistance]}
+                  values={[corePreferences.maxDistance]}
                   min={1}
                   max={500}
                   step={1}
                   sliderLength={280}
                   onValuesChange={values => {
-                    updateFilter('maxDistance', values[0]);
-                  }}
-                  selectedStyle={{
-                    backgroundColor: theme.colors.primary,
-                    height: 4,
-                  }}
-                  unselectedStyle={{
-                    backgroundColor: '#E5E5EA',
-                    height: 4,
-                  }}
-                  markerStyle={{
-                    backgroundColor: '#FFF',
-                    height: 28,
-                    width: 28,
-                    borderRadius: 14,
-                    shadowColor: '#000',
-                    shadowOffset: { width: 0, height: 2 },
-                    shadowOpacity: 0.15,
-                    shadowRadius: 4,
-                    elevation: 4,
-                  }}
-                  pressedMarkerStyle={{
-                    height: 32,
-                    width: 32,
-                    borderRadius: 16,
-                  }}
-                  containerStyle={{
-                    height: 40,
-                  }}
-                  trackStyle={{
-                    height: 4,
-                    borderRadius: 2,
+                    updateCorePreference('maxDistance', values[0]);
                   }}
                   enableOne={true}
+                  {...sliderStyles}
                 />
                 <View style={styles.sliderLabels}>
                   <Text style={styles.sliderMinLabel}>1 mi</Text>
@@ -384,13 +370,12 @@ const FilterScreen = ({ navigation, route }) => {
                 'Strict distance preference',
                 'Only show people within this distance',
                 'strictDistance',
-                filters.strictDistance
+                advancedFilters.strictDistance,
+                true
               )}
             </View>
           </>
         )}
-
-        {/* Matching Preferences section removed - photos now always required */}
 
         {/* Relationship Type */}
         {renderSection(
@@ -408,7 +393,7 @@ const FilterScreen = ({ navigation, route }) => {
               'Strict relationship preference',
               'Only show people looking for the same type of relationship',
               'strictRelationshipType',
-              filters.strictRelationshipType
+              advancedFilters.strictRelationshipType
             )}
           </>
         )}
@@ -427,7 +412,7 @@ const FilterScreen = ({ navigation, route }) => {
               'Strict smoking preference',
               'Only show people with selected smoking habits',
               'strictSmoking',
-              filters.strictSmoking
+              advancedFilters.strictSmoking
             )}
             {renderMultiSelect('Drinking', 'drinking', [
               'Never',
@@ -439,7 +424,7 @@ const FilterScreen = ({ navigation, route }) => {
               'Strict drinking preference',
               'Only show people with selected drinking habits',
               'strictDrinking',
-              filters.strictDrinking
+              advancedFilters.strictDrinking
             )}
           </>
         )}
@@ -460,7 +445,7 @@ const FilterScreen = ({ navigation, route }) => {
               'Strict education preference',
               'Only show people with selected education levels',
               'strictEducation',
-              filters.strictEducation
+              advancedFilters.strictEducation
             )}
           </>
         )}
@@ -490,7 +475,7 @@ const FilterScreen = ({ navigation, route }) => {
               'Strict language preference',
               'Only show people who speak selected languages',
               'strictLanguages',
-              filters.strictLanguages
+              advancedFilters.strictLanguages
             )}
           </>
         )}
@@ -533,6 +518,11 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: '#fff',
     fontWeight: '500',
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   content: {
     flex: 1,
@@ -670,6 +660,8 @@ const styles = StyleSheet.create({
     backgroundColor: '#fff',
     paddingHorizontal: 20,
     paddingVertical: 16,
+    borderTopWidth: 1,
+    borderTopColor: '#f0f0f0',
   },
   applyButton: {
     backgroundColor: theme.colors.primary,

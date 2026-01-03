@@ -11,18 +11,13 @@ if (process.env.NODE_ENV !== 'production') {
 // Initialize Sentry FIRST - before any other imports
 const Sentry = require('@sentry/node');
 
-if (process.env.SENTRY_DSN) {
+// Only initialize Sentry in production (or if SENTRY_DEBUG is set for testing)
+const isProduction = process.env.NODE_ENV === 'production';
+if (process.env.SENTRY_DSN && (isProduction || process.env.SENTRY_DEBUG)) {
   Sentry.init({
     dsn: process.env.SENTRY_DSN,
     environment: process.env.NODE_ENV || 'development',
-    tracesSampleRate: process.env.NODE_ENV === 'production' ? 0.1 : 1.0, // 10% in prod, 100% in dev
-    beforeSend(event) {
-      // Don't send events in development unless explicitly enabled
-      if (process.env.NODE_ENV === 'development' && !process.env.SENTRY_DEBUG) {
-        return null;
-      }
-      return event;
-    },
+    tracesSampleRate: isProduction ? 0.1 : 1.0,
   });
 }
 

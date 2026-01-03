@@ -9,6 +9,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { useToast } from '../contexts/ToastContext';
 import { useTabNavigation } from '../hooks/useTabNavigation';
 import ApiDataService from '../services/ApiDataService';
+import apiClient from '../services/ApiClient';
 import SocketService from '../services/SocketService';
 import SwipeableCardStack from '../components/SwipeableCardStack';
 import MatchModal from '../components/MatchModal';
@@ -68,22 +69,39 @@ const PeopleScreenOptimized = ({ navigation }) => {
   });
   const [filtersLoaded, setFiltersLoaded] = useState(false);
 
-  // Load filters from AsyncStorage
+  // Load filters: core preferences from API, advanced filters from AsyncStorage
   useEffect(() => {
     const loadFilters = async () => {
       try {
-        const savedFilters = await AsyncStorage.getItem('@HantibinkFilters');
-        if (savedFilters) {
-          const parsed = JSON.parse(savedFilters);
-          Logger.info('📱 Loaded saved filters from storage');
-          setFilters(prev => ({
-            ...prev,
-            ...parsed,
-            interestedIn: userProfile?.interestedIn || parsed.interestedIn || [],
-          }));
+        // Load core preferences from API
+        const response = await apiClient.getUserPreferences();
+        let corePrefs = {};
+        if (response.success && response.data) {
+          const data = response.data;
+          corePrefs = {
+            minAge: data.ageRange?.min || 18,
+            maxAge: data.ageRange?.max || 99,
+            maxDistance: data.distance || 50,
+          };
+          Logger.info('📱 Loaded core preferences from API');
         }
+
+        // Load advanced filters from AsyncStorage
+        const savedFilters = await AsyncStorage.getItem('@HantibinkAdvancedFilters');
+        let advancedFilters = {};
+        if (savedFilters) {
+          advancedFilters = JSON.parse(savedFilters);
+          Logger.info('📱 Loaded advanced filters from storage');
+        }
+
+        setFilters(prev => ({
+          ...prev,
+          ...corePrefs,
+          ...advancedFilters,
+          interestedIn: userProfile?.interestedIn || [],
+        }));
       } catch (error) {
-        Logger.error('Failed to load filters from storage:', error);
+        Logger.error('Failed to load filters:', error);
       } finally {
         setFiltersLoaded(true);
       }
@@ -619,21 +637,15 @@ const PeopleScreenOptimized = ({ navigation }) => {
         onPress={() =>
           navigation.navigate('Filter', {
             userPreferences: filters,
-            onSavePreferences: async newFilters => {
+            onSavePreferences: newFilters => {
+              // FilterScreen already saves to API and AsyncStorage
+              // Just update local state and reload profiles
               setFilters(newFilters);
-              // Save filters to AsyncStorage
-              try {
-                await AsyncStorage.setItem('@HantibinkFilters', JSON.stringify(newFilters));
-                Logger.info('Filters saved to storage');
-              } catch (error) {
-                Logger.error('Failed to save filters:', error);
-              }
-              // Reset everything when filters change
               processedIds.current.clear();
               setProfiles([]);
               setHasMore(true);
               setHasInitialized(false);
-              loadInitialProfiles(newFilters); // Pass the new filters directly
+              loadInitialProfiles(newFilters);
             },
           })
         }
