@@ -633,13 +633,21 @@ const ProfileSetupModal = ({ visible, onClose, onComplete, userProfile }) => {
         Logger.info('📤 Sending to complete-setup endpoint:', completeData);
         const response = await ApiDataService.completeProfileSetup(completeData);
 
-        if (response.success) {
+        // Handle both { success: true, data: ... } and direct data response
+        const isSuccess = response?.success || (response && !response.error);
+        const responseData = response?.data || response;
+
+        if (isSuccess) {
           showToast('Profile setup complete!', 'success');
-          // Don't refresh immediately - let the ProfileScreen handle it on focus
-          // This avoids rate limiting issues
-          onComplete(response.data);
+          // Close modal and let parent handle refresh
+          try {
+            onComplete(responseData);
+          } catch (callbackError) {
+            // Don't show error if onComplete fails - setup already succeeded
+            Logger.warn('onComplete callback error (setup succeeded):', callbackError);
+          }
         } else {
-          throw new Error(response.message || 'Setup failed');
+          throw new Error(response?.message || 'Setup failed');
         }
       } catch (error) {
         Logger.error('Profile setup error:', error);
@@ -719,15 +727,23 @@ const ProfileSetupModal = ({ visible, onClose, onComplete, userProfile }) => {
 
       Logger.info('📍 API response:', response);
 
-      if (response.success) {
+      // Handle both { success: true, data: ... } and direct data response
+      const isSuccess = response?.success || (response && !response.error);
+      const responseData = response?.data || response;
+
+      if (isSuccess) {
         showToast('Profile setup complete!', 'success');
-        // Don't refresh immediately - let the ProfileScreen handle it on focus
-        // This avoids rate limiting issues
+        // Close modal and let parent handle refresh
         Logger.info('📍 Calling onComplete to close modal...');
-        onComplete(response.data);
-        Logger.info('📍 onComplete called successfully');
+        try {
+          onComplete(responseData);
+          Logger.info('📍 onComplete called successfully');
+        } catch (callbackError) {
+          // Don't show error if onComplete fails - setup already succeeded
+          Logger.warn('onComplete callback error (setup succeeded):', callbackError);
+        }
       } else {
-        throw new Error(response.message || 'Setup failed');
+        throw new Error(response?.message || 'Setup failed');
       }
     } catch (error) {
       Logger.error('Profile setup error:', error);

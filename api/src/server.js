@@ -130,11 +130,11 @@ const corsOptions = {
 
 app.use(cors(corsOptions));
 
-// Rate limiting - more relaxed for development
+// Rate limiting - generous limits for normal app usage
 const isDevelopment = NODE_ENV === 'development';
 const limiter = rateLimit({
-  windowMs: parseInt(process.env.RATE_LIMIT_WINDOW_MS) || (isDevelopment ? 1 * 60 * 1000 : 15 * 60 * 1000), // 1 minute for dev, 15 minutes for prod
-  max: parseInt(process.env.RATE_LIMIT_MAX_REQUESTS) || (isDevelopment ? 500 : 200), // 500 requests per window in dev, 200 in prod
+  windowMs: parseInt(process.env.RATE_LIMIT_WINDOW_MS) || 15 * 60 * 1000, // 15 minutes
+  max: parseInt(process.env.RATE_LIMIT_MAX_REQUESTS) || 2000, // 2000 requests per 15 min window
   message: {
     error: 'Too many requests, please wait',
     retryAfter: Math.ceil(
@@ -165,7 +165,7 @@ const limiter = rateLimit({
 // Only apply rate limiting if not explicitly disabled
 if (process.env.ENABLE_RATE_LIMITING !== 'false') {
   app.use(limiter);
-  logger.info(`Rate limiting enabled: ${isDevelopment ? 'Development' : 'Production'} mode - ${isDevelopment ? '500 req/min' : '200 req/15min'}`);
+  logger.info('Rate limiting enabled: 2000 req/15min');
 } else {
   logger.info('Rate limiting is disabled');
 }
