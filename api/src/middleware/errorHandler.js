@@ -2,6 +2,7 @@
  * Global error handling middleware for Hantibink API
  */
 
+const Sentry = require('@sentry/node');
 const logger = require('../utils/logger');
 
 // Custom error class
@@ -31,6 +32,19 @@ const errorHandler = (err, req, res, _next) => {
     userAgent: req.get('User-Agent'),
     userId: req.user?.id || null,
   });
+
+  // Report to Sentry (skip 4xx client errors to reduce noise)
+  const statusCode = err.statusCode || 500;
+  if (statusCode >= 500) {
+    Sentry.withScope((scope) => {
+      scope.setUser({ id: req.user?.id });
+      scope.setExtra('url', req.originalUrl);
+      scope.setExtra('method', req.method);
+      scope.setExtra('ip', req.ip);
+      scope.setTag('statusCode', statusCode);
+      Sentry.captureException(err);
+    });
+  }
 
   // Mongoose bad ObjectId
   if (err.name === 'CastError') {

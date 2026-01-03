@@ -1,5 +1,6 @@
 import React from 'react';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
+import * as Sentry from '@sentry/react-native';
 import Logger from '../utils/logger';
 import { MaterialIcons } from '@expo/vector-icons';
 import { theme } from '../styles/theme';
@@ -30,8 +31,11 @@ class ErrorBoundary extends React.Component {
       componentStack: errorInfo.componentStack,
     });
 
-    // In production, you would send this to a service like Sentry
-    // logErrorToService(error, errorInfo);
+    // Report to Sentry
+    Sentry.withScope(scope => {
+      scope.setExtra('componentStack', errorInfo.componentStack);
+      Sentry.captureException(error);
+    });
   }
 
   handleRetry = () => {
