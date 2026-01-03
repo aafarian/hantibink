@@ -221,8 +221,8 @@ const getUsersForDiscovery = async (currentUserId, options = {}) => {
     // First check if user is eligible for discovery and get full profile
     const currentUser = await prisma.user.findUnique({
       where: { id: currentUserId },
-      select: { 
-        gender: true, 
+      select: {
+        gender: true,
         interestedIn: true,
         location: true,
         isDiscoverable: true,
@@ -231,6 +231,10 @@ const getUsersForDiscovery = async (currentUserId, options = {}) => {
         birthDate: true,
         isPremium: true,
         relationshipType: true,
+        // Discovery preferences
+        minAge: true,
+        maxAge: true,
+        maxDistance: true,
         interests: {
           include: {
             interest: true,
@@ -258,31 +262,33 @@ const getUsersForDiscovery = async (currentUserId, options = {}) => {
       throw new Error('LOCATION_REQUIRED: Location is required for discovery');
     }
 
-    const { 
-      limit = 20, 
-      excludeIds = [], 
+    const {
+      limit = 20,
+      excludeIds = [],
       filters = {},
       strictMode = false // If true, only show perfect matches
     } = options;
 
-    // Default filter values
+    // Default filter values - use user's saved preferences or fall back to defaults
     const defaultFilters = {
-      ageRange: { min: 18, max: 100 },
-      maxDistance: 100, // km
+      ageRange: {
+        min: filters.ageRange?.min ?? currentUser?.minAge ?? 18,
+        max: filters.ageRange?.max ?? currentUser?.maxAge ?? 99
+      },
+      maxDistance: filters.maxDistance ?? currentUser?.maxDistance ?? 50, // km
       // Photos are now always required - removed from filters
-      strictAge: false,
-      strictDistance: false,
-      relationshipType: [],
-      strictRelationshipType: false,
-      education: [],
-      strictEducation: false,
-      smoking: [],
-      strictSmoking: false,
-      drinking: [],
-      strictDrinking: false,
-      languages: [],
-      strictLanguages: false,
-      ...filters
+      strictAge: filters.strictAge ?? false,
+      strictDistance: filters.strictDistance ?? false,
+      relationshipType: filters.relationshipType ?? [],
+      strictRelationshipType: filters.strictRelationshipType ?? false,
+      education: filters.education ?? [],
+      strictEducation: filters.strictEducation ?? false,
+      smoking: filters.smoking ?? [],
+      strictSmoking: filters.strictSmoking ?? false,
+      drinking: filters.drinking ?? [],
+      strictDrinking: filters.strictDrinking ?? false,
+      languages: filters.languages ?? [],
+      strictLanguages: filters.strictLanguages ?? false,
     };
 
     // Get user's already processed user IDs (liked/passed)

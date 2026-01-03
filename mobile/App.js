@@ -14,22 +14,14 @@ import { FeatureFlagsProvider } from './src/contexts/FeatureFlagsContext';
 import { PhotoViewerProvider } from './src/contexts/PhotoViewerContext';
 import AppNavigator from './src/navigation/AppNavigator';
 
-// Initialize Sentry
+// Initialize Sentry - only in production builds
 const SENTRY_DSN = Constants.expoConfig?.extra?.sentryDsn;
-if (SENTRY_DSN) {
+if (SENTRY_DSN && !__DEV__) {
   Sentry.init({
     dsn: SENTRY_DSN,
-    environment: __DEV__ ? 'development' : 'production',
+    environment: 'production',
     enableAutoSessionTracking: true,
-    tracesSampleRate: __DEV__ ? 1.0 : 0.1,
-    debug: __DEV__,
-    beforeSend(event) {
-      // Don't send events in development
-      if (__DEV__) {
-        return null;
-      }
-      return event;
-    },
+    tracesSampleRate: 0.1,
   });
 }
 
