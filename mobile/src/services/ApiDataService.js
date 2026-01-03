@@ -64,7 +64,7 @@ class ApiDataService {
 
       if (response.success) {
         Logger.success('✅ Profile setup completed via API');
-        return response.data;
+        return { success: true, data: response.data };
       } else {
         Logger.error('❌ Failed to complete profile setup via API:', response.message);
         throw new Error(response.message || 'Setup failed');
