@@ -271,14 +271,20 @@ const ChatScreen = ({ route, navigation }) => {
       setIsLoading(true);
       const loadedMessages = await ApiDataService.getMessages(match.matchId);
 
-      // Filter out any messages without valid IDs and log warning
-      const validMessages = (loadedMessages || []).filter(msg => {
-        if (!msg.id) {
-          Logger.warn('Message without ID found:', msg);
-          return false;
-        }
-        return true;
-      });
+      // Filter out any messages without valid IDs and normalize the data
+      const validMessages = (loadedMessages || [])
+        .filter(msg => {
+          if (!msg.id) {
+            Logger.warn('Message without ID found:', msg);
+            return false;
+          }
+          return true;
+        })
+        .map(msg => ({
+          ...msg,
+          // Normalize timestamp field - API returns 'timestamp', we use 'createdAt' internally
+          createdAt: msg.timestamp || msg.createdAt,
+        }));
 
       setMessages(validMessages);
 
@@ -457,14 +463,24 @@ const ChatScreen = ({ route, navigation }) => {
   };
 
   // Handle messages read status
-  const handleMessagesRead = () => {
-    setMessages(prev =>
-      prev.map(msg => ({
-        ...msg,
-        isRead: msg.senderId === user.uid ? true : msg.isRead,
-      }))
-    );
-  };
+  const handleMessagesRead = useCallback(
+    data => {
+      // Only update if the OTHER user read our messages
+      // (readByUserId is the user who read, so it should be the other user, not us)
+      if (data?.readByUserId && data.readByUserId !== user.uid) {
+        setMessages(prev =>
+          prev.map(msg => {
+            // Mark ALL our messages as read (including temp - we'll preserve this during replacement)
+            if (msg.senderId === user.uid) {
+              return { ...msg, isRead: true };
+            }
+            return msg;
+          })
+        );
+      }
+    },
+    [user.uid]
+  );
 
   // Core message sending function (handles both text and GIF)
   const sendMessageCore = async ({ content, messageType, mediaUrl = null, replyToData = null }) => {
@@ -481,6 +497,8 @@ const ChatScreen = ({ route, navigation }) => {
       senderName: user.displayName,
       createdAt: new Date().toISOString(),
       isTemp: true,
+      isRead: false, // Not read yet - other user hasn't seen it
+      isDelivered: false, // Not delivered until API confirms
       reactions: {},
       replyTo: replyToData,
     };
@@ -511,7 +529,16 @@ const ChatScreen = ({ route, navigation }) => {
       setMessages(prev =>
         prev.map(msg =>
           msg.id === tempId
-            ? { ...sentMessage, senderId: user.uid, isTemp: false, ...(mediaUrl && { mediaUrl }) }
+            ? {
+                ...sentMessage,
+                senderId: user.uid,
+                isTemp: false,
+                isDelivered: true, // Delivered once API confirms
+                // Preserve read status: if temp was already marked read (via socket), keep it
+                // Otherwise use server value or default to false
+                isRead: msg.isRead || sentMessage.isRead || false,
+                ...(mediaUrl && { mediaUrl }),
+              }
             : msg
         )
       );
@@ -807,9 +834,10 @@ const ChatScreen = ({ route, navigation }) => {
     const showAvatar = index === 0 || reversedMessages[index - 1]?.senderId !== item.senderId;
     // For inverted list, the last message in a group is when the next message (index - 1) is from a different sender
     const isLastInGroup = index === 0 || reversedMessages[index - 1]?.senderId !== item.senderId;
-    const isHighlighted = tappedMessageId === item.id;
-    // Only show timestamp for last in group OR when tapped (but not when highlighted from scroll)
-    const showTimestamp = isLastInGroup;
+    const isTapped = tappedMessageId === item.id;
+    const isHighlighted = isTapped;
+    // Show timestamp for last in group OR when tapped (iMessage-style tap to reveal)
+    const showTimestamp = isLastInGroup || isTapped;
 
     // Determine if we're quoting ourselves or the other person
     const isQuotingSelf = item.replyTo?.senderId === user.uid;
@@ -1020,9 +1048,9 @@ const ChatScreen = ({ route, navigation }) => {
                   );
                 })()}
 
-              {/* Timestamp and read receipts for own messages */}
-              {isOwnMessage && showTimestamp && (
-                <View style={styles.messageStatus}>
+              {/* Timestamp for all messages, read receipts only for own messages */}
+              {showTimestamp && (
+                <View style={[styles.messageStatus, !isOwnMessage && styles.otherMessageStatus]}>
                   <Text style={styles.messageTime}>
                     {item.createdAt
                       ? new Date(item.createdAt).toLocaleTimeString('en-US', {
@@ -1031,28 +1059,30 @@ const ChatScreen = ({ route, navigation }) => {
                         })
                       : ''}
                   </Text>
-                  {isPremium ? (
-                    item.isRead ? (
-                      <Ionicons
-                        name="checkmark-done"
-                        size={14}
-                        color="#4CAF50"
-                        style={styles.readIcon}
-                      />
+                  {/* Read receipts only for own messages */}
+                  {isOwnMessage &&
+                    (isPremium ? (
+                      item.isRead ? (
+                        <Ionicons
+                          name="checkmark-done"
+                          size={14}
+                          color="#4CAF50"
+                          style={styles.readIcon}
+                        />
+                      ) : (
+                        <Ionicons name="checkmark" size={14} color="#999" style={styles.readIcon} />
+                      )
                     ) : (
-                      <Ionicons name="checkmark" size={14} color="#999" style={styles.readIcon} />
-                    )
-                  ) : (
-                    <View style={styles.premiumHint}>
-                      <Ionicons name="checkmark" size={14} color="#999" style={styles.readIcon} />
-                      <Ionicons
-                        name="diamond-outline"
-                        size={12}
-                        color="#FFB800"
-                        style={styles.premiumDiamond}
-                      />
-                    </View>
-                  )}
+                      <View style={styles.premiumHint}>
+                        <Ionicons name="checkmark" size={14} color="#999" style={styles.readIcon} />
+                        <Ionicons
+                          name="diamond-outline"
+                          size={12}
+                          color="#FFB800"
+                          style={styles.premiumDiamond}
+                        />
+                      </View>
+                    ))}
                 </View>
               )}
             </View>
@@ -1896,8 +1926,12 @@ const styles = StyleSheet.create({
     transform: [{ scale: 0.98 }],
   },
   highlightedMessage: {
-    opacity: 0.7,
-    transform: [{ scale: 1.02 }],
+    transform: [{ translateY: -2 }],
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
   },
   messageText: {
     fontSize: 16,
@@ -2119,10 +2153,14 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginTop: 4,
     paddingHorizontal: 4,
+    alignSelf: 'flex-end',
+  },
+  otherMessageStatus: {
+    alignSelf: 'flex-start',
   },
   messageTime: {
     fontSize: 11,
-    color: '#a0a0a0',
+    color: '#8e8e93',
     fontWeight: '400',
   },
   readIcon: {

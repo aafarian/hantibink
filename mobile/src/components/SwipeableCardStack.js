@@ -20,10 +20,23 @@ const SWIPE_THRESHOLD = SCREEN_WIDTH * 0.25;
 const SWIPE_OUT_DURATION = 300;
 
 const SwipeableCardStack = forwardRef(
-  ({ profiles, onSwipeLeft, onSwipeRight, onNeedMore, loadingMore = false }, ref) => {
+  (
+    {
+      profiles,
+      onSwipeLeft,
+      onSwipeRight,
+      onSwipeSuperLike,
+      onUndo,
+      onNeedMore,
+      onPhotoPress,
+      loadingMore = false,
+    },
+    ref
+  ) => {
     const [currentIndex, setCurrentIndex] = useState(0);
     const [isProcessing, setIsProcessing] = useState(false);
     const processedProfiles = useRef(new Set());
+    const lastSwipedProfile = useRef(null); // Track last swiped profile for undo
 
     // Reanimated shared values
     const translateX = useSharedValue(0);
@@ -70,10 +83,22 @@ const SwipeableCardStack = forwardRef(
       const swipedProfile = profiles[currentIndex];
       Logger.info(`Swiping profile: ${swipedProfile.name} (${swipedProfile.id}) - ${direction}`);
 
+      // Save for potential undo (only track last one)
+      lastSwipedProfile.current = {
+        profile: swipedProfile,
+        index: currentIndex,
+        direction,
+      };
+
       if (!processedProfiles.current.has(swipedProfile.id)) {
         processedProfiles.current.add(swipedProfile.id);
 
-        if (direction === 'right') {
+        if (direction === 'superlike') {
+          // Super like uses a different API endpoint
+          onSwipeSuperLike?.(swipedProfile)?.catch(error =>
+            Logger.error('Error processing super like:', error)
+          );
+        } else if (direction === 'right') {
           onSwipeRight(swipedProfile).catch(error =>
             Logger.error('Error processing swipe right:', error)
           );
@@ -109,6 +134,55 @@ const SwipeableCardStack = forwardRef(
       });
     };
 
+    // Undo last swipe
+    const performUndo = async () => {
+      const lastSwiped = lastSwipedProfile.current;
+      if (!lastSwiped || isProcessing) {
+        Logger.warn('No swipe to undo or processing');
+        return { success: false, error: 'NO_SWIPE_TO_UNDO' };
+      }
+
+      setIsProcessing(true);
+
+      try {
+        // Call the undo callback first (API call)
+        if (onUndo) {
+          const result = await onUndo(lastSwiped.profile);
+          if (!result?.success) {
+            setIsProcessing(false);
+            return result;
+          }
+        }
+
+        // Restore the card
+        processedProfiles.current.delete(lastSwiped.profile.id);
+
+        // Animate card back from off-screen
+        const offscreenX =
+          lastSwiped.direction === 'left' ? -SCREEN_WIDTH * 1.5 : SCREEN_WIDTH * 1.5;
+        translateX.value = offscreenX;
+        cardOpacity.value = 0;
+
+        // Decrement index first (so the card is in position)
+        setCurrentIndex(prev => Math.max(0, prev - 1));
+
+        // Then animate back to center
+        setTimeout(() => {
+          translateX.value = withSpring(0, { damping: 15 });
+          cardOpacity.value = withTiming(1, { duration: 200 });
+          setIsProcessing(false);
+        }, 50);
+
+        lastSwipedProfile.current = null;
+        Logger.info('Undo successful');
+        return { success: true };
+      } catch (error) {
+        Logger.error('Undo failed:', error);
+        setIsProcessing(false);
+        return { success: false, error: error.message };
+      }
+    };
+
     // Expose imperative methods
     useImperativeHandle(
       ref,
@@ -122,6 +196,19 @@ const SwipeableCardStack = forwardRef(
           if (!isProcessing && currentIndex < profiles.length) {
             forceSwipe('right');
           }
+        },
+        swipeSuperLike: () => {
+          if (!isProcessing && currentIndex < profiles.length) {
+            forceSwipe('superlike');
+          }
+        },
+        undo: performUndo,
+        canUndo: () => !!lastSwipedProfile.current && !isProcessing,
+        getCurrentProfile: () => {
+          if (currentIndex < profiles.length) {
+            return profiles[currentIndex];
+          }
+          return null;
         },
       }),
       // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -218,7 +305,12 @@ const SwipeableCardStack = forwardRef(
           cards.push(
             <GestureDetector key={cardKey} gesture={panGesture}>
               <Animated.View style={[styles.cardContainer, styles.topCard, topCardStyle]}>
-                <FullscreenSwipeableCard profile={profile} translateX={translateX} isTop={true} />
+                <FullscreenSwipeableCard
+                  profile={profile}
+                  translateX={translateX}
+                  isTop={true}
+                  onPhotoPress={onPhotoPress}
+                />
               </Animated.View>
             </GestureDetector>
           );
@@ -230,6 +322,7 @@ const SwipeableCardStack = forwardRef(
                 profile={profile}
                 translateX={staticTranslateX}
                 isTop={false}
+                onPhotoPress={onPhotoPress}
               />
             </View>
           );

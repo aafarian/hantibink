@@ -268,7 +268,8 @@ const PhotoManager = ({
 
         await ApiDataService.reorderUserPhotos(photoIds);
         Logger.success('✅ Photo order saved to backend');
-        // Don't show toast for background save - it's seamless
+        // Silently refresh AuthContext profile (no toast needed for seamless reorder)
+        onSuccess?.();
       } catch (error) {
         Logger.error('❌ Error saving photo order:', error);
         onError?.('Failed to save photo order');
@@ -276,7 +277,7 @@ const PhotoManager = ({
         isSavingRef.current = false;
       }
     },
-    [onError]
+    [onError, onSuccess]
   );
 
   // Handle reorder from draggable-grid library

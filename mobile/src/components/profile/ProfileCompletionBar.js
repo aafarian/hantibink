@@ -5,8 +5,8 @@ import { theme } from '../../styles/theme';
 
 /**
  * Profile completion bar component
- * Shows percentage complete for key optional fields that improve match quality
- * Only tracks: Bio, Height, Looking For
+ * Shows percentage complete for key fields that improve match quality
+ * Tracks: Photos, Bio, Height, Looking For
  *
  * @param {Object} userProfile - The saved user profile data
  * @param {Object} formData - Optional live form data for real-time updates during editing
@@ -14,7 +14,7 @@ import { theme } from '../../styles/theme';
  * @param {boolean} compact - Whether to show compact version
  */
 const ProfileCompletionBar = ({ userProfile, formData, onPress, compact = false }) => {
-  // Calculate completion percentage based on high-value optional fields
+  // Calculate completion percentage based on high-value fields
   // Use formData if provided (for live editing), otherwise fall back to userProfile
   const { percentage, missingFields } = useMemo(() => {
     const data = formData || userProfile;
@@ -22,9 +22,16 @@ const ProfileCompletionBar = ({ userProfile, formData, onPress, compact = false 
       return { percentage: 0, missingFields: [] };
     }
 
-    // Only track fields that genuinely improve match quality
+    // Check if user has at least one photo
+    const hasPhotos =
+      (data.photos && data.photos.length > 0) ||
+      (data.localPhotos && data.localPhotos.some(p => p !== null));
+
+    // Track fields that genuinely improve match quality
     const fields = [
+      { key: 'photos', label: 'Photos', filled: hasPhotos },
       { key: 'bio', label: 'Bio', filled: !!data.bio },
+      { key: 'profession', label: 'Work', filled: !!data.profession },
       { key: 'height', label: 'Height', filled: !!data.height },
       {
         key: 'relationshipType',
@@ -150,7 +157,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#fff',
     paddingHorizontal: 16,
     paddingTop: 10,
-    paddingBottom: 10,
+    paddingBottom: 4,
     borderBottomWidth: 1,
     borderBottomColor: '#f0f0f0',
   },

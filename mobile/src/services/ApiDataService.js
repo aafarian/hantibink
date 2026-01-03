@@ -488,6 +488,44 @@ class ApiDataService {
   }
 
   /**
+   * Undo last action (premium feature)
+   * Returns the undone action so the card can be restored
+   */
+  static async undoLastAction() {
+    try {
+      Logger.info('↩️ Undoing last action via API...');
+
+      const response = await apiClient.post('/actions/undo');
+
+      if (response.success) {
+        Logger.success('✅ Action undone via API');
+        return {
+          success: true,
+          undoneAction: response.data?.undoneAction || response.data,
+        };
+      } else {
+        Logger.error('❌ Failed to undo action via API:', response.message);
+        return {
+          success: false,
+          error: response.error || 'UNDO_FAILED',
+          message: response.message || 'Failed to undo action',
+        };
+      }
+    } catch (error) {
+      Logger.error('❌ Error undoing action via API:', error);
+      // Check for premium required error
+      if (error.response?.data?.error === 'PREMIUM_REQUIRED') {
+        return {
+          success: false,
+          error: 'PREMIUM_REQUIRED',
+          message: error.response?.data?.message || 'Undo is a premium feature',
+        };
+      }
+      throw error;
+    }
+  }
+
+  /**
    * Get user action history
    */
   static async getUserActions(options = {}) {

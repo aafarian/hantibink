@@ -142,6 +142,41 @@ export function addNotificationResponseReceivedListener(callback) {
 }
 
 /**
+ * Clear push token from backend (call during logout)
+ * This ensures notifications don't go to the wrong user after account switch
+ * @returns {Promise<boolean>} Whether clearing was successful
+ */
+export async function clearPushTokenAsync() {
+  try {
+    if (!Device.isDevice) {
+      return true; // No token to clear on simulator
+    }
+
+    // Get the project ID from Constants or use hardcoded value
+    const projectId =
+      Constants.expoConfig?.extra?.eas?.projectId || '316f94ce-dca3-4d3d-868a-5885e6704f84';
+
+    // Get current push token
+    const token = await Notifications.getExpoPushTokenAsync({ projectId });
+
+    if (token?.data) {
+      // Clear from backend - this will remove from ALL users who have this token
+      await ApiClient.delete('/users/push-token', {
+        body: JSON.stringify({ pushToken: token.data }),
+        headers: { 'Content-Type': 'application/json' },
+      });
+      Logger.info('🔔 Push token cleared from server');
+    }
+
+    return true;
+  } catch (error) {
+    // Don't fail logout if this fails
+    Logger.warn('📱 Could not clear push token:', error.message);
+    return false;
+  }
+}
+
+/**
  * Schedule a local notification (for testing)
  */
 export async function scheduleTestNotification() {

@@ -4,6 +4,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect } from '@react-navigation/native';
+import ImageViewing from 'react-native-image-viewing';
 import { useAuth } from '../contexts/AuthContext';
 import { useToast } from '../contexts/ToastContext';
 import { useTabNavigation } from '../hooks/useTabNavigation';
@@ -22,7 +23,7 @@ const BATCH_SIZE = 10; // Load 10 profiles at a time
 
 const PeopleScreenOptimized = ({ navigation }) => {
   const { user, userProfile, refreshUserProfile } = useAuth();
-  const { showError } = useToast();
+  const { showError, showSuccess } = useToast();
   const insets = useSafeAreaInsets();
   const [showSetupModal, setShowSetupModal] = useState(false);
   const { navigateToChat } = useTabNavigation();
@@ -36,6 +37,11 @@ const PeopleScreenOptimized = ({ navigation }) => {
   const [matchedUser, setMatchedUser] = useState(null);
   const [hasInitialized, setHasInitialized] = useState(false);
   const [showUpgradeModal, setShowUpgradeModal] = useState(false);
+
+  // Photo viewer state
+  const [photoViewerVisible, setPhotoViewerVisible] = useState(false);
+  const [photoViewerImages, setPhotoViewerImages] = useState([]);
+  const [photoViewerIndex, setPhotoViewerIndex] = useState(0);
 
   // Track processed profiles to avoid duplicates
   const processedIds = useRef(new Set());
@@ -417,6 +423,92 @@ const PeopleScreenOptimized = ({ navigation }) => {
     [showError]
   );
 
+  // Handle super like (premium feature)
+  const handleSwipeSuperLike = useCallback(
+    async profile => {
+      try {
+        Logger.info(`⭐ Super liked ${profile.name} (ID: ${profile.id})`);
+
+        // Mark as processed to avoid showing again in this session
+        processedIds.current.add(profile.id);
+
+        // Send super like to API
+        const result = await ApiDataService.superLikeUser(profile.id);
+
+        if (result.success) {
+          if (result.isMatch) {
+            Logger.info(`🎉 SUPER MATCH! ${profile.name} had already liked you!`);
+
+            // Show match modal
+            setMatchedUser({
+              id: profile.id,
+              name: profile.name,
+              photo: getUserProfilePhoto(profile),
+              matchId: result.match?.id,
+            });
+            setShowMatchModal(true);
+          } else {
+            Logger.info(`💫 Super Like sent to ${profile.name}`);
+            showSuccess('Super Like sent!');
+          }
+        } else {
+          Logger.error('Failed to save super like:', result);
+          if (result.error === 'PREMIUM_REQUIRED') {
+            setShowUpgradeModal(true);
+          } else if (result.error === 'DAILY_LIMIT_REACHED') {
+            showError("You've used all your Super Likes for today");
+          }
+        }
+      } catch (error) {
+        Logger.error('Error handling super like:', error);
+        if (error.message?.includes('already acted')) {
+          Logger.warn('User already acted on this person, silently skipping');
+          return;
+        }
+        showError('Failed to send Super Like. Please try again.');
+      }
+    },
+    [showError, showSuccess]
+  );
+
+  // Handle undo (premium feature)
+  const handleUndo = useCallback(async () => {
+    try {
+      Logger.info('↩️ Attempting to undo last action...');
+
+      const result = await ApiDataService.undoLastAction();
+
+      if (result.success) {
+        Logger.success('✅ Undo successful');
+        // Remove the undone profile from our processed set so it can show again
+        if (result.undoneAction?.receiverId) {
+          processedIds.current.delete(result.undoneAction.receiverId);
+        }
+        return { success: true };
+      } else {
+        Logger.error('❌ Undo failed:', result.message);
+        if (result.error === 'PREMIUM_REQUIRED') {
+          setShowUpgradeModal(true);
+        } else {
+          showError(result.message || 'Failed to undo');
+        }
+        return { success: false, error: result.error };
+      }
+    } catch (error) {
+      Logger.error('Error handling undo:', error);
+      showError('Failed to undo. Please try again.');
+      return { success: false, error: error.message };
+    }
+  }, [showError]);
+
+  // Handle photo press - show fullscreen viewer
+  const handlePhotoPress = useCallback((photos, index) => {
+    const images = photos.map(uri => ({ uri }));
+    setPhotoViewerImages(images);
+    setPhotoViewerIndex(index);
+    setPhotoViewerVisible(true);
+  }, []);
+
   // Handle match modal actions
   const handleSendMessage = useCallback(() => {
     setShowMatchModal(false);
@@ -556,7 +648,10 @@ const PeopleScreenOptimized = ({ navigation }) => {
           profiles={profiles}
           onSwipeLeft={handleSwipeLeft}
           onSwipeRight={handleSwipeRight}
+          onSwipeSuperLike={handleSwipeSuperLike}
+          onUndo={handleUndo}
           onNeedMore={loadMoreProfiles}
+          onPhotoPress={handlePhotoPress}
           loadingMore={isLoadingMore}
         />
       </View>
@@ -566,12 +661,16 @@ const PeopleScreenOptimized = ({ navigation }) => {
         <View style={[styles.actionButtons, { bottom: 10 }]}>
           <TouchableOpacity
             style={[styles.actionButton, styles.undoButton]}
-            onPress={() => {
+            onPress={async () => {
               if (!userProfile?.isPremium) {
                 setShowUpgradeModal(true);
               } else {
-                // TODO: Implement undo functionality
-                cardStackRef.current?.undo?.();
+                const result = await cardStackRef.current?.undo?.();
+                if (result?.success) {
+                  showSuccess('Undo successful!');
+                } else if (result?.error === 'NO_SWIPE_TO_UNDO') {
+                  showError('No recent swipe to undo');
+                }
               }
             }}
           >
@@ -591,7 +690,7 @@ const PeopleScreenOptimized = ({ navigation }) => {
               if (!userProfile?.isPremium) {
                 setShowUpgradeModal(true);
               } else {
-                cardStackRef.current?.swipeRight();
+                cardStackRef.current?.swipeSuperLike();
               }
             }}
           >
@@ -623,6 +722,20 @@ const PeopleScreenOptimized = ({ navigation }) => {
 
       {/* Premium Upgrade Modal */}
       <PremiumUpgradeModal visible={showUpgradeModal} onClose={() => setShowUpgradeModal(false)} />
+
+      {/* Fullscreen Photo Viewer - rendered at screen level to avoid gesture conflicts */}
+      {photoViewerVisible && (
+        <ImageViewing
+          key={`photo-viewer-${photoViewerIndex}`}
+          images={photoViewerImages}
+          imageIndex={photoViewerIndex}
+          visible={photoViewerVisible}
+          onRequestClose={() => setPhotoViewerVisible(false)}
+          swipeToCloseEnabled={true}
+          doubleTapToZoomEnabled={true}
+          animationType="none"
+        />
+      )}
     </View>
   );
 };

@@ -1,58 +1,129 @@
-import React from 'react';
-import { View, Text, StyleSheet, Modal, TouchableOpacity } from 'react-native';
-import { LinearGradient } from 'expo-linear-gradient';
+import React, { useEffect, useRef } from 'react';
+import { View, Text, StyleSheet, Modal, TouchableOpacity, Pressable, Animated } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { theme } from '../../styles/theme';
 
 /**
- * Shared Premium Upgrade Modal
- * Shows premium features and upgrade CTA
+ * Premium features:
+ * - See who liked you (free users cannot see at all)
+ * - Unlimited likes (free: 10/day)
+ * - 5 Super Likes per day (free: 0)
+ * - Undo your last swipe (free: cannot undo)
+ * - Read receipts, online status, typing indicators
  */
+const PREMIUM_FEATURES = [
+  {
+    icon: 'eye',
+    iconColor: theme.colors.secondary,
+    title: 'See Who Likes You',
+    description: 'Know who is interested before you swipe',
+  },
+  {
+    icon: 'infinite',
+    iconColor: theme.colors.primary,
+    title: 'Unlimited Likes',
+    description: 'Swipe right as much as you want',
+  },
+  {
+    icon: 'star',
+    iconColor: theme.colors.premium,
+    title: '5 Super Likes Daily',
+    description: 'Stand out and get noticed',
+  },
+  {
+    icon: 'arrow-undo',
+    iconColor: theme.colors.accent,
+    title: 'Undo Swipes',
+    description: 'Made a mistake? Go back and try again',
+  },
+  {
+    icon: 'chatbubbles',
+    iconColor: theme.colors.info || '#3B82F6',
+    title: 'Enhanced Messaging',
+    description: 'Read receipts, typing indicators & online status',
+  },
+];
+
 const PremiumUpgradeModal = ({ visible, onClose, onUpgrade }) => {
+  const insets = useSafeAreaInsets();
+  const overlayOpacity = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    if (visible) {
+      // Fade in overlay after modal starts sliding up
+      Animated.timing(overlayOpacity, {
+        toValue: 1,
+        duration: 250,
+        delay: 100,
+        useNativeDriver: true,
+      }).start();
+    } else {
+      overlayOpacity.setValue(0);
+    }
+  }, [visible, overlayOpacity]);
+
   const handleUpgrade = () => {
     onUpgrade?.();
     onClose();
   };
 
   return (
-    <Modal visible={visible} animationType="fade" transparent={true} onRequestClose={onClose}>
-      <View style={styles.container}>
-        <View style={styles.content}>
-          <LinearGradient colors={['#FFD700', '#FFA500']} style={styles.header}>
-            <Ionicons name="star" size={40} color="white" />
-            <Text style={styles.title}>Unlock Premium</Text>
-          </LinearGradient>
+    <Modal visible={visible} animationType="slide" transparent={true} onRequestClose={onClose}>
+      <View style={styles.overlay}>
+        {/* Animated overlay that fades in after modal slides up */}
+        <Animated.View style={[styles.overlayBackground, { opacity: overlayOpacity }]} />
 
-          <View style={styles.features}>
-            <View style={styles.featureItem}>
-              <Ionicons name="eye" size={24} color={theme.colors.secondary} />
-              <Text style={styles.featureText}>See who liked you</Text>
-            </View>
-            <View style={styles.featureItem}>
-              <Ionicons name="heart" size={24} color={theme.colors.primary} />
-              <Text style={styles.featureText}>Unlimited likes</Text>
-            </View>
-            <View style={styles.featureItem}>
-              <Ionicons name="arrow-undo" size={24} color="#FFB300" />
-              <Text style={styles.featureText}>Undo swipes</Text>
-            </View>
-            <View style={styles.featureItem}>
-              <Ionicons name="star" size={24} color="#00BCD4" />
-              <Text style={styles.featureText}>5 Super Likes per day</Text>
-            </View>
-          </View>
+        {/* Tappable background to dismiss */}
+        <Pressable style={styles.dismissArea} onPress={onClose} />
 
-          <TouchableOpacity style={styles.upgradeButton} onPress={handleUpgrade}>
-            <LinearGradient
-              colors={[theme.colors.primary, theme.colors.accent]}
-              style={styles.upgradeButtonGradient}
-            >
-              <Text style={styles.upgradeButtonText}>Get Premium</Text>
-            </LinearGradient>
+        <View style={[styles.container, { paddingBottom: Math.max(insets.bottom, 24) + 16 }]}>
+          {/* Close button */}
+          <TouchableOpacity style={styles.closeIcon} onPress={onClose}>
+            <Ionicons name="close" size={24} color={theme.colors.text.secondary} />
           </TouchableOpacity>
 
-          <TouchableOpacity style={styles.closeButton} onPress={onClose}>
-            <Text style={styles.closeButtonText}>Maybe Later</Text>
+          {/* Header */}
+          <View style={styles.header}>
+            <View style={styles.premiumBadge}>
+              <Ionicons name="diamond" size={32} color={theme.colors.premium} />
+            </View>
+            <Text style={styles.title}>Upgrade to Premium</Text>
+            <Text style={styles.subtitle}>Get the most out of your experience</Text>
+          </View>
+
+          {/* Features list */}
+          <View style={styles.featuresContainer}>
+            {PREMIUM_FEATURES.map((feature, index) => (
+              <View key={index} style={styles.featureRow}>
+                <View
+                  style={[
+                    styles.featureIconContainer,
+                    { backgroundColor: `${feature.iconColor}15` },
+                  ]}
+                >
+                  <Ionicons name={feature.icon} size={22} color={feature.iconColor} />
+                </View>
+                <View style={styles.featureTextContainer}>
+                  <Text style={styles.featureTitle}>{feature.title}</Text>
+                  <Text style={styles.featureDescription}>{feature.description}</Text>
+                </View>
+              </View>
+            ))}
+          </View>
+
+          {/* CTA Button */}
+          <TouchableOpacity
+            style={styles.upgradeButton}
+            onPress={handleUpgrade}
+            activeOpacity={0.8}
+          >
+            <Text style={styles.upgradeButtonText}>Get Premium</Text>
+          </TouchableOpacity>
+
+          {/* Secondary action */}
+          <TouchableOpacity style={styles.laterButton} onPress={onClose}>
+            <Text style={styles.laterButtonText}>Maybe Later</Text>
           </TouchableOpacity>
         </View>
       </View>
@@ -61,61 +132,103 @@ const PremiumUpgradeModal = ({ visible, onClose, onUpgrade }) => {
 };
 
 const styles = StyleSheet.create({
-  container: {
+  overlay: {
     flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.7)',
-    justifyContent: 'center',
-    alignItems: 'center',
+    justifyContent: 'flex-end',
   },
-  content: {
-    backgroundColor: 'white',
-    borderRadius: 25,
-    width: '85%',
-    overflow: 'hidden',
+  overlayBackground: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: theme.colors.background.overlay,
+  },
+  dismissArea: {
+    flex: 1,
+  },
+  container: {
+    backgroundColor: theme.colors.background.primary,
+    borderTopLeftRadius: theme.borderRadius.xxl,
+    borderTopRightRadius: theme.borderRadius.xxl,
+    paddingTop: theme.spacing.xl,
+    paddingHorizontal: theme.spacing.xl,
+  },
+  closeIcon: {
+    position: 'absolute',
+    top: theme.spacing.lg,
+    right: theme.spacing.lg,
+    padding: theme.spacing.xs,
+    zIndex: 1,
   },
   header: {
     alignItems: 'center',
-    padding: 30,
+    marginBottom: theme.spacing.xxl,
+  },
+  premiumBadge: {
+    width: 64,
+    height: 64,
+    borderRadius: 32,
+    backgroundColor: `${theme.colors.premium}20`,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: theme.spacing.md,
   },
   title: {
-    color: 'white',
-    fontSize: 24,
-    fontWeight: 'bold',
-    marginTop: 10,
+    fontSize: theme.typography.sizes.xxxl,
+    fontWeight: theme.typography.weights.bold,
+    color: theme.colors.text.primary,
+    marginBottom: theme.spacing.xs,
   },
-  features: {
-    padding: 20,
+  subtitle: {
+    fontSize: theme.typography.sizes.md,
+    color: theme.colors.text.secondary,
   },
-  featureItem: {
+  featuresContainer: {
+    marginBottom: theme.spacing.xxl,
+  },
+  featureRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 20,
+    marginBottom: theme.spacing.lg,
   },
-  featureText: {
-    marginLeft: 15,
-    fontSize: 16,
-    color: '#333',
+  featureIconContainer: {
+    width: 44,
+    height: 44,
+    borderRadius: theme.borderRadius.lg,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: theme.spacing.md,
+  },
+  featureTextContainer: {
+    flex: 1,
+  },
+  featureTitle: {
+    fontSize: theme.typography.sizes.lg,
+    fontWeight: theme.typography.weights.semibold,
+    color: theme.colors.text.primary,
+    marginBottom: 2,
+  },
+  featureDescription: {
+    fontSize: theme.typography.sizes.sm,
+    color: theme.colors.text.secondary,
   },
   upgradeButton: {
-    margin: 20,
-  },
-  upgradeButtonGradient: {
-    paddingVertical: 15,
-    borderRadius: 25,
+    backgroundColor: theme.colors.primary,
+    paddingVertical: theme.spacing.lg,
+    borderRadius: theme.borderRadius.round,
     alignItems: 'center',
+    marginBottom: theme.spacing.md,
+    ...theme.shadows.medium,
   },
   upgradeButtonText: {
-    color: 'white',
-    fontSize: 18,
-    fontWeight: 'bold',
+    color: theme.colors.text.white,
+    fontSize: theme.typography.sizes.xl,
+    fontWeight: theme.typography.weights.bold,
   },
-  closeButton: {
-    paddingVertical: 15,
+  laterButton: {
+    paddingVertical: theme.spacing.md,
     alignItems: 'center',
   },
-  closeButtonText: {
-    color: '#666',
-    fontSize: 16,
+  laterButtonText: {
+    color: theme.colors.text.muted,
+    fontSize: theme.typography.sizes.md,
   },
 });
 

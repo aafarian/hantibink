@@ -135,14 +135,19 @@ const Toast = ({
           },
         ]}
       >
-        <TouchableOpacity style={styles.content} onPress={handleToastPress} activeOpacity={0.8}>
+        <TouchableOpacity
+          style={styles.content}
+          onPress={type === 'error' ? handleToastPress : undefined}
+          activeOpacity={type === 'error' ? 0.8 : 1}
+          disabled={type !== 'error'}
+        >
           <View style={styles.messageContainer}>
             <Ionicons name={toastStyle.iconName} size={20} color="#fff" style={styles.icon} />
             <View style={styles.messageTextContainer}>
               <Text style={styles.message} numberOfLines={2}>
                 {message}
               </Text>
-              <Text style={styles.tapHint}>Tap for details</Text>
+              {type === 'error' && <Text style={styles.tapHint}>Tap for details</Text>}
             </View>
           </View>
 
@@ -222,7 +227,7 @@ const styles = StyleSheet.create({
     right: 0,
     zIndex: 9999,
     paddingHorizontal: 15,
-    paddingBottom: 15,
+    paddingBottom: 8,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.25,
@@ -237,14 +242,13 @@ const styles = StyleSheet.create({
   messageContainer: {
     flex: 1,
     flexDirection: 'row',
-    alignItems: 'flex-start',
+    alignItems: 'center',
   },
   messageTextContainer: {
     flex: 1,
   },
   icon: {
     marginRight: 10,
-    marginTop: 2,
   },
   message: {
     fontSize: 15,
