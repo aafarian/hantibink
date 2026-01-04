@@ -1,5 +1,5 @@
 import { StatusBar } from 'expo-status-bar';
-import React from 'react';
+import React, { useEffect } from 'react';
 import { StyleSheet } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { Provider as PaperProvider } from 'react-native-paper';
@@ -13,6 +13,7 @@ import { UnreadProvider } from './src/contexts/UnreadContext';
 import { FeatureFlagsProvider } from './src/contexts/FeatureFlagsContext';
 import { PhotoViewerProvider } from './src/contexts/PhotoViewerContext';
 import AppNavigator from './src/navigation/AppNavigator';
+import { initAnalytics, trackAppOpened } from './src/utils/analytics';
 
 // Initialize Sentry - only in production builds
 const SENTRY_DSN = Constants.expoConfig?.extra?.sentryDsn;
@@ -26,6 +27,15 @@ if (SENTRY_DSN && !__DEV__) {
 }
 
 function App() {
+  // Initialize analytics on app start
+  useEffect(() => {
+    const setupAnalytics = async () => {
+      await initAnalytics();
+      trackAppOpened();
+    };
+    setupAnalytics();
+  }, []);
+
   return (
     <ErrorBoundary>
       <PaperProvider>

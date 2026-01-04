@@ -6,6 +6,13 @@ import Logger from '../utils/logger';
 import { uploadImageToFirebase } from '../utils/imageUpload';
 import * as Location from 'expo-location';
 import { registerForPushNotificationsAsync, clearPushTokenAsync } from '../utils/notifications';
+import {
+  identifyUser,
+  resetAnalytics,
+  trackRegistrationCompleted,
+  trackLogin,
+  trackLogout,
+} from '../utils/analytics';
 
 /**
  * Transform API profile format to Firebase format
@@ -402,6 +409,15 @@ export const AuthProvider = ({ children }) => {
         }, 2000);
 
         Logger.success('✅ User registered via API');
+
+        // Track registration in analytics
+        identifyUser(result.user.id, {
+          email: result.user.email,
+          name: result.user.name,
+          createdAt: new Date().toISOString(),
+        });
+        trackRegistrationCompleted('email', uploadedPhotoUrls.length > 0);
+
         return {
           success: true,
           user: { uid: result.user.id, ...result.user },
@@ -470,6 +486,14 @@ export const AuthProvider = ({ children }) => {
         }, 1500);
 
         Logger.success('✅ User logged in via API');
+
+        // Track login in analytics
+        identifyUser(result.user.id, {
+          email: result.user.email,
+          name: result.user.name,
+        });
+        trackLogin('email');
+
         return { success: true };
       } else {
         // API didn't return a result - treat as login failure
@@ -515,6 +539,11 @@ export const AuthProvider = ({ children }) => {
       setUserProfile(null);
 
       Logger.success('✅ User logged out successfully');
+
+      // Reset analytics on logout
+      trackLogout();
+      resetAnalytics();
+
       return { success: true };
     } catch (error) {
       Logger.error('❌ Logout error:', error);
