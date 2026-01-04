@@ -88,7 +88,7 @@ router.get('/:matchId', authenticateJWT, messageValidation.getMessages, async (r
 router.post('/:matchId', authenticateJWT, messageValidation.sendMessage, async (req, res) => {
   try {
     const { matchId } = req.params;
-    const { content, messageType = 'TEXT', mediaUrl = null, replyToId = null } = req.body;
+    const { content, messageType = 'TEXT', mediaUrl = null, metadata = null, replyToId = null } = req.body;
 
     if (!content || content.trim().length === 0) {
       return res.status(400).json({
@@ -108,6 +108,7 @@ router.post('/:matchId', authenticateJWT, messageValidation.sendMessage, async (
         content: content.trim(),
         messageType,
         mediaUrl,
+        metadata,
         replyToId,
       },
       io,

@@ -190,6 +190,7 @@ model Message {
   deliveredAt DateTime?
   mediaUrl    String?
   mediaType   String?
+  metadata    String?
   replyToId   String?
   match       Match             @relation(fields: [matchId], references: [id], onDelete: Cascade)
   receiver    User              @relation("receivedMessages", fields: [receiverId], references: [id], onDelete: Cascade)

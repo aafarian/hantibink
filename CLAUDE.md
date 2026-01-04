@@ -258,3 +258,58 @@ items.map((item) => <Item key={item.id} />);
 // ✅ GOOD - For simple strings/numbers
 items.map((item) => <Item key={item} />);
 ```
+
+## ScrollView Inside Modal
+
+When using a ScrollView inside a Modal, **don't wrap it in touchable components** as they capture touch events and block scrolling.
+
+### The Problem
+
+Wrapping modal content in `Pressable` or `TouchableWithoutFeedback` (even for tap-outside-to-close) captures touch events and blocks scroll gestures.
+
+### The Solution
+
+Use a **sibling Pressable backdrop** instead of wrapping the content. The backdrop is absolutely positioned behind the modal, so taps on it close the modal, but the modal content (including ScrollView) isn't wrapped.
+
+```javascript
+// ❌ BAD - Touchable wrappers block ScrollView scrolling
+<Modal visible={visible}>
+  <TouchableWithoutFeedback onPress={onClose}>
+    <View style={styles.overlay}>
+      <TouchableWithoutFeedback>
+        <View style={styles.content}>
+          <ScrollView>{/* Won't scroll! */}</ScrollView>
+        </View>
+      </TouchableWithoutFeedback>
+    </View>
+  </TouchableWithoutFeedback>
+</Modal>
+
+// ✅ GOOD - Backdrop as sibling, not wrapper
+<Modal visible={visible} onRequestClose={onClose}>
+  <View style={styles.container}>
+    {/* Backdrop - absolutely positioned behind */}
+    <Pressable style={styles.backdrop} onPress={onClose} />
+    {/* Content - sibling, not child of Pressable */}
+    <View style={styles.content}>
+      <ScrollView style={{ maxHeight: 280 }}>
+        {/* Scrolls correctly! */}
+      </ScrollView>
+    </View>
+  </View>
+</Modal>
+
+const styles = StyleSheet.create({
+  container: { flex: 1, justifyContent: 'center', alignItems: 'center' },
+  backdrop: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(0,0,0,0.5)' },
+  content: { backgroundColor: '#fff', borderRadius: 16, overflow: 'hidden' },
+});
+```
+
+### Key Points
+
+1. **Backdrop as sibling** - Use `absoluteFillObject` to position behind modal content
+2. **Modal content is NOT wrapped** - It's a sibling of the backdrop, not a child
+3. **Set maxHeight on ScrollView** - Ensures bounded height to scroll within
+4. **Use overflow: 'hidden' on content** - Ensures border radius clips correctly
+5. **See example** - `Toast.js` error details modal uses this pattern
