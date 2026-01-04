@@ -8,6 +8,7 @@ import ForgotPasswordScreen from '../screens/auth/ForgotPasswordScreen';
 import VerifyResetCodeScreen from '../screens/auth/VerifyResetCodeScreen';
 import SetNewPasswordScreen from '../screens/auth/SetNewPasswordScreen';
 import OAuthCompleteScreen from '../screens/auth/OAuthCompleteScreen';
+import LegalScreen from '../screens/LegalScreen';
 
 const Stack = createStackNavigator();
 
@@ -31,6 +32,7 @@ const AuthNavigator = () => {
       <Stack.Screen name="VerifyResetCode" component={VerifyResetCodeScreen} />
       <Stack.Screen name="SetNewPassword" component={SetNewPasswordScreen} />
       <Stack.Screen name="OAuthComplete" component={OAuthCompleteScreen} />
+      <Stack.Screen name="Legal" component={LegalScreen} />
     </Stack.Navigator>
   );
 };

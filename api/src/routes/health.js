@@ -104,4 +104,32 @@ router.get('/metrics', (req, res) => {
   res.status(200).json(metrics);
 });
 
+/**
+ * App version check endpoint
+ * Returns minimum required app version for force update functionality
+ */
+router.get('/app-version', (req, res) => {
+  // These can be moved to environment variables or database for dynamic control
+  const versionConfig = {
+    // Minimum version required to use the app (force update if below this)
+    minVersion: process.env.MIN_APP_VERSION || '1.0.0',
+    // Latest available version (for "update available" prompts)
+    latestVersion: process.env.LATEST_APP_VERSION || '1.0.0',
+    // Whether to force update (can be used as kill switch)
+    forceUpdate: process.env.FORCE_APP_UPDATE === 'true',
+    // Optional message to show users
+    updateMessage: process.env.APP_UPDATE_MESSAGE || null,
+    // Store URLs for convenience
+    storeUrls: {
+      ios: 'https://apps.apple.com/app/hantibink/id000000000', // Replace with real ID
+      android: 'https://play.google.com/store/apps/details?id=com.antoafarian.hantibink',
+    },
+  };
+
+  res.status(200).json({
+    success: true,
+    data: versionConfig,
+  });
+});
+
 module.exports = router;

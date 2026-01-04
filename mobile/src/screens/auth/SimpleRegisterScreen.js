@@ -420,6 +420,26 @@ const SimpleRegisterScreen = ({ navigation }) => {
               )}
             </View>
           </View>
+          {/* Legal Agreement */}
+          <View style={styles.legalContainer}>
+            <Text style={styles.legalText}>
+              By creating an account, you agree to our{' '}
+              <Text
+                style={styles.legalLink}
+                onPress={() => navigation.navigate('Legal', { type: 'terms' })}
+              >
+                Terms of Service
+              </Text>{' '}
+              and{' '}
+              <Text
+                style={styles.legalLink}
+                onPress={() => navigation.navigate('Legal', { type: 'privacy' })}
+              >
+                Privacy Policy
+              </Text>
+            </Text>
+          </View>
+
           {/* Register Button */}
           <View style={styles.buttonContainer}>
             <TouchableOpacity
@@ -564,6 +584,20 @@ const styles = StyleSheet.create({
     marginTop: 4,
     marginLeft: 4,
     fontStyle: 'italic',
+  },
+  legalContainer: {
+    paddingHorizontal: 20,
+    marginBottom: 10,
+  },
+  legalText: {
+    fontSize: 13,
+    color: '#666',
+    textAlign: 'center',
+    lineHeight: 20,
+  },
+  legalLink: {
+    color: theme.colors.primary,
+    fontWeight: '500',
   },
 });
 

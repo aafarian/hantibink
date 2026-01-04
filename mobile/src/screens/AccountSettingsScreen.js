@@ -191,6 +191,26 @@ const AccountSettingsScreen = ({ navigation }) => {
           </View>
         </View>
 
+        {/* Legal Section */}
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Legal</Text>
+        </View>
+
+        <View style={styles.settingsContainer}>
+          {renderSettingItem(
+            'document-text-outline',
+            'Terms of Service',
+            'Read our terms of service',
+            () => navigation.navigate('Legal', { type: 'terms' })
+          )}
+          {renderSettingItem(
+            'shield-checkmark-outline',
+            'Privacy Policy',
+            'Read our privacy policy',
+            () => navigation.navigate('Legal', { type: 'privacy' })
+          )}
+        </View>
+
         {/* Actions Section */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Actions</Text>

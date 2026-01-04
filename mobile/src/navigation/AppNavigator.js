@@ -30,6 +30,11 @@ import AccountSettingsScreen from '../screens/AccountSettingsScreen';
 
 // Import components
 import ProfileSetupModal from '../components/modals/ProfileSetupModal';
+import ForceUpdateModal from '../components/ForceUpdateModal';
+import LegalScreen from '../screens/LegalScreen';
+
+// Import hooks
+import useForceUpdate from '../hooks/useForceUpdate';
 
 // Import auth navigator
 import AuthNavigator from './AuthNavigator';
@@ -161,6 +166,13 @@ const ProfileStack = () => {
         component={AccountSettingsScreen}
         options={{
           headerShown: false, // AccountSettingsScreen has its own header
+        }}
+      />
+      <Stack.Screen
+        name="Legal"
+        component={LegalScreen}
+        options={{
+          headerShown: false, // LegalScreen has its own header
         }}
       />
     </Stack.Navigator>
@@ -303,6 +315,10 @@ const AppNavigator = () => {
   const pendingNavigationRef = useRef(null);
   const [isNavigationReady, setIsNavigationReady] = React.useState(false);
 
+  // Force update check
+  const { showUpdateModal, isUpdateRequired, versionConfig, currentVersion, dismissModal } =
+    useForceUpdate();
+
   // Handle pending navigation when navigation becomes ready
   const handleNavigationReady = React.useCallback(() => {
     setIsNavigationReady(true);
@@ -379,24 +395,37 @@ const AppNavigator = () => {
   }
 
   return (
-    <NavigationContainer ref={navigationRef} onReady={handleNavigationReady}>
-      <ToastProvider>
-        <LocationProvider>
-          {(() => {
-            if (user && userProfile) {
-              return (
-                <>
-                  <MainNavigator />
-                  <LocationPromptModal />
-                </>
-              );
-            } else {
-              return <AuthNavigator />;
-            }
-          })()}
-        </LocationProvider>
-      </ToastProvider>
-    </NavigationContainer>
+    <>
+      <NavigationContainer ref={navigationRef} onReady={handleNavigationReady}>
+        <ToastProvider>
+          <LocationProvider>
+            {(() => {
+              if (user && userProfile) {
+                return (
+                  <>
+                    <MainNavigator />
+                    <LocationPromptModal />
+                  </>
+                );
+              } else {
+                return <AuthNavigator />;
+              }
+            })()}
+          </LocationProvider>
+        </ToastProvider>
+      </NavigationContainer>
+
+      {/* Force Update Modal - Shows when app version is below minimum */}
+      <ForceUpdateModal
+        visible={showUpdateModal}
+        latestVersion={versionConfig?.latestVersion}
+        currentVersion={currentVersion}
+        updateMessage={versionConfig?.updateMessage}
+        storeUrls={versionConfig?.storeUrls}
+        isRequired={isUpdateRequired}
+        onDismiss={dismissModal}
+      />
+    </>
   );
 };
 
