@@ -38,7 +38,15 @@ import GifPicker from '../components/GifPicker';
 import ConfirmationModal from '../components/ConfirmationModal';
 import ReportReasonModal from '../components/ReportReasonModal';
 import EmojiPicker from 'rn-emoji-keyboard';
-import { trackChatOpened, trackMessageSent, trackGifSent } from '../utils/analytics';
+import {
+  trackChatOpened,
+  trackMessageSent,
+  trackGifSent,
+  trackVoiceMessageSent,
+} from '../utils/analytics';
+import { uploadAudioToFirebase } from '../utils/audioUpload';
+import AudioMessage from '../components/AudioMessage';
+import AudioRecorder from '../components/AudioRecorder';
 import { theme } from '../styles/theme';
 import BottomSheet, { BottomSheetScrollView, BottomSheetBackdrop } from '@gorhom/bottom-sheet';
 
@@ -80,6 +88,8 @@ const ChatScreen = ({ route, navigation }) => {
   const [showReportModal, setShowReportModal] = useState(false);
   const [isMuted, setIsMuted] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isRecording, setIsRecording] = useState(false);
+  const [isUploadingAudio, setIsUploadingAudio] = useState(false);
 
   // Refs
   const flatListRef = useRef(null);
@@ -608,6 +618,33 @@ const ChatScreen = ({ route, navigation }) => {
     setIsSending(false);
   };
 
+  // Send Audio (voice message)
+  const sendAudio = async (audioUri, durationMs) => {
+    try {
+      setIsUploadingAudio(true);
+
+      // Upload audio to Firebase Storage
+      const audioUrl = await uploadAudioToFirebase(audioUri, user.uid);
+
+      // Send the message
+      await sendMessageCore({
+        content: 'Voice message',
+        messageType: 'AUDIO',
+        mediaUrl: audioUrl,
+      });
+
+      // Track analytics
+      trackVoiceMessageSent(Math.round(durationMs / 1000));
+
+      Logger.info('Voice message sent successfully');
+    } catch (error) {
+      Logger.error('Failed to send voice message:', error);
+      showError('Failed to send voice message');
+    } finally {
+      setIsUploadingAudio(false);
+    }
+  };
+
   // Handle typing
   const handleTypingChange = text => {
     setMessageText(text);
@@ -929,7 +966,9 @@ const ChatScreen = ({ route, navigation }) => {
                     >
                       {item.replyTo.messageType === 'GIF'
                         ? '📷 GIF'
-                        : item.replyTo.content || item.replyTo.text}
+                        : item.replyTo.messageType === 'AUDIO'
+                          ? '🎤 Voice message'
+                          : item.replyTo.content || item.replyTo.text}
                     </Text>
                   </View>
                 </TouchableOpacity>
@@ -960,6 +999,12 @@ const ChatScreen = ({ route, navigation }) => {
                       resizeMode="cover"
                     />
                   </TouchableOpacity>
+                ) : item.messageType === 'AUDIO' ? (
+                  <AudioMessage
+                    audioUrl={item.mediaUrl}
+                    isOwnMessage={isOwnMessage}
+                    duration={item.duration}
+                  />
                 ) : (
                   <Text style={[styles.messageText, isOwnMessage && styles.ownMessageText]}>
                     {item.text || item.content || ''}
@@ -1522,7 +1567,11 @@ const ChatScreen = ({ route, navigation }) => {
                     {replyTo.senderId === user.uid ? 'You' : getUserDisplayName(match.otherUser)}
                   </Text>
                   <Text style={styles.replyPreviewMessage} numberOfLines={1}>
-                    {replyTo.messageType === 'GIF' ? 'GIF' : replyTo.content || replyTo.text}
+                    {replyTo.messageType === 'GIF'
+                      ? 'GIF'
+                      : replyTo.messageType === 'AUDIO'
+                        ? 'Voice message'
+                        : replyTo.content || replyTo.text}
                   </Text>
                 </View>
               </View>
@@ -1534,33 +1583,57 @@ const ChatScreen = ({ route, navigation }) => {
 
           {/* Input */}
           <View style={styles.inputContainer}>
-            <TouchableOpacity style={styles.attachButton} onPress={() => setShowGifPicker(true)}>
-              <Text style={styles.gifButtonText}>GIF</Text>
-            </TouchableOpacity>
+            {!isRecording && (
+              <>
+                <TouchableOpacity
+                  style={styles.attachButton}
+                  onPress={() => setShowGifPicker(true)}
+                  disabled={isUploadingAudio}
+                >
+                  <Text style={[styles.gifButtonText, isUploadingAudio && styles.disabledText]}>
+                    GIF
+                  </Text>
+                </TouchableOpacity>
 
-            <TextInput
-              style={styles.messageInput}
-              placeholder="Type a message..."
-              value={messageText}
-              onChangeText={handleTypingChange}
-              multiline
-              maxLength={500}
-            />
+                <TextInput
+                  style={styles.messageInput}
+                  placeholder={isUploadingAudio ? 'Sending voice message...' : 'Type a message...'}
+                  value={messageText}
+                  onChangeText={handleTypingChange}
+                  multiline
+                  maxLength={500}
+                  editable={!isUploadingAudio}
+                />
+              </>
+            )}
 
-            <TouchableOpacity
-              style={[
-                styles.sendButton,
-                (!messageText.trim() || isSending) && styles.sendButtonDisabled,
-              ]}
-              onPress={sendMessage}
-              disabled={!messageText.trim() || isSending}
-            >
-              <Ionicons
-                name="send"
-                size={20}
-                color={messageText.trim() && !isSending ? theme.colors.primary : '#999'}
+            {/* Show send button when text, mic button when empty */}
+            {messageText.trim() && !isRecording ? (
+              <TouchableOpacity
+                style={[
+                  styles.sendButton,
+                  (!messageText.trim() || isSending) && styles.sendButtonDisabled,
+                ]}
+                onPress={sendMessage}
+                disabled={!messageText.trim() || isSending}
+              >
+                <Ionicons
+                  name="send"
+                  size={20}
+                  color={messageText.trim() && !isSending ? theme.colors.primary : '#999'}
+                />
+              </TouchableOpacity>
+            ) : (
+              <AudioRecorder
+                onRecordingComplete={(uri, duration) => {
+                  setIsRecording(false);
+                  sendAudio(uri, duration);
+                }}
+                onRecordingStart={() => setIsRecording(true)}
+                onRecordingCancel={() => setIsRecording(false)}
+                disabled={isSending || isUploadingAudio}
               />
-            </TouchableOpacity>
+            )}
           </View>
 
           {/* Profile Bottom Sheet - Always rendered but hidden */}
@@ -2274,6 +2347,9 @@ const styles = StyleSheet.create({
     fontSize: 24,
     fontWeight: 'bold',
     color: '#666',
+  },
+  disabledText: {
+    opacity: 0.4,
   },
   messageInput: {
     flex: 1,
