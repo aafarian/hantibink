@@ -1656,16 +1656,9 @@ const ChatScreen = ({ route, navigation }) => {
                   placeholder={isUploadingAudio ? 'Sending voice message...' : 'Type a message...'}
                   value={messageText}
                   onChangeText={handleTypingChange}
-                  multiline={false}
+                  multiline
                   maxLength={500}
                   editable={!isUploadingAudio}
-                  returnKeyType="send"
-                  blurOnSubmit={false}
-                  onSubmitEditing={() => {
-                    if (messageText.trim() && !isSending) {
-                      sendMessage();
-                    }
-                  }}
                 />
               </>
             )}

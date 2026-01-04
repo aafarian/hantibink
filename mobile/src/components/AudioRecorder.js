@@ -192,6 +192,8 @@ const AudioRecorder = ({
       setRecordingDuration(0);
       setAudioLevels(Array(WAVE_BAR_COUNT).fill(0.02));
       audioLevelsRef.current = Array(WAVE_BAR_COUNT).fill(0.02);
+      // Reset wave animations to prevent visual artifacts from previous recording
+      waveAnims.forEach(anim => anim.setValue(0.02));
 
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
 

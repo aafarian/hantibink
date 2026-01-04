@@ -99,7 +99,8 @@ const AudioMessage = ({
             { uri: audioUrl },
             { shouldPlay: false }
           );
-          if (status.durationMillis) {
+          // Only set duration if main sound wasn't loaded meanwhile (race condition fix)
+          if (status.durationMillis && !soundRef.current) {
             setDuration(status.durationMillis);
           }
           await tempSound.unloadAsync();
