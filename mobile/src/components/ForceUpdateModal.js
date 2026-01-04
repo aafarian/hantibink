@@ -2,6 +2,7 @@ import React from 'react';
 import { View, Text, Modal, StyleSheet, TouchableOpacity, Platform, Linking } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { theme } from '../styles/theme';
+import Logger from '../utils/logger';
 
 const ForceUpdateModal = ({
   visible,
@@ -15,12 +16,17 @@ const ForceUpdateModal = ({
   const handleUpdate = () => {
     const storeUrl = Platform.OS === 'ios' ? storeUrls?.ios : storeUrls?.android;
     if (storeUrl) {
-      Linking.openURL(storeUrl).catch(() => {
+      Linking.openURL(storeUrl).catch(error => {
+        Logger.error('Failed to open store URL, trying fallback:', error);
         // Fallback - try to open app store directly
         if (Platform.OS === 'ios') {
-          Linking.openURL('itms-apps://apps.apple.com');
+          Linking.openURL('itms-apps://apps.apple.com').catch(err =>
+            Logger.error('Fallback URL also failed:', err)
+          );
         } else {
-          Linking.openURL('market://details?id=com.antoafarian.hantibink');
+          Linking.openURL('market://details?id=com.antoafarian.hantibink').catch(err =>
+            Logger.error('Fallback URL also failed:', err)
+          );
         }
       });
     }
