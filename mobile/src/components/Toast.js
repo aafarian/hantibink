@@ -21,6 +21,8 @@ const Toast = ({
   autoHide = true,
   duration = 4000,
   action = null, // { text: 'Retry', onPress: () => {} }
+  errorDetails = null, // { name, message, stack, code, status }
+  timestamp = null,
 }) => {
   const insets = useSafeAreaInsets();
   // Start off-screen at top (negative value = above screen)
@@ -114,8 +116,33 @@ const Toast = ({
   };
 
   const handleReportError = () => {
-    Logger.info('Error report requested:', message);
+    // Log the full error details for debugging
+    Logger.info('Error report requested:', {
+      message,
+      errorDetails,
+      timestamp,
+    });
+    // TODO: Could integrate with Sentry or email reporting here
     handleCloseModal();
+  };
+
+  const formatTimestamp = ts => {
+    if (!ts) return null;
+    try {
+      const date = new Date(ts);
+      return date.toLocaleString();
+    } catch {
+      return ts;
+    }
+  };
+
+  const formatStack = stack => {
+    if (!stack) return null;
+    // Clean up the stack trace for readability
+    return stack
+      .split('\n')
+      .slice(0, 10) // Limit to first 10 lines
+      .join('\n');
   };
 
   const handleCloseModal = () => {
@@ -195,10 +222,77 @@ const Toast = ({
               </TouchableOpacity>
             </View>
 
-            <ScrollView style={styles.modalBody} showsVerticalScrollIndicator={false}>
+            <ScrollView style={styles.modalBody} showsVerticalScrollIndicator={true}>
+              {/* User-friendly message */}
               <Text style={styles.modalMessage} selectable>
                 {message}
               </Text>
+
+              {/* Timestamp */}
+              {timestamp && (
+                <View style={styles.detailSection}>
+                  <Text style={styles.detailLabel}>Time</Text>
+                  <Text style={styles.detailValue} selectable>
+                    {formatTimestamp(timestamp)}
+                  </Text>
+                </View>
+              )}
+
+              {/* Error Details */}
+              {errorDetails && (
+                <>
+                  {/* Error Type */}
+                  {errorDetails.name && errorDetails.name !== 'Error' && (
+                    <View style={styles.detailSection}>
+                      <Text style={styles.detailLabel}>Error Type</Text>
+                      <Text style={styles.detailValue} selectable>
+                        {errorDetails.name}
+                      </Text>
+                    </View>
+                  )}
+
+                  {/* Error Code/Status */}
+                  {(errorDetails.code || errorDetails.status) && (
+                    <View style={styles.detailSection}>
+                      <Text style={styles.detailLabel}>
+                        {errorDetails.code ? 'Error Code' : 'Status'}
+                      </Text>
+                      <Text style={styles.detailValue} selectable>
+                        {errorDetails.code || errorDetails.status}
+                      </Text>
+                    </View>
+                  )}
+
+                  {/* Technical Error Message */}
+                  {errorDetails.message && errorDetails.message !== message && (
+                    <View style={styles.detailSection}>
+                      <Text style={styles.detailLabel}>Technical Details</Text>
+                      <Text style={styles.detailValueMono} selectable>
+                        {errorDetails.message}
+                      </Text>
+                    </View>
+                  )}
+
+                  {/* Stack Trace */}
+                  {errorDetails.stack && (
+                    <View style={styles.detailSection}>
+                      <Text style={styles.detailLabel}>Stack Trace</Text>
+                      <View style={styles.stackContainer}>
+                        <Text style={styles.stackTrace} selectable>
+                          {formatStack(errorDetails.stack)}
+                        </Text>
+                      </View>
+                    </View>
+                  )}
+                </>
+              )}
+
+              {/* No error details available */}
+              {!errorDetails && (
+                <View style={styles.detailSection}>
+                  <Text style={styles.noDetailsText}>No additional error details available.</Text>
+                </View>
+              )}
             </ScrollView>
 
             <View style={styles.modalFooter}>
@@ -319,8 +413,8 @@ const styles = StyleSheet.create({
     padding: 4,
   },
   modalBody: {
+    flex: 1,
     padding: 20,
-    maxHeight: 300,
   },
   modalMessage: {
     fontSize: 15,
@@ -358,6 +452,49 @@ const styles = StyleSheet.create({
     fontSize: 15,
     fontWeight: '600',
     color: '#fff',
+  },
+  // Error details styles
+  detailSection: {
+    marginTop: 16,
+    paddingTop: 12,
+    borderTopWidth: 1,
+    borderTopColor: '#eee',
+  },
+  detailLabel: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#888',
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+    marginBottom: 4,
+  },
+  detailValue: {
+    fontSize: 14,
+    color: '#333',
+    lineHeight: 20,
+  },
+  detailValueMono: {
+    fontSize: 13,
+    color: '#333',
+    fontFamily: 'monospace',
+    lineHeight: 18,
+  },
+  stackContainer: {
+    backgroundColor: '#f8f8f8',
+    borderRadius: 8,
+    padding: 12,
+    marginTop: 4,
+  },
+  stackTrace: {
+    fontSize: 11,
+    color: '#666',
+    fontFamily: 'monospace',
+    lineHeight: 16,
+  },
+  noDetailsText: {
+    fontSize: 14,
+    color: '#888',
+    fontStyle: 'italic',
   },
 });
 

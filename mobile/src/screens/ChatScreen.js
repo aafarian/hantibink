@@ -307,7 +307,7 @@ const ChatScreen = ({ route, navigation }) => {
       }
     } catch (error) {
       Logger.error('Failed to load messages:', error);
-      showError('Failed to load messages');
+      showError('Failed to load messages', { error });
     } finally {
       setIsLoading(false);
     }
@@ -564,7 +564,7 @@ const ChatScreen = ({ route, navigation }) => {
       );
     } catch (error) {
       Logger.error(`Failed to send ${messageType.toLowerCase()}:`, error);
-      showError(`Failed to send ${messageType === 'GIF' ? 'GIF' : 'message'}`);
+      showError(`Failed to send ${messageType === 'GIF' ? 'GIF' : 'message'}`, { error });
       setMessages(prev => prev.filter(msg => msg.id !== tempId));
     }
   };
@@ -639,7 +639,7 @@ const ChatScreen = ({ route, navigation }) => {
       Logger.info('Voice message sent successfully');
     } catch (error) {
       Logger.error('Failed to send voice message:', error);
-      showError('Failed to send voice message');
+      showError('Failed to send voice message', { error });
     } finally {
       setIsUploadingAudio(false);
     }

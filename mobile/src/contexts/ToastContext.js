@@ -17,6 +17,20 @@ export const ToastProvider = ({ children }) => {
   const showToast = (message, type = 'info', options = {}) => {
     let toastId = null;
 
+    // Extract and serialize error if provided
+    let errorDetails = null;
+    if (options.error) {
+      const err = options.error;
+      errorDetails = {
+        name: err.name || 'Error',
+        message: err.message || String(err),
+        stack: err.stack || null,
+        // Capture additional error properties if they exist
+        code: err.code || null,
+        status: err.status || err.statusCode || null,
+      };
+    }
+
     // Check if a toast with the same message already exists
     setToasts(prev => {
       const existingToast = prev.find(t => t.message === message && t.type === type);
@@ -35,6 +49,8 @@ export const ToastProvider = ({ children }) => {
         visible: true,
         autoHide: !options.persistent, // Let Toast component handle timing
         duration: options.duration || 4000,
+        errorDetails, // Include serialized error details
+        timestamp: new Date().toISOString(),
         ...options,
       };
 
@@ -86,6 +102,8 @@ export const ToastProvider = ({ children }) => {
           autoHide={toast.autoHide}
           duration={toast.duration}
           action={toast.action}
+          errorDetails={toast.errorDetails}
+          timestamp={toast.timestamp}
         />
       ))}
     </ToastContext.Provider>
