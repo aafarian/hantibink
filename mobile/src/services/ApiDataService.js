@@ -221,6 +221,29 @@ class ApiDataService {
   }
 
   /**
+   * Check app version requirements
+   * Returns version config including minVersion, latestVersion, etc.
+   */
+  static async checkAppVersion() {
+    try {
+      Logger.info('📱 Checking app version requirements...');
+
+      const response = await apiClient.get('/health/app-version');
+
+      if (response.success) {
+        Logger.info('✅ App version config received:', response.data);
+        return response.data;
+      } else {
+        Logger.warn('⚠️ Failed to get app version config');
+        return null;
+      }
+    } catch (error) {
+      Logger.error('❌ Error checking app version:', error);
+      return null;
+    }
+  }
+
+  /**
    * Initialize API client
    */
   static async initialize() {

@@ -23,6 +23,7 @@ const Toast = ({
   action = null, // { text: 'Retry', onPress: () => {} }
 }) => {
   const insets = useSafeAreaInsets();
+  // Start off-screen at top (negative value = above screen)
   const [slideAnim] = useState(new Animated.Value(-100));
   const onHideRef = useRef(onHide);
   const timerRef = useRef(null);
@@ -35,7 +36,7 @@ const Toast = ({
 
   const hideToast = useCallback(() => {
     Animated.timing(slideAnim, {
-      toValue: -100,
+      toValue: -100, // Slide up off screen
       duration: 300,
       useNativeDriver: true,
     }).start(() => {
@@ -47,10 +48,14 @@ const Toast = ({
     if (visible) {
       setShowModal(false);
 
-      // Slide down
-      Animated.timing(slideAnim, {
+      // Reset position before animating
+      slideAnim.setValue(-100);
+
+      // Slide down into view
+      Animated.spring(slideAnim, {
         toValue: 0,
-        duration: 300,
+        tension: 80,
+        friction: 10,
         useNativeDriver: true,
       }).start();
 
@@ -92,7 +97,7 @@ const Toast = ({
         };
       default:
         return {
-          backgroundColor: '#2196F3',
+          backgroundColor: '#333',
           iconName: 'information-circle',
           title: 'Info',
         };
@@ -109,7 +114,6 @@ const Toast = ({
   };
 
   const handleReportError = () => {
-    // TODO: Implement error reporting (email, API, etc.)
     Logger.info('Error report requested:', message);
     handleCloseModal();
   };
@@ -122,6 +126,8 @@ const Toast = ({
   if (!visible) return null;
 
   const toastStyle = getToastStyle();
+  // Position below safe area at top, with extra padding to not cover back button
+  const topOffset = insets.top + 8;
 
   return (
     <>
@@ -129,20 +135,19 @@ const Toast = ({
         style={[
           styles.container,
           {
-            backgroundColor: toastStyle.backgroundColor,
-            paddingTop: insets.top + 10,
+            top: topOffset,
             transform: [{ translateY: slideAnim }],
           },
         ]}
       >
         <TouchableOpacity
-          style={styles.content}
+          style={[styles.toast, { backgroundColor: toastStyle.backgroundColor }]}
           onPress={type === 'error' ? handleToastPress : undefined}
           activeOpacity={type === 'error' ? 0.8 : 1}
           disabled={type !== 'error'}
         >
           <View style={styles.messageContainer}>
-            <Ionicons name={toastStyle.iconName} size={20} color="#fff" style={styles.icon} />
+            <Ionicons name={toastStyle.iconName} size={18} color="#fff" style={styles.icon} />
             <View style={styles.messageTextContainer}>
               <Text style={styles.message} numberOfLines={2}>
                 {message}
@@ -172,7 +177,7 @@ const Toast = ({
                 hideToast();
               }}
             >
-              <Ionicons name="close" size={20} color="#fff" />
+              <Ionicons name="close" size={16} color="#fff" />
             </TouchableOpacity>
           </View>
         </TouchableOpacity>
@@ -222,44 +227,45 @@ const Toast = ({
 const styles = StyleSheet.create({
   container: {
     position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
+    left: 16,
+    right: 16,
     zIndex: 9999,
-    paddingHorizontal: 15,
-    paddingBottom: 8,
+    alignItems: 'center', // Center the toast horizontally
+  },
+  toast: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 10,
+    paddingHorizontal: 14,
+    borderRadius: 20, // More pill-shaped
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.25,
-    shadowRadius: 3.84,
-    elevation: 5,
-  },
-  content: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
+    shadowRadius: 4,
+    elevation: 6,
+    maxWidth: '100%', // Don't exceed container
   },
   messageContainer: {
-    flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
+    flexShrink: 1, // Allow shrinking
   },
   messageTextContainer: {
-    flex: 1,
+    flexShrink: 1,
   },
   icon: {
-    marginRight: 10,
+    marginRight: 8,
   },
   message: {
-    fontSize: 15,
+    fontSize: 14,
     color: '#fff',
     fontWeight: '500',
-    lineHeight: 20,
+    lineHeight: 18,
   },
   tapHint: {
-    fontSize: 12,
+    fontSize: 11,
     color: 'rgba(255,255,255,0.7)',
-    marginTop: 4,
+    marginTop: 1,
   },
   actions: {
     flexDirection: 'row',
@@ -267,19 +273,19 @@ const styles = StyleSheet.create({
     marginLeft: 10,
   },
   actionButton: {
-    paddingHorizontal: 12,
-    paddingVertical: 6,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
     backgroundColor: 'rgba(255, 255, 255, 0.2)',
-    borderRadius: 4,
-    marginRight: 8,
+    borderRadius: 6,
+    marginRight: 6,
   },
   actionText: {
     color: '#fff',
-    fontSize: 14,
+    fontSize: 13,
     fontWeight: '600',
   },
   closeButton: {
-    padding: 4,
+    padding: 2,
   },
   // Modal styles
   modalOverlay: {
