@@ -24,7 +24,7 @@ export const uploadAudioToFirebase = async (audioUri, userId) => {
     const response = await fetch(audioUri);
     const blob = await response.blob();
 
-    Logger.info(`Uploading audio to path: ${storagePath}`);
+    Logger.info(`Uploading audio to path: ${storagePath}, size: ${blob.size}`);
 
     // Upload the blob to Firebase Storage
     const snapshot = await uploadBytes(audioRef, blob);
@@ -36,6 +36,11 @@ export const uploadAudioToFirebase = async (audioUri, userId) => {
     return downloadURL;
   } catch (error) {
     Logger.error('Error uploading audio to Firebase:', error);
+    Logger.error('Error details:', {
+      code: error.code,
+      message: error.message,
+      serverResponse: error.serverResponse,
+    });
     throw new Error(`Failed to upload audio: ${error.message}`);
   }
 };

@@ -73,6 +73,7 @@ const getMessages = async (matchId, userId, options = {}) => {
       content: message.content,
       messageType: message.messageType,
       mediaUrl: message.mediaUrl,
+      metadata: message.metadata,
       senderId: message.senderId,
       senderName: message.sender.name,
       isFromMe: message.senderId === userId,
@@ -106,7 +107,7 @@ const getMessages = async (matchId, userId, options = {}) => {
  */
 const sendMessage = async (matchId, senderId, messageData, io = null) => {
   try {
-    const { content, messageType = 'TEXT', mediaUrl = null, replyToId = null } = messageData;
+    const { content, messageType = 'TEXT', mediaUrl = null, metadata = null, replyToId = null } = messageData;
 
     // Verify user has access to this match
     const match = await prisma.match.findUnique({
@@ -138,6 +139,7 @@ const sendMessage = async (matchId, senderId, messageData, io = null) => {
         content,
         messageType,
         mediaUrl,
+        metadata,
         replyToId,
         isDelivered: true,
         deliveredAt: new Date(),
@@ -195,6 +197,7 @@ const sendMessage = async (matchId, senderId, messageData, io = null) => {
       content: message.content,
       messageType: message.messageType,
       mediaUrl: message.mediaUrl,
+      metadata: message.metadata,
       senderId: message.senderId,
       senderName: message.sender.name,
       timestamp: message.createdAt,

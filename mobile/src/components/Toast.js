@@ -5,9 +5,9 @@ import {
   StyleSheet,
   Animated,
   TouchableOpacity,
+  Pressable,
   Modal,
   ScrollView,
-  Pressable,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -21,6 +21,8 @@ const Toast = ({
   autoHide = true,
   duration = 4000,
   action = null, // { text: 'Retry', onPress: () => {} }
+  errorDetails = null, // { name, message, stack, code, status }
+  timestamp = null,
 }) => {
   const insets = useSafeAreaInsets();
   // Start off-screen at top (negative value = above screen)
@@ -114,8 +116,33 @@ const Toast = ({
   };
 
   const handleReportError = () => {
-    Logger.info('Error report requested:', message);
+    // Log the full error details for debugging
+    Logger.info('Error report requested:', {
+      message,
+      errorDetails,
+      timestamp,
+    });
+    // TODO: Could integrate with Sentry or email reporting here
     handleCloseModal();
+  };
+
+  const formatTimestamp = ts => {
+    if (!ts) return null;
+    try {
+      const date = new Date(ts);
+      return date.toLocaleString();
+    } catch {
+      return ts;
+    }
+  };
+
+  const formatStack = stack => {
+    if (!stack) return null;
+    // Clean up the stack trace for readability
+    return stack
+      .split('\n')
+      .slice(0, 10) // Limit to first 10 lines
+      .join('\n');
   };
 
   const handleCloseModal = () => {
@@ -185,8 +212,12 @@ const Toast = ({
 
       {/* Error Details Modal */}
       <Modal visible={showModal} transparent animationType="fade" onRequestClose={handleCloseModal}>
-        <Pressable style={styles.modalOverlay} onPress={handleCloseModal}>
-          <Pressable style={styles.modalContent} onPress={e => e.stopPropagation()}>
+        <View style={styles.modalContainer}>
+          {/* Backdrop - tap to close */}
+          <Pressable style={styles.modalBackdrop} onPress={handleCloseModal} />
+          {/* Modal content - not a child of Pressable so ScrollView works */}
+          <View style={styles.modalContent}>
+            {/* Header */}
             <View style={[styles.modalHeader, { backgroundColor: toastStyle.backgroundColor }]}>
               <Ionicons name={toastStyle.iconName} size={24} color="#fff" />
               <Text style={styles.modalTitle}>{toastStyle.title}</Text>
@@ -195,12 +226,83 @@ const Toast = ({
               </TouchableOpacity>
             </View>
 
-            <ScrollView style={styles.modalBody} showsVerticalScrollIndicator={false}>
+            {/* User-friendly message - fixed at top */}
+            <View style={styles.modalBody}>
               <Text style={styles.modalMessage} selectable>
                 {message}
               </Text>
+            </View>
+
+            {/* Scrollable technical details */}
+            <ScrollView style={styles.detailsScroll}>
+              {/* Timestamp */}
+              {timestamp && (
+                <View style={styles.detailItem}>
+                  <Text style={styles.detailLabel}>Time</Text>
+                  <Text style={styles.detailValue} selectable>
+                    {formatTimestamp(timestamp)}
+                  </Text>
+                </View>
+              )}
+
+              {/* Error Details */}
+              {errorDetails && (
+                <>
+                  {/* Error Type */}
+                  {errorDetails.name && errorDetails.name !== 'Error' && (
+                    <View style={styles.detailItem}>
+                      <Text style={styles.detailLabel}>Error Type</Text>
+                      <Text style={styles.detailValue} selectable>
+                        {errorDetails.name}
+                      </Text>
+                    </View>
+                  )}
+
+                  {/* Error Code/Status */}
+                  {(errorDetails.code || errorDetails.status) && (
+                    <View style={styles.detailItem}>
+                      <Text style={styles.detailLabel}>
+                        {errorDetails.code ? 'Error Code' : 'Status'}
+                      </Text>
+                      <Text style={styles.detailValue} selectable>
+                        {errorDetails.code || errorDetails.status}
+                      </Text>
+                    </View>
+                  )}
+
+                  {/* Technical Error Message */}
+                  {errorDetails.message && errorDetails.message !== message && (
+                    <View style={styles.detailItem}>
+                      <Text style={styles.detailLabel}>Technical Details</Text>
+                      <Text style={styles.detailValueMono} selectable>
+                        {errorDetails.message}
+                      </Text>
+                    </View>
+                  )}
+
+                  {/* Stack Trace */}
+                  {errorDetails.stack && (
+                    <View style={styles.detailItem}>
+                      <Text style={styles.detailLabel}>Stack Trace</Text>
+                      <View style={styles.stackContainer}>
+                        <Text style={styles.stackTrace} selectable>
+                          {formatStack(errorDetails.stack)}
+                        </Text>
+                      </View>
+                    </View>
+                  )}
+                </>
+              )}
+
+              {/* No error details available */}
+              {!errorDetails && (
+                <View style={styles.detailItem}>
+                  <Text style={styles.noDetailsText}>No additional error details available.</Text>
+                </View>
+              )}
             </ScrollView>
 
+            {/* Footer */}
             <View style={styles.modalFooter}>
               <TouchableOpacity
                 style={[styles.modalButton, styles.reportButton]}
@@ -217,8 +319,8 @@ const Toast = ({
                 <Text style={styles.dismissButtonText}>Dismiss</Text>
               </TouchableOpacity>
             </View>
-          </Pressable>
-        </Pressable>
+          </View>
+        </View>
       </Modal>
     </>
   );
@@ -288,19 +390,22 @@ const styles = StyleSheet.create({
     padding: 2,
   },
   // Modal styles
-  modalOverlay: {
+  modalContainer: {
     flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.5)',
     justifyContent: 'center',
     alignItems: 'center',
     padding: 20,
+  },
+  modalBackdrop: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'rgba(0,0,0,0.5)',
   },
   modalContent: {
     backgroundColor: '#fff',
     borderRadius: 16,
     width: '100%',
     maxWidth: 400,
-    maxHeight: '70%',
+    maxHeight: '75%',
     overflow: 'hidden',
   },
   modalHeader: {
@@ -319,8 +424,20 @@ const styles = StyleSheet.create({
     padding: 4,
   },
   modalBody: {
-    padding: 20,
-    maxHeight: 300,
+    paddingHorizontal: 20,
+    paddingTop: 16,
+    paddingBottom: 8,
+  },
+  detailsScroll: {
+    borderTopWidth: 1,
+    borderTopColor: '#eee',
+    paddingHorizontal: 20,
+    maxHeight: 280,
+  },
+  detailItem: {
+    paddingVertical: 10,
+    borderBottomWidth: 1,
+    borderBottomColor: '#f0f0f0',
   },
   modalMessage: {
     fontSize: 15,
@@ -358,6 +475,43 @@ const styles = StyleSheet.create({
     fontSize: 15,
     fontWeight: '600',
     color: '#fff',
+  },
+  // Error details styles
+  detailLabel: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#888',
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+    marginBottom: 4,
+  },
+  detailValue: {
+    fontSize: 14,
+    color: '#333',
+    lineHeight: 20,
+  },
+  detailValueMono: {
+    fontSize: 13,
+    color: '#333',
+    fontFamily: 'monospace',
+    lineHeight: 18,
+  },
+  stackContainer: {
+    backgroundColor: '#f8f8f8',
+    borderRadius: 8,
+    padding: 12,
+    marginTop: 4,
+  },
+  stackTrace: {
+    fontSize: 11,
+    color: '#666',
+    fontFamily: 'monospace',
+    lineHeight: 16,
+  },
+  noDetailsText: {
+    fontSize: 14,
+    color: '#888',
+    fontStyle: 'italic',
   },
 });
 

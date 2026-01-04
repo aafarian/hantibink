@@ -78,7 +78,7 @@ const ChatScreen = ({ route, navigation }) => {
   const [tappedMessageId, setTappedMessageId] = useState(null);
   const [isProfileSheetOpen, setIsProfileSheetOpen] = useState(false);
   const [showMenu, setShowMenu] = useState(false);
-  const [reactionsDetailMessage, setReactionsDetailMessage] = useState(null);
+  const [reactionsDetailMessageId, setReactionsDetailMessageId] = useState(null);
   const [reactionsTab, setReactionsTab] = useState('all'); // 'all', 'you', 'them'
 
   // Moderation modals state
@@ -102,12 +102,14 @@ const ChatScreen = ({ route, navigation }) => {
   const sentMessageIdsRef = useRef(new Set()); // Track IDs of messages we sent to avoid socket duplicates
   const sentMessageTimeoutsRef = useRef(new Map()); // Track cleanup timeouts for sentMessageIds
   const scrollButtonAnim = useRef(new Animated.Value(0)).current;
+  const rightIconAnim = useRef(new Animated.Value(1)).current; // For icon transitions
   const isFocusedRef = useRef(isFocused); // Track focus state for callbacks
   const appStateRef = useRef(AppState.currentState); // Track app foreground/background state
 
   // Max number of message IDs to track (prevents unbounded growth)
   const MAX_SENT_MESSAGE_IDS = 100;
   const reactionsSheetRef = useRef(null);
+  const inputRef = useRef(null);
 
   // Snap points for reactions bottom sheet - fixed height for consistency
   const reactionsSnapPoints = useMemo(() => [350], []);
@@ -278,6 +280,30 @@ const ChatScreen = ({ route, navigation }) => {
     };
   }, [showReactionPicker]);
 
+  // Animate right icon when switching between mic and send
+  const showSendButton = messageText.trim() && !isRecording;
+  const prevShowSendButtonRef = useRef(showSendButton);
+
+  useEffect(() => {
+    if (prevShowSendButtonRef.current !== showSendButton) {
+      // Quick scale down and up for a subtle transition
+      Animated.sequence([
+        Animated.timing(rightIconAnim, {
+          toValue: 0.8,
+          duration: 50,
+          useNativeDriver: true,
+        }),
+        Animated.spring(rightIconAnim, {
+          toValue: 1,
+          friction: 5,
+          tension: 100,
+          useNativeDriver: true,
+        }),
+      ]).start();
+      prevShowSendButtonRef.current = showSendButton;
+    }
+  }, [showSendButton, rightIconAnim]);
+
   // Load messages from API
   const loadMessages = async () => {
     try {
@@ -307,7 +333,7 @@ const ChatScreen = ({ route, navigation }) => {
       }
     } catch (error) {
       Logger.error('Failed to load messages:', error);
-      showError('Failed to load messages');
+      showError('Failed to load messages', { error });
     } finally {
       setIsLoading(false);
     }
@@ -496,7 +522,13 @@ const ChatScreen = ({ route, navigation }) => {
   );
 
   // Core message sending function (handles both text and GIF)
-  const sendMessageCore = async ({ content, messageType, mediaUrl = null, replyToData = null }) => {
+  const sendMessageCore = async ({
+    content,
+    messageType,
+    mediaUrl = null,
+    metadata = null,
+    replyToData = null,
+  }) => {
     const tempId = `temp-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
 
     // Build temp message for optimistic update
@@ -506,6 +538,7 @@ const ChatScreen = ({ route, navigation }) => {
       text: messageType === 'TEXT' ? content : undefined,
       messageType,
       mediaUrl,
+      metadata,
       senderId: user.uid,
       senderName: user.displayName,
       createdAt: new Date().toISOString(),
@@ -526,6 +559,7 @@ const ChatScreen = ({ route, navigation }) => {
         content,
         messageType,
         ...(mediaUrl && { mediaUrl }),
+        ...(metadata && { metadata }),
         ...(replyToData && { replyToId: replyToData.id }),
       };
 
@@ -564,7 +598,7 @@ const ChatScreen = ({ route, navigation }) => {
       );
     } catch (error) {
       Logger.error(`Failed to send ${messageType.toLowerCase()}:`, error);
-      showError(`Failed to send ${messageType === 'GIF' ? 'GIF' : 'message'}`);
+      showError(`Failed to send ${messageType === 'GIF' ? 'GIF' : 'message'}`, { error });
       setMessages(prev => prev.filter(msg => msg.id !== tempId));
     }
   };
@@ -619,18 +653,29 @@ const ChatScreen = ({ route, navigation }) => {
   };
 
   // Send Audio (voice message)
-  const sendAudio = async (audioUri, durationMs) => {
+  const sendAudio = async (audioUri, durationMs, waveform = null) => {
+    Logger.info(`>>> sendAudio CALLED at ${Date.now()}`);
     try {
       setIsUploadingAudio(true);
+
+      Logger.info(
+        `sendAudio received waveform: ${waveform ? 'yes' : 'no'}, length: ${waveform?.length}`
+      );
+      if (waveform) {
+        Logger.info(`sendAudio waveform sample: ${JSON.stringify(waveform.slice(0, 5))}`);
+      }
 
       // Upload audio to Firebase Storage
       const audioUrl = await uploadAudioToFirebase(audioUri, user.uid);
 
-      // Send the message
+      const metadata = waveform ? JSON.stringify({ waveform, durationMs }) : null;
+
+      // Send the message with waveform data
       await sendMessageCore({
         content: 'Voice message',
         messageType: 'AUDIO',
         mediaUrl: audioUrl,
+        metadata,
       });
 
       // Track analytics
@@ -639,7 +684,7 @@ const ChatScreen = ({ route, navigation }) => {
       Logger.info('Voice message sent successfully');
     } catch (error) {
       Logger.error('Failed to send voice message:', error);
-      showError('Failed to send voice message');
+      showError('Failed to send voice message', { error });
     } finally {
       setIsUploadingAudio(false);
     }
@@ -981,6 +1026,7 @@ const ChatScreen = ({ route, navigation }) => {
                 style={({ pressed }) => [
                   styles.messageBubble,
                   isOwnMessage ? styles.ownMessageBubble : styles.otherMessageBubble,
+                  item.messageType === 'AUDIO' && styles.audioBubble,
                   item.isTemp && styles.tempMessage,
                   pressed && styles.messageBubblePressed,
                   isHighlighted && styles.highlightedMessage,
@@ -1001,9 +1047,11 @@ const ChatScreen = ({ route, navigation }) => {
                   </TouchableOpacity>
                 ) : item.messageType === 'AUDIO' ? (
                   <AudioMessage
+                    messageId={item.id}
                     audioUrl={item.mediaUrl}
                     isOwnMessage={isOwnMessage}
                     duration={item.duration}
+                    metadata={item.metadata}
                   />
                 ) : (
                   <Text style={[styles.messageText, isOwnMessage && styles.ownMessageText]}>
@@ -1081,7 +1129,7 @@ const ChatScreen = ({ route, navigation }) => {
                           : styles.otherReactionsContainer,
                       ]}
                       onPress={() => {
-                        setReactionsDetailMessage(item);
+                        setReactionsDetailMessageId(item.id);
                         reactionsSheetRef.current?.expand();
                       }}
                       activeOpacity={0.8}
@@ -1350,6 +1398,12 @@ const ChatScreen = ({ route, navigation }) => {
     );
   };
 
+  // Get the live message for reactions detail (derived from messages array)
+  const reactionsDetailMessage = useMemo(() => {
+    if (!reactionsDetailMessageId) return null;
+    return messages.find(m => m.id === reactionsDetailMessageId) || null;
+  }, [reactionsDetailMessageId, messages]);
+
   // Get reactions data for the bottom sheet
   const getReactionsData = useCallback(() => {
     if (!reactionsDetailMessage) return { reactionsList: [], filteredReactions: [] };
@@ -1383,7 +1437,7 @@ const ChatScreen = ({ route, navigation }) => {
 
   // Handle reactions sheet close
   const handleReactionsSheetClose = useCallback(() => {
-    setReactionsDetailMessage(null);
+    setReactionsDetailMessageId(null);
     setReactionsTab('all');
   }, []);
 
@@ -1583,6 +1637,7 @@ const ChatScreen = ({ route, navigation }) => {
 
           {/* Input */}
           <View style={styles.inputContainer}>
+            {/* Hide GIF and input when recording */}
             {!isRecording && (
               <>
                 <TouchableOpacity
@@ -1596,6 +1651,7 @@ const ChatScreen = ({ route, navigation }) => {
                 </TouchableOpacity>
 
                 <TextInput
+                  ref={inputRef}
                   style={styles.messageInput}
                   placeholder={isUploadingAudio ? 'Sending voice message...' : 'Type a message...'}
                   value={messageText}
@@ -1607,30 +1663,36 @@ const ChatScreen = ({ route, navigation }) => {
               </>
             )}
 
-            {/* Show send button when text, mic button when empty */}
-            {messageText.trim() && !isRecording ? (
-              <TouchableOpacity
-                style={[
-                  styles.sendButton,
-                  (!messageText.trim() || isSending) && styles.sendButtonDisabled,
-                ]}
-                onPress={sendMessage}
-                disabled={!messageText.trim() || isSending}
-              >
-                <Ionicons
-                  name="send"
-                  size={20}
-                  color={messageText.trim() && !isSending ? theme.colors.primary : '#999'}
-                />
-              </TouchableOpacity>
+            {/* Show send button when has text, otherwise show AudioRecorder */}
+            {showSendButton ? (
+              <Animated.View style={{ transform: [{ scale: rightIconAnim }] }}>
+                <TouchableOpacity
+                  style={[
+                    styles.sendButton,
+                    (!messageText.trim() || isSending) && styles.sendButtonDisabled,
+                  ]}
+                  onPress={sendMessage}
+                  disabled={!messageText.trim() || isSending}
+                >
+                  <Ionicons
+                    name="send"
+                    size={22}
+                    color={messageText.trim() && !isSending ? '#F44336' : '#999'}
+                  />
+                </TouchableOpacity>
+              </Animated.View>
             ) : (
               <AudioRecorder
-                onRecordingComplete={(uri, duration) => {
+                onRecordingComplete={(uri, duration, waveform) => {
                   setIsRecording(false);
-                  sendAudio(uri, duration);
+                  sendAudio(uri, duration, waveform);
                 }}
                 onRecordingStart={() => setIsRecording(true)}
                 onRecordingCancel={() => setIsRecording(false)}
+                onError={error => {
+                  setIsRecording(false);
+                  showError('Recording failed', { error });
+                }}
                 disabled={isSending || isUploadingAudio}
               />
             )}
@@ -1751,8 +1813,14 @@ const ChatScreen = ({ route, navigation }) => {
                             }
                           }}
                           activeOpacity={reaction.isMe ? 0.7 : 1}
+                          style={styles.reactionEmojiContainer}
                         >
                           <Text style={styles.reactionDetailEmoji}>{reaction.emoji}</Text>
+                          {reaction.isMe && (
+                            <View style={styles.removeReactionBadge}>
+                              <Ionicons name="close" size={10} color="#fff" />
+                            </View>
+                          )}
                         </TouchableOpacity>
                       </View>
                     ))}
@@ -2016,6 +2084,12 @@ const styles = StyleSheet.create({
     shadowRadius: 4,
     elevation: 3,
   },
+  audioBubble: {
+    paddingLeft: 8,
+    paddingRight: 12,
+    paddingVertical: 10,
+    minWidth: 220,
+  },
   messageText: {
     fontSize: 16,
     color: '#1c1c1e',
@@ -2218,6 +2292,21 @@ const styles = StyleSheet.create({
   reactionDetailEmoji: {
     fontSize: 24,
   },
+  reactionEmojiContainer: {
+    position: 'relative',
+    marginRight: 8,
+  },
+  removeReactionBadge: {
+    position: 'absolute',
+    top: -4,
+    right: -4,
+    backgroundColor: '#999',
+    borderRadius: 8,
+    width: 16,
+    height: 16,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
   addReactionRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -2362,8 +2451,10 @@ const styles = StyleSheet.create({
     fontSize: 15,
   },
   sendButton: {
-    paddingLeft: 12,
-    alignSelf: 'center',
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    alignItems: 'center',
     justifyContent: 'center',
   },
   sendButtonDisabled: {

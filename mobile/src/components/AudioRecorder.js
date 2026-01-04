@@ -1,35 +1,98 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
-import { View, Text, StyleSheet, Animated, PanResponder } from 'react-native';
+import { View, Text, StyleSheet, Animated, PanResponder, TouchableOpacity } from 'react-native';
 import { Audio } from 'expo-av';
 import * as Haptics from 'expo-haptics';
 import { Ionicons } from '@expo/vector-icons';
 import Logger from '../utils/logger';
+
 const CANCEL_THRESHOLD = -80; // Slide left this far to cancel
 const MIN_RECORDING_DURATION = 500; // Minimum 500ms recording
+const MAX_RECORDING_DURATION = 60000; // Maximum 60 seconds
+const WAVE_BAR_COUNT = 40; // Number of wave bars for live display
+const WAVEFORM_BAR_COUNT = 40; // Number of bars for saved waveform (matches AudioMessage)
+const METERING_INTERVAL = 50; // Update every 50ms for smooth animation
 
-const AudioRecorder = ({ onRecordingComplete, onRecordingStart, onRecordingCancel, disabled }) => {
+// Downsample waveform data to a fixed number of bars
+const downsampleWaveform = (data, targetBars) => {
+  if (data.length === 0) return Array(targetBars).fill(0.1);
+  if (data.length <= targetBars) {
+    // Pad with last value if not enough data
+    const padded = [...data];
+    while (padded.length < targetBars) {
+      padded.push(data[data.length - 1] || 0.1);
+    }
+    return padded;
+  }
+
+  const result = [];
+  const chunkSize = data.length / targetBars;
+
+  for (let i = 0; i < targetBars; i++) {
+    const start = Math.floor(i * chunkSize);
+    const end = Math.floor((i + 1) * chunkSize);
+    const chunk = data.slice(start, end);
+    // Use max value in chunk for more dramatic visualization
+    const maxVal = Math.max(...chunk);
+    result.push(maxVal);
+  }
+
+  return result;
+};
+
+const AudioRecorder = ({
+  onRecordingComplete,
+  onRecordingStart,
+  onRecordingCancel,
+  onError,
+  disabled,
+}) => {
   const [isRecording, setIsRecording] = useState(false);
   const [recordingDuration, setRecordingDuration] = useState(0);
   const [isCancelling, setIsCancelling] = useState(false);
+  const [audioLevels, setAudioLevels] = useState(Array(WAVE_BAR_COUNT).fill(0.02));
 
   const recordingRef = useRef(null);
   const durationIntervalRef = useRef(null);
   const startTimeRef = useRef(null);
   const slideXRef = useRef(0);
+  const isBusyRef = useRef(false);
+  const audioLevelsRef = useRef(Array(WAVE_BAR_COUNT).fill(0.02));
+  const waveformDataRef = useRef([]); // Store all levels for the final waveform
 
-  // Refs to access current values in panResponder without recreating it
+  // Refs for panResponder (to avoid stale closures)
   const disabledRef = useRef(disabled);
   const isRecordingRef = useRef(isRecording);
   const isCancellingRef = useRef(isCancelling);
+  const onRecordingCompleteRef = useRef(onRecordingComplete);
+  const onRecordingCancelRef = useRef(onRecordingCancel);
+  const onRecordingStartRef = useRef(onRecordingStart);
+  const onErrorRef = useRef(onError);
+
+  // Refs for functions called by panResponder (to avoid stale closures)
+  const stopRecordingRef = useRef(null);
+  const startRecordingRef = useRef(null);
+  const handleSlideRef = useRef(null);
+
+  // Update refs on every render
   disabledRef.current = disabled;
   isRecordingRef.current = isRecording;
   isCancellingRef.current = isCancelling;
+  onRecordingCompleteRef.current = onRecordingComplete;
+  onRecordingCancelRef.current = onRecordingCancel;
+  onRecordingStartRef.current = onRecordingStart;
+  onErrorRef.current = onError;
 
   // Animations
   const scaleAnim = useRef(new Animated.Value(1)).current;
   const slideAnim = useRef(new Animated.Value(0)).current;
   const pulseAnim = useRef(new Animated.Value(1)).current;
-  const waveAnim = useRef(new Animated.Value(0)).current;
+
+  // Wave bar animations
+  const waveAnims = useRef(
+    Array(WAVE_BAR_COUNT)
+      .fill(0)
+      .map(() => new Animated.Value(0.1))
+  ).current;
 
   // Cleanup on unmount
   useEffect(() => {
@@ -48,181 +111,265 @@ const AudioRecorder = ({ onRecordingComplete, onRecordingStart, onRecordingCance
     if (isRecording) {
       const pulse = Animated.loop(
         Animated.sequence([
-          Animated.timing(pulseAnim, {
-            toValue: 1.2,
-            duration: 500,
-            useNativeDriver: true,
-          }),
-          Animated.timing(pulseAnim, {
-            toValue: 1,
-            duration: 500,
-            useNativeDriver: true,
-          }),
+          Animated.timing(pulseAnim, { toValue: 1.3, duration: 600, useNativeDriver: true }),
+          Animated.timing(pulseAnim, { toValue: 1, duration: 600, useNativeDriver: true }),
         ])
       );
       pulse.start();
-
-      // Wave animation
-      const wave = Animated.loop(
-        Animated.timing(waveAnim, {
-          toValue: 1,
-          duration: 1000,
-          useNativeDriver: true,
-        })
-      );
-      wave.start();
-
-      return () => {
-        pulse.stop();
-        wave.stop();
-      };
+      return () => pulse.stop();
     } else {
       pulseAnim.setValue(1);
-      waveAnim.setValue(0);
     }
-  }, [isRecording, pulseAnim, waveAnim]);
+  }, [isRecording, pulseAnim]);
+
+  // Update wave animations when audio levels change
+  useEffect(() => {
+    audioLevels.forEach((level, index) => {
+      Animated.timing(waveAnims[index], {
+        toValue: level,
+        duration: 100,
+        useNativeDriver: false,
+      }).start();
+    });
+  }, [audioLevels, waveAnims]);
+
+  const updateAudioLevel = useCallback(status => {
+    if (status.isRecording && status.metering !== undefined) {
+      // Convert dB to 0-1 scale (metering is typically -160 to 0 dB)
+      // Use a more sensitive range: -50dB to 0dB for better responsiveness
+      const normalizedLevel = Math.max(0, (status.metering + 50) / 50);
+      // More dramatic range: 0.02 (nearly invisible) to 1.0 (full height)
+      const clampedLevel = Math.min(1, Math.max(0.02, normalizedLevel));
+
+      // Store for final waveform
+      waveformDataRef.current.push(clampedLevel);
+
+      // Shift levels left and add new level at the end (for live display)
+      const newLevels = [...audioLevelsRef.current.slice(1), clampedLevel];
+      audioLevelsRef.current = newLevels;
+      setAudioLevels(newLevels);
+    }
+  }, []);
 
   const startRecording = async () => {
+    if (isBusyRef.current || isRecordingRef.current) {
+      Logger.debug('Recording already in progress or busy, ignoring');
+      return false;
+    }
+
+    isBusyRef.current = true;
+
     try {
-      // Request permissions
       const { status } = await Audio.requestPermissionsAsync();
       if (status !== 'granted') {
         Logger.warn('Audio recording permission denied');
+        onErrorRef.current?.(new Error('Microphone permission denied'));
+        isBusyRef.current = false;
         return false;
       }
 
-      // Configure audio mode
       await Audio.setAudioModeAsync({
         allowsRecordingIOS: true,
         playsInSilentModeIOS: true,
       });
 
-      // Start recording
       const recording = new Audio.Recording();
-      await recording.prepareToRecordAsync(Audio.RecordingOptionsPresets.HIGH_QUALITY);
+      await recording.prepareToRecordAsync({
+        ...Audio.RecordingOptionsPresets.HIGH_QUALITY,
+        isMeteringEnabled: true,
+      });
+
+      // Set up metering callback with fast update interval
+      recording.setOnRecordingStatusUpdate(updateAudioLevel);
+      recording.setProgressUpdateInterval(METERING_INTERVAL);
+
       await recording.startAsync();
 
       recordingRef.current = recording;
       startTimeRef.current = Date.now();
+      waveformDataRef.current = []; // Reset waveform data
       setIsRecording(true);
       setRecordingDuration(0);
+      setAudioLevels(Array(WAVE_BAR_COUNT).fill(0.02));
+      audioLevelsRef.current = Array(WAVE_BAR_COUNT).fill(0.02);
+      // Reset wave animations to prevent visual artifacts from previous recording
+      waveAnims.forEach(anim => anim.setValue(0.02));
 
-      // Haptic feedback
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
 
-      // Start duration timer
       durationIntervalRef.current = setInterval(() => {
-        setRecordingDuration(Date.now() - startTimeRef.current);
+        const elapsed = Date.now() - startTimeRef.current;
+        setRecordingDuration(elapsed);
+
+        // Auto-stop at max duration
+        if (elapsed >= MAX_RECORDING_DURATION) {
+          Logger.info('Max recording duration reached, auto-stopping');
+          Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
+          stopRecordingRef.current?.(false);
+        }
       }, 100);
 
-      // Scale up animation
-      Animated.spring(scaleAnim, {
-        toValue: 1.5,
-        useNativeDriver: true,
-      }).start();
+      Animated.spring(scaleAnim, { toValue: 1.2, useNativeDriver: true }).start();
 
-      onRecordingStart?.();
+      onRecordingStartRef.current?.();
+      isBusyRef.current = false;
       return true;
     } catch (error) {
       Logger.error('Failed to start recording:', error);
+      onErrorRef.current?.(error);
+      isBusyRef.current = false;
+      setIsRecording(false);
       return false;
     }
   };
 
-  const stopRecording = async (cancelled = false) => {
-    try {
-      if (!recordingRef.current) return;
+  // Update ref so panResponder always has the latest function
+  startRecordingRef.current = startRecording;
 
-      // Clear interval
+  const stopRecording = async (cancelled = false) => {
+    Logger.debug(`stopRecording called with cancelled=${cancelled}, slideX=${slideXRef.current}`);
+
+    if (isBusyRef.current) {
+      Logger.debug('Already stopping recording, ignoring');
+      return;
+    }
+
+    if (!recordingRef.current) {
+      setIsRecording(false);
+      return;
+    }
+
+    isBusyRef.current = true;
+
+    try {
       if (durationIntervalRef.current) {
         clearInterval(durationIntervalRef.current);
         durationIntervalRef.current = null;
       }
 
-      // Stop and get URI
+      const duration = Date.now() - (startTimeRef.current || Date.now());
+
       await recordingRef.current.stopAndUnloadAsync();
       const uri = recordingRef.current.getURI();
-      const duration = Date.now() - startTimeRef.current;
 
       recordingRef.current = null;
       setIsRecording(false);
       setRecordingDuration(0);
       setIsCancelling(false);
+      setAudioLevels(Array(WAVE_BAR_COUNT).fill(0.02));
 
-      // Reset audio mode
-      await Audio.setAudioModeAsync({
-        allowsRecordingIOS: false,
-      });
+      await Audio.setAudioModeAsync({ allowsRecordingIOS: false });
 
       // Reset animations
-      Animated.spring(scaleAnim, {
-        toValue: 1,
-        useNativeDriver: true,
-      }).start();
+      Animated.spring(scaleAnim, { toValue: 1, useNativeDriver: true }).start();
       slideAnim.setValue(0);
       slideXRef.current = 0;
 
-      // Check if cancelled or too short
+      isBusyRef.current = false;
+
       if (cancelled) {
+        Logger.debug('Recording cancelled by user');
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
-        onRecordingCancel?.();
+        onRecordingCancelRef.current?.();
         return;
       }
 
       if (duration < MIN_RECORDING_DURATION) {
         Logger.info('Recording too short, discarding');
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
+        onRecordingCancelRef.current?.();
         return;
       }
 
-      // Success - send the recording
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-      onRecordingComplete?.(uri, duration);
+      const waveform = downsampleWaveform(waveformDataRef.current, WAVEFORM_BAR_COUNT);
+      onRecordingCompleteRef.current?.(uri, duration, waveform);
     } catch (error) {
       Logger.error('Failed to stop recording:', error);
+      onErrorRef.current?.(error);
+      recordingRef.current = null;
       setIsRecording(false);
       setRecordingDuration(0);
       setIsCancelling(false);
+      isBusyRef.current = false;
+
+      Animated.spring(scaleAnim, { toValue: 1, useNativeDriver: true }).start();
+      slideAnim.setValue(0);
+      slideXRef.current = 0;
     }
   };
+
+  // Update ref so panResponder always has the latest function
+  stopRecordingRef.current = stopRecording;
 
   const handleSlide = useCallback(
     dx => {
       slideXRef.current = dx;
-      slideAnim.setValue(dx);
 
-      if (dx < CANCEL_THRESHOLD && !isCancellingRef.current) {
+      // Use spring with high tension for smoother native-driven animation
+      Animated.spring(slideAnim, {
+        toValue: dx,
+        useNativeDriver: true,
+        speed: 50,
+        bounciness: 0,
+      }).start();
+
+      // Only update state if it actually changed (reduces re-renders)
+      const shouldCancel = dx < CANCEL_THRESHOLD;
+      if (shouldCancel && !isCancellingRef.current) {
+        isCancellingRef.current = true;
         setIsCancelling(true);
         Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-      } else if (dx >= CANCEL_THRESHOLD && isCancellingRef.current) {
+      } else if (!shouldCancel && isCancellingRef.current) {
+        isCancellingRef.current = false;
         setIsCancelling(false);
       }
     },
     [slideAnim]
   );
 
+  // Update ref so panResponder always has the latest function
+  handleSlideRef.current = handleSlide;
+
   const panResponder = useRef(
     PanResponder.create({
-      onStartShouldSetPanResponder: () => !disabledRef.current,
+      onStartShouldSetPanResponder: () => !disabledRef.current && !isBusyRef.current,
       onMoveShouldSetPanResponder: () => isRecordingRef.current,
       onPanResponderGrant: async () => {
-        if (!disabledRef.current) {
-          await startRecording();
+        if (!disabledRef.current && !isBusyRef.current && !isRecordingRef.current) {
+          // Use ref to get latest function
+          await startRecordingRef.current?.();
         }
       },
       onPanResponderMove: (_, gestureState) => {
         if (isRecordingRef.current) {
-          handleSlide(Math.min(0, gestureState.dx));
+          // Use ref to get latest function
+          handleSlideRef.current?.(Math.min(0, gestureState.dx));
         }
       },
       onPanResponderRelease: () => {
         if (isRecordingRef.current) {
-          stopRecording(slideXRef.current < CANCEL_THRESHOLD);
+          if (slideXRef.current < CANCEL_THRESHOLD) {
+            // Swiped far enough - cancel the recording
+            stopRecordingRef.current?.(true);
+          } else {
+            // Didn't swipe far enough - just animate back, keep recording
+            Animated.spring(slideAnim, {
+              toValue: 0,
+              useNativeDriver: true,
+              tension: 100,
+              friction: 10,
+            }).start();
+            slideXRef.current = 0;
+            isCancellingRef.current = false;
+            setIsCancelling(false);
+          }
         }
       },
       onPanResponderTerminate: () => {
         if (isRecordingRef.current) {
-          stopRecording(true);
+          // System interrupted - cancel the recording
+          stopRecordingRef.current?.(true);
         }
       },
     })
@@ -235,54 +382,88 @@ const AudioRecorder = ({ onRecordingComplete, onRecordingStart, onRecordingCance
     return `${minutes}:${seconds.toString().padStart(2, '0')}`;
   };
 
+  const handleSend = () => {
+    if (isRecording) {
+      stopRecording(false);
+    }
+  };
+
+  const handleCancel = () => {
+    if (isRecording) {
+      stopRecording(true);
+    }
+  };
+
+  // Recording UI
   if (isRecording) {
     return (
-      <View style={styles.recordingOverlay}>
-        <Animated.View
-          style={[
-            styles.recordingContent,
-            {
-              transform: [{ translateX: slideAnim }],
-            },
-          ]}
-        >
-          {/* Cancel hint */}
-          <View style={styles.cancelHint}>
-            <Ionicons name="chevron-back" size={16} color={isCancelling ? '#D32F2F' : '#999'} />
-            <Text style={[styles.cancelText, isCancelling && styles.cancelTextActive]}>
-              {isCancelling ? 'Release to cancel' : 'Slide to cancel'}
-            </Text>
-          </View>
+      <View style={styles.recordingContainer}>
+        {/* Trash button */}
+        <TouchableOpacity style={[styles.actionButton, styles.trashButton]} onPress={handleCancel}>
+          <Ionicons name="trash-outline" size={22} color="#F44336" />
+        </TouchableOpacity>
 
-          {/* Recording indicator */}
-          <View style={styles.recordingIndicator}>
-            <Animated.View style={[styles.recordingDot, { transform: [{ scale: pulseAnim }] }]} />
-            <Text style={styles.durationText}>{formatDuration(recordingDuration)}</Text>
-          </View>
-        </Animated.View>
+        {/* Swipe area wrapper - clips the sliding content */}
+        <View style={styles.swipeAreaWrapper}>
+          <Animated.View
+            {...panResponder.panHandlers}
+            style={[styles.swipeArea, { transform: [{ translateX: slideAnim }] }]}
+          >
+            {/* Slide hint or wave bars */}
+            <View style={styles.waveContainer}>
+              {isCancelling ? (
+                <Text style={styles.cancelText}>Release to cancel</Text>
+              ) : (
+                <View style={styles.waveBars}>
+                  {waveAnims.map((anim, index) => (
+                    <Animated.View
+                      key={index}
+                      style={[
+                        styles.waveBar,
+                        {
+                          height: anim.interpolate({
+                            inputRange: [0, 1],
+                            outputRange: [2, 28],
+                          }),
+                        },
+                      ]}
+                    />
+                  ))}
+                </View>
+              )}
+            </View>
 
-        {/* Mic button (recording state) */}
-        <Animated.View
-          {...panResponder.panHandlers}
-          style={[
-            styles.micButtonRecording,
-            {
-              transform: [{ scale: scaleAnim }],
-            },
-          ]}
-        >
-          <Ionicons name="mic" size={24} color="#fff" />
-        </Animated.View>
+            {/* Slide hint text */}
+            {!isCancelling && (
+              <View style={styles.slideHint}>
+                <Ionicons name="chevron-back" size={14} color="#999" />
+                <Text style={styles.slideText}>Slide to cancel</Text>
+              </View>
+            )}
+          </Animated.View>
+        </View>
+
+        {/* Recording indicator + duration */}
+        <View style={styles.recordingIndicator}>
+          <Animated.View style={[styles.recordingDot, { transform: [{ scale: pulseAnim }] }]} />
+          <Text style={styles.durationText}>{formatDuration(recordingDuration)}</Text>
+        </View>
+
+        {/* Send button */}
+        <TouchableOpacity style={[styles.actionButton, styles.sendButton]} onPress={handleSend}>
+          <Ionicons name="send" size={22} color="#fff" />
+        </TouchableOpacity>
       </View>
     );
   }
 
+  // Default mic button
   return (
     <Animated.View
       {...panResponder.panHandlers}
       style={[styles.micButton, disabled && styles.micButtonDisabled]}
     >
-      <Ionicons name="mic" size={22} color={disabled ? '#ccc' : '#D32F2F'} />
+      <Ionicons name="mic" size={22} color={disabled ? '#ccc' : '#F44336'} />
     </Animated.View>
   );
 };
@@ -299,67 +480,85 @@ const styles = StyleSheet.create({
   micButtonDisabled: {
     opacity: 0.5,
   },
-  micButtonRecording: {
-    width: 56,
-    height: 56,
-    borderRadius: 28,
-    backgroundColor: '#D32F2F',
+  recordingContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
+    paddingVertical: 4,
+  },
+  actionButton: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
     justifyContent: 'center',
     alignItems: 'center',
-    elevation: 4,
-    shadowColor: '#D32F2F',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.3,
-    shadowRadius: 4,
   },
-  recordingOverlay: {
-    position: 'absolute',
-    bottom: 0,
-    left: 0,
-    right: 0,
-    height: 60,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    backgroundColor: '#fff',
-    paddingHorizontal: 16,
-    borderTopWidth: 1,
-    borderTopColor: '#eee',
+  trashButton: {
+    backgroundColor: '#FEE2E2',
   },
-  recordingContent: {
+  sendButton: {
+    backgroundColor: '#F44336',
+  },
+  swipeAreaWrapper: {
     flex: 1,
+    overflow: 'hidden',
+    marginHorizontal: 4,
+  },
+  swipeArea: {
+    width: '100%',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  waveContainer: {
+    height: 32,
+    justifyContent: 'center',
+    alignItems: 'center',
+    width: '100%',
+  },
+  waveBars: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    marginRight: 16,
+    width: '100%',
+    paddingHorizontal: 8,
   },
-  cancelHint: {
+  waveBar: {
+    width: 2,
+    backgroundColor: '#F44336',
+    borderRadius: 1,
+  },
+  slideHint: {
     flexDirection: 'row',
     alignItems: 'center',
+    marginTop: 2,
+  },
+  slideText: {
+    fontSize: 11,
+    color: '#999',
   },
   cancelText: {
     fontSize: 14,
-    color: '#999',
-    marginLeft: 4,
-  },
-  cancelTextActive: {
-    color: '#D32F2F',
+    color: '#F44336',
+    fontWeight: '500',
   },
   recordingIndicator: {
     flexDirection: 'row',
     alignItems: 'center',
+    marginLeft: 2,
+    marginRight: 4,
   },
   recordingDot: {
-    width: 10,
-    height: 10,
-    borderRadius: 5,
-    backgroundColor: '#D32F2F',
-    marginRight: 8,
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: '#F44336',
+    marginRight: 6,
   },
   durationText: {
-    fontSize: 16,
+    fontSize: 14,
     fontWeight: '600',
     color: '#333',
+    minWidth: 40,
   },
 });
 

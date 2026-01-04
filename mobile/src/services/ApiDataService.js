@@ -698,6 +698,7 @@ class ApiDataService {
           content: contentOrOptions.content,
           messageType: contentOrOptions.messageType || 'TEXT',
           mediaUrl: contentOrOptions.mediaUrl || null,
+          metadata: contentOrOptions.metadata || null,
           replyToId: contentOrOptions.replyToId || null,
         };
       } else {
