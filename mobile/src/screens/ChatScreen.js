@@ -2086,9 +2086,9 @@ const styles = StyleSheet.create({
   },
   audioBubble: {
     paddingLeft: 8,
-    paddingRight: 16,
+    paddingRight: 12,
     paddingVertical: 10,
-    minWidth: 240,
+    minWidth: 220,
   },
   messageText: {
     fontSize: 16,

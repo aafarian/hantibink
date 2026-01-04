@@ -6,7 +6,7 @@ import * as Haptics from 'expo-haptics';
 import Logger from '../utils/logger';
 
 // Layout constants - WhatsApp style (no scrolling)
-const WAVEFORM_BAR_COUNT = 40;
+const WAVEFORM_BAR_COUNT = 35;
 const BAR_WIDTH = 3;
 const BAR_GAP = 2;
 const WAVEFORM_HEIGHT = 32;
@@ -349,8 +349,8 @@ const AudioMessage = ({
       {/* Waveform - with drag-to-scrub via responder system */}
       <View
         style={styles.waveformWrapper}
-        onStartShouldSetResponder={() => true}
-        onMoveShouldSetResponder={() => true}
+        onStartShouldSetResponder={() => !!soundRef.current}
+        onMoveShouldSetResponder={() => !!soundRef.current}
         onResponderGrant={handleResponderGrant}
         onResponderMove={handleResponderMove}
         onResponderRelease={handleResponderRelease}
