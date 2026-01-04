@@ -19,6 +19,12 @@ import Logger from '../utils/logger';
 import { getUserProfilePhoto } from '../utils/profileHelpers';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { theme } from '../styles/theme';
+import {
+  trackSwipeLeft,
+  trackSwipeRight,
+  trackSuperLike,
+  trackMatchCreated,
+} from '../utils/analytics';
 
 const BATCH_SIZE = 10; // Load 10 profiles at a time
 
@@ -371,6 +377,8 @@ const PeopleScreenOptimized = ({ navigation }) => {
   const handleSwipeLeft = useCallback(async profile => {
     try {
       Logger.info(`👈 Swiped left on ${profile.name}`);
+      trackSwipeLeft();
+
       // Mark as processed to avoid showing again in this session
       processedIds.current.add(profile.id);
 
@@ -391,6 +399,7 @@ const PeopleScreenOptimized = ({ navigation }) => {
         Logger.info(
           `💭 Profile details: Age ${profile.age}, Gender: ${profile.gender}, Location: ${profile.location}`
         );
+        trackSwipeRight();
 
         // Mark as processed to avoid showing again in this session
         processedIds.current.add(profile.id);
@@ -402,6 +411,7 @@ const PeopleScreenOptimized = ({ navigation }) => {
           if (result.isMatch) {
             Logger.info(`🎉 MATCH! ${profile.name} had already liked you!`);
             Logger.info(`🔗 Match ID: ${result.match?.id}`);
+            trackMatchCreated();
 
             // Show match modal with match details
             setMatchedUser({
@@ -446,6 +456,7 @@ const PeopleScreenOptimized = ({ navigation }) => {
     async profile => {
       try {
         Logger.info(`⭐ Super liked ${profile.name} (ID: ${profile.id})`);
+        trackSuperLike();
 
         // Mark as processed to avoid showing again in this session
         processedIds.current.add(profile.id);
@@ -456,6 +467,7 @@ const PeopleScreenOptimized = ({ navigation }) => {
         if (result.success) {
           if (result.isMatch) {
             Logger.info(`🎉 SUPER MATCH! ${profile.name} had already liked you!`);
+            trackMatchCreated();
 
             // Show match modal
             setMatchedUser({

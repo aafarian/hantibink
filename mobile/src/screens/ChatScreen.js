@@ -38,6 +38,7 @@ import GifPicker from '../components/GifPicker';
 import ConfirmationModal from '../components/ConfirmationModal';
 import ReportReasonModal from '../components/ReportReasonModal';
 import EmojiPicker from 'rn-emoji-keyboard';
+import { trackChatOpened, trackMessageSent, trackGifSent } from '../utils/analytics';
 import { theme } from '../styles/theme';
 import BottomSheet, { BottomSheetScrollView, BottomSheetBackdrop } from '@gorhom/bottom-sheet';
 
@@ -213,6 +214,8 @@ const ChatScreen = ({ route, navigation }) => {
     joinChatRoom();
     // Clear any pending notification for this conversation
     clearNotificationForMatch(match.matchId);
+    // Track chat opened in analytics
+    trackChatOpened('matches_list');
     // Don't mark as read on mount - wait until we have messages
 
     return () => {
@@ -524,6 +527,13 @@ const ChatScreen = ({ route, navigation }) => {
       }
 
       trackSentMessageId(sentMessage.id);
+
+      // Track message sent in analytics
+      if (messageType === 'GIF') {
+        trackGifSent();
+      } else {
+        trackMessageSent(messageType.toLowerCase());
+      }
 
       // Replace temp message with real one
       setMessages(prev =>
