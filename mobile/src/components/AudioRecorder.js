@@ -17,6 +17,14 @@ const AudioRecorder = ({ onRecordingComplete, onRecordingStart, onRecordingCance
   const startTimeRef = useRef(null);
   const slideXRef = useRef(0);
 
+  // Refs to access current values in panResponder without recreating it
+  const disabledRef = useRef(disabled);
+  const isRecordingRef = useRef(isRecording);
+  const isCancellingRef = useRef(isCancelling);
+  disabledRef.current = disabled;
+  isRecordingRef.current = isRecording;
+  isCancellingRef.current = isCancelling;
+
   // Animations
   const scaleAnim = useRef(new Animated.Value(1)).current;
   const slideAnim = useRef(new Animated.Value(0)).current;
@@ -183,37 +191,37 @@ const AudioRecorder = ({ onRecordingComplete, onRecordingStart, onRecordingCance
       slideXRef.current = dx;
       slideAnim.setValue(dx);
 
-      if (dx < CANCEL_THRESHOLD && !isCancelling) {
+      if (dx < CANCEL_THRESHOLD && !isCancellingRef.current) {
         setIsCancelling(true);
         Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-      } else if (dx >= CANCEL_THRESHOLD && isCancelling) {
+      } else if (dx >= CANCEL_THRESHOLD && isCancellingRef.current) {
         setIsCancelling(false);
       }
     },
-    [isCancelling, slideAnim]
+    [slideAnim]
   );
 
   const panResponder = useRef(
     PanResponder.create({
-      onStartShouldSetPanResponder: () => !disabled,
-      onMoveShouldSetPanResponder: () => isRecording,
+      onStartShouldSetPanResponder: () => !disabledRef.current,
+      onMoveShouldSetPanResponder: () => isRecordingRef.current,
       onPanResponderGrant: async () => {
-        if (!disabled) {
+        if (!disabledRef.current) {
           await startRecording();
         }
       },
       onPanResponderMove: (_, gestureState) => {
-        if (isRecording) {
+        if (isRecordingRef.current) {
           handleSlide(Math.min(0, gestureState.dx));
         }
       },
       onPanResponderRelease: () => {
-        if (isRecording) {
+        if (isRecordingRef.current) {
           stopRecording(slideXRef.current < CANCEL_THRESHOLD);
         }
       },
       onPanResponderTerminate: () => {
-        if (isRecording) {
+        if (isRecordingRef.current) {
           stopRecording(true);
         }
       },

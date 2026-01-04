@@ -1625,7 +1625,10 @@ const ChatScreen = ({ route, navigation }) => {
               </TouchableOpacity>
             ) : (
               <AudioRecorder
-                onRecordingComplete={sendAudio}
+                onRecordingComplete={(uri, duration) => {
+                  setIsRecording(false);
+                  sendAudio(uri, duration);
+                }}
                 onRecordingStart={() => setIsRecording(true)}
                 onRecordingCancel={() => setIsRecording(false)}
                 disabled={isSending || isUploadingAudio}
