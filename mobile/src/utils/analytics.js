@@ -167,6 +167,10 @@ export const trackGifSent = () => {
   track('GIF Sent');
 };
 
+export const trackVoiceMessageSent = (durationSeconds = 0) => {
+  track('Voice Message Sent', { duration_seconds: durationSeconds });
+};
+
 // Engagement events
 export const trackAppOpened = (source = 'direct') => {
   track('App Opened', { source }); // direct, notification, deep_link
@@ -240,6 +244,7 @@ export default {
   trackChatOpened,
   trackMessageSent,
   trackGifSent,
+  trackVoiceMessageSent,
   // Engagement
   trackAppOpened,
   trackScreenViewed,

@@ -175,6 +175,8 @@ const sendMessage = async (matchId, senderId, messageData, io = null) => {
       lastMessagePreview = '[Image]';
     } else if (messageType === 'VIDEO') {
       lastMessagePreview = '[Video]';
+    } else if (messageType === 'AUDIO') {
+      lastMessagePreview = '[Voice message]';
     }
 
     // Update match with last message info
