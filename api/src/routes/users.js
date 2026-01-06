@@ -139,6 +139,7 @@ router.post('/profile/complete-setup', authenticateJWT, profileValidation.comple
     const setupData = {
       hasCompletedOnboarding: true,
       onboardingStage: 'SETUP_COMPLETE',
+      isDiscoverable: true,
     };
     
     // Only update fields that were explicitly provided

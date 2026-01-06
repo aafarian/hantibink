@@ -42,6 +42,7 @@ const PhotoManager = ({
   const reorderDebounceRef = useRef(null);
   const isSavingRef = useRef(false);
   const lastPhotoCountRef = useRef(0);
+  const latestPhotoOrderRef = useRef([]); // Stores latest order for debounced save
 
   // Transform photos to ensure they have proper structure for draggable-grid
   const normalizePhotos = useCallback(photoArray => {
@@ -317,6 +318,9 @@ const PhotoManager = ({
 
         setLocalPhotos(updatedPhotos);
 
+        // Store latest order in ref for debounced save (avoids stale closure)
+        latestPhotoOrderRef.current = updatedPhotos.map(photo => photo.id);
+
         // Clear dragging state
         setTimeout(() => setDraggingItem(null), 0);
 
@@ -327,11 +331,13 @@ const PhotoManager = ({
             clearTimeout(reorderDebounceRef.current);
           }
 
-          // Set new debounce timer
-          const photoIds = data.map(photo => photo.id);
+          // Set new debounce timer - uses ref to always get latest order
           reorderDebounceRef.current = setTimeout(() => {
-            Logger.info('⏰ Debounce complete, saving to backend');
-            saveReorderToApi(photoIds);
+            Logger.info(
+              '⏰ Debounce complete, saving to backend with order:',
+              latestPhotoOrderRef.current
+            );
+            saveReorderToApi(latestPhotoOrderRef.current);
           }, REORDER_DEBOUNCE_MS);
         } else {
           // In non-edit mode (registration), also update parent

@@ -11,7 +11,7 @@ import Logger from '../../utils/logger';
 import { theme } from '../../styles/theme';
 
 const ProfileDetailsScreen = ({ navigation, route }) => {
-  const { register, completeRegistration, refreshUserProfileWithId, user } = useAuth();
+  const { register, completeOnboarding, refreshUserProfileWithId, user } = useAuth();
   const { showError, showSuccess } = useToast();
 
   const [loading, setLoading] = useState(false);
@@ -66,7 +66,7 @@ const ProfileDetailsScreen = ({ navigation, route }) => {
           });
 
           // Complete registration and log user in
-          const completionResult = await completeRegistration(user?.uid || route.params?.userId);
+          const completionResult = await completeOnboarding(user?.uid || route.params?.userId);
 
           if (completionResult.success) {
             showSuccess('Profile completed! Welcome to Hantibink! 🎉');
