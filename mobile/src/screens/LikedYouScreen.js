@@ -621,7 +621,11 @@ const LikedYouScreen = () => {
               <Text style={styles.likeCountText}>{totalLikesCount}</Text>
             </View>
             <Text style={styles.headerSubtitle}>
-              {totalLikesCount === 1 ? 'person likes you' : 'people like you'}
+              {totalLikesCount === 0
+                ? 'Your likes will appear here'
+                : totalLikesCount === 1
+                  ? 'person likes you'
+                  : 'people like you'}
             </Text>
           </View>
 
@@ -644,21 +648,40 @@ const LikedYouScreen = () => {
   };
 
   const renderEmptyState = () => {
-    // Show premium upsell for free users
+    // Show premium upsell for free users with tips
     if (!isPremium) {
       return (
         <View style={styles.emptyState}>
           <View style={[styles.emptyIconContainer, styles.premiumIconContainer]}>
-            <Ionicons name="diamond" size={60} color={theme.colors.premium} />
+            <Ionicons name="sparkles" size={32} color={theme.colors.premium} />
           </View>
-          <Text style={styles.emptyTitle}>See Who Likes You</Text>
+          <Text style={styles.emptyTitle}>Get Discovered</Text>
           <Text style={styles.emptySubtitle}>
-            Upgrade to Premium to see everyone who has liked your profile and match instantly.
+            When someone likes your profile, you'll see them here. Upgrade to Premium to see who
+            they are instantly.
           </Text>
+
+          <View style={styles.tipContainer}>
+            <Text style={styles.tipTitle}>Boost Your Visibility</Text>
+            <View style={styles.tipItem}>
+              <Ionicons name="camera-outline" size={18} color={theme.colors.primary} />
+              <Text style={styles.tipText}>Add more photos to stand out</Text>
+            </View>
+            <View style={styles.tipItem}>
+              <Ionicons name="create-outline" size={18} color={theme.colors.primary} />
+              <Text style={styles.tipText}>Write a bio that shows your personality</Text>
+            </View>
+            <View style={styles.tipItem}>
+              <Ionicons name="flame-outline" size={18} color={theme.colors.primary} />
+              <Text style={styles.tipText}>Swipe daily to increase your reach</Text>
+            </View>
+          </View>
+
           <TouchableOpacity
             style={styles.emptyUpgradeButton}
             onPress={() => setShowUpgradeModal(true)}
           >
+            <Ionicons name="diamond" size={18} color="white" style={styles.upgradeButtonIcon} />
             <Text style={styles.emptyUpgradeButtonText}>Upgrade to Premium</Text>
           </TouchableOpacity>
         </View>
@@ -668,18 +691,27 @@ const LikedYouScreen = () => {
     // Premium users with no likes
     return (
       <View style={styles.emptyState}>
-        <View style={styles.emptyIconContainer}>
-          <Ionicons name="heart-outline" size={80} color="#E0E0E0" />
+        <View style={[styles.emptyIconContainer, styles.emptyHeartContainer]}>
+          <Ionicons name="heart-outline" size={32} color={theme.colors.primary} />
         </View>
         <Text style={styles.emptyTitle}>No Likes Yet</Text>
         <Text style={styles.emptySubtitle}>
-          Don't worry! Keep swiping and updating your profile to get more likes.
+          Your likes will show up here. In the meantime, here are some tips to get noticed.
         </Text>
         <View style={styles.tipContainer}>
-          <Text style={styles.tipTitle}>Pro Tips:</Text>
-          <Text style={styles.tipText}>• Add more photos to your profile</Text>
-          <Text style={styles.tipText}>• Write an interesting bio</Text>
-          <Text style={styles.tipText}>• Be active and swipe daily</Text>
+          <Text style={styles.tipTitle}>Boost Your Visibility</Text>
+          <View style={styles.tipItem}>
+            <Ionicons name="camera-outline" size={18} color={theme.colors.primary} />
+            <Text style={styles.tipText}>Add more photos to stand out</Text>
+          </View>
+          <View style={styles.tipItem}>
+            <Ionicons name="create-outline" size={18} color={theme.colors.primary} />
+            <Text style={styles.tipText}>Write a bio that shows your personality</Text>
+          </View>
+          <View style={styles.tipItem}>
+            <Ionicons name="flame-outline" size={18} color={theme.colors.primary} />
+            <Text style={styles.tipText}>Swipe daily to increase your reach</Text>
+          </View>
         </View>
       </View>
     );
@@ -1016,11 +1048,11 @@ const styles = StyleSheet.create({
     backgroundColor: '#E5F9F9',
   },
   emptyState: {
-    padding: 40,
+    padding: 24,
     alignItems: 'center',
   },
   emptyIconContainer: {
-    marginBottom: 20,
+    marginBottom: 16,
   },
   emptyTitle: {
     fontSize: 22,
@@ -1029,43 +1061,70 @@ const styles = StyleSheet.create({
     marginBottom: 10,
   },
   emptySubtitle: {
-    fontSize: 16,
+    fontSize: 15,
     color: '#666',
     textAlign: 'center',
-    marginBottom: 30,
-    paddingHorizontal: 20,
+    marginBottom: 20,
+    paddingHorizontal: 10,
   },
   tipContainer: {
-    backgroundColor: '#FFF8DC',
+    backgroundColor: '#f8f9fa',
     padding: 20,
-    borderRadius: 15,
+    borderRadius: 16,
     width: '100%',
+    marginBottom: 20,
+    borderWidth: 1,
+    borderColor: '#eee',
   },
   tipTitle: {
     fontSize: 16,
-    fontWeight: 'bold',
+    fontWeight: '700',
     color: '#333',
-    marginBottom: 10,
+    marginBottom: 16,
+  },
+  tipItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 12,
+    gap: 12,
   },
   tipText: {
     fontSize: 14,
-    color: '#666',
-    marginBottom: 5,
+    color: '#555',
+    flex: 1,
   },
   premiumIconContainer: {
-    backgroundColor: `${theme.colors.premium}20`,
-    width: 100,
-    height: 100,
-    borderRadius: 50,
+    backgroundColor: `${theme.colors.premium}15`,
+    width: 70,
+    height: 70,
+    borderRadius: 35,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  emptyHeartContainer: {
+    backgroundColor: `${theme.colors.primary}10`,
+    width: 70,
+    height: 70,
+    borderRadius: 35,
     alignItems: 'center',
     justifyContent: 'center',
   },
   emptyUpgradeButton: {
     backgroundColor: theme.colors.primary,
-    paddingVertical: 14,
+    paddingVertical: 16,
     paddingHorizontal: 32,
     borderRadius: 25,
-    marginTop: 10,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: theme.colors.primary,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 4,
+  },
+  upgradeButtonIcon: {
+    marginRight: 8,
   },
   emptyUpgradeButtonText: {
     color: '#fff',
