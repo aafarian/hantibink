@@ -33,6 +33,7 @@ const FilterScreen = ({ navigation, route }) => {
 
   // Core preferences (synced with database via API)
   const [corePreferences, setCorePreferences] = useState({
+    interestedIn: currentFilters.interestedIn || [],
     minAge: currentFilters.minAge || 18,
     maxAge: currentFilters.maxAge || 99,
     maxDistance: currentFilters.maxDistance || 50,
@@ -69,6 +70,7 @@ const FilterScreen = ({ navigation, route }) => {
         if (response.success && response.data) {
           const data = response.data;
           setCorePreferences({
+            interestedIn: data.interestedIn || [],
             minAge: data.ageRange?.min || 18,
             maxAge: data.ageRange?.max || 99,
             maxDistance: data.distance || 50,
@@ -114,10 +116,20 @@ const FilterScreen = ({ navigation, route }) => {
     }));
   };
 
+  const toggleCoreArrayFilter = (key, value) => {
+    setCorePreferences(prev => ({
+      ...prev,
+      [key]: prev[key].includes(value)
+        ? prev[key].filter(item => item !== value)
+        : [...prev[key], value],
+    }));
+  };
+
   const applyFilters = async () => {
     try {
       // Save core preferences to API (syncs with PreferencesScreen)
       const apiPayload = {
+        interestedIn: corePreferences.interestedIn,
         ageRange: { min: corePreferences.minAge, max: corePreferences.maxAge },
         distance: corePreferences.maxDistance,
       };
@@ -154,6 +166,7 @@ const FilterScreen = ({ navigation, route }) => {
   const resetFilters = async () => {
     // Reset core preferences to defaults
     setCorePreferences({
+      interestedIn: [],
       minAge: 18,
       maxAge: 99,
       maxDistance: 50,
@@ -300,6 +313,33 @@ const FilterScreen = ({ navigation, route }) => {
         {renderSection(
           'Basic Preferences',
           <>
+            {/* Show Me (Gender) */}
+            <View style={styles.showMeContainer}>
+              <Text style={styles.rangeLabel}>Show me</Text>
+              <View style={styles.genderOptionsContainer}>
+                {['Men', 'Women', 'Other'].map(gender => (
+                  <TouchableOpacity
+                    key={gender}
+                    style={[
+                      styles.genderOption,
+                      corePreferences.interestedIn.includes(gender) && styles.genderOptionActive,
+                    ]}
+                    onPress={() => toggleCoreArrayFilter('interestedIn', gender)}
+                  >
+                    <Text
+                      style={[
+                        styles.genderOptionText,
+                        corePreferences.interestedIn.includes(gender) &&
+                          styles.genderOptionTextActive,
+                      ]}
+                    >
+                      {gender}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+            </View>
+
             {/* Age Range */}
             <View style={styles.rangeContainer}>
               <View style={styles.rangeHeader}>
@@ -560,6 +600,35 @@ const styles = StyleSheet.create({
     fontSize: 13,
     color: '#666',
     marginTop: 2,
+  },
+  showMeContainer: {
+    marginBottom: 24,
+  },
+  genderOptionsContainer: {
+    flexDirection: 'row',
+    marginTop: 12,
+    gap: 10,
+  },
+  genderOption: {
+    flex: 1,
+    paddingVertical: 12,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: '#E5E5EA',
+    backgroundColor: '#fff',
+    alignItems: 'center',
+  },
+  genderOptionActive: {
+    backgroundColor: theme.colors.primary,
+    borderColor: theme.colors.primary,
+  },
+  genderOptionText: {
+    fontSize: 15,
+    color: '#666',
+    fontWeight: '500',
+  },
+  genderOptionTextActive: {
+    color: '#fff',
   },
   rangeContainer: {
     marginBottom: 20,

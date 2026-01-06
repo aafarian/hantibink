@@ -5,37 +5,73 @@ import {
   ScrollView,
   TouchableOpacity,
   StyleSheet,
+  Switch,
   ActivityIndicator,
 } from 'react-native';
+import MultiSlider from '@ptomasroos/react-native-multi-slider';
 import { MaterialIcons } from '@expo/vector-icons';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useToast } from '../contexts/ToastContext';
 import apiClient from '../services/ApiClient';
 import Logger from '../utils/logger';
+import { kmToMiles } from '../utils/distanceUtils';
 import { theme } from '../styles/theme';
 import ScreenWrapper from '../components/shared/ScreenWrapper';
-import PreferencesEditor from '../components/shared/PreferencesEditor';
 
 const PreferencesScreen = ({ navigation }) => {
   const { showSuccess, showError } = useToast();
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-  const [preferences, setPreferences] = useState({
+
+  // Core preferences (synced with database via API)
+  const [corePreferences, setCorePreferences] = useState({
     interestedIn: [],
-    ageRange: { min: 18, max: 50 },
-    distance: 50,
+    minAge: 18,
+    maxAge: 50,
+    maxDistance: 50,
+  });
+
+  // Advanced filters (stored in AsyncStorage)
+  const [advancedFilters, setAdvancedFilters] = useState({
+    strictAge: false,
+    strictDistance: false,
+    relationshipType: [],
+    strictRelationshipType: false,
+    education: [],
+    strictEducation: false,
+    smoking: [],
+    strictSmoking: false,
+    drinking: [],
+    strictDrinking: false,
+    languages: [],
+    strictLanguages: false,
+    hasKids: null,
+    wantsKids: null,
+    heightMin: null,
+    heightMax: null,
   });
 
   const loadPreferences = useCallback(async () => {
     try {
       setLoading(true);
+
+      // Load core preferences from API
       const response = await apiClient.getUserPreferences();
       if (response.success && response.data) {
         const data = response.data;
-        setPreferences({
+        setCorePreferences({
           interestedIn: data.interestedIn || [],
-          ageRange: data.ageRange || { min: 18, max: 50 },
-          distance: data.distance || 50,
+          minAge: data.ageRange?.min || 18,
+          maxAge: data.ageRange?.max || 50,
+          maxDistance: data.distance || 50,
         });
+      }
+
+      // Load advanced filters from AsyncStorage
+      const savedFilters = await AsyncStorage.getItem('@HantibinkAdvancedFilters');
+      if (savedFilters) {
+        const parsed = JSON.parse(savedFilters);
+        setAdvancedFilters(prev => ({ ...prev, ...parsed }));
       }
     } catch (error) {
       Logger.error('Failed to load preferences:', error);
@@ -49,22 +85,149 @@ const PreferencesScreen = ({ navigation }) => {
     loadPreferences();
   }, [loadPreferences]);
 
+  const updateCorePreference = (key, value) => {
+    setCorePreferences(prev => ({
+      ...prev,
+      [key]: value,
+    }));
+  };
+
+  const updateAdvancedFilter = (key, value) => {
+    setAdvancedFilters(prev => ({
+      ...prev,
+      [key]: value,
+    }));
+  };
+
+  const toggleCoreArrayFilter = (key, value) => {
+    setCorePreferences(prev => ({
+      ...prev,
+      [key]: prev[key].includes(value)
+        ? prev[key].filter(item => item !== value)
+        : [...prev[key], value],
+    }));
+  };
+
+  const toggleArrayFilter = (key, value) => {
+    setAdvancedFilters(prev => ({
+      ...prev,
+      [key]: prev[key].includes(value)
+        ? prev[key].filter(item => item !== value)
+        : [...prev[key], value],
+    }));
+  };
+
   const savePreferences = async () => {
     try {
       setSaving(true);
-      const response = await apiClient.updateUserPreferences(preferences);
-      if (response.success) {
-        showSuccess('Preferences saved successfully!');
-        navigation.goBack();
-      } else {
+
+      // Save core preferences to API
+      const apiPayload = {
+        interestedIn: corePreferences.interestedIn,
+        ageRange: { min: corePreferences.minAge, max: corePreferences.maxAge },
+        distance: corePreferences.maxDistance,
+      };
+      const response = await apiClient.updateUserPreferences(apiPayload);
+
+      if (!response.success) {
         showError(response.message || 'Failed to save preferences');
+        return;
       }
+
+      // Save advanced filters to AsyncStorage
+      await AsyncStorage.setItem('@HantibinkAdvancedFilters', JSON.stringify(advancedFilters));
+
+      showSuccess('Preferences saved successfully!');
+      navigation.goBack();
     } catch (error) {
       Logger.error('Failed to save preferences:', error);
       showError('Failed to save preferences');
     } finally {
       setSaving(false);
     }
+  };
+
+  const renderSection = (title, children) => (
+    <View style={styles.section}>
+      <Text style={styles.sectionTitle}>{title}</Text>
+      {children}
+    </View>
+  );
+
+  const renderToggle = (label, description, key, value) => (
+    <View style={styles.toggleContainer}>
+      <View style={styles.toggleTextContainer}>
+        <Text style={styles.toggleLabel}>{label}</Text>
+        {description && <Text style={styles.toggleDescription}>{description}</Text>}
+      </View>
+      <Switch
+        value={value}
+        onValueChange={newValue => updateAdvancedFilter(key, newValue)}
+        trackColor={{ false: '#E5E5EA', true: theme.colors.primary }}
+        thumbColor={value ? '#fff' : '#f4f3f4'}
+      />
+    </View>
+  );
+
+  const renderMultiSelect = (label, key, options) => (
+    <View style={styles.multiSelectContainer}>
+      <Text style={styles.multiSelectLabel}>{label}</Text>
+      <View style={styles.optionsContainer}>
+        {options.map(option => (
+          <TouchableOpacity
+            key={option}
+            style={[
+              styles.optionButton,
+              advancedFilters[key].includes(option) && styles.optionButtonActive,
+            ]}
+            onPress={() => toggleArrayFilter(key, option)}
+          >
+            <Text
+              style={[
+                styles.optionText,
+                advancedFilters[key].includes(option) && styles.optionTextActive,
+              ]}
+            >
+              {option}
+            </Text>
+          </TouchableOpacity>
+        ))}
+      </View>
+    </View>
+  );
+
+  const sliderStyles = {
+    selectedStyle: {
+      backgroundColor: theme.colors.primary,
+      height: 4,
+    },
+    unselectedStyle: {
+      backgroundColor: '#E5E5EA',
+      height: 4,
+    },
+    markerStyle: {
+      backgroundColor: '#FFF',
+      height: 28,
+      width: 28,
+      borderRadius: 14,
+      shadowColor: '#000',
+      shadowOffset: { width: 0, height: 2 },
+      shadowOpacity: 0.15,
+      shadowRadius: 4,
+      elevation: 4,
+    },
+    pressedMarkerStyle: {
+      height: 32,
+      width: 32,
+      borderRadius: 16,
+    },
+    containerStyle: {
+      height: 40,
+    },
+    trackStyle: {
+      height: 4,
+      borderRadius: 2,
+    },
   };
 
   if (loading) {
@@ -95,7 +258,216 @@ const PreferencesScreen = ({ navigation }) => {
       </View>
 
       <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
-        <PreferencesEditor preferences={preferences} onChange={setPreferences} />
+        {/* Basic Preferences */}
+        {renderSection(
+          'Basic Preferences',
+          <>
+            {/* Show Me (Gender) */}
+            <View style={styles.showMeContainer}>
+              <Text style={styles.rangeLabel}>Show me</Text>
+              <View style={styles.genderOptionsContainer}>
+                {['Men', 'Women', 'Other'].map(gender => (
+                  <TouchableOpacity
+                    key={gender}
+                    style={[
+                      styles.genderOption,
+                      corePreferences.interestedIn.includes(gender) && styles.genderOptionActive,
+                    ]}
+                    onPress={() => toggleCoreArrayFilter('interestedIn', gender)}
+                  >
+                    <Text
+                      style={[
+                        styles.genderOptionText,
+                        corePreferences.interestedIn.includes(gender) &&
+                          styles.genderOptionTextActive,
+                      ]}
+                    >
+                      {gender}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+            </View>
+
+            {/* Age Range */}
+            <View style={styles.rangeContainer}>
+              <View style={styles.rangeHeader}>
+                <Text style={styles.rangeLabel}>Age Range</Text>
+                <View style={styles.rangeValues}>
+                  <Text style={styles.rangeValue}>{corePreferences.minAge}</Text>
+                  <Text style={styles.rangeSeparator}>-</Text>
+                  <Text style={styles.rangeValue}>{corePreferences.maxAge}</Text>
+                  <Text style={styles.rangeUnit}>years</Text>
+                </View>
+              </View>
+              <View style={styles.multiSliderContainer}>
+                <MultiSlider
+                  values={[corePreferences.minAge, corePreferences.maxAge]}
+                  min={18}
+                  max={100}
+                  step={1}
+                  sliderLength={280}
+                  onValuesChange={values => {
+                    updateCorePreference('minAge', values[0]);
+                    updateCorePreference('maxAge', values[1]);
+                  }}
+                  {...sliderStyles}
+                />
+                <View style={styles.sliderLabels}>
+                  <Text style={styles.sliderMinLabel}>18</Text>
+                  <Text style={styles.sliderMaxLabel}>100</Text>
+                </View>
+              </View>
+              {renderToggle(
+                'Strict age preference',
+                'Only show people within this age range',
+                'strictAge',
+                advancedFilters.strictAge
+              )}
+            </View>
+
+            {/* Distance */}
+            <View style={styles.rangeContainer}>
+              <View style={styles.rangeHeader}>
+                <Text style={styles.rangeLabel}>Maximum Distance</Text>
+                <View style={styles.rangeValues}>
+                  <Text style={styles.rangeValue}>{kmToMiles(corePreferences.maxDistance)}</Text>
+                  <Text style={styles.rangeUnit}>mi</Text>
+                  <Text style={styles.rangeSeparator}>({corePreferences.maxDistance} km)</Text>
+                </View>
+              </View>
+              <View style={styles.multiSliderContainer}>
+                <MultiSlider
+                  values={[corePreferences.maxDistance]}
+                  min={1}
+                  max={500}
+                  step={1}
+                  sliderLength={280}
+                  onValuesChange={values => {
+                    updateCorePreference('maxDistance', values[0]);
+                  }}
+                  enableOne={true}
+                  {...sliderStyles}
+                />
+                <View style={styles.sliderLabels}>
+                  <Text style={styles.sliderMinLabel}>1 mi</Text>
+                  <Text style={styles.sliderMaxLabel}>310 mi</Text>
+                </View>
+              </View>
+              {renderToggle(
+                'Strict distance preference',
+                'Only show people within this distance',
+                'strictDistance',
+                advancedFilters.strictDistance
+              )}
+            </View>
+          </>
+        )}
+
+        {/* Relationship Type */}
+        {renderSection(
+          'Looking For',
+          <>
+            {renderMultiSelect('Relationship Type', 'relationshipType', [
+              'Long-term',
+              'Short-term',
+              'Casual',
+              'Marriage',
+              'Friendship',
+              'Not sure yet',
+            ])}
+            {renderToggle(
+              'Strict relationship preference',
+              'Only show people looking for the same type of relationship',
+              'strictRelationshipType',
+              advancedFilters.strictRelationshipType
+            )}
+          </>
+        )}
+
+        {/* Lifestyle */}
+        {renderSection(
+          'Lifestyle',
+          <>
+            {renderMultiSelect('Smoking', 'smoking', [
+              'Non-smoker',
+              'Social smoker',
+              'Regular smoker',
+              "Doesn't matter",
+            ])}
+            {renderToggle(
+              'Strict smoking preference',
+              'Only show people with selected smoking habits',
+              'strictSmoking',
+              advancedFilters.strictSmoking
+            )}
+            {renderMultiSelect('Drinking', 'drinking', [
+              'Never',
+              'Socially',
+              'Regularly',
+              "Doesn't matter",
+            ])}
+            {renderToggle(
+              'Strict drinking preference',
+              'Only show people with selected drinking habits',
+              'strictDrinking',
+              advancedFilters.strictDrinking
+            )}
+          </>
+        )}
+
+        {/* Education */}
+        {renderSection(
+          'Education',
+          <>
+            {renderMultiSelect('Education Level', 'education', [
+              'High School',
+              'Some College',
+              "Bachelor's",
+              "Master's",
+              'PhD',
+              "Doesn't matter",
+            ])}
+            {renderToggle(
+              'Strict education preference',
+              'Only show people with selected education levels',
+              'strictEducation',
+              advancedFilters.strictEducation
+            )}
+          </>
+        )}
+
+        {/* Languages */}
+        {renderSection(
+          'Languages',
+          <>
+            {renderMultiSelect('Languages Spoken', 'languages', [
+              'Armenian (Western)',
+              'Armenian (Eastern)',
+              'English',
+              'Spanish',
+              'French',
+              'Mandarin',
+              'Arabic',
+              'Hindi',
+              'Portuguese',
+              'Russian',
+              'Japanese',
+              'German',
+              'Korean',
+              'Italian',
+              'Other',
+            ])}
+            {renderToggle(
+              'Strict language preference',
+              'Only show people who speak selected languages',
+              'strictLanguages',
+              advancedFilters.strictLanguages
+            )}
+          </>
+        )}
+
+        {/* Space at bottom */}
         <View style={{ height: 100 }} />
       </ScrollView>
 
@@ -141,6 +513,160 @@ const styles = StyleSheet.create({
   },
   content: {
     flex: 1,
+  },
+  section: {
+    paddingHorizontal: 20,
+    paddingVertical: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: '#f0f0f0',
+  },
+  sectionTitle: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#666',
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+    marginBottom: 16,
+  },
+  toggleContainer: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  toggleTextContainer: {
+    flex: 1,
+    marginRight: 16,
+  },
+  toggleLabel: {
+    fontSize: 16,
+    color: '#333',
+    fontWeight: '500',
+  },
+  toggleDescription: {
+    fontSize: 13,
+    color: '#666',
+    marginTop: 2,
+  },
+  showMeContainer: {
+    marginBottom: 24,
+  },
+  genderOptionsContainer: {
+    flexDirection: 'row',
+    marginTop: 12,
+    gap: 10,
+  },
+  genderOption: {
+    flex: 1,
+    paddingVertical: 12,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: '#E5E5EA',
+    backgroundColor: '#fff',
+    alignItems: 'center',
+  },
+  genderOptionActive: {
+    backgroundColor: theme.colors.primary,
+    borderColor: theme.colors.primary,
+  },
+  genderOptionText: {
+    fontSize: 15,
+    color: '#666',
+    fontWeight: '500',
+  },
+  genderOptionTextActive: {
+    color: '#fff',
+  },
+  rangeContainer: {
+    marginBottom: 20,
+  },
+  rangeHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  rangeLabel: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#333',
+  },
+  rangeValues: {
+    flexDirection: 'row',
+    alignItems: 'baseline',
+    backgroundColor: '#F8F8F8',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 6,
+  },
+  rangeValue: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: theme.colors.primary,
+  },
+  rangeSeparator: {
+    fontSize: 14,
+    color: '#999',
+    marginHorizontal: 4,
+  },
+  rangeUnit: {
+    fontSize: 14,
+    color: '#666',
+    marginLeft: 4,
+  },
+  multiSliderContainer: {
+    alignItems: 'center',
+    paddingHorizontal: 20,
+    marginBottom: 12,
+  },
+  sliderLabels: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    width: 280,
+    marginTop: 8,
+  },
+  sliderMinLabel: {
+    fontSize: 12,
+    color: '#999',
+  },
+  sliderMaxLabel: {
+    fontSize: 12,
+    color: '#999',
+  },
+  multiSelectContainer: {
+    marginBottom: 20,
+  },
+  multiSelectLabel: {
+    fontSize: 16,
+    color: '#333',
+    fontWeight: '500',
+    marginBottom: 12,
+  },
+  optionsContainer: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    marginHorizontal: -4,
+  },
+  optionButton: {
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: '#E5E5EA',
+    backgroundColor: '#fff',
+    margin: 4,
+  },
+  optionButtonActive: {
+    backgroundColor: theme.colors.primary,
+    borderColor: theme.colors.primary,
+  },
+  optionText: {
+    fontSize: 14,
+    color: '#666',
+  },
+  optionTextActive: {
+    color: '#fff',
+    fontWeight: '500',
   },
   footer: {
     position: 'absolute',
