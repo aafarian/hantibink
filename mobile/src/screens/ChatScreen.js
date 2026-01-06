@@ -2070,7 +2070,7 @@ const styles = StyleSheet.create({
     elevation: 1,
   },
   tempMessage: {
-    opacity: 0.7,
+    opacity: 1, // Full opacity for optimistic updates - no visual difference while sending
   },
   messageBubblePressed: {
     opacity: 0.8,
