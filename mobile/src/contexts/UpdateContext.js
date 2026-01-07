@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
+import React, { createContext, useContext, useState, useEffect, useCallback, useMemo } from 'react';
 import * as Updates from 'expo-updates';
 import Logger from '../utils/logger';
 
@@ -74,14 +74,17 @@ export const UpdateProvider = ({ children }) => {
     checkForUpdate();
   }, [checkForUpdate]);
 
-  const value = {
-    isUpdateAvailable,
-    isDownloading,
-    isReadyToInstall,
-    checkForUpdate,
-    applyUpdate,
-    dismissUpdate,
-  };
+  const value = useMemo(
+    () => ({
+      isUpdateAvailable,
+      isDownloading,
+      isReadyToInstall,
+      checkForUpdate,
+      applyUpdate,
+      dismissUpdate,
+    }),
+    [isUpdateAvailable, isDownloading, isReadyToInstall, checkForUpdate, applyUpdate, dismissUpdate]
+  );
 
   return <UpdateContext.Provider value={value}>{children}</UpdateContext.Provider>;
 };
