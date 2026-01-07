@@ -15,7 +15,7 @@ import * as ImagePicker from 'expo-image-picker';
 import { useToast } from '../../contexts/ToastContext';
 import { useAuth } from '../../contexts/AuthContext';
 import ApiDataService from '../../services/ApiDataService';
-import { processMultipleImagesWithCrop } from '../../utils/imageUpload';
+import { processMultipleImagesWithCrop, uploadImageToFirebase } from '../../utils/imageUpload';
 import Logger from '../../utils/logger';
 import { theme } from '../../styles/theme';
 
@@ -124,7 +124,10 @@ const PhotoSelectionScreen = ({ navigation, route }) => {
           const isMain = i === 0; // First photo is main
 
           try {
-            await ApiDataService.addUserPhoto(photo.uri, isMain);
+            // First upload to Firebase to get cloud URL
+            const cloudUrl = await uploadImageToFirebase(photo.uri, user.uid);
+            // Then add to user profile via API
+            await ApiDataService.addUserPhoto(cloudUrl, isMain);
             Logger.info(`✅ Photo ${i + 1}/${photos.length} uploaded`);
           } catch (photoError) {
             Logger.error(`❌ Failed to upload photo ${i + 1}:`, photoError);
