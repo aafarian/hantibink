@@ -120,14 +120,13 @@ const ProfileEditScreen = ({ navigation }) => {
   };
 
   const handlePhotoSuccess = async message => {
-    // Only show toast and refresh if message provided
-    // Silent operations (like reorder) pass no message and don't need refresh
-    // because local state is already the source of truth
+    // Show toast only if message provided
     if (message) {
       showSuccess(message);
-      // Refresh profile to get updated photo data (new IDs from add/delete)
-      await refreshUserProfile();
     }
+    // Always refresh profile to sync AuthContext with backend
+    // PhotoManager won't re-sync from props unless photo count changes
+    await refreshUserProfile();
   };
 
   // Discard changes and reset to initial state

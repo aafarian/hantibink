@@ -119,49 +119,57 @@ const PhotoManager = ({
 
       if (!result.canceled && result.assets && result.assets.length > 0) {
         setLoading(true);
-        Logger.info(`📸 Selected ${result.assets.length} photos, processing...`);
+        const photoCount = result.assets.length;
+        Logger.info(`📸 Selected ${photoCount} photos, processing...`);
 
         // Auto-crop all selected images to 4:5 portrait ratio
         const croppedImages = await processMultipleImagesWithCrop(result.assets, ASPECT_RATIO);
 
         const tempUserId = userId || `temp_${Date.now()}`;
-        let uploadedCount = 0;
 
-        for (let i = 0; i < croppedImages.length; i++) {
-          const img = croppedImages[i];
+        // Upload all photos to Firebase in parallel for speed
+        Logger.info(`⬆️ Uploading ${photoCount} photos to Firebase in parallel...`);
+        const uploadPromises = croppedImages.map(img => uploadImageToFirebase(img.uri, tempUserId));
+        const uploadResults = await Promise.allSettled(uploadPromises);
+
+        // Filter successful uploads
+        const uploadedUrls = uploadResults
+          .map((uploadResult, index) => ({ uploadResult, index }))
+          .filter(({ uploadResult }) => uploadResult.status === 'fulfilled')
+          .map(({ uploadResult, index }) => ({ url: uploadResult.value, index }));
+
+        Logger.info(`✅ ${uploadedUrls.length}/${photoCount} photos uploaded to Firebase`);
+
+        // Add to API or local state
+        let addedCount = 0;
+        for (const { url, index } of uploadedUrls) {
           try {
-            const photoUrl = await uploadImageToFirebase(img.uri, tempUserId);
-
             if (mode === 'edit') {
-              // Add to API - first photo becomes main only if no existing photos
-              const isMain = localPhotos.length === 0 && i === 0;
-              await ApiDataService.addUserPhoto(photoUrl, isMain);
-              uploadedCount++;
+              const isMain = localPhotos.length === 0 && index === 0;
+              await ApiDataService.addUserPhoto(url, isMain);
+              addedCount++;
             } else {
-              // Registration mode - update local state
               const newPhoto = {
-                id: `${Date.now()}-${i}`,
-                key: `${Date.now()}-${i}`,
-                url: photoUrl,
-                isMain: localPhotos.length === 0 && i === 0,
-                order: localPhotos.length + i,
+                id: `${Date.now()}-${index}`,
+                key: `${Date.now()}-${index}`,
+                url: url,
+                isMain: localPhotos.length === 0 && index === 0,
+                order: localPhotos.length + index,
               };
-
-              const updatedPhotos = [...localPhotos, newPhoto];
-              setLocalPhotos(updatedPhotos);
-              onPhotosChange?.(updatedPhotos);
-              uploadedCount++;
+              setLocalPhotos(prev => [...prev, newPhoto]);
+              onPhotosChange?.([...localPhotos, newPhoto]);
+              addedCount++;
             }
-          } catch (uploadError) {
-            Logger.error(`❌ Failed to upload photo ${i + 1}:`, uploadError);
+          } catch (apiError) {
+            Logger.error(`❌ Failed to add photo ${index + 1} to API:`, apiError);
           }
         }
 
-        if (uploadedCount > 0) {
+        if (addedCount > 0) {
           onSuccess?.(
-            uploadedCount === 1
+            addedCount === 1
               ? 'Photo added successfully!'
-              : `${uploadedCount} photos added successfully!`
+              : `${addedCount} photos added successfully!`
           );
         }
       }

@@ -117,21 +117,30 @@ const PhotoSelectionScreen = ({ navigation, route }) => {
     try {
       if (isOnboarding && user?.uid) {
         // Upload photos to existing account
-        Logger.info(`📸 Uploading ${photos.length} photos to existing account...`);
+        const photoCount = photos.length;
+        Logger.info(`📸 Uploading ${photoCount} photos to existing account...`);
 
-        for (let i = 0; i < photos.length; i++) {
-          const photo = photos[i];
-          const isMain = i === 0; // First photo is main
+        // Upload all photos to Firebase in parallel for speed
+        Logger.info(`⬆️ Uploading ${photoCount} photos to Firebase in parallel...`);
+        const uploadPromises = photos.map(photo => uploadImageToFirebase(photo.uri, user.uid));
+        const uploadResults = await Promise.allSettled(uploadPromises);
 
+        // Filter successful uploads and preserve order
+        const uploadedPhotos = uploadResults
+          .map((result, index) => ({ result, index }))
+          .filter(({ result }) => result.status === 'fulfilled')
+          .map(({ result, index }) => ({ url: result.value, index }));
+
+        Logger.info(`✅ ${uploadedPhotos.length}/${photoCount} photos uploaded to Firebase`);
+
+        // Add to API sequentially to maintain order
+        for (const { url, index } of uploadedPhotos) {
           try {
-            // First upload to Firebase to get cloud URL
-            const cloudUrl = await uploadImageToFirebase(photo.uri, user.uid);
-            // Then add to user profile via API
-            await ApiDataService.addUserPhoto(cloudUrl, isMain);
-            Logger.info(`✅ Photo ${i + 1}/${photos.length} uploaded`);
-          } catch (photoError) {
-            Logger.error(`❌ Failed to upload photo ${i + 1}:`, photoError);
-            // Continue with other photos
+            const isMain = index === 0;
+            await ApiDataService.addUserPhoto(url, isMain);
+            Logger.info(`✅ Photo ${index + 1}/${photoCount} added to profile`);
+          } catch (apiError) {
+            Logger.error(`❌ Failed to add photo ${index + 1} to API:`, apiError);
           }
         }
 
