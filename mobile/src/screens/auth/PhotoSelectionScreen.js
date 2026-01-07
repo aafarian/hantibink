@@ -7,6 +7,7 @@ import {
   Image,
   ScrollView,
   Dimensions,
+  ActivityIndicator,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { MaterialIcons } from '@expo/vector-icons';
@@ -14,8 +15,12 @@ import * as ImagePicker from 'expo-image-picker';
 import { useToast } from '../../contexts/ToastContext';
 import { useAuth } from '../../contexts/AuthContext';
 import ApiDataService from '../../services/ApiDataService';
+import { processMultipleImagesWithCrop, uploadImageToFirebase } from '../../utils/imageUpload';
 import Logger from '../../utils/logger';
 import { theme } from '../../styles/theme';
+
+const MAX_PHOTOS = 6;
+const ASPECT_RATIO = 0.8; // 4:5 portrait ratio
 
 const { width } = Dimensions.get('window');
 const photoSize = (width - 60) / 3; // 3 photos per row with spacing
@@ -23,6 +28,7 @@ const photoSize = (width - 60) / 3; // 3 photos per row with spacing
 const PhotoSelectionScreen = ({ navigation, route }) => {
   const [photos, setPhotos] = useState([]);
   const [loading, setLoading] = useState(false);
+  const [processingStatus, setProcessingStatus] = useState('');
   const { showError, showSuccess } = useToast();
   const { user } = useAuth();
 
@@ -30,46 +36,60 @@ const PhotoSelectionScreen = ({ navigation, route }) => {
   const step1Data = route?.params?.step1Data || {};
   const isOnboarding = route?.params?.isOnboarding || false;
 
+  const remainingSlots = MAX_PHOTOS - photos.length;
+
   const pickImages = async () => {
     try {
-      setLoading(true);
-      Logger.info('📸 Opening image picker with Expo cropping...');
+      if (remainingSlots <= 0) {
+        showError(`Maximum ${MAX_PHOTOS} photos allowed`);
+        return;
+      }
 
-      // Request permissions
+      // Request permissions before opening picker
       const permissionResult = await ImagePicker.requestMediaLibraryPermissionsAsync();
       if (!permissionResult.granted) {
         showError('Permission to access photos is required!');
         return;
       }
 
-      // Use expo-image-picker with single photo + cropping interface
+      Logger.info(`📸 Opening image picker (multi-select, limit: ${remainingSlots})`);
+
+      // Multi-select picker - no interactive crop (iOS limitation)
       const result = await ImagePicker.launchImageLibraryAsync({
         mediaTypes: ImagePicker.MediaTypeOptions.Images,
-        allowsMultipleSelection: false, // Single photo to enable cropping UI
-        allowsEditing: true, // This enables the interactive cropping interface
-        aspect: [1, 1], // Square aspect ratio
+        allowsMultipleSelection: true,
+        selectionLimit: remainingSlots,
         quality: 0.8,
         exif: false,
       });
 
       if (!result.canceled && result.assets && result.assets.length > 0) {
-        const asset = result.assets[0]; // Single photo
-        Logger.info(`📸 Selected and cropped 1 photo with user interaction`);
+        setLoading(true);
+        Logger.info(`📸 Selected ${result.assets.length} photos, processing...`);
+
+        // Auto-crop all selected images to 4:5 portrait ratio
+        setProcessingStatus(`Processing 1/${result.assets.length}`);
+        const croppedImages = await processMultipleImagesWithCrop(
+          result.assets,
+          ASPECT_RATIO,
+          (current, total) => setProcessingStatus(`Processing ${current}/${total}`)
+        );
 
         // Convert to our photo format
-        const newPhoto = {
-          id: `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
-          uri: asset.uri, // User-cropped by expo-image-picker interface
-          width: asset.width,
-          height: asset.height,
-          cropped: true, // User cropped via interactive interface
-          size: asset.fileSize,
-          type: asset.type,
-        };
+        const newPhotos = croppedImages.map((img, index) => ({
+          id: `${Date.now()}-${index}-${Math.random().toString(36).substr(2, 9)}`,
+          uri: img.uri,
+          width: img.width,
+          height: img.height,
+          cropped: true,
+        }));
 
-        // Add the single cropped photo to state
-        setPhotos(prev => [...prev, newPhoto]);
-        Logger.success(`✅ Added 1 user-cropped photo (${photos.length + 1}/6)`);
+        setPhotos(prev => [...prev, ...newPhotos]);
+        setProcessingStatus('');
+        Logger.success(
+          `✅ Added ${newPhotos.length} photos (${photos.length + newPhotos.length}/${MAX_PHOTOS})`
+        );
+        showSuccess(`Added ${newPhotos.length} photo${newPhotos.length > 1 ? 's' : ''}`);
       } else {
         Logger.info('📸 User cancelled image selection');
       }
@@ -78,6 +98,7 @@ const PhotoSelectionScreen = ({ navigation, route }) => {
       showError('Failed to pick images. Please try again.');
     } finally {
       setLoading(false);
+      setProcessingStatus('');
     }
   };
 
@@ -103,7 +124,10 @@ const PhotoSelectionScreen = ({ navigation, route }) => {
           const isMain = i === 0; // First photo is main
 
           try {
-            await ApiDataService.addUserPhoto(photo.uri, isMain);
+            // First upload to Firebase to get cloud URL
+            const cloudUrl = await uploadImageToFirebase(photo.uri, user.uid);
+            // Then add to user profile via API
+            await ApiDataService.addUserPhoto(cloudUrl, isMain);
             Logger.info(`✅ Photo ${i + 1}/${photos.length} uploaded`);
           } catch (photoError) {
             Logger.error(`❌ Failed to upload photo ${i + 1}:`, photoError);
@@ -160,18 +184,27 @@ const PhotoSelectionScreen = ({ navigation, route }) => {
           <TouchableOpacity
             style={styles.addButton}
             onPress={pickImages}
-            disabled={loading || photos.length >= 6}
+            disabled={loading || remainingSlots <= 0}
           >
-            <MaterialIcons
-              name="add-a-photo"
-              size={24}
-              color={photos.length >= 6 ? '#999' : theme.colors.secondary}
-            />
-            <Text style={[styles.addButtonText, photos.length >= 6 && styles.disabledText]}>
-              {photos.length === 0
-                ? 'Add Photo & Crop Interactively'
-                : `Add Another Photo (${photos.length}/6)`}
-            </Text>
+            {loading ? (
+              <View style={styles.loadingContainer}>
+                <ActivityIndicator size="small" color={theme.colors.secondary} />
+                <Text style={styles.addButtonText}>{processingStatus || 'Processing...'}</Text>
+              </View>
+            ) : (
+              <>
+                <MaterialIcons
+                  name="add-photo-alternate"
+                  size={24}
+                  color={remainingSlots <= 0 ? '#999' : theme.colors.secondary}
+                />
+                <Text style={[styles.addButtonText, remainingSlots <= 0 && styles.disabledText]}>
+                  {photos.length === 0
+                    ? 'Select Photos'
+                    : `Add More Photos (${photos.length}/${MAX_PHOTOS})`}
+                </Text>
+              </>
+            )}
           </TouchableOpacity>
 
           {/* Photo Grid */}
@@ -198,12 +231,14 @@ const PhotoSelectionScreen = ({ navigation, route }) => {
           {/* Instructions */}
           <View style={styles.instructionsContainer}>
             <Text style={styles.instructionsTitle}>📱 How it works:</Text>
+            <Text style={styles.instructionText}>• Tap "Select Photos" to open your gallery</Text>
+            <Text style={styles.instructionText}>• Select multiple photos at once (up to 6)</Text>
             <Text style={styles.instructionText}>
-              • Tap "Add Photo" to select from your gallery
+              • Photos are automatically cropped to portrait
             </Text>
-            <Text style={styles.instructionText}>• Interactive crop interface appears</Text>
-            <Text style={styles.instructionText}>• Pinch, zoom, and drag to crop perfectly</Text>
-            <Text style={styles.instructionText}>• Repeat to add up to 6 photos</Text>
+            <Text style={styles.instructionText}>
+              • Tap the X to remove any photo you don't like
+            </Text>
           </View>
         </View>
       </ScrollView>
@@ -278,6 +313,11 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     paddingVertical: 40,
     marginBottom: 30,
+    gap: 10,
+  },
+  loadingContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
     gap: 10,
   },
   addButtonText: {

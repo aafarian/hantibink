@@ -1,4 +1,5 @@
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
+import * as ImageManipulator from 'expo-image-manipulator';
 import { storage } from '../config/firebase';
 import Logger from './logger';
 
@@ -105,4 +106,99 @@ export const processImageUris = async (imageUris, userId) => {
     Logger.error('Error processing image URIs:', error);
     throw error;
   }
+};
+
+/**
+ * Auto-crop an image to a specific aspect ratio (center crop)
+ * @param {string} imageUri - Local image URI
+ * @param {number} aspectRatio - Target aspect ratio (width/height), e.g., 0.8 for 4:5
+ * @param {number} quality - Output quality (0-1), default 0.8
+ * @returns {Promise<string>} - Cropped image URI
+ */
+export const autoCropImage = async (imageUri, aspectRatio = 0.8, quality = 0.8) => {
+  try {
+    Logger.info(`Auto-cropping image to aspect ratio ${aspectRatio}`);
+
+    // First, get the image dimensions
+    const imageInfo = await ImageManipulator.manipulateAsync(imageUri, [], {});
+    const { width, height } = imageInfo;
+
+    // Calculate crop dimensions to achieve target aspect ratio
+    const currentAspect = width / height;
+    let cropWidth, cropHeight, originX, originY;
+
+    if (currentAspect > aspectRatio) {
+      // Image is wider than target - crop sides
+      cropHeight = height;
+      cropWidth = Math.round(height * aspectRatio);
+      originX = Math.round((width - cropWidth) / 2);
+      originY = 0;
+    } else {
+      // Image is taller than target - crop top/bottom
+      cropWidth = width;
+      cropHeight = Math.round(width / aspectRatio);
+      originX = 0;
+      originY = Math.round((height - cropHeight) / 2);
+    }
+
+    // Apply the crop
+    const result = await ImageManipulator.manipulateAsync(
+      imageUri,
+      [
+        {
+          crop: {
+            originX,
+            originY,
+            width: cropWidth,
+            height: cropHeight,
+          },
+        },
+      ],
+      { compress: quality, format: ImageManipulator.SaveFormat.JPEG }
+    );
+
+    Logger.success(`Image cropped: ${width}x${height} → ${cropWidth}x${cropHeight}`);
+    return result.uri;
+  } catch (error) {
+    Logger.error('Error auto-cropping image:', error);
+    // Return original if cropping fails
+    return imageUri;
+  }
+};
+
+/**
+ * Process multiple images with auto-crop
+ * @param {Array} assets - Array of image picker assets with uri, width, height
+ * @param {number} aspectRatio - Target aspect ratio (width/height)
+ * @param {Function} onProgress - Progress callback (index, total)
+ * @returns {Promise<Array>} - Array of cropped image URIs
+ */
+export const processMultipleImagesWithCrop = async (assets, aspectRatio = 0.8, onProgress) => {
+  const croppedUris = [];
+
+  for (let i = 0; i < assets.length; i++) {
+    const asset = assets[i];
+    onProgress?.(i + 1, assets.length);
+
+    try {
+      const croppedUri = await autoCropImage(asset.uri, aspectRatio);
+      croppedUris.push({
+        uri: croppedUri,
+        originalUri: asset.uri,
+        width: asset.width,
+        height: asset.height,
+      });
+    } catch (error) {
+      Logger.error(`Failed to crop image ${i + 1}:`, error);
+      // Include original if crop fails
+      croppedUris.push({
+        uri: asset.uri,
+        originalUri: asset.uri,
+        width: asset.width,
+        height: asset.height,
+      });
+    }
+  }
+
+  return croppedUris;
 };

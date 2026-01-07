@@ -12,6 +12,7 @@ import { ToastProvider } from './src/contexts/ToastContext';
 import { UnreadProvider } from './src/contexts/UnreadContext';
 import { FeatureFlagsProvider } from './src/contexts/FeatureFlagsContext';
 import { PhotoViewerProvider } from './src/contexts/PhotoViewerContext';
+import { UpdateProvider } from './src/contexts/UpdateContext';
 import AppNavigator from './src/navigation/AppNavigator';
 import { initAnalytics, trackAppOpened } from './src/utils/analytics';
 
@@ -40,20 +41,22 @@ function App() {
     <ErrorBoundary>
       <PaperProvider>
         <SafeAreaProvider>
-          <ToastProvider>
-            <AuthProvider>
-              <FeatureFlagsProvider>
-                <UnreadProvider>
-                  <GestureHandlerRootView style={styles.container}>
-                    <StatusBar style="light" backgroundColor="#D32F2F" translucent={true} />
-                    <PhotoViewerProvider>
-                      <AppNavigator />
-                    </PhotoViewerProvider>
-                  </GestureHandlerRootView>
-                </UnreadProvider>
-              </FeatureFlagsProvider>
-            </AuthProvider>
-          </ToastProvider>
+          <UpdateProvider>
+            <ToastProvider>
+              <AuthProvider>
+                <FeatureFlagsProvider>
+                  <UnreadProvider>
+                    <GestureHandlerRootView style={styles.container}>
+                      <StatusBar style="light" backgroundColor="#D32F2F" translucent={true} />
+                      <PhotoViewerProvider>
+                        <AppNavigator />
+                      </PhotoViewerProvider>
+                    </GestureHandlerRootView>
+                  </UnreadProvider>
+                </FeatureFlagsProvider>
+              </AuthProvider>
+            </ToastProvider>
+          </UpdateProvider>
         </SafeAreaProvider>
       </PaperProvider>
     </ErrorBoundary>

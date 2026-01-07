@@ -120,12 +120,14 @@ const ProfileEditScreen = ({ navigation }) => {
   };
 
   const handlePhotoSuccess = async message => {
-    // Only show toast if message provided (skip for silent operations like reorder)
+    // Only show toast and refresh if message provided
+    // Silent operations (like reorder) pass no message and don't need refresh
+    // because local state is already the source of truth
     if (message) {
       showSuccess(message);
+      // Refresh profile to get updated photo data (new IDs from add/delete)
+      await refreshUserProfile();
     }
-    // Refresh profile to get updated photo data
-    await refreshUserProfile();
   };
 
   // Discard changes and reset to initial state

@@ -31,6 +31,7 @@ import AccountSettingsScreen from '../screens/AccountSettingsScreen';
 // Import components
 import ProfileSetupModal from '../components/modals/ProfileSetupModal';
 import ForceUpdateModal from '../components/ForceUpdateModal';
+import UpdateBanner from '../components/shared/UpdateBanner';
 import LegalScreen from '../screens/LegalScreen';
 
 // Import hooks
@@ -235,6 +236,7 @@ const MainNavigator = () => {
 
   return (
     <>
+      <UpdateBanner />
       <Tab.Navigator
         screenOptions={({ route }) => ({
           tabBarIcon: ({ focused, color, size }) =>

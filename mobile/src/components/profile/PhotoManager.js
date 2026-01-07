@@ -2,15 +2,17 @@ import React, { useState, useRef, useCallback, useEffect } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, ActivityIndicator, Image } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
-import { uploadImageToFirebase } from '../../utils/imageUpload';
+import { uploadImageToFirebase, processMultipleImagesWithCrop } from '../../utils/imageUpload';
 import ApiDataService from '../../services/ApiDataService';
 import Logger from '../../utils/logger';
 import { usePhotoViewer } from '../../contexts/PhotoViewerContext';
 import { DraggableGrid } from 'react-native-draggable-grid';
 import { theme } from '../../styles/theme';
 
-// Debounce delay for API calls after drag ends
-const REORDER_DEBOUNCE_MS = 800;
+const ASPECT_RATIO = 0.8; // 4:5 portrait ratio
+
+// Debounce delay for API calls after drag ends (short - just to batch rapid drags)
+const REORDER_DEBOUNCE_MS = 300;
 
 /**
  * Reusable PhotoManager component
@@ -90,10 +92,11 @@ const PhotoManager = ({
     return !newOrder.every((id, index) => id === currentOrder[index]);
   }, []);
 
-  // Add new photo
+  // Add new photo(s) - supports multi-select
   const addPhoto = async () => {
     try {
-      if (localPhotos.length >= maxPhotos) {
+      const remainingSlots = maxPhotos - localPhotos.length;
+      if (remainingSlots <= 0) {
         onError?.(`Maximum ${maxPhotos} photos allowed`);
         return;
       }
@@ -104,43 +107,67 @@ const PhotoManager = ({
         return;
       }
 
-      setLoading(true);
+      Logger.info(`📸 Opening image picker (multi-select, limit: ${remainingSlots})`);
 
+      // Multi-select picker
       const result = await ImagePicker.launchImageLibraryAsync({
         mediaTypes: ImagePicker.MediaTypeOptions.Images,
-        allowsEditing: true,
-        aspect: [4, 5],
+        allowsMultipleSelection: true,
+        selectionLimit: remainingSlots,
         quality: 0.8,
       });
 
-      if (!result.canceled && result.assets[0]) {
+      if (!result.canceled && result.assets && result.assets.length > 0) {
+        setLoading(true);
+        Logger.info(`📸 Selected ${result.assets.length} photos, processing...`);
+
+        // Auto-crop all selected images to 4:5 portrait ratio
+        const croppedImages = await processMultipleImagesWithCrop(result.assets, ASPECT_RATIO);
+
         const tempUserId = userId || `temp_${Date.now()}`;
-        const photoUrl = await uploadImageToFirebase(result.assets[0].uri, tempUserId);
+        let uploadedCount = 0;
 
-        if (mode === 'edit') {
-          // Add to API and let the refresh handle the state update
-          await ApiDataService.addUserPhoto(photoUrl, localPhotos.length === 0);
-          // Don't update local state - let the profile refresh handle it
-          onSuccess?.('Photo added successfully!');
-        } else {
-          // Only update local state in registration mode
-          const newPhoto = {
-            id: Date.now().toString(),
-            key: Date.now().toString(),
-            url: photoUrl,
-            isMain: localPhotos.length === 0,
-            order: localPhotos.length,
-          };
+        for (let i = 0; i < croppedImages.length; i++) {
+          const img = croppedImages[i];
+          try {
+            const photoUrl = await uploadImageToFirebase(img.uri, tempUserId);
 
-          const updatedPhotos = [...localPhotos, newPhoto];
-          setLocalPhotos(updatedPhotos);
-          onPhotosChange?.(updatedPhotos);
-          onSuccess?.('Photo added successfully!');
+            if (mode === 'edit') {
+              // Add to API - first photo becomes main only if no existing photos
+              const isMain = localPhotos.length === 0 && i === 0;
+              await ApiDataService.addUserPhoto(photoUrl, isMain);
+              uploadedCount++;
+            } else {
+              // Registration mode - update local state
+              const newPhoto = {
+                id: `${Date.now()}-${i}`,
+                key: `${Date.now()}-${i}`,
+                url: photoUrl,
+                isMain: localPhotos.length === 0 && i === 0,
+                order: localPhotos.length + i,
+              };
+
+              const updatedPhotos = [...localPhotos, newPhoto];
+              setLocalPhotos(updatedPhotos);
+              onPhotosChange?.(updatedPhotos);
+              uploadedCount++;
+            }
+          } catch (uploadError) {
+            Logger.error(`❌ Failed to upload photo ${i + 1}:`, uploadError);
+          }
+        }
+
+        if (uploadedCount > 0) {
+          onSuccess?.(
+            uploadedCount === 1
+              ? 'Photo added successfully!'
+              : `${uploadedCount} photos added successfully!`
+          );
         }
       }
     } catch (error) {
-      Logger.error('❌ Error adding photo:', error);
-      onError?.('Failed to add photo');
+      Logger.error('❌ Error adding photos:', error);
+      onError?.('Failed to add photos');
     } finally {
       setLoading(false);
     }
