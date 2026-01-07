@@ -34,6 +34,7 @@
       "autoIncrement": true,
       "distribution": "internal",
       "environment": "production",
+      "channel": "production",
       "env": {
         "NODE_ENV": "production",
         "EXPO_PUBLIC_API_URL": "https://hantibink-api-393816901275.us-central1.run.app",
