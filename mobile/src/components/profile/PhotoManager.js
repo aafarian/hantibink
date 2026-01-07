@@ -11,8 +11,8 @@ import { theme } from '../../styles/theme';
 
 const ASPECT_RATIO = 0.8; // 4:5 portrait ratio
 
-// Debounce delay for API calls after drag ends
-const REORDER_DEBOUNCE_MS = 800;
+// Debounce delay for API calls after drag ends (short - just to batch rapid drags)
+const REORDER_DEBOUNCE_MS = 300;
 
 /**
  * Reusable PhotoManager component
