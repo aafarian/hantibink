@@ -492,7 +492,7 @@ const ProfileScreen = ({ navigation }) => {
             <Text style={styles.buildInfoLabel}>Channel</Text>
             <Text style={styles.buildInfoValue}>{Updates.channel || 'N/A'}</Text>
           </View>
-          {Updates.updateId && (
+          {Updates.updateId && Updates.updateId !== 'null' && (
             <View style={styles.buildInfoRow}>
               <Text style={styles.buildInfoLabel}>Update</Text>
               <Text style={styles.buildInfoValue}>{Updates.updateId.slice(0, 8)}</Text>
