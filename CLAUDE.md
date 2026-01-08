@@ -39,8 +39,11 @@
 - Use optional chaining (`?.`) and nullish coalescing (`??`) where appropriate
 - Import order: React, React Native, third-party libs, contexts, services, components, utils, styles
 
-### Git Commits
+### Git Workflow
 
+- **ALWAYS** create a feature branch for changes - never commit directly to main
+- Create a PR for review before merging to main
+- **NO co-authoring** in commits or PRs - do not include "Co-Authored-By" lines
 - Only commit when explicitly asked by the user
 - Include descriptive commit messages
 - Run lint before committing
