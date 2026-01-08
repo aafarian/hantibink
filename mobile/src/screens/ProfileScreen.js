@@ -9,6 +9,8 @@ import {
   Image,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import * as Application from 'expo-application';
+import * as Updates from 'expo-updates';
 import { useAuth } from '../contexts/AuthContext';
 import Logger from '../utils/logger';
 import { useToast } from '../contexts/ToastContext';
@@ -473,6 +475,31 @@ const ProfileScreen = ({ navigation }) => {
           </View>
         )}
 
+        {/* Build Info - Always visible */}
+        <View style={styles.buildInfoSection}>
+          <Text style={styles.buildInfoTitle}>Build Info</Text>
+          <View style={styles.buildInfoRow}>
+            <Text style={styles.buildInfoLabel}>Version</Text>
+            <Text style={styles.buildInfoValue}>
+              {Application.nativeApplicationVersion || '1.0.0'}
+            </Text>
+          </View>
+          <View style={styles.buildInfoRow}>
+            <Text style={styles.buildInfoLabel}>Build</Text>
+            <Text style={styles.buildInfoValue}>{Application.nativeBuildVersion || 'dev'}</Text>
+          </View>
+          <View style={styles.buildInfoRow}>
+            <Text style={styles.buildInfoLabel}>Channel</Text>
+            <Text style={styles.buildInfoValue}>{Updates.channel || 'N/A'}</Text>
+          </View>
+          {Updates.updateId && (
+            <View style={styles.buildInfoRow}>
+              <Text style={styles.buildInfoLabel}>Update</Text>
+              <Text style={styles.buildInfoValue}>{Updates.updateId.slice(0, 8)}</Text>
+            </View>
+          )}
+        </View>
+
         {/* Edit functionality moved to ProfileEditScreen */}
       </ScrollView>
 
@@ -898,6 +925,36 @@ const styles = StyleSheet.create({
   devInfoSubtext: {
     fontSize: 12,
     color: '#666',
+  },
+  buildInfoSection: {
+    marginTop: 24,
+    marginHorizontal: 20,
+    padding: 16,
+    backgroundColor: '#f5f5f5',
+    borderRadius: 12,
+    marginBottom: 30,
+  },
+  buildInfoTitle: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#999',
+    marginBottom: 12,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+  },
+  buildInfoRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    paddingVertical: 6,
+  },
+  buildInfoLabel: {
+    fontSize: 13,
+    color: '#666',
+  },
+  buildInfoValue: {
+    fontSize: 13,
+    color: '#333',
+    fontFamily: 'monospace',
   },
   emptyStateContainer: {
     flexDirection: 'row',
