@@ -1702,7 +1702,6 @@ const ChatScreen = ({ route, navigation }) => {
           <ProfileBottomSheet
             ref={profileSheetRef}
             profile={match.otherUser}
-            showActions={false}
             onClose={() => setIsProfileSheetOpen(false)}
           />
 

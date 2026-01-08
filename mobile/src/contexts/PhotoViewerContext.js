@@ -33,7 +33,6 @@ export const PhotoViewerProvider = ({ children }) => {
 
   const [profileSheetState, setProfileSheetState] = useState({
     profile: null,
-    actionButtons: [],
   });
 
   // Close photo viewer
@@ -106,8 +105,8 @@ export const PhotoViewerProvider = ({ children }) => {
   };
 
   // Open profile bottom sheet
-  const openProfileSheet = ({ profile, actionButtons = [] }) => {
-    setProfileSheetState({ profile, actionButtons });
+  const openProfileSheet = ({ profile }) => {
+    setProfileSheetState({ profile });
     setProfileSheetOpen(true);
     profileBottomSheetRef.current?.open();
   };
@@ -146,8 +145,6 @@ export const PhotoViewerProvider = ({ children }) => {
       <ProfileBottomSheet
         ref={profileBottomSheetRef}
         profile={profileSheetState.profile}
-        showActions={true}
-        actionButtons={profileSheetState.actionButtons}
         onClose={closeProfileSheet}
       />
     </PhotoViewerContext.Provider>
