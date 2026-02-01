@@ -21,6 +21,8 @@ import apiClient from '../services/ApiClient';
 import SocketService from '../services/SocketService';
 import MatchModal from '../components/MatchModal';
 import PremiumUpgradeModal from '../components/modals/PremiumUpgradeModal';
+import { LoadingScreen } from '../components/LoadingScreen';
+import { ErrorScreen } from '../components/ErrorScreen';
 import Logger from '../utils/logger';
 import { useTabNavigation } from '../hooks/useTabNavigation';
 import { theme } from '../styles/theme';
@@ -36,6 +38,7 @@ const LikedYouScreen = () => {
 
   const [incomingLikes, setIncomingLikes] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [loadingMore, setLoadingMore] = useState(false);
   const [hasMore, setHasMore] = useState(true);
@@ -82,6 +85,9 @@ const LikedYouScreen = () => {
           const responseData = response.data || [];
           const totalCount = response.totalCount || 0;
           const totalLikesCountFromAPI = response.totalLikesCount || 0;
+
+          // Clear error state on successful load
+          setError(false);
 
           // Set the total count
           setTotalLikesCount(totalCount);
@@ -245,13 +251,10 @@ const LikedYouScreen = () => {
           }
           setHasMore(false);
         }
-      } catch (error) {
-        Logger.error('Failed to fetch who liked me:', error);
-        // Only show toast, suppress expo error
-        if (error.message && !isLoadMore) {
-          showError('Could not load likes. Pull down to retry.');
-        }
+      } catch (err) {
+        Logger.error('Failed to fetch who liked me:', err);
         if (!isLoadMore) {
+          setError(true);
           setIncomingLikes([]);
         }
         setHasMore(false);
@@ -472,8 +475,8 @@ const LikedYouScreen = () => {
         // Decrement total count
         setTotalLikesCount(prev => Math.max(0, prev - 1));
       }
-    } catch (error) {
-      Logger.error('Failed to like back:', error);
+    } catch (err) {
+      Logger.error('Failed to like back:', err);
       showError('Could not like back. Please try again.');
     } finally {
       setLoadingAction(null);
@@ -506,8 +509,8 @@ const LikedYouScreen = () => {
         // Decrement total count
         setTotalLikesCount(prev => Math.max(0, prev - 1));
       }
-    } catch (error) {
-      Logger.error('Failed to pass:', error);
+    } catch (err) {
+      Logger.error('Failed to pass:', err);
       showError('Could not pass. Please try again.');
     } finally {
       setLoadingAction(null);
@@ -789,11 +792,20 @@ const LikedYouScreen = () => {
   );
 
   if (loading) {
+    return <LoadingScreen message="Loading likes..." />;
+  }
+
+  if (error) {
     return (
-      <View style={styles.loadingContainer}>
-        <Ionicons name="heart" size={40} color={theme.colors.primary} />
-        <Text style={styles.loadingText}>Loading likes...</Text>
-      </View>
+      <ErrorScreen
+        message="Failed to load likes"
+        onRetry={() => {
+          setError(false);
+          setOffset(0);
+          setHasMore(true);
+          fetchWhoLikedMe(false);
+        }}
+      />
     );
   }
 
@@ -863,17 +875,6 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#f8f9fa',
-  },
-  loadingContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    backgroundColor: '#f8f9fa',
-  },
-  loadingText: {
-    marginTop: 10,
-    fontSize: 16,
-    color: '#666',
   },
   header: {
     backgroundColor: 'white',
