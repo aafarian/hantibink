@@ -62,7 +62,7 @@ const ChatScreen = ({ route, navigation }) => {
   // State
   const [messages, setMessages] = useState([]);
   const [messageText, setMessageText] = useState('');
-  const [isLoading, setIsLoading] = useState(true);
+  const [loading, setLoading] = useState(true);
   const [isSending, setIsSending] = useState(false);
   const [isTyping, setIsTyping] = useState(false);
   const [otherUserTyping, setOtherUserTyping] = useState(false);
@@ -307,7 +307,7 @@ const ChatScreen = ({ route, navigation }) => {
   // Load messages from API
   const loadMessages = async () => {
     try {
-      setIsLoading(true);
+      setLoading(true);
       const loadedMessages = await ApiDataService.getMessages(match.matchId);
 
       // Filter out any messages without valid IDs and normalize the data
@@ -335,7 +335,7 @@ const ChatScreen = ({ route, navigation }) => {
       Logger.error('Failed to load messages:', error);
       showError('Failed to load messages', { error });
     } finally {
-      setIsLoading(false);
+      setLoading(false);
     }
   };
 
@@ -1541,7 +1541,7 @@ const ChatScreen = ({ route, navigation }) => {
           </View>
 
           {/* Messages */}
-          {isLoading ? (
+          {loading ? (
             <View style={styles.loadingContainer}>
               <ActivityIndicator size="large" color={theme.colors.primary} />
             </View>
