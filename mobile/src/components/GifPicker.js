@@ -24,7 +24,7 @@ const GIPHY_API_KEY = environment.giphyApiKey;
 const GifPicker = ({ visible, onClose, onSelectGif }) => {
   const [searchQuery, setSearchQuery] = useState('');
   const [gifs, setGifs] = useState([]);
-  const [isLoading, setIsLoading] = useState(false);
+  const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const searchTimeoutRef = useRef(null);
 
@@ -37,7 +37,7 @@ const GifPicker = ({ visible, onClose, onSelectGif }) => {
       return;
     }
 
-    setIsLoading(true);
+    setLoading(true);
     setError(null);
 
     try {
@@ -53,7 +53,7 @@ const GifPicker = ({ visible, onClose, onSelectGif }) => {
       Logger.error('Failed to load trending GIFs:', err);
       setError('Failed to load GIFs');
     } finally {
-      setIsLoading(false);
+      setLoading(false);
     }
   }, []);
 
@@ -63,7 +63,7 @@ const GifPicker = ({ visible, onClose, onSelectGif }) => {
       return;
     }
 
-    setIsLoading(true);
+    setLoading(true);
     setError(null);
 
     try {
@@ -79,7 +79,7 @@ const GifPicker = ({ visible, onClose, onSelectGif }) => {
       Logger.error('Failed to search GIFs:', err);
       setError('Failed to search GIFs');
     } finally {
-      setIsLoading(false);
+      setLoading(false);
     }
   }, []);
 
@@ -144,7 +144,7 @@ const GifPicker = ({ visible, onClose, onSelectGif }) => {
   };
 
   const renderEmpty = () => {
-    if (isLoading) {
+    if (loading) {
       return (
         <View style={styles.centerContainer}>
           <ActivityIndicator size="large" color="#E91E63" />
