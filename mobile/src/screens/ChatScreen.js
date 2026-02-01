@@ -63,6 +63,7 @@ const ChatScreen = ({ route, navigation }) => {
   const [messages, setMessages] = useState([]);
   const [messageText, setMessageText] = useState('');
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState(false);
   const [isSending, setIsSending] = useState(false);
   const [isTyping, setIsTyping] = useState(false);
   const [otherUserTyping, setOtherUserTyping] = useState(false);
@@ -326,6 +327,7 @@ const ChatScreen = ({ route, navigation }) => {
         }));
 
       setMessages(validMessages);
+      setLoadError(false);
 
       // Only mark as read if there are messages from the other user
       if (validMessages.some(msg => msg.senderId !== user.uid)) {
@@ -333,6 +335,7 @@ const ChatScreen = ({ route, navigation }) => {
       }
     } catch (error) {
       Logger.error('Failed to load messages:', error);
+      setLoadError(true);
       showError('Failed to load messages', { error });
     } finally {
       setLoading(false);
@@ -1545,6 +1548,19 @@ const ChatScreen = ({ route, navigation }) => {
             <View style={styles.loadingContainer}>
               <ActivityIndicator size="large" color={theme.colors.primary} />
             </View>
+          ) : loadError ? (
+            <View style={styles.loadingContainer}>
+              <Ionicons
+                name="alert-circle-outline"
+                size={48}
+                color={theme.colors.status.error}
+                style={{ marginBottom: theme.spacing.md }}
+              />
+              <Text style={styles.errorStateText}>Couldn&apos;t load messages</Text>
+              <TouchableOpacity style={styles.retryButton} onPress={loadMessages}>
+                <Text style={styles.retryButtonText}>Retry</Text>
+              </TouchableOpacity>
+            </View>
           ) : (
             <>
               <FlatList
@@ -1556,6 +1572,15 @@ const ChatScreen = ({ route, navigation }) => {
                 }
                 contentContainerStyle={styles.messagesList}
                 ListHeaderComponent={renderTypingIndicator}
+                ListEmptyComponent={
+                  <View style={styles.emptyStateContainer}>
+                    <Text style={styles.emptyStateIcon}>&#128075;</Text>
+                    <Text style={styles.emptyStateTitle}>Start the conversation!</Text>
+                    <Text style={styles.emptyStateSubtitle}>
+                      Say hi to {getUserDisplayName(match.otherUser)}
+                    </Text>
+                  </View>
+                }
                 inverted={true}
                 keyboardShouldPersistTaps="handled"
                 keyboardDismissMode="interactive"
@@ -2529,6 +2554,45 @@ const styles = StyleSheet.create({
     fontSize: 15,
     marginLeft: 12,
     fontWeight: '400',
+  },
+  errorStateText: {
+    fontSize: theme.typography.sizes.lg,
+    color: theme.colors.text.secondary,
+    fontWeight: theme.typography.weights.medium,
+    marginBottom: theme.spacing.lg,
+  },
+  retryButton: {
+    backgroundColor: theme.colors.primary,
+    paddingHorizontal: theme.spacing.xxl,
+    paddingVertical: theme.spacing.md,
+    borderRadius: theme.borderRadius.lg,
+  },
+  retryButtonText: {
+    color: theme.colors.text.white,
+    fontSize: theme.typography.sizes.md,
+    fontWeight: theme.typography.weights.semibold,
+  },
+  emptyStateContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingVertical: theme.spacing.huge,
+    // Inverted list renders from bottom, so this keeps the empty state visually centered
+    transform: [{ scaleY: -1 }],
+  },
+  emptyStateIcon: {
+    fontSize: 48,
+    marginBottom: theme.spacing.md,
+  },
+  emptyStateTitle: {
+    fontSize: theme.typography.sizes.xl,
+    fontWeight: theme.typography.weights.semibold,
+    color: theme.colors.text.primary,
+    marginBottom: theme.spacing.xs,
+  },
+  emptyStateSubtitle: {
+    fontSize: theme.typography.sizes.md,
+    color: theme.colors.text.muted,
   },
 });
 

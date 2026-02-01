@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, ActivityIndicator } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -13,6 +13,8 @@ import apiClient from '../services/ApiClient';
 import SocketService from '../services/SocketService';
 import SwipeableCardStack from '../components/SwipeableCardStack';
 import MatchModal from '../components/MatchModal';
+import { LoadingScreen } from '../components/LoadingScreen';
+import { ErrorScreen, EmptyState } from '../components/ErrorScreen';
 import ProfileSetupModal from '../components/modals/ProfileSetupModal';
 import PremiumUpgradeModal from '../components/modals/PremiumUpgradeModal';
 import Logger from '../utils/logger';
@@ -43,6 +45,7 @@ const PeopleScreenOptimized = ({ navigation }) => {
   const [showMatchModal, setShowMatchModal] = useState(false);
   const [matchedUser, setMatchedUser] = useState(null);
   const [hasInitialized, setHasInitialized] = useState(false);
+  const [error, setError] = useState(null);
   const [showUpgradeModal, setShowUpgradeModal] = useState(false);
 
   // Photo viewer state
@@ -283,10 +286,12 @@ const PeopleScreenOptimized = ({ navigation }) => {
 
         setProfiles(newProfiles);
         setHasMore(newProfiles.length === BATCH_SIZE);
+        setError(null);
         Logger.success(`✅ Loaded ${newProfiles.length} initial profiles`);
       } else {
         Logger.warn('No profiles available');
         setHasMore(false);
+        setError(null);
       }
     } catch (error) {
       Logger.error('Failed to load profiles:', error);
@@ -308,6 +313,7 @@ const PeopleScreenOptimized = ({ navigation }) => {
         showError('Please verify your email to use discovery');
       } else {
         showError('Failed to load profiles. Please try again.');
+        setError('Failed to load profiles. Please try again.');
       }
     } finally {
       setLoading(false);
@@ -633,10 +639,16 @@ const PeopleScreenOptimized = ({ navigation }) => {
   if (loading) {
     return (
       <SafeAreaView style={styles.container}>
-        <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color={theme.colors.primary} />
-          <Text style={styles.loadingText}>Finding people near you...</Text>
-        </View>
+        <LoadingScreen message="Finding people near you..." />
+      </SafeAreaView>
+    );
+  }
+
+  // Error state
+  if (error) {
+    return (
+      <SafeAreaView style={styles.container}>
+        <ErrorScreen message={error} onRetry={() => loadInitialProfiles()} />
       </SafeAreaView>
     );
   }
@@ -667,17 +679,41 @@ const PeopleScreenOptimized = ({ navigation }) => {
 
       {/* Fullscreen Card Stack */}
       <View style={styles.cardStackContainer}>
-        <SwipeableCardStack
-          ref={cardStackRef}
-          profiles={profiles}
-          onSwipeLeft={handleSwipeLeft}
-          onSwipeRight={handleSwipeRight}
-          onSwipeSuperLike={handleSwipeSuperLike}
-          onUndo={handleUndo}
-          onNeedMore={loadMoreProfiles}
-          onPhotoPress={handlePhotoPress}
-          loadingMore={isLoadingMore}
-        />
+        {profiles.length === 0 && hasInitialized && !loading && !error ? (
+          <EmptyState
+            icon="heart-outline"
+            title="No more profiles nearby"
+            subtitle="Try adjusting your filters or check back later"
+            action={{
+              text: 'Adjust Filters',
+              onPress: () =>
+                navigation.navigate('Filter', {
+                  userPreferences: filters,
+                  onSavePreferences: newFilters => {
+                    setFilters(newFilters);
+                    processedIds.current.clear();
+                    setProfiles([]);
+                    setHasMore(true);
+                    setHasInitialized(false);
+                    loadInitialProfiles(newFilters);
+                  },
+                }),
+            }}
+            style={{ flex: 1 }}
+          />
+        ) : (
+          <SwipeableCardStack
+            ref={cardStackRef}
+            profiles={profiles}
+            onSwipeLeft={handleSwipeLeft}
+            onSwipeRight={handleSwipeRight}
+            onSwipeSuperLike={handleSwipeSuperLike}
+            onUndo={handleUndo}
+            onNeedMore={loadMoreProfiles}
+            onPhotoPress={handlePhotoPress}
+            loadingMore={isLoadingMore}
+          />
+        )}
       </View>
 
       {/* Floating Action Buttons */}
@@ -833,16 +869,6 @@ const styles = StyleSheet.create({
     borderRadius: 23,
     borderWidth: 2,
     borderColor: '#FFB300',
-  },
-  loadingContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  loadingText: {
-    marginTop: 20,
-    fontSize: 16,
-    color: '#666',
   },
   noPhotosContainer: {
     flex: 1,
