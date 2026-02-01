@@ -37,7 +37,7 @@ const PeopleScreenOptimized = ({ navigation }) => {
 
   // State
   const [profiles, setProfiles] = useState([]);
-  const [isLoading, setIsLoading] = useState(true); // Start as loading to prevent race condition
+  const [loading, setLoading] = useState(true); // Start as loading to prevent race condition
   const [isLoadingMore, setIsLoadingMore] = useState(false);
   const [hasMore, setHasMore] = useState(true);
   const [showMatchModal, setShowMatchModal] = useState(false);
@@ -151,7 +151,7 @@ const PeopleScreenOptimized = ({ navigation }) => {
 
       if (!complete) {
         Logger.info('Profile incomplete - will show setup modal');
-        setIsLoading(false);
+        setLoading(false);
       }
     }
   }, [userProfile, isProfileComplete]);
@@ -190,7 +190,7 @@ const PeopleScreenOptimized = ({ navigation }) => {
   useFocusEffect(
     useCallback(() => {
       // If we have profiles and we're not loading, check if we need to remove any
-      if (profiles.length > 0 && !isLoading && hasInitialized) {
+      if (profiles.length > 0 && !loading && hasInitialized) {
         // The backend will handle exclusions, but we should check if current profiles need updating
         Logger.info('📱 People screen focused - checking for updates');
 
@@ -203,7 +203,7 @@ const PeopleScreenOptimized = ({ navigation }) => {
           return filtered;
         });
       }
-    }, [profiles.length, isLoading, hasInitialized])
+    }, [profiles.length, loading, hasInitialized])
   );
 
   // Listen for real-time match events
@@ -238,7 +238,7 @@ const PeopleScreenOptimized = ({ navigation }) => {
   // Load initial batch of profiles
   const loadInitialProfiles = async (customFilters = null) => {
     const filtersToUse = customFilters || filters;
-    setIsLoading(true);
+    setLoading(true);
     try {
       Logger.info('📱 Loading initial profiles batch...');
       const result = await ApiDataService.getUsersForDiscovery({
@@ -310,7 +310,7 @@ const PeopleScreenOptimized = ({ navigation }) => {
         showError('Failed to load profiles. Please try again.');
       }
     } finally {
-      setIsLoading(false);
+      setLoading(false);
       setHasInitialized(true); // Mark as initialized after first load
     }
   };
@@ -318,7 +318,7 @@ const PeopleScreenOptimized = ({ navigation }) => {
   // Load more profiles when running low
   const loadMoreProfiles = useCallback(async () => {
     // Don't load more if we haven't initialized yet or already loading
-    if (!hasInitialized || isLoading || isLoadingMore || !hasMore) return;
+    if (!hasInitialized || loading || isLoadingMore || !hasMore) return;
 
     setIsLoadingMore(true);
     try {
@@ -371,7 +371,7 @@ const PeopleScreenOptimized = ({ navigation }) => {
     } finally {
       setIsLoadingMore(false);
     }
-  }, [hasInitialized, isLoading, isLoadingMore, hasMore, filters]);
+  }, [hasInitialized, loading, isLoadingMore, hasMore, filters]);
 
   // Handle swipe left (pass)
   const handleSwipeLeft = useCallback(async profile => {
@@ -630,7 +630,7 @@ const PeopleScreenOptimized = ({ navigation }) => {
   }
 
   // Loading state
-  if (isLoading) {
+  if (loading) {
     return (
       <SafeAreaView style={styles.container}>
         <View style={styles.loadingContainer}>
