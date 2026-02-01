@@ -36,7 +36,7 @@ const AudioMessage = ({
 }) => {
   const [sound, setSound] = useState(null);
   const [isPlaying, setIsPlaying] = useState(false);
-  const [isLoading, setIsLoading] = useState(false);
+  const [loading, setLoading] = useState(false);
   const [position, setPosition] = useState(0);
   const [duration, setDuration] = useState(providedDuration || 0);
   const [isScrubbing, setIsScrubbing] = useState(false);
@@ -182,7 +182,7 @@ const AudioMessage = ({
           await sound.playAsync();
         }
       } else {
-        setIsLoading(true);
+        setLoading(true);
         emitAudioPlay(instanceId);
 
         await Audio.setAudioModeAsync({
@@ -207,11 +207,11 @@ const AudioMessage = ({
           setDuration(status.durationMillis);
         }
         setSound(newSound);
-        setIsLoading(false);
+        setLoading(false);
       }
     } catch (error) {
       Logger.error('Error playing audio:', error);
-      setIsLoading(false);
+      setLoading(false);
     }
   };
 
@@ -331,10 +331,10 @@ const AudioMessage = ({
       <TouchableOpacity
         onPress={handlePlayPause}
         style={[styles.playButton, { backgroundColor: colors.playBg }]}
-        disabled={isLoading}
+        disabled={loading}
         activeOpacity={0.7}
       >
-        {isLoading ? (
+        {loading ? (
           <ActivityIndicator size="small" color={colors.playIcon} />
         ) : (
           <Ionicons
