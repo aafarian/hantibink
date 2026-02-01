@@ -15,6 +15,7 @@ import { useAuth } from '../contexts/AuthContext';
 import Logger from '../utils/logger';
 import { useToast } from '../contexts/ToastContext';
 import { LoadingScreen } from '../components/LoadingScreen';
+import { ErrorScreen } from '../components/ErrorScreen';
 import { capitalizeFirst, formatRelationshipTypes } from '../utils/profileDataUtils';
 import { shouldShowDeveloperOptions, getBuildEnvironment } from '../utils/buildConfig';
 import ProfileSetupModal from '../components/modals/ProfileSetupModal';
@@ -105,14 +106,7 @@ const ProfileScreen = ({ navigation }) => {
   }
 
   if (!userProfile) {
-    return (
-      <View style={[styles.container, styles.centered]}>
-        <Text style={styles.errorText}>Failed to load profile</Text>
-        <TouchableOpacity style={styles.retryButton} onPress={refreshUserProfile}>
-          <Text style={styles.retryButtonText}>Retry</Text>
-        </TouchableOpacity>
-      </View>
-    );
+    return <ErrorScreen message="Failed to load profile" onRetry={refreshUserProfile} />;
   }
 
   return (
@@ -705,28 +699,6 @@ const styles = StyleSheet.create({
     fontSize: 16,
     marginLeft: 15,
     color: '#333',
-  },
-  centered: {
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-
-  errorText: {
-    fontSize: 16,
-    color: theme.colors.primary,
-    textAlign: 'center',
-    marginBottom: 20,
-  },
-  retryButton: {
-    backgroundColor: theme.colors.primary,
-    paddingHorizontal: 20,
-    paddingVertical: 10,
-    borderRadius: 20,
-  },
-  retryButtonText: {
-    color: '#fff',
-    fontSize: 16,
-    fontWeight: '500',
   },
   // Guidance styles
   guidanceContainer: {
