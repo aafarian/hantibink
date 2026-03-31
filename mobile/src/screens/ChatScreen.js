@@ -47,6 +47,8 @@ import {
 import { uploadAudioToFirebase } from '../utils/audioUpload';
 import AudioMessage from '../components/AudioMessage';
 import AudioRecorder from '../components/AudioRecorder';
+import ChatReplyPreview from './ChatScreen/ChatReplyPreview';
+import ChatMenu from './chat/ChatMenu';
 import { theme } from '../styles/theme';
 import BottomSheet, { BottomSheetScrollView, BottomSheetBackdrop } from '@gorhom/bottom-sheet';
 
@@ -1368,39 +1370,6 @@ const ChatScreen = ({ route, navigation }) => {
     [match?.otherUser?.id, showSuccess, showError]
   );
 
-  // Render menu overlay
-  const renderMenu = () => {
-    if (!showMenu) return null;
-
-    const menuItems = [
-      { id: 'search', icon: 'search', label: 'Search in conversation', color: '#333' },
-      { id: 'viewProfile', icon: 'person', label: 'View profile', color: '#333' },
-      { id: 'mute', icon: 'notifications-off', label: 'Mute notifications', color: '#333' },
-      { id: 'block', icon: 'ban', label: 'Block user', color: '#FF9800' },
-      { id: 'unmatch', icon: 'heart-dislike', label: 'Unmatch', color: '#F44336' },
-      { id: 'report', icon: 'flag', label: 'Report user', color: '#F44336' },
-    ];
-
-    return (
-      <View style={styles.menuOverlay}>
-        <Pressable style={styles.menuBackdrop} onPress={() => setShowMenu(false)} />
-        <View style={styles.menuContainer}>
-          {menuItems.map((item, index) => (
-            <TouchableOpacity
-              key={item.id}
-              style={[styles.menuItem, index === menuItems.length - 1 && styles.menuItemLast]}
-              onPress={() => handleMenuAction(item.id)}
-              activeOpacity={0.7}
-            >
-              <Ionicons name={item.icon} size={20} color={item.color} />
-              <Text style={[styles.menuItemText, { color: item.color }]}>{item.label}</Text>
-            </TouchableOpacity>
-          ))}
-        </View>
-      </View>
-    );
-  };
-
   // Get the live message for reactions detail (derived from messages array)
   const reactionsDetailMessage = useMemo(() => {
     if (!reactionsDetailMessageId) return null;
@@ -1637,28 +1606,12 @@ const ChatScreen = ({ route, navigation }) => {
           )}
 
           {/* Reply Preview */}
-          {replyTo && (
-            <View style={styles.replyPreview}>
-              <View style={styles.replyPreviewContent}>
-                <View style={styles.replyPreviewBar} />
-                <View style={styles.replyPreviewText}>
-                  <Text style={styles.replyPreviewName}>
-                    {replyTo.senderId === user.uid ? 'You' : getUserDisplayName(match.otherUser)}
-                  </Text>
-                  <Text style={styles.replyPreviewMessage} numberOfLines={1}>
-                    {replyTo.messageType === 'GIF'
-                      ? 'GIF'
-                      : replyTo.messageType === 'AUDIO'
-                        ? 'Voice message'
-                        : replyTo.content || replyTo.text}
-                  </Text>
-                </View>
-              </View>
-              <TouchableOpacity onPress={() => setReplyTo(null)} style={styles.replyPreviewClose}>
-                <Ionicons name="close" size={20} color="#666" />
-              </TouchableOpacity>
-            </View>
-          )}
+          <ChatReplyPreview
+            replyTo={replyTo}
+            currentUserId={user.uid}
+            otherUserName={getUserDisplayName(match.otherUser)}
+            onClear={() => setReplyTo(null)}
+          />
 
           {/* Input */}
           <View style={styles.inputContainer}>
@@ -1739,7 +1692,12 @@ const ChatScreen = ({ route, navigation }) => {
         </KeyboardAvoidingView>
 
         {/* Menu overlay */}
-        {renderMenu()}
+        <ChatMenu
+          visible={showMenu}
+          onClose={() => setShowMenu(false)}
+          onAction={handleMenuAction}
+          isMuted={isMuted}
+        />
 
         {/* Reactions detail bottom sheet */}
         <BottomSheet
@@ -2404,45 +2362,6 @@ const styles = StyleSheet.create({
     width: 80,
     backgroundColor: 'transparent',
   },
-  replyPreview: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    backgroundColor: '#f5f5f5',
-    borderTopWidth: 1,
-    borderTopColor: '#e0e0e0',
-  },
-  replyPreviewContent: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  replyPreviewBar: {
-    width: 3,
-    height: '100%',
-    minHeight: 32,
-    backgroundColor: theme.colors.primary,
-    borderRadius: 2,
-    marginRight: 8,
-  },
-  replyPreviewText: {
-    flex: 1,
-  },
-  replyPreviewName: {
-    fontSize: 13,
-    fontWeight: '600',
-    color: theme.colors.primary,
-    marginBottom: 2,
-  },
-  replyPreviewMessage: {
-    fontSize: 14,
-    color: '#666',
-  },
-  replyPreviewClose: {
-    padding: 4,
-    marginLeft: 8,
-  },
   inputContainer: {
     flexDirection: 'row',
     alignItems: 'flex-end',
@@ -2507,53 +2426,6 @@ const styles = StyleSheet.create({
     backgroundColor: theme.colors.primary,
     justifyContent: 'center',
     alignItems: 'center',
-  },
-  menuOverlay: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-    zIndex: 9999,
-    elevation: 999,
-  },
-  menuBackdrop: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-    backgroundColor: 'rgba(0, 0, 0, 0.4)',
-  },
-  menuContainer: {
-    position: 'absolute',
-    top: 60,
-    right: 16,
-    backgroundColor: '#fff',
-    borderRadius: 12,
-    paddingVertical: 8,
-    minWidth: 220,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.15,
-    shadowRadius: 12,
-    elevation: 8,
-  },
-  menuItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: '#f0f0f0',
-  },
-  menuItemLast: {
-    borderBottomWidth: 0,
-  },
-  menuItemText: {
-    fontSize: 15,
-    marginLeft: 12,
-    fontWeight: '400',
   },
   errorStateText: {
     fontSize: theme.typography.sizes.lg,
