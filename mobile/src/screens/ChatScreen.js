@@ -9,7 +9,6 @@ import {
   KeyboardAvoidingView,
   Platform,
   Animated,
-  Pressable,
   ActivityIndicator,
   StatusBar,
   Keyboard,
@@ -17,7 +16,6 @@ import {
   AppState,
 } from 'react-native';
 import * as Haptics from 'expo-haptics';
-import { Swipeable } from 'react-native-gesture-handler';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useIsFocused } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
@@ -43,12 +41,12 @@ import {
   trackVoiceMessageSent,
 } from '../utils/analytics';
 import { uploadAudioToFirebase } from '../utils/audioUpload';
-import AudioMessage from '../components/AudioMessage';
 import ChatReplyPreview from './ChatScreen/ChatReplyPreview';
 import ChatMenu from './chat/ChatMenu';
 import ChatHeader from './chat/ChatHeader';
 import ChatInput from './chat/ChatInput';
 import ChatReactionsSheet from './chat/ChatReactionsSheet';
+import ChatMessageBubble from './chat/ChatMessageBubble';
 import { theme } from '../styles/theme';
 
 const ChatScreen = ({ route, navigation }) => {
@@ -893,308 +891,55 @@ const ChatScreen = ({ route, navigation }) => {
     });
   }, []);
 
-  // Render swipe action for own messages (swipe left to reveal on right)
-  const renderRightActions = useCallback((progress, dragX) => {
-    const translateX = dragX.interpolate({
-      inputRange: [-80, 0],
-      outputRange: [0, 80],
-      extrapolate: 'clamp',
-    });
-    return (
-      <Animated.View style={[styles.swipeActionRight, { transform: [{ translateX }] }]}>
-        <Ionicons name="arrow-undo" size={24} color={theme.colors.primary} />
-      </Animated.View>
-    );
+  // Handle reactions press to show detail sheet
+  const handleReactionsPress = useCallback(message => {
+    setReactionsDetailMessageId(message.id);
+    reactionsSheetRef.current?.expand();
   }, []);
 
-  // Render swipe action for other's messages (swipe right to reveal on left)
-  const renderLeftActions = useCallback((progress, dragX) => {
-    const translateX = dragX.interpolate({
-      inputRange: [0, 80],
-      outputRange: [-80, 0],
-      extrapolate: 'clamp',
-    });
-    return (
-      <Animated.View style={[styles.swipeActionLeft, { transform: [{ translateX }] }]}>
-        <Ionicons name="arrow-undo" size={24} color={theme.colors.primary} />
-      </Animated.View>
-    );
-  }, []);
+  // Render message item using ChatMessageBubble component
+  const renderMessage = useCallback(
+    ({ item, index }) => {
+      const isOwnMessage = item.senderId === user.uid;
+      const showAvatar = index === 0 || reversedMessages[index - 1]?.senderId !== item.senderId;
+      // For inverted list, the last message in a group is when the next message (index - 1) is from a different sender
+      const isLastInGroup = index === 0 || reversedMessages[index - 1]?.senderId !== item.senderId;
+      const isTapped = tappedMessageId === item.id;
 
-  // Render message item
-  const renderMessage = ({ item, index }) => {
-    const isOwnMessage = item.senderId === user.uid;
-    const showAvatar = index === 0 || reversedMessages[index - 1]?.senderId !== item.senderId;
-    // For inverted list, the last message in a group is when the next message (index - 1) is from a different sender
-    const isLastInGroup = index === 0 || reversedMessages[index - 1]?.senderId !== item.senderId;
-    const isTapped = tappedMessageId === item.id;
-    const isHighlighted = isTapped;
-    // Show timestamp for last in group OR when tapped (iMessage-style tap to reveal)
-    const showTimestamp = isLastInGroup || isTapped;
-
-    // Determine if we're quoting ourselves or the other person
-    const isQuotingSelf = item.replyTo?.senderId === user.uid;
-
-    return (
-      <Swipeable
-        ref={ref => (swipeableRefs.current[item.id] = ref)}
-        renderRightActions={isOwnMessage ? renderRightActions : undefined}
-        renderLeftActions={isOwnMessage ? undefined : renderLeftActions}
-        onSwipeableOpen={direction => {
-          if ((isOwnMessage && direction === 'right') || (!isOwnMessage && direction === 'left')) {
-            handleSwipeToReply(item);
-          }
-        }}
-        rightThreshold={isOwnMessage ? 60 : undefined}
-        leftThreshold={isOwnMessage ? undefined : 60}
-        overshootRight={false}
-        overshootLeft={false}
-        friction={2}
-        containerStyle={styles.swipeableContainer}
-      >
-        <View style={styles.messageWrapper}>
-          <View style={[styles.messageRow, isOwnMessage && styles.ownMessageRow]}>
-            {!isOwnMessage && showAvatar && (
-              <Image
-                source={{ uri: getUserProfilePhoto(match.otherUser) }}
-                style={styles.messageAvatar}
-              />
-            )}
-            {!isOwnMessage && !showAvatar && <View style={styles.avatarPlaceholder} />}
-
-            <View
-              style={[styles.messageBubbleContainer, isOwnMessage && styles.ownBubbleContainer]}
-            >
-              {/* Quoted Reply - Separate element above the message bubble */}
-              {item.replyTo && (
-                <TouchableOpacity
-                  style={[
-                    styles.quotedReplyStandalone,
-                    isOwnMessage
-                      ? styles.ownQuotedReplyStandalone
-                      : styles.otherQuotedReplyStandalone,
-                    isQuotingSelf ? styles.quotingSelfStandalone : styles.quotingOtherStandalone,
-                  ]}
-                  onPress={() => scrollToMessage(item.replyTo.id)}
-                  activeOpacity={0.7}
-                >
-                  <Image
-                    source={{
-                      uri: isQuotingSelf
-                        ? getUserProfilePhoto(user)
-                        : getUserProfilePhoto(match.otherUser),
-                    }}
-                    style={styles.quotedReplyAvatar}
-                  />
-                  <View
-                    style={[
-                      styles.quotedReplyBar,
-                      isQuotingSelf ? styles.quotingSelfBar : styles.quotingOtherBar,
-                    ]}
-                  />
-                  <View style={styles.quotedReplyContent}>
-                    <Text
-                      style={[
-                        styles.quotedReplyName,
-                        isQuotingSelf ? styles.quotingSelfName : styles.quotingOtherName,
-                      ]}
-                    >
-                      {item.replyTo.senderId === user.uid
-                        ? 'You'
-                        : item.replyTo.senderName || getUserDisplayName(match.otherUser)}
-                    </Text>
-                    <Text
-                      style={[
-                        styles.quotedReplyText,
-                        isQuotingSelf ? styles.quotingSelfText : styles.quotingOtherText,
-                      ]}
-                      numberOfLines={2}
-                    >
-                      {item.replyTo.messageType === 'GIF'
-                        ? '📷 GIF'
-                        : item.replyTo.messageType === 'AUDIO'
-                          ? '🎤 Voice message'
-                          : item.replyTo.content || item.replyTo.text}
-                    </Text>
-                  </View>
-                </TouchableOpacity>
-              )}
-
-              <Pressable
-                onPress={() => handleMessageTap(item)}
-                onLongPress={() => handleMessageLongPress(item)}
-                delayLongPress={500}
-                style={({ pressed }) => [
-                  styles.messageBubble,
-                  isOwnMessage ? styles.ownMessageBubble : styles.otherMessageBubble,
-                  item.messageType === 'AUDIO' && styles.audioBubble,
-                  item.isTemp && styles.tempMessage,
-                  pressed && styles.messageBubblePressed,
-                  isHighlighted && styles.highlightedMessage,
-                ]}
-              >
-                {item.messageType === 'GIF' ? (
-                  <TouchableOpacity
-                    onPress={() => openPhotoViewer([item.mediaUrl || item.content], 0)}
-                    onLongPress={() => handleMessageLongPress(item)}
-                    delayLongPress={500}
-                    activeOpacity={0.9}
-                  >
-                    <Image
-                      source={{ uri: item.mediaUrl || item.content }}
-                      style={styles.gifMessage}
-                      resizeMode="cover"
-                    />
-                  </TouchableOpacity>
-                ) : item.messageType === 'AUDIO' ? (
-                  <AudioMessage
-                    messageId={item.id}
-                    audioUrl={item.mediaUrl}
-                    isOwnMessage={isOwnMessage}
-                    duration={item.duration}
-                    metadata={item.metadata}
-                  />
-                ) : (
-                  <Text style={[styles.messageText, isOwnMessage && styles.ownMessageText]}>
-                    {item.text || item.content || ''}
-                  </Text>
-                )}
-              </Pressable>
-
-              {/* Reactions - Android Messages style, overlapping the bubble */}
-              {item.reactions &&
-                Object.keys(item.reactions).length > 0 &&
-                (() => {
-                  const reactionEntries = Object.entries(item.reactions).filter(
-                    ([, users]) => users.length > 0
-                  );
-
-                  const MAX_VISIBLE = 3;
-
-                  // Prioritize showing at least one reaction from each person
-                  // First, find reactions unique to each person
-                  const myReactions = reactionEntries.filter(
-                    ([, users]) => users.includes(user.uid) && users.length === 1
-                  );
-                  const theirReactions = reactionEntries.filter(
-                    ([, users]) => !users.includes(user.uid)
-                  );
-                  const sharedReactions = reactionEntries.filter(
-                    ([, users]) => users.includes(user.uid) && users.length > 1
-                  );
-
-                  // Build visible list ensuring fair representation
-                  const visibleReactions = [];
-
-                  // Add one from each person first if available
-                  if (myReactions.length > 0) {
-                    visibleReactions.push(myReactions[0]);
-                  }
-                  if (theirReactions.length > 0 && visibleReactions.length < MAX_VISIBLE) {
-                    visibleReactions.push(theirReactions[0]);
-                  }
-                  if (sharedReactions.length > 0 && visibleReactions.length < MAX_VISIBLE) {
-                    visibleReactions.push(sharedReactions[0]);
-                  }
-
-                  // Fill remaining slots
-                  const remaining = [...myReactions, ...theirReactions, ...sharedReactions].filter(
-                    r => !visibleReactions.includes(r)
-                  );
-                  while (visibleReactions.length < MAX_VISIBLE && remaining.length > 0) {
-                    visibleReactions.push(remaining.shift());
-                  }
-
-                  const hiddenCount = reactionEntries.length - visibleReactions.length;
-
-                  // Superscript characters for counts
-                  const superscripts = {
-                    2: '²',
-                    3: '³',
-                    4: '⁴',
-                    5: '⁵',
-                    6: '⁶',
-                    7: '⁷',
-                    8: '⁸',
-                    9: '⁹',
-                  };
-                  const getSuperscript = count =>
-                    count > 1 ? superscripts[count] || `⁺${count}` : '';
-
-                  return (
-                    <TouchableOpacity
-                      style={[
-                        styles.reactionsContainer,
-                        isOwnMessage
-                          ? styles.ownReactionsContainer
-                          : styles.otherReactionsContainer,
-                      ]}
-                      onPress={() => {
-                        setReactionsDetailMessageId(item.id);
-                        reactionsSheetRef.current?.expand();
-                      }}
-                      activeOpacity={0.8}
-                    >
-                      {visibleReactions.map(([emoji, users]) => (
-                        <Text key={emoji} style={styles.reactionEmoji}>
-                          {emoji}
-                          {users.length > 1 && (
-                            <Text style={styles.reactionSuperscript}>
-                              {getSuperscript(users.length)}
-                            </Text>
-                          )}
-                        </Text>
-                      ))}
-                      {hiddenCount > 0 && (
-                        <Text style={styles.reactionOverflow}>+{hiddenCount}</Text>
-                      )}
-                    </TouchableOpacity>
-                  );
-                })()}
-
-              {/* Timestamp for all messages, read receipts only for own messages */}
-              {showTimestamp && (
-                <View style={[styles.messageStatus, !isOwnMessage && styles.otherMessageStatus]}>
-                  <Text style={styles.messageTime}>
-                    {item.createdAt
-                      ? new Date(item.createdAt).toLocaleTimeString('en-US', {
-                          hour: 'numeric',
-                          minute: '2-digit',
-                        })
-                      : ''}
-                  </Text>
-                  {/* Read receipts only for own messages */}
-                  {isOwnMessage &&
-                    (isPremium ? (
-                      item.isRead ? (
-                        <Ionicons
-                          name="checkmark-done"
-                          size={14}
-                          color="#4CAF50"
-                          style={styles.readIcon}
-                        />
-                      ) : (
-                        <Ionicons name="checkmark" size={14} color="#999" style={styles.readIcon} />
-                      )
-                    ) : (
-                      <View style={styles.premiumHint}>
-                        <Ionicons name="checkmark" size={14} color="#999" style={styles.readIcon} />
-                        <Ionicons
-                          name="diamond-outline"
-                          size={12}
-                          color="#FFB800"
-                          style={styles.premiumDiamond}
-                        />
-                      </View>
-                    ))}
-                </View>
-              )}
-            </View>
-          </View>
-        </View>
-      </Swipeable>
-    );
-  };
+      return (
+        <ChatMessageBubble
+          message={item}
+          isOwnMessage={isOwnMessage}
+          showAvatar={showAvatar}
+          isLastInGroup={isLastInGroup}
+          isTapped={isTapped}
+          otherUser={match.otherUser}
+          currentUser={user}
+          isPremium={isPremium}
+          onTap={handleMessageTap}
+          onLongPress={handleMessageLongPress}
+          onSwipeToReply={handleSwipeToReply}
+          onReactionsPress={handleReactionsPress}
+          onQuotedReplyPress={scrollToMessage}
+          onPhotoPress={openPhotoViewer}
+          swipeableRef={ref => (swipeableRefs.current[item.id] = ref)}
+        />
+      );
+    },
+    [
+      user,
+      reversedMessages,
+      tappedMessageId,
+      match.otherUser,
+      isPremium,
+      handleMessageTap,
+      handleMessageLongPress,
+      handleSwipeToReply,
+      handleReactionsPress,
+      scrollToMessage,
+      openPhotoViewer,
+    ]
+  );
 
   // Render typing indicator (premium only)
   const renderTypingIndicator = () => {
@@ -1677,229 +1422,17 @@ const styles = StyleSheet.create({
     paddingVertical: 16,
     flexGrow: 1,
   },
-  messageWrapper: {
-    marginVertical: 4,
-  },
+  // Typing indicator styles - still used in ChatScreen
   messageRow: {
     flexDirection: 'row',
     paddingHorizontal: 16,
     alignItems: 'flex-end',
-  },
-  ownMessageRow: {
-    flexDirection: 'row-reverse',
   },
   messageAvatar: {
     width: 32,
     height: 32,
     borderRadius: 16,
     marginRight: 8,
-  },
-  avatarPlaceholder: {
-    width: 32,
-    marginRight: 8,
-  },
-  messageBubbleContainer: {
-    maxWidth: '85%',
-    alignItems: 'flex-start',
-    position: 'relative',
-  },
-  ownBubbleContainer: {
-    alignItems: 'flex-end',
-  },
-  messageBubble: {
-    paddingHorizontal: 16,
-    paddingVertical: 10,
-    borderRadius: 24,
-    marginBottom: 2,
-    minHeight: 40,
-    justifyContent: 'center',
-    maxWidth: '100%',
-  },
-  ownMessageBubble: {
-    backgroundColor: theme.colors.primary,
-    borderTopRightRadius: 24,
-    borderTopLeftRadius: 24,
-    borderBottomLeftRadius: 24,
-    borderBottomRightRadius: 8,
-    shadowColor: theme.colors.primary,
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.15,
-    shadowRadius: 8,
-    elevation: 3,
-  },
-  otherMessageBubble: {
-    backgroundColor: '#F0F0F3',
-    borderTopRightRadius: 24,
-    borderTopLeftRadius: 24,
-    borderBottomRightRadius: 24,
-    borderBottomLeftRadius: 8,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.05,
-    shadowRadius: 4,
-    elevation: 1,
-  },
-  tempMessage: {
-    opacity: 1, // Full opacity for optimistic updates - no visual difference while sending
-  },
-  messageBubblePressed: {
-    opacity: 0.8,
-    transform: [{ scale: 0.98 }],
-  },
-  highlightedMessage: {
-    transform: [{ translateY: -2 }],
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
-  },
-  audioBubble: {
-    paddingLeft: 8,
-    paddingRight: 12,
-    paddingVertical: 10,
-    minWidth: 220,
-  },
-  messageText: {
-    fontSize: 16,
-    color: '#1c1c1e',
-    lineHeight: 22,
-    letterSpacing: 0.2,
-    fontWeight: '400',
-  },
-  ownMessageText: {
-    color: '#FFFFFF',
-    fontWeight: '400',
-  },
-  gifMessage: {
-    width: 200,
-    height: 150,
-    borderRadius: 12,
-  },
-  quotedReplyStandalone: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 8,
-    paddingVertical: 6,
-    borderRadius: 12,
-    marginBottom: 4,
-  },
-  quotedReplyAvatar: {
-    width: 20,
-    height: 20,
-    borderRadius: 10,
-    marginRight: 6,
-  },
-  ownQuotedReplyStandalone: {
-    alignSelf: 'flex-end',
-  },
-  otherQuotedReplyStandalone: {
-    alignSelf: 'flex-start',
-  },
-  // Colors based on WHO is being quoted
-  quotingSelfStandalone: {
-    backgroundColor: 'rgba(211, 47, 47, 0.15)', // theme.colors.primary with opacity
-  },
-  quotingOtherStandalone: {
-    backgroundColor: 'rgba(21, 101, 192, 0.12)', // theme.colors.secondary with opacity
-  },
-  quotedReplyBar: {
-    width: 3,
-    alignSelf: 'stretch',
-    borderRadius: 2,
-    marginRight: 8,
-  },
-  quotingSelfBar: {
-    backgroundColor: theme.colors.primary,
-  },
-  quotingOtherBar: {
-    backgroundColor: theme.colors.secondary,
-  },
-  quotedReplyContent: {
-    flexShrink: 1,
-    flexGrow: 1,
-  },
-  quotedReplyName: {
-    fontSize: 12,
-    fontWeight: '600',
-    marginBottom: 2,
-  },
-  quotingSelfName: {
-    color: theme.colors.primary,
-  },
-  quotingOtherName: {
-    color: theme.colors.secondary,
-  },
-  quotedReplyText: {
-    fontSize: 13,
-  },
-  quotingSelfText: {
-    color: '#666',
-  },
-  quotingOtherText: {
-    color: '#555',
-  },
-  reactionsContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#fff',
-    borderRadius: 12,
-    paddingHorizontal: 6,
-    paddingVertical: 3,
-    marginTop: -8,
-    borderWidth: 1,
-    borderColor: 'rgba(0, 0, 0, 0.08)',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.1,
-    shadowRadius: 2,
-    elevation: 2,
-  },
-  ownReactionsContainer: {
-    alignSelf: 'flex-end',
-    marginRight: 4,
-  },
-  otherReactionsContainer: {
-    alignSelf: 'flex-start',
-    marginLeft: 4,
-  },
-  reactionEmoji: {
-    fontSize: 16,
-  },
-  reactionSuperscript: {
-    fontSize: 10,
-    lineHeight: 14,
-  },
-  reactionOverflow: {
-    fontSize: 12,
-    color: '#666',
-    marginLeft: 2,
-    fontWeight: '500',
-  },
-  messageStatus: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginTop: 4,
-    paddingHorizontal: 4,
-    alignSelf: 'flex-end',
-  },
-  otherMessageStatus: {
-    alignSelf: 'flex-start',
-  },
-  messageTime: {
-    fontSize: 11,
-    color: '#8e8e93',
-    fontWeight: '400',
-  },
-  readIcon: {
-    marginLeft: 4,
-  },
-  premiumHint: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  premiumDiamond: {
-    marginLeft: 2,
   },
   typingRow: {
     marginBottom: 8,
@@ -1920,21 +1453,6 @@ const styles = StyleSheet.create({
     borderRadius: 4,
     backgroundColor: '#666',
     marginHorizontal: 2,
-  },
-  swipeableContainer: {
-    backgroundColor: '#fff',
-  },
-  swipeActionRight: {
-    justifyContent: 'center',
-    alignItems: 'center',
-    width: 80,
-    backgroundColor: 'transparent',
-  },
-  swipeActionLeft: {
-    justifyContent: 'center',
-    alignItems: 'center',
-    width: 80,
-    backgroundColor: 'transparent',
   },
   scrollToBottomFab: {
     position: 'absolute',
