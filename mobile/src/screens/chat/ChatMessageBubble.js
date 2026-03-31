@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { memo } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Image, Animated, Pressable } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { Swipeable } from 'react-native-gesture-handler';
@@ -553,4 +553,4 @@ const styles = StyleSheet.create({
   },
 });
 
-export default ChatMessageBubble;
+export default memo(ChatMessageBubble);
