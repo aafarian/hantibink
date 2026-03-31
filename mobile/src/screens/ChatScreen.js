@@ -32,7 +32,6 @@ import Logger from '../utils/logger';
 import { clearNotificationForMatch } from '../utils/notifications';
 import { getUserProfilePhoto, getUserDisplayName } from '../utils/profileHelpers';
 import { isUserOnline } from '../utils/userHelpers';
-import { formatLastSeen } from '../utils/timeHelpers';
 import ProfileBottomSheet from '../components/shared/ProfileBottomSheet';
 import GifPicker from '../components/GifPicker';
 import ConfirmationModal from '../components/ConfirmationModal';
@@ -49,6 +48,7 @@ import AudioMessage from '../components/AudioMessage';
 import AudioRecorder from '../components/AudioRecorder';
 import ChatReplyPreview from './ChatScreen/ChatReplyPreview';
 import ChatMenu from './chat/ChatMenu';
+import ChatHeader from './chat/ChatHeader';
 import { theme } from '../styles/theme';
 import BottomSheet, { BottomSheetScrollView, BottomSheetBackdrop } from '@gorhom/bottom-sheet';
 
@@ -1454,63 +1454,21 @@ const ChatScreen = ({ route, navigation }) => {
           enabled={true}
         >
           {/* Header */}
-          <View style={styles.header}>
-            <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
-              <Ionicons name="arrow-back" size={24} color="#333" />
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              style={styles.headerProfile}
-              onPress={() => {
-                setIsProfileSheetOpen(true);
-                profileSheetRef.current?.open();
-              }}
-            >
-              <Image
-                source={{ uri: getUserProfilePhoto(match.otherUser) }}
-                style={styles.headerAvatar}
-              />
-              <View style={styles.headerInfo}>
-                <Text style={styles.headerName}>{getUserDisplayName(match.otherUser)}</Text>
-                <View style={styles.statusRow}>
-                  {isPremium && otherUserTyping ? (
-                    <Text style={styles.statusText}>Typing...</Text>
-                  ) : isPremium && onlineStatus ? (
-                    <>
-                      <View style={styles.onlineDotContainer}>
-                        <Animated.View
-                          style={[
-                            styles.onlineShockwave,
-                            { transform: [{ scale: shockwaveScale }], opacity: shockwaveOpacity },
-                          ]}
-                        />
-                        <View style={styles.onlineDot} />
-                      </View>
-                      <Text style={styles.statusText}>Online</Text>
-                    </>
-                  ) : isPremium ? (
-                    <Text style={styles.statusText}>
-                      {lastSeen ? formatLastSeen(lastSeen) : 'New to Hantibink'}
-                    </Text>
-                  ) : (
-                    <View style={styles.premiumHint}>
-                      <Text style={styles.statusText}>See activity</Text>
-                      <Ionicons
-                        name="diamond-outline"
-                        size={12}
-                        color="#FFB800"
-                        style={styles.premiumDiamond}
-                      />
-                    </View>
-                  )}
-                </View>
-              </View>
-            </TouchableOpacity>
-
-            <TouchableOpacity style={styles.menuButton} onPress={() => setShowMenu(true)}>
-              <Ionicons name="ellipsis-vertical" size={20} color="#333" />
-            </TouchableOpacity>
-          </View>
+          <ChatHeader
+            otherUser={match.otherUser}
+            isPremium={isPremium}
+            onlineStatus={onlineStatus}
+            lastSeen={lastSeen}
+            isTyping={otherUserTyping}
+            onBack={() => navigation.goBack()}
+            onProfilePress={() => {
+              setIsProfileSheetOpen(true);
+              profileSheetRef.current?.open();
+            }}
+            onMenuPress={() => setShowMenu(true)}
+            shockwaveScale={shockwaveScale}
+            shockwaveOpacity={shockwaveOpacity}
+          />
 
           {/* Messages */}
           {loading ? (
@@ -1912,70 +1870,6 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#fff', // White background for chat content
-  },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: '#f0f0f0',
-    backgroundColor: '#fff',
-  },
-  backButton: {
-    marginRight: 12,
-  },
-  headerProfile: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  headerAvatar: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    marginRight: 12,
-  },
-  headerInfo: {
-    flex: 1,
-  },
-  headerName: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#333',
-  },
-  statusRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginTop: 2,
-  },
-  onlineDotContainer: {
-    width: 20,
-    height: 20,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginRight: 2,
-  },
-  onlineDot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-    backgroundColor: '#4CAF50',
-    position: 'absolute',
-  },
-  onlineShockwave: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-    backgroundColor: '#4CAF50',
-    position: 'absolute',
-  },
-  statusText: {
-    fontSize: 13,
-    color: '#666',
-  },
-  menuButton: {
-    padding: 8,
   },
   chatContainer: {
     flex: 1,
