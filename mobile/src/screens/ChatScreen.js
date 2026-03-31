@@ -1223,6 +1223,12 @@ const ChatScreen = ({ route, navigation }) => {
                     }, 100);
                   }
                 }}
+                // Performance optimization props
+                initialNumToRender={15}
+                maxToRenderPerBatch={10}
+                windowSize={7}
+                updateCellsBatchingPeriod={50}
+                removeClippedSubviews={false}
               />
 
               {/* Scroll to bottom FAB - hidden when profile sheet or reactions panel is open */}
