@@ -700,6 +700,11 @@ const LikedYouScreen = () => {
         onEndReached={handleLoadMore}
         onEndReachedThreshold={0.5}
         showsVerticalScrollIndicator={false}
+        // Performance optimizations
+        initialNumToRender={6}
+        maxToRenderPerBatch={4}
+        windowSize={5}
+        removeClippedSubviews={true}
       />
 
       <LikedYouUserModal
