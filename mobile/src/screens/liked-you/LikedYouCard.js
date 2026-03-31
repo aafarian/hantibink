@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { memo } from 'react';
 import {
   View,
   Text,
@@ -221,4 +221,24 @@ const styles = StyleSheet.create({
   },
 });
 
-export default LikedYouCard;
+/**
+ * Custom comparison function for React.memo
+ * Prevents re-renders when props haven't meaningfully changed
+ */
+const areEqual = (prevProps, nextProps) => {
+  return (
+    prevProps.item.id === nextProps.item.id &&
+    prevProps.item.mainPhoto === nextProps.item.mainPhoto &&
+    prevProps.item.name === nextProps.item.name &&
+    prevProps.item.age === nextProps.item.age &&
+    prevProps.item.location === nextProps.item.location &&
+    prevProps.item.isSuperLike === nextProps.item.isSuperLike &&
+    prevProps.item.isNew === nextProps.item.isNew &&
+    prevProps.index === nextProps.index &&
+    prevProps.isPremium === nextProps.isPremium &&
+    prevProps.loadingAction?.userId === nextProps.loadingAction?.userId &&
+    prevProps.loadingAction?.type === nextProps.loadingAction?.type
+  );
+};
+
+export default memo(LikedYouCard, areEqual);
