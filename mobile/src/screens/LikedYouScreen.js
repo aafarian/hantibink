@@ -365,16 +365,16 @@ const LikedYouScreen = () => {
     }
   }, [pendingMatchToast, showMatchModal, showSuccess]);
 
-  const handleRefresh = async () => {
+  const handleRefresh = useCallback(async () => {
     setRefreshing(true);
     setOffset(0); // Reset offset for refresh
     setHasMore(true); // Reset hasMore flag
     setTotalLikesCount(0); // Reset total count
     await fetchWhoLikedMe(false); // false = not loading more, it's a refresh
     setRefreshing(false);
-  };
+  }, [fetchWhoLikedMe]);
 
-  const handleLoadMore = () => {
+  const handleLoadMore = useCallback(() => {
     Logger.info(
       `📜 handleLoadMore called - loadingMore: ${loadingMore}, hasMore: ${hasMore}, loading: ${loading}, offset: ${offset}`
     );
@@ -382,7 +382,7 @@ const LikedYouScreen = () => {
       Logger.info(`📜 Loading more users from offset ${offset}`);
       fetchWhoLikedMe(true); // true = loading more
     }
-  };
+  }, [loadingMore, hasMore, loading, offset, fetchWhoLikedMe]);
 
   // Handle match modal actions
   const handleSendMessage = useCallback(() => {
@@ -416,112 +416,121 @@ const LikedYouScreen = () => {
     setMatchedUser(null);
   }, []);
 
-  const handleLikeBack = async profile => {
-    if (!isPremium) {
-      setShowUpgradeModal(true);
-      return;
-    }
+  const handleLikeBack = useCallback(
+    async profile => {
+      if (!isPremium) {
+        setShowUpgradeModal(true);
+        return;
+      }
 
-    // Set loading state
-    setLoadingAction({ userId: profile.id, type: 'like' });
+      // Set loading state
+      setLoadingAction({ userId: profile.id, type: 'like' });
 
-    try {
-      const result = await ApiDataService.likeUser(profile.id);
+      try {
+        const result = await ApiDataService.likeUser(profile.id);
 
-      Logger.info(`💘 Like result for ${profile.name}:`, JSON.stringify(result, null, 2));
+        Logger.info(`💘 Like result for ${profile.name}:`, JSON.stringify(result, null, 2));
 
-      if (result.success) {
-        // Close the user detail modal first if it's open
-        if (selectedUser) {
-          setSelectedUser(null);
-        }
+        if (result.success) {
+          // Close the user detail modal first if it's open
+          if (selectedUser) {
+            setSelectedUser(null);
+          }
 
-        // When liking someone from LikedYou, it's ALWAYS a match
-        // because they already liked you!
-        if (result.isMatch) {
-          Logger.info(`🎉 It's a match with ${profile.name}! Match ID: ${result.match?.id}`);
-          // Close the user detail modal first
-          setSelectedUser(null);
+          // When liking someone from LikedYou, it's ALWAYS a match
+          // because they already liked you!
+          if (result.isMatch) {
+            Logger.info(`🎉 It's a match with ${profile.name}! Match ID: ${result.match?.id}`);
+            // Close the user detail modal first
+            setSelectedUser(null);
 
-          // Set matched user and show match modal
-          setMatchedUser({
-            id: profile.id,
-            name: profile.name,
-            photo: profile.mainPhoto,
-            matchId: result.match?.id, // Include the match ID
+            // Set matched user and show match modal
+            setMatchedUser({
+              id: profile.id,
+              name: profile.name,
+              photo: profile.mainPhoto,
+              matchId: result.match?.id, // Include the match ID
+            });
+            // Show match modal immediately without delay
+            setShowMatchModal(true);
+          } else {
+            // This shouldn't happen when liking from LikedYou
+            Logger.warn(`⚠️ Unexpected: Like to ${profile.name} didn't create a match`);
+            showSuccess('Like sent back! 💘');
+          }
+
+          // Remove from incoming likes
+          Logger.info(
+            `🗑️ Removing ${profile.name} (ID: ${profile.id}) from LikedYou list after match`
+          );
+          setIncomingLikes(prev => {
+            const newList = prev.filter(like => like.id !== profile.id);
+            Logger.info(`📊 LikedYou list updated: ${prev.length} -> ${newList.length} users`);
+            return newList;
           });
-          // Show match modal immediately without delay
-          setShowMatchModal(true);
-        } else {
-          // This shouldn't happen when liking from LikedYou
-          Logger.warn(`⚠️ Unexpected: Like to ${profile.name} didn't create a match`);
-          showSuccess('Like sent back! 💘');
+          // Decrement total count
+          setTotalLikesCount(prev => Math.max(0, prev - 1));
         }
-
-        // Remove from incoming likes
-        Logger.info(
-          `🗑️ Removing ${profile.name} (ID: ${profile.id}) from LikedYou list after match`
-        );
-        setIncomingLikes(prev => {
-          const newList = prev.filter(like => like.id !== profile.id);
-          Logger.info(`📊 LikedYou list updated: ${prev.length} -> ${newList.length} users`);
-          return newList;
-        });
-        // Decrement total count
-        setTotalLikesCount(prev => Math.max(0, prev - 1));
+      } catch (err) {
+        Logger.error('Failed to like back:', err);
+        showError('Could not like back. Please try again.');
+      } finally {
+        setLoadingAction(null);
       }
-    } catch (err) {
-      Logger.error('Failed to like back:', err);
-      showError('Could not like back. Please try again.');
-    } finally {
-      setLoadingAction(null);
-    }
-  };
+    },
+    [isPremium, selectedUser, showSuccess, showError]
+  );
 
-  const handlePass = async profile => {
-    if (!isPremium) {
-      setShowUpgradeModal(true);
-      return;
-    }
-
-    // Set loading state
-    setLoadingAction({ userId: profile.id, type: 'pass' });
-
-    try {
-      const result = await ApiDataService.passUser(profile.id);
-
-      if (result.success) {
-        // Remove from incoming likes with animation
-        Logger.info(
-          `🗑️ Removing ${profile.name} (ID: ${profile.id}) from LikedYou list after pass`
-        );
-        setIncomingLikes(prev => {
-          const newList = prev.filter(like => like.id !== profile.id);
-          Logger.info(`📊 LikedYou list updated: ${prev.length} -> ${newList.length} users`);
-          return newList;
-        });
-        setSelectedUser(null);
-        // Decrement total count
-        setTotalLikesCount(prev => Math.max(0, prev - 1));
+  const handlePass = useCallback(
+    async profile => {
+      if (!isPremium) {
+        setShowUpgradeModal(true);
+        return;
       }
-    } catch (err) {
-      Logger.error('Failed to pass:', err);
-      showError('Could not pass. Please try again.');
-    } finally {
-      setLoadingAction(null);
-    }
-  };
 
-  const renderLikeCard = ({ item, index }) => (
-    <LikedYouCard
-      item={item}
-      index={index}
-      isPremium={isPremium}
-      onPress={() => (isPremium ? setSelectedUser(item) : setShowUpgradeModal(true))}
-      onLike={handleLikeBack}
-      onPass={handlePass}
-      loadingAction={loadingAction}
-    />
+      // Set loading state
+      setLoadingAction({ userId: profile.id, type: 'pass' });
+
+      try {
+        const result = await ApiDataService.passUser(profile.id);
+
+        if (result.success) {
+          // Remove from incoming likes with animation
+          Logger.info(
+            `🗑️ Removing ${profile.name} (ID: ${profile.id}) from LikedYou list after pass`
+          );
+          setIncomingLikes(prev => {
+            const newList = prev.filter(like => like.id !== profile.id);
+            Logger.info(`📊 LikedYou list updated: ${prev.length} -> ${newList.length} users`);
+            return newList;
+          });
+          setSelectedUser(null);
+          // Decrement total count
+          setTotalLikesCount(prev => Math.max(0, prev - 1));
+        }
+      } catch (err) {
+        Logger.error('Failed to pass:', err);
+        showError('Could not pass. Please try again.');
+      } finally {
+        setLoadingAction(null);
+      }
+    },
+    [isPremium, showError]
+  );
+
+  const renderLikeCard = useCallback(
+    ({ item, index }) => (
+      <LikedYouCard
+        item={item}
+        index={index}
+        isPremium={isPremium}
+        onPress={() => (isPremium ? setSelectedUser(item) : setShowUpgradeModal(true))}
+        onLike={handleLikeBack}
+        onPass={handlePass}
+        loadingAction={loadingAction}
+      />
+    ),
+    [isPremium, loadingAction, handleLikeBack, handlePass]
   );
 
   const renderHeader = () => {
