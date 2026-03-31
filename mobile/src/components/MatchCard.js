@@ -1,4 +1,4 @@
-import React, { useEffect, useRef } from 'react';
+import React, { memo, useEffect, useRef } from 'react';
 import { View, Text, TouchableOpacity, Animated } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { theme } from '../styles/theme';
@@ -14,199 +14,201 @@ import ClickablePhoto from './shared/ClickablePhoto';
 import { usePhotoViewer } from '../contexts/PhotoViewerContext';
 import { useIsPremium } from '../contexts/FeatureFlagsContext';
 
-export const MatchCard = ({
-  match,
-  onPress,
-  onMessagePress,
-  showMessageButton = true,
-  style = {},
-  unreadCount = 0,
-  showLastMessage = false,
-}) => {
-  const isPremium = useIsPremium();
-  const user = match.otherUser || match;
-  const profilePhotoUrl = getUserProfilePhoto(user);
-  const { openProfileSheet } = usePhotoViewer();
+export const MatchCard = memo(
+  ({
+    match,
+    onPress,
+    onMessagePress,
+    showMessageButton = true,
+    style = {},
+    unreadCount = 0,
+    showLastMessage = false,
+  }) => {
+    const isPremium = useIsPremium();
+    const user = match.otherUser || match;
+    const profilePhotoUrl = getUserProfilePhoto(user);
+    const { openProfileSheet } = usePhotoViewer();
 
-  // Online status (premium only)
-  const isOnline = isPremium && isUserOnline(user.lastActive);
-  const shockwaveScale = useRef(new Animated.Value(1)).current;
-  const shockwaveOpacity = useRef(new Animated.Value(0.6)).current;
+    // Online status (premium only)
+    const isOnline = isPremium && isUserOnline(user.lastActive);
+    const shockwaveScale = useRef(new Animated.Value(1)).current;
+    const shockwaveOpacity = useRef(new Animated.Value(0.6)).current;
 
-  // Shockwave animation for online dot
-  useEffect(() => {
-    let shockwaveAnimation;
-    if (isOnline) {
-      shockwaveAnimation = Animated.loop(
-        Animated.parallel([
-          Animated.sequence([
-            Animated.timing(shockwaveScale, {
-              toValue: 2.2,
-              duration: 1500,
-              useNativeDriver: true,
-            }),
-            Animated.timing(shockwaveScale, {
-              toValue: 1,
-              duration: 0,
-              useNativeDriver: true,
-            }),
-          ]),
-          Animated.sequence([
-            Animated.timing(shockwaveOpacity, {
-              toValue: 0,
-              duration: 1500,
-              useNativeDriver: true,
-            }),
-            Animated.timing(shockwaveOpacity, {
-              toValue: 0.6,
-              duration: 0,
-              useNativeDriver: true,
-            }),
-          ]),
-        ])
-      );
-      shockwaveAnimation.start();
-    } else {
-      shockwaveScale.setValue(1);
-      shockwaveOpacity.setValue(0.6);
-    }
-    return () => {
-      if (shockwaveAnimation) {
-        shockwaveAnimation.stop();
+    // Shockwave animation for online dot
+    useEffect(() => {
+      let shockwaveAnimation;
+      if (isOnline) {
+        shockwaveAnimation = Animated.loop(
+          Animated.parallel([
+            Animated.sequence([
+              Animated.timing(shockwaveScale, {
+                toValue: 2.2,
+                duration: 1500,
+                useNativeDriver: true,
+              }),
+              Animated.timing(shockwaveScale, {
+                toValue: 1,
+                duration: 0,
+                useNativeDriver: true,
+              }),
+            ]),
+            Animated.sequence([
+              Animated.timing(shockwaveOpacity, {
+                toValue: 0,
+                duration: 1500,
+                useNativeDriver: true,
+              }),
+              Animated.timing(shockwaveOpacity, {
+                toValue: 0.6,
+                duration: 0,
+                useNativeDriver: true,
+              }),
+            ]),
+          ])
+        );
+        shockwaveAnimation.start();
+      } else {
+        shockwaveScale.setValue(1);
+        shockwaveOpacity.setValue(0.6);
       }
-    };
-  }, [isOnline, shockwaveScale, shockwaveOpacity]);
+      return () => {
+        if (shockwaveAnimation) {
+          shockwaveAnimation.stop();
+        }
+      };
+    }, [isOnline, shockwaveScale, shockwaveOpacity]);
 
-  // Normalize lastMessage to always be a string
-  const lastMessageText =
-    typeof match.lastMessage === 'string' ? match.lastMessage : match.lastMessage?.content || '';
+    // Normalize lastMessage to always be a string
+    const lastMessageText =
+      typeof match.lastMessage === 'string' ? match.lastMessage : match.lastMessage?.content || '';
 
-  const profileActionButtons = onMessagePress
-    ? [
-        {
-          icon: 'chatbubble',
-          label: 'Message',
-          onPress: onMessagePress,
-          style: { backgroundColor: theme.colors.primary },
-        },
-      ]
-    : [];
+    const profileActionButtons = onMessagePress
+      ? [
+          {
+            icon: 'chatbubble',
+            label: 'Message',
+            onPress: onMessagePress,
+            style: { backgroundColor: theme.colors.primary },
+          },
+        ]
+      : [];
 
-  const handlePhotoPress = () => {
-    openProfileSheet({
-      profile: user,
-      actionButtons: profileActionButtons,
-    });
-  };
-
-  const handleCardPress = () => {
-    if (onPress) {
-      onPress();
-    } else {
-      // If no onPress provided, show profile by default
+    const handlePhotoPress = () => {
       openProfileSheet({
         profile: user,
         actionButtons: profileActionButtons,
       });
-    }
-  };
+    };
 
-  return (
-    <TouchableOpacity
-      style={[styles.container, style]}
-      onPress={handleCardPress}
-      activeOpacity={0.7}
-    >
-      <ClickablePhoto
-        photo={profilePhotoUrl}
-        photos={user.photos || [profilePhotoUrl]}
-        size={60}
-        borderRadius={30}
-        showExpandIcon={false}
-        onPress={handlePhotoPress}
-        style={styles.photo}
-      />
+    const handleCardPress = () => {
+      if (onPress) {
+        onPress();
+      } else {
+        // If no onPress provided, show profile by default
+        openProfileSheet({
+          profile: user,
+          actionButtons: profileActionButtons,
+        });
+      }
+    };
 
-      <View style={styles.info}>
-        <View style={styles.nameRow}>
-          <Text style={styles.name}>
-            {getUserDisplayName(user)}
-            {getUserAge(user) ? `, ${getUserAge(user)}` : ''}
-          </Text>
-          {isOnline && (
-            <View style={styles.onlineContainer}>
-              <Animated.View
+    return (
+      <TouchableOpacity
+        style={[styles.container, style]}
+        onPress={handleCardPress}
+        activeOpacity={0.7}
+      >
+        <ClickablePhoto
+          photo={profilePhotoUrl}
+          photos={user.photos || [profilePhotoUrl]}
+          size={60}
+          borderRadius={30}
+          showExpandIcon={false}
+          onPress={handlePhotoPress}
+          style={styles.photo}
+        />
+
+        <View style={styles.info}>
+          <View style={styles.nameRow}>
+            <Text style={styles.name}>
+              {getUserDisplayName(user)}
+              {getUserAge(user) ? `, ${getUserAge(user)}` : ''}
+            </Text>
+            {isOnline && (
+              <View style={styles.onlineContainer}>
+                <Animated.View
+                  style={[
+                    styles.onlineShockwave,
+                    { transform: [{ scale: shockwaveScale }], opacity: shockwaveOpacity },
+                  ]}
+                />
+                <View style={styles.onlineDot} />
+              </View>
+            )}
+          </View>
+          {showLastMessage ? (
+            <>
+              {/* Show latest message and timestamp for conversation list */}
+              <Text
                 style={[
-                  styles.onlineShockwave,
-                  { transform: [{ scale: shockwaveScale }], opacity: shockwaveOpacity },
+                  styles.lastMessage,
+                  isPremium && match.isTyping && styles.typingText,
+                  unreadCount > 0 && !(isPremium && match.isTyping) && styles.unreadLastMessage,
                 ]}
-              />
-              <View style={styles.onlineDot} />
-            </View>
+                numberOfLines={1}
+              >
+                {isPremium && match.isTyping
+                  ? `${match.typingUser || 'Someone'} is typing...`
+                  : lastMessageText.includes('giphy.com') ||
+                      lastMessageText.includes('media.giphy') ||
+                      lastMessageText === '[GIF]'
+                    ? 'Sent a GIF 🎬'
+                    : lastMessageText || 'Start a conversation...'}
+              </Text>
+              <Text style={styles.lastMessageTime} numberOfLines={1}>
+                {formatRelativeTime(match.lastMessageTime || match.matchedAt) || 'New match'}
+              </Text>
+            </>
+          ) : (
+            <>
+              {/* Show location and bio for regular match cards */}
+              <Text style={styles.location} numberOfLines={1}>
+                {getUserLocation(user)}
+              </Text>
+              <Text style={styles.bio} numberOfLines={2}>
+                {user.bio || 'No bio available'}
+              </Text>
+            </>
           )}
         </View>
-        {showLastMessage ? (
-          <>
-            {/* Show latest message and timestamp for conversation list */}
-            <Text
-              style={[
-                styles.lastMessage,
-                isPremium && match.isTyping && styles.typingText,
-                unreadCount > 0 && !(isPremium && match.isTyping) && styles.unreadLastMessage,
-              ]}
-              numberOfLines={1}
-            >
-              {isPremium && match.isTyping
-                ? `${match.typingUser || 'Someone'} is typing...`
-                : lastMessageText.includes('giphy.com') ||
-                    lastMessageText.includes('media.giphy') ||
-                    lastMessageText === '[GIF]'
-                  ? 'Sent a GIF 🎬'
-                  : lastMessageText || 'Start a conversation...'}
-            </Text>
-            <Text style={styles.lastMessageTime} numberOfLines={1}>
-              {formatRelativeTime(match.lastMessageTime || match.matchedAt) || 'New match'}
-            </Text>
-          </>
-        ) : (
-          <>
-            {/* Show location and bio for regular match cards */}
-            <Text style={styles.location} numberOfLines={1}>
-              {getUserLocation(user)}
-            </Text>
-            <Text style={styles.bio} numberOfLines={2}>
-              {user.bio || 'No bio available'}
-            </Text>
-          </>
+
+        {showMessageButton && (
+          <TouchableOpacity
+            style={styles.messageButton}
+            onPress={e => {
+              e.stopPropagation();
+              onMessagePress?.();
+            }}
+          >
+            <Ionicons name="chatbubble" size={16} color={theme.colors.text.white} />
+            <Text style={styles.messageButtonText}>Message</Text>
+          </TouchableOpacity>
         )}
-      </View>
 
-      {showMessageButton && (
-        <TouchableOpacity
-          style={styles.messageButton}
-          onPress={e => {
-            e.stopPropagation();
-            onMessagePress?.();
-          }}
-        >
-          <Ionicons name="chatbubble" size={16} color={theme.colors.text.white} />
-          <Text style={styles.messageButtonText}>Message</Text>
-        </TouchableOpacity>
-      )}
+        {/* Unread count badge */}
+        {unreadCount > 0 && (
+          <View style={styles.unreadBadge}>
+            <Text style={styles.unreadText}>{unreadCount > 99 ? '99+' : unreadCount}</Text>
+          </View>
+        )}
 
-      {/* Unread count badge */}
-      {unreadCount > 0 && (
-        <View style={styles.unreadBadge}>
-          <Text style={styles.unreadText}>{unreadCount > 99 ? '99+' : unreadCount}</Text>
+        <View style={styles.matchBadge}>
+          <Text style={styles.matchBadgeText}>💕</Text>
         </View>
-      )}
-
-      <View style={styles.matchBadge}>
-        <Text style={styles.matchBadgeText}>💕</Text>
-      </View>
-    </TouchableOpacity>
-  );
-};
+      </TouchableOpacity>
+    );
+  }
+);
 
 const styles = {
   container: {
