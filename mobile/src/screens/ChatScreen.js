@@ -48,8 +48,8 @@ import ChatReplyPreview from './ChatScreen/ChatReplyPreview';
 import ChatMenu from './chat/ChatMenu';
 import ChatHeader from './chat/ChatHeader';
 import ChatInput from './chat/ChatInput';
+import ChatReactionsSheet from './chat/ChatReactionsSheet';
 import { theme } from '../styles/theme';
-import BottomSheet, { BottomSheetScrollView, BottomSheetBackdrop } from '@gorhom/bottom-sheet';
 
 const ChatScreen = ({ route, navigation }) => {
   const { match } = route.params;
@@ -112,9 +112,6 @@ const ChatScreen = ({ route, navigation }) => {
   const MAX_SENT_MESSAGE_IDS = 100;
   const reactionsSheetRef = useRef(null);
   const inputRef = useRef(null);
-
-  // Snap points for reactions bottom sheet - fixed height for consistency
-  const reactionsSnapPoints = useMemo(() => [350], []);
 
   // Animation values
   const typingDotsAnim = useRef([
@@ -1375,56 +1372,11 @@ const ChatScreen = ({ route, navigation }) => {
     return messages.find(m => m.id === reactionsDetailMessageId) || null;
   }, [reactionsDetailMessageId, messages]);
 
-  // Get reactions data for the bottom sheet
-  const getReactionsData = useCallback(() => {
-    if (!reactionsDetailMessage) return { reactionsList: [], filteredReactions: [] };
-
-    const reactions = reactionsDetailMessage.reactions || {};
-    const reactionEntries = Object.entries(reactions).filter(([, users]) => users.length > 0);
-
-    const reactionsList = [];
-    reactionEntries.forEach(([emoji, userIds]) => {
-      userIds.forEach(userId => {
-        const isMe = userId === user.uid;
-        reactionsList.push({
-          emoji,
-          userId,
-          name: isMe ? 'You' : getUserDisplayName(match.otherUser),
-          avatar: isMe ? getUserProfilePhoto(user) : getUserProfilePhoto(match.otherUser),
-          isMe,
-        });
-      });
-    });
-
-    const filteredReactions = reactionsList.filter(r => {
-      if (reactionsTab === 'all') return true;
-      if (reactionsTab === 'you') return r.isMe;
-      if (reactionsTab === 'them') return !r.isMe;
-      return true;
-    });
-
-    return { reactionsList, filteredReactions };
-  }, [reactionsDetailMessage, reactionsTab, user, match.otherUser]);
-
   // Handle reactions sheet close
   const handleReactionsSheetClose = useCallback(() => {
     setReactionsDetailMessageId(null);
     setReactionsTab('all');
   }, []);
-
-  // Backdrop for reactions sheet - tap to close
-  const renderReactionsBackdrop = useCallback(
-    props => (
-      <BottomSheetBackdrop
-        {...props}
-        disappearsOnIndex={-1}
-        appearsOnIndex={0}
-        opacity={0.5}
-        pressBehavior="close"
-      />
-    ),
-    []
-  );
 
   // Handle add reaction from sheet
   const handleAddReactionFromSheet = useCallback(() => {
@@ -1617,134 +1569,17 @@ const ChatScreen = ({ route, navigation }) => {
         />
 
         {/* Reactions detail bottom sheet */}
-        <BottomSheet
-          ref={reactionsSheetRef}
-          index={-1}
-          snapPoints={reactionsSnapPoints}
-          enableDynamicSizing={false}
-          enablePanDownToClose={true}
-          backgroundStyle={styles.reactionsSheetBackground}
-          handleIndicatorStyle={styles.reactionsSheetIndicator}
-          backdropComponent={renderReactionsBackdrop}
-          onChange={index => {
-            if (index === -1) {
-              handleReactionsSheetClose();
-            }
-          }}
-        >
-          <View style={styles.reactionsSheetContent}>
-            <Text style={styles.reactionsDetailTitle}>Reactions</Text>
-
-            {/* Tabs */}
-            {reactionsDetailMessage && (
-              <>
-                <View style={styles.reactionsTabs}>
-                  <TouchableOpacity
-                    style={[
-                      styles.reactionsTab,
-                      reactionsTab === 'all' && styles.reactionsTabActive,
-                    ]}
-                    onPress={() => setReactionsTab('all')}
-                  >
-                    <Text
-                      style={[
-                        styles.reactionsTabText,
-                        reactionsTab === 'all' && styles.reactionsTabTextActive,
-                      ]}
-                    >
-                      All ({getReactionsData().reactionsList.length})
-                    </Text>
-                  </TouchableOpacity>
-                  <TouchableOpacity
-                    style={[
-                      styles.reactionsTab,
-                      reactionsTab === 'you' && styles.reactionsTabActive,
-                    ]}
-                    onPress={() => setReactionsTab('you')}
-                  >
-                    <Text
-                      style={[
-                        styles.reactionsTabText,
-                        reactionsTab === 'you' && styles.reactionsTabTextActive,
-                      ]}
-                    >
-                      You ({getReactionsData().reactionsList.filter(r => r.isMe).length})
-                    </Text>
-                  </TouchableOpacity>
-                  <TouchableOpacity
-                    style={[
-                      styles.reactionsTab,
-                      reactionsTab === 'them' && styles.reactionsTabActive,
-                    ]}
-                    onPress={() => setReactionsTab('them')}
-                  >
-                    <Text
-                      style={[
-                        styles.reactionsTabText,
-                        reactionsTab === 'them' && styles.reactionsTabTextActive,
-                      ]}
-                    >
-                      {getUserDisplayName(match.otherUser).split(' ')[0]} (
-                      {getReactionsData().reactionsList.filter(r => !r.isMe).length})
-                    </Text>
-                  </TouchableOpacity>
-                </View>
-
-                {/* Scrollable reactions list - fixed height, fills available space */}
-                <View style={styles.reactionsScrollContainer}>
-                  <BottomSheetScrollView contentContainerStyle={styles.reactionsScrollContent}>
-                    {getReactionsData().filteredReactions.map((reaction, index) => (
-                      <View
-                        key={`${reaction.userId}-${reaction.emoji}-${index}`}
-                        style={styles.reactionDetailRow}
-                      >
-                        <View style={styles.reactionDetailLeft}>
-                          <Image
-                            source={{ uri: reaction.avatar }}
-                            style={styles.reactionDetailAvatar}
-                          />
-                          <Text style={styles.reactionDetailName}>{reaction.name}</Text>
-                        </View>
-                        <TouchableOpacity
-                          onPress={() => {
-                            if (reaction.isMe && reactionsDetailMessage) {
-                              addReaction(reactionsDetailMessage.id, reaction.emoji);
-                            }
-                          }}
-                          activeOpacity={reaction.isMe ? 0.7 : 1}
-                          style={styles.reactionEmojiContainer}
-                        >
-                          <Text style={styles.reactionDetailEmoji}>{reaction.emoji}</Text>
-                          {reaction.isMe && (
-                            <View style={styles.removeReactionBadge}>
-                              <Ionicons name="close" size={10} color="#fff" />
-                            </View>
-                          )}
-                        </TouchableOpacity>
-                      </View>
-                    ))}
-
-                    {getReactionsData().filteredReactions.length === 0 && (
-                      <View style={styles.noReactionsContainer}>
-                        <Text style={styles.noReactionsText}>No reactions yet</Text>
-                      </View>
-                    )}
-                  </BottomSheetScrollView>
-                </View>
-
-                {/* Add reaction button - anchored at bottom */}
-                <TouchableOpacity
-                  style={styles.addReactionRow}
-                  onPress={handleAddReactionFromSheet}
-                  activeOpacity={0.7}
-                >
-                  <Ionicons name="add-circle-outline" size={24} color={theme.colors.primary} />
-                  <Text style={styles.addReactionText}>Add reaction</Text>
-                </TouchableOpacity>
-              </>
-            )}
-          </View>
-        </BottomSheet>
+        <ChatReactionsSheet
+          sheetRef={reactionsSheetRef}
+          message={reactionsDetailMessage}
+          currentUser={user}
+          otherUser={match.otherUser}
+          activeTab={reactionsTab}
+          onTabChange={setReactionsTab}
+          onAddReaction={handleAddReactionFromSheet}
+          onRemoveReaction={addReaction}
+          onClose={handleReactionsSheetClose}
+        />
 
         {/* Emoji Picker for reactions */}
         <EmojiPicker
@@ -2039,120 +1874,6 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: '#666',
     marginLeft: 2,
-    fontWeight: '500',
-  },
-  // Reactions detail bottom sheet styles
-  reactionsSheetBackground: {
-    backgroundColor: '#fff',
-    borderTopLeftRadius: 20,
-    borderTopRightRadius: 20,
-  },
-  reactionsSheetIndicator: {
-    backgroundColor: '#ddd',
-    width: 36,
-    height: 4,
-  },
-  reactionsSheetContent: {
-    flex: 1,
-    paddingHorizontal: 20,
-  },
-  reactionsScrollContainer: {
-    flex: 1,
-  },
-  reactionsScrollContent: {
-    flexGrow: 1,
-  },
-  reactionsDetailTitle: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: '#333',
-    marginBottom: 12,
-  },
-  reactionsTabs: {
-    flexDirection: 'row',
-    marginBottom: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: '#f0f0f0',
-  },
-  reactionsTab: {
-    paddingVertical: 8,
-    paddingHorizontal: 16,
-    marginRight: 8,
-    borderBottomWidth: 2,
-    borderBottomColor: 'transparent',
-  },
-  reactionsTabActive: {
-    borderBottomColor: theme.colors.primary,
-  },
-  reactionsTabText: {
-    fontSize: 14,
-    color: '#666',
-    fontWeight: '500',
-  },
-  reactionsTabTextActive: {
-    color: theme.colors.primary,
-  },
-  noReactionsContainer: {
-    paddingVertical: 40,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  reactionDetailRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingVertical: 12,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: '#f0f0f0',
-  },
-  reactionDetailLeft: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  reactionDetailAvatar: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    marginRight: 12,
-  },
-  reactionDetailName: {
-    fontSize: 16,
-    color: '#333',
-  },
-  noReactionsText: {
-    fontSize: 14,
-    color: '#999',
-    textAlign: 'center',
-  },
-  reactionDetailEmoji: {
-    fontSize: 24,
-  },
-  reactionEmojiContainer: {
-    position: 'relative',
-    marginRight: 8,
-  },
-  removeReactionBadge: {
-    position: 'absolute',
-    top: -4,
-    right: -4,
-    backgroundColor: '#999',
-    borderRadius: 8,
-    width: 16,
-    height: 16,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  addReactionRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingVertical: 16,
-    borderTopWidth: StyleSheet.hairlineWidth,
-    borderTopColor: '#f0f0f0',
-  },
-  addReactionText: {
-    fontSize: 16,
-    color: theme.colors.primary,
-    marginLeft: 12,
     fontWeight: '500',
   },
   messageStatus: {
