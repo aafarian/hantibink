@@ -4,7 +4,6 @@ import {
   Text,
   StyleSheet,
   FlatList,
-  TextInput,
   TouchableOpacity,
   Image,
   KeyboardAvoidingView,
@@ -45,10 +44,10 @@ import {
 } from '../utils/analytics';
 import { uploadAudioToFirebase } from '../utils/audioUpload';
 import AudioMessage from '../components/AudioMessage';
-import AudioRecorder from '../components/AudioRecorder';
 import ChatReplyPreview from './ChatScreen/ChatReplyPreview';
 import ChatMenu from './chat/ChatMenu';
 import ChatHeader from './chat/ChatHeader';
+import ChatInput from './chat/ChatInput';
 import { theme } from '../styles/theme';
 import BottomSheet, { BottomSheetScrollView, BottomSheetBackdrop } from '@gorhom/bottom-sheet';
 
@@ -1572,67 +1571,27 @@ const ChatScreen = ({ route, navigation }) => {
           />
 
           {/* Input */}
-          <View style={styles.inputContainer}>
-            {/* Hide GIF and input when recording */}
-            {!isRecording && (
-              <>
-                <TouchableOpacity
-                  style={styles.attachButton}
-                  onPress={() => setShowGifPicker(true)}
-                  disabled={isUploadingAudio}
-                >
-                  <Text style={[styles.gifButtonText, isUploadingAudio && styles.disabledText]}>
-                    GIF
-                  </Text>
-                </TouchableOpacity>
-
-                <TextInput
-                  ref={inputRef}
-                  style={styles.messageInput}
-                  placeholder={isUploadingAudio ? 'Sending voice message...' : 'Type a message...'}
-                  value={messageText}
-                  onChangeText={handleTypingChange}
-                  multiline
-                  maxLength={500}
-                  editable={!isUploadingAudio}
-                />
-              </>
-            )}
-
-            {/* Show send button when has text, otherwise show AudioRecorder */}
-            {showSendButton ? (
-              <Animated.View style={{ transform: [{ scale: rightIconAnim }] }}>
-                <TouchableOpacity
-                  style={[
-                    styles.sendButton,
-                    (!messageText.trim() || isSending) && styles.sendButtonDisabled,
-                  ]}
-                  onPress={sendMessage}
-                  disabled={!messageText.trim() || isSending}
-                >
-                  <Ionicons
-                    name="send"
-                    size={22}
-                    color={messageText.trim() && !isSending ? '#F44336' : '#999'}
-                  />
-                </TouchableOpacity>
-              </Animated.View>
-            ) : (
-              <AudioRecorder
-                onRecordingComplete={(uri, duration, waveform) => {
-                  setIsRecording(false);
-                  sendAudio(uri, duration, waveform);
-                }}
-                onRecordingStart={() => setIsRecording(true)}
-                onRecordingCancel={() => setIsRecording(false)}
-                onError={error => {
-                  setIsRecording(false);
-                  showError('Recording failed', { error });
-                }}
-                disabled={isSending || isUploadingAudio}
-              />
-            )}
-          </View>
+          <ChatInput
+            messageText={messageText}
+            onTextChange={handleTypingChange}
+            onSend={sendMessage}
+            onGifPress={() => setShowGifPicker(true)}
+            isRecording={isRecording}
+            onRecordingStart={() => setIsRecording(true)}
+            onRecordingComplete={(uri, duration, waveform) => {
+              setIsRecording(false);
+              sendAudio(uri, duration, waveform);
+            }}
+            onRecordingCancel={() => setIsRecording(false)}
+            onRecordingError={error => {
+              setIsRecording(false);
+              showError('Recording failed', { error });
+            }}
+            isSending={isSending}
+            isUploadingAudio={isUploadingAudio}
+            rightIconAnim={rightIconAnim}
+            inputRef={inputRef}
+          />
 
           {/* Profile Bottom Sheet - Always rendered but hidden */}
           <ProfileBottomSheet
@@ -2255,47 +2214,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     width: 80,
     backgroundColor: 'transparent',
-  },
-  inputContainer: {
-    flexDirection: 'row',
-    alignItems: 'flex-end',
-    paddingHorizontal: 16,
-    paddingTop: 4,
-    paddingBottom: 4,
-    backgroundColor: '#fff',
-  },
-  attachButton: {
-    paddingBottom: 4,
-    paddingRight: 8,
-    justifyContent: 'center',
-  },
-  gifButtonText: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    color: '#666',
-  },
-  disabledText: {
-    opacity: 0.4,
-  },
-  messageInput: {
-    flex: 1,
-    minHeight: 40,
-    maxHeight: 100,
-    paddingHorizontal: 16,
-    paddingVertical: 10,
-    backgroundColor: '#f5f5f5',
-    borderRadius: 20,
-    fontSize: 15,
-  },
-  sendButton: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  sendButtonDisabled: {
-    opacity: 0.5,
   },
   scrollToBottomFab: {
     position: 'absolute',
