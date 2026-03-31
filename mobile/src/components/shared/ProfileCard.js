@@ -83,8 +83,25 @@ const ProfileCard = ({
   };
 
   const photos = getPhotos();
-  const currentPhoto = photos[currentPhotoIndex] || photos[0] || profile.mainPhoto;
+  const currentPhoto = photos[currentPhotoIndex] || photos[0] || profile.mainPhoto || null;
   const age = profile.age || calculateAge(profile.birthDate);
+
+  // If no photo available, show placeholder
+  if (!currentPhoto) {
+    return (
+      <View style={[styles.card, styles.noPhotoCard, style]}>
+        <View style={styles.noPhotoContent}>
+          <Ionicons name="person-circle-outline" size={80} color="rgba(255,255,255,0.5)" />
+          <Text style={styles.cardName}>
+            {profile.name}
+            {age && `, ${age}`}
+          </Text>
+          {profile.location && <Text style={styles.noPhotoLocation}>{profile.location}</Text>}
+        </View>
+        {children}
+      </View>
+    );
+  }
   const interests = getInterests();
   const languages = getLanguages();
   const relationshipTypes = getRelationshipTypes();
@@ -375,6 +392,20 @@ const styles = StyleSheet.create({
   },
   interestsSection: {
     marginTop: 8,
+  },
+  noPhotoCard: {
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  noPhotoContent: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  noPhotoLocation: {
+    fontSize: 14,
+    color: 'rgba(255,255,255,0.7)',
+    marginTop: 4,
   },
 });
 
