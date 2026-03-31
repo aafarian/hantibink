@@ -109,8 +109,8 @@ const PeopleScreenOptimized = ({ navigation }) => {
           ...advancedFilters,
           interestedIn: userProfile?.interestedIn || [],
         }));
-      } catch (error) {
-        Logger.error('Failed to load filters:', error);
+      } catch (loadFilterErr) {
+        Logger.error('Failed to load filters:', loadFilterErr);
       } finally {
         setFiltersLoaded(true);
       }
@@ -293,11 +293,14 @@ const PeopleScreenOptimized = ({ navigation }) => {
         setHasMore(false);
         setError(null);
       }
-    } catch (error) {
-      Logger.error('Failed to load profiles:', error);
+    } catch (loadProfilesErr) {
+      Logger.error('Failed to load profiles:', loadProfilesErr);
 
       // Handle specific discovery eligibility errors with robust API error parsing
-      const errorCode = error.response?.data?.error || error.message || error.toString();
+      const errorCode =
+        loadProfilesErr.response?.data?.error ||
+        loadProfilesErr.message ||
+        loadProfilesErr.toString();
 
       if (errorCode === 'PROFILE_INCOMPLETE' || errorCode.includes('PROFILE_INCOMPLETE')) {
         showError('Please complete your profile to use discovery');
@@ -372,8 +375,8 @@ const PeopleScreenOptimized = ({ navigation }) => {
         setHasMore(false);
         Logger.info('No more profiles available');
       }
-    } catch (error) {
-      Logger.error('Failed to load more profiles:', error);
+    } catch (loadMoreErr) {
+      Logger.error('Failed to load more profiles:', loadMoreErr);
     } finally {
       setIsLoadingMore(false);
     }
@@ -389,11 +392,11 @@ const PeopleScreenOptimized = ({ navigation }) => {
       processedIds.current.add(profile.id);
 
       // Fire and forget - don't wait for API response
-      ApiDataService.passUser(profile.id).catch(error => {
-        Logger.error('Failed to save pass:', error);
+      ApiDataService.passUser(profile.id).catch(passErr => {
+        Logger.error('Failed to save pass:', passErr);
       });
-    } catch (error) {
-      Logger.error('Error handling swipe left:', error);
+    } catch (swipeLeftErr) {
+      Logger.error('Error handling swipe left:', swipeLeftErr);
     }
   }, []);
 
@@ -443,11 +446,14 @@ const PeopleScreenOptimized = ({ navigation }) => {
             return;
           }
         }
-      } catch (error) {
-        Logger.error('Error handling swipe right:', error);
+      } catch (swipeRightErr) {
+        Logger.error('Error handling swipe right:', swipeRightErr);
         // Don't show error to user for "already acted" cases
         // This can happen if they matched from LikedYou and the profile wasn't removed yet
-        if (error.message?.includes('already acted') || error.message?.includes('already swiped')) {
+        if (
+          swipeRightErr.message?.includes('already acted') ||
+          swipeRightErr.message?.includes('already swiped')
+        ) {
           Logger.warn('User already acted on this person, silently skipping');
           return;
         }
@@ -495,9 +501,9 @@ const PeopleScreenOptimized = ({ navigation }) => {
             showError("You've used all your Super Likes for today");
           }
         }
-      } catch (error) {
-        Logger.error('Error handling super like:', error);
-        if (error.message?.includes('already acted')) {
+      } catch (superLikeErr) {
+        Logger.error('Error handling super like:', superLikeErr);
+        if (superLikeErr.message?.includes('already acted')) {
           Logger.warn('User already acted on this person, silently skipping');
           return;
         }
@@ -530,10 +536,10 @@ const PeopleScreenOptimized = ({ navigation }) => {
         }
         return { success: false, error: result.error };
       }
-    } catch (error) {
-      Logger.error('Error handling undo:', error);
+    } catch (undoErr) {
+      Logger.error('Error handling undo:', undoErr);
       showError('Failed to undo. Please try again.');
-      return { success: false, error: error.message };
+      return { success: false, error: undoErr.message };
     }
   }, [showError]);
 
