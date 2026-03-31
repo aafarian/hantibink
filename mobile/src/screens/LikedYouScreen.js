@@ -4,14 +4,10 @@ import {
   Text,
   StyleSheet,
   FlatList,
-  Image,
   TouchableOpacity,
   RefreshControl,
-  Dimensions,
-  Modal,
   ActivityIndicator,
 } from 'react-native';
-import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../contexts/AuthContext';
 import { useToast } from '../contexts/ToastContext';
@@ -26,9 +22,8 @@ import { ErrorScreen } from '../components/ErrorScreen';
 import Logger from '../utils/logger';
 import { useTabNavigation } from '../hooks/useTabNavigation';
 import { theme } from '../styles/theme';
-
-const { width: screenWidth } = Dimensions.get('window');
-const CARD_WIDTH = (screenWidth - 30) / 2; // 2 columns with padding
+import LikedYouCard from './liked-you/LikedYouCard';
+import LikedYouUserModal from './liked-you/LikedYouUserModal';
 
 const LikedYouScreen = () => {
   const { user, userProfile } = useAuth();
@@ -517,94 +512,17 @@ const LikedYouScreen = () => {
     }
   };
 
-  const renderLikeCard = ({ item, index }) => {
-    const isEven = index % 2 === 0;
-
-    return (
-      <TouchableOpacity
-        style={[styles.likeCard, isEven && styles.leftCard]}
-        onPress={() => (isPremium ? setSelectedUser(item) : setShowUpgradeModal(true))}
-        activeOpacity={0.9}
-      >
-        {item.isSuperLike && (
-          <View style={styles.superLikeBadge}>
-            <Ionicons name="star" size={16} color="#FFD700" />
-          </View>
-        )}
-
-        {item.isNew && (
-          <View style={styles.newBadge}>
-            <Text style={styles.newBadgeText}>NEW</Text>
-          </View>
-        )}
-
-        <View style={styles.imageContainer}>
-          {/* Show blurred/pixelated image for non-premium users */}
-          {!isPremium ? (
-            <Image
-              source={{ uri: item.mainPhoto }}
-              style={styles.cardImage}
-              blurRadius={40} // Strong blur for maximum privacy
-            />
-          ) : (
-            <Image source={{ uri: item.mainPhoto }} style={styles.cardImage} />
-          )}
-
-          {!isPremium && (
-            <View style={styles.blurOverlay}>
-              <View style={styles.lockCircle}>
-                <Ionicons name="lock-closed" size={24} color="white" />
-              </View>
-            </View>
-          )}
-
-          {isPremium && (
-            <LinearGradient colors={['transparent', 'rgba(0,0,0,0.8)']} style={styles.gradient}>
-              <Text style={styles.cardName}>
-                {item.name}, {item.age}
-              </Text>
-              <Text style={styles.cardLocation}>
-                <Ionicons name="location-outline" size={12} color="white" /> {item.location}
-              </Text>
-            </LinearGradient>
-          )}
-        </View>
-
-        {isPremium && (
-          <View style={styles.quickActions}>
-            <TouchableOpacity
-              style={[styles.quickActionButton, styles.passQuickButton]}
-              onPress={e => {
-                e.stopPropagation();
-                handlePass(item);
-              }}
-              disabled={loadingAction?.userId === item.id}
-            >
-              {loadingAction?.userId === item.id && loadingAction?.type === 'pass' ? (
-                <ActivityIndicator size="small" color={theme.colors.primary} />
-              ) : (
-                <Ionicons name="close" size={20} color={theme.colors.primary} />
-              )}
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={[styles.quickActionButton, styles.likeQuickButton]}
-              onPress={e => {
-                e.stopPropagation();
-                handleLikeBack(item);
-              }}
-              disabled={loadingAction?.userId === item.id}
-            >
-              {loadingAction?.userId === item.id && loadingAction?.type === 'like' ? (
-                <ActivityIndicator size="small" color={theme.colors.secondary} />
-              ) : (
-                <Ionicons name="heart" size={20} color={theme.colors.secondary} />
-              )}
-            </TouchableOpacity>
-          </View>
-        )}
-      </TouchableOpacity>
-    );
-  };
+  const renderLikeCard = ({ item, index }) => (
+    <LikedYouCard
+      item={item}
+      index={index}
+      isPremium={isPremium}
+      onPress={() => (isPremium ? setSelectedUser(item) : setShowUpgradeModal(true))}
+      onLike={handleLikeBack}
+      onPass={handlePass}
+      loadingAction={loadingAction}
+    />
+  );
 
   const renderHeader = () => {
     // Log the actual count of users being displayed
@@ -720,77 +638,6 @@ const LikedYouScreen = () => {
     );
   };
 
-  // User detail modal
-  const renderUserModal = () => (
-    <Modal
-      visible={!!selectedUser && isPremium}
-      animationType="slide"
-      transparent={true}
-      onRequestClose={() => setSelectedUser(null)}
-    >
-      {selectedUser && (
-        <View style={styles.modalContainer}>
-          <View style={styles.modalContent}>
-            <TouchableOpacity style={styles.modalClose} onPress={() => setSelectedUser(null)}>
-              <Ionicons name="close" size={28} color="#333" />
-            </TouchableOpacity>
-
-            <Image source={{ uri: selectedUser.mainPhoto }} style={styles.modalImage} />
-
-            <View style={styles.modalInfo}>
-              <Text style={styles.modalName}>
-                {selectedUser.name}, {selectedUser.age}
-              </Text>
-              <Text style={styles.modalLocation}>
-                <Ionicons name="location" size={16} color="#666" /> {selectedUser.location}
-              </Text>
-              <Text style={styles.modalBio}>{selectedUser.bio}</Text>
-
-              {selectedUser.isSuperLike && (
-                <View style={styles.superLikeInfo}>
-                  <Ionicons name="star" size={20} color="#FFD700" />
-                  <Text style={styles.superLikeText}>They Super Liked You!</Text>
-                </View>
-              )}
-            </View>
-
-            <View style={styles.modalActions}>
-              <TouchableOpacity
-                style={[styles.modalButton, styles.passButton]}
-                onPress={() => handlePass(selectedUser)}
-                disabled={loadingAction?.userId === selectedUser?.id}
-              >
-                {loadingAction?.userId === selectedUser?.id && loadingAction?.type === 'pass' ? (
-                  <ActivityIndicator size="small" color={theme.colors.primary} />
-                ) : (
-                  <>
-                    <Ionicons name="close" size={24} color={theme.colors.primary} />
-                    <Text style={styles.passButtonText}>Pass</Text>
-                  </>
-                )}
-              </TouchableOpacity>
-
-              <TouchableOpacity
-                style={[styles.modalButton, styles.likeButton]}
-                onPress={() => handleLikeBack(selectedUser)}
-                disabled={loadingAction?.userId === selectedUser?.id}
-              >
-                {loadingAction?.userId === selectedUser?.id && loadingAction?.type === 'like' ? (
-                  <ActivityIndicator size="small" color="white" />
-                ) : (
-                  <>
-                    <Ionicons name="heart" size={24} color="white" />
-                    <Text style={styles.likeButtonText}>Like Back</Text>
-                  </>
-                )}
-              </TouchableOpacity>
-            </View>
-          </View>
-        </View>
-      )}
-    </Modal>
-  );
-
   if (loading) {
     return <LoadingScreen message="Loading likes..." />;
   }
@@ -846,7 +693,14 @@ const LikedYouScreen = () => {
         showsVerticalScrollIndicator={false}
       />
 
-      {renderUserModal()}
+      <LikedYouUserModal
+        user={selectedUser}
+        visible={!!selectedUser && isPremium}
+        onClose={() => setSelectedUser(null)}
+        onLike={handleLikeBack}
+        onPass={handlePass}
+        loadingAction={loadingAction}
+      />
       <PremiumUpgradeModal visible={showUpgradeModal} onClose={() => setShowUpgradeModal(false)} />
 
       {/* Match Modal */}
@@ -946,108 +800,6 @@ const styles = StyleSheet.create({
   row: {
     justifyContent: 'space-between',
   },
-  likeCard: {
-    width: CARD_WIDTH,
-    marginBottom: 15,
-    borderRadius: 15,
-    backgroundColor: 'white',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
-  },
-  leftCard: {
-    marginRight: 10,
-  },
-  imageContainer: {
-    position: 'relative',
-    height: CARD_WIDTH * 1.3,
-    borderTopLeftRadius: 15,
-    borderTopRightRadius: 15,
-    overflow: 'hidden',
-  },
-  cardImage: {
-    width: '100%',
-    height: '100%',
-  },
-  blurOverlay: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-    justifyContent: 'center',
-    alignItems: 'center',
-    backgroundColor: 'rgba(0, 0, 0, 0.2)', // Slight dark overlay for better contrast
-  },
-  lockCircle: {
-    backgroundColor: 'rgba(0, 0, 0, 0.6)',
-    borderRadius: 30,
-    width: 60,
-    height: 60,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  gradient: {
-    position: 'absolute',
-    bottom: 0,
-    left: 0,
-    right: 0,
-    padding: 15,
-  },
-  cardName: {
-    color: 'white',
-    fontSize: 16,
-    fontWeight: 'bold',
-    marginBottom: 4,
-  },
-  cardLocation: {
-    color: 'white',
-    fontSize: 12,
-  },
-  superLikeBadge: {
-    position: 'absolute',
-    top: 10,
-    right: 10,
-    backgroundColor: '#FFD700',
-    borderRadius: 15,
-    padding: 6,
-    zIndex: 1,
-  },
-  newBadge: {
-    position: 'absolute',
-    top: 10,
-    left: 10,
-    backgroundColor: theme.colors.secondary,
-    borderRadius: 10,
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    zIndex: 1,
-  },
-  newBadgeText: {
-    color: 'white',
-    fontSize: 10,
-    fontWeight: 'bold',
-  },
-  quickActions: {
-    flexDirection: 'row',
-    justifyContent: 'space-around',
-    padding: 10,
-  },
-  quickActionButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  passQuickButton: {
-    backgroundColor: '#FFE5E5',
-  },
-  likeQuickButton: {
-    backgroundColor: '#E5F9F9',
-  },
   emptyState: {
     padding: 24,
     alignItems: 'center',
@@ -1131,91 +883,6 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontSize: 16,
     fontWeight: '600',
-  },
-  modalContainer: {
-    flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.5)',
-    justifyContent: 'flex-end',
-  },
-  modalContent: {
-    backgroundColor: 'white',
-    borderTopLeftRadius: 25,
-    borderTopRightRadius: 25,
-    maxHeight: '80%',
-  },
-  modalClose: {
-    position: 'absolute',
-    top: 20,
-    right: 20,
-    zIndex: 1,
-    backgroundColor: 'white',
-    borderRadius: 20,
-    padding: 5,
-  },
-  modalImage: {
-    width: '100%',
-    height: 300,
-  },
-  modalInfo: {
-    padding: 20,
-  },
-  modalName: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    color: '#333',
-    marginBottom: 5,
-  },
-  modalLocation: {
-    fontSize: 16,
-    color: '#666',
-    marginBottom: 15,
-  },
-  modalBio: {
-    fontSize: 16,
-    color: '#333',
-    lineHeight: 24,
-  },
-  superLikeInfo: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#FFF8DC',
-    padding: 10,
-    borderRadius: 10,
-    marginTop: 15,
-  },
-  superLikeText: {
-    marginLeft: 8,
-    color: '#FFD700',
-    fontWeight: 'bold',
-  },
-  modalActions: {
-    flexDirection: 'row',
-    padding: 20,
-    gap: 15,
-  },
-  modalButton: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 15,
-    borderRadius: 25,
-  },
-  passButton: {
-    backgroundColor: '#FFE5E5',
-  },
-  passButtonText: {
-    color: theme.colors.primary,
-    fontWeight: 'bold',
-    marginLeft: 8,
-  },
-  likeButton: {
-    backgroundColor: theme.colors.secondary,
-  },
-  likeButtonText: {
-    color: 'white',
-    fontWeight: 'bold',
-    marginLeft: 8,
   },
   footerLoader: {
     paddingVertical: 20,
