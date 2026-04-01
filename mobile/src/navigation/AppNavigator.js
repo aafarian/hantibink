@@ -48,7 +48,7 @@ const Stack = createStackNavigator();
 
 const PeopleStack = () => {
   return (
-    <Stack.Navigator screenOptions={screenOptions.fadeSlide}>
+    <Stack.Navigator screenOptions={screenOptions.horizontalIOS}>
       <Stack.Screen
         name="PeopleMain"
         component={PeopleScreenOptimized}
@@ -76,7 +76,7 @@ const PeopleStack = () => {
 
 const ProfileStack = () => {
   return (
-    <Stack.Navigator screenOptions={screenOptions.fadeSlide}>
+    <Stack.Navigator screenOptions={screenOptions.horizontalIOS}>
       <Stack.Screen
         name="ProfileMain"
         component={ProfileScreen}
@@ -132,7 +132,7 @@ const ProfileStack = () => {
 
 const MessagesStack = () => {
   return (
-    <Stack.Navigator screenOptions={screenOptions.fadeSlide}>
+    <Stack.Navigator screenOptions={screenOptions.horizontalIOS}>
       <Stack.Screen
         name="MessagesList"
         component={MessagesScreen}
