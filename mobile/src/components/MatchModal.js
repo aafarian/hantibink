@@ -130,7 +130,7 @@ const styles = StyleSheet.create({
     right: theme.spacing.md,
     padding: theme.spacing.xs,
     zIndex: 10,
-    backgroundColor: 'rgba(255,255,255,0.9)',
+    backgroundColor: `${theme.colors.background.primary}E6`, // 90% opacity
     borderRadius: theme.borderRadius.round,
   },
   header: {

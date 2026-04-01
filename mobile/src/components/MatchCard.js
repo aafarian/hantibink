@@ -250,14 +250,14 @@ const styles = {
     width: 10,
     height: 10,
     borderRadius: 5,
-    backgroundColor: '#4CAF50',
+    backgroundColor: theme.colors.status.success,
     position: 'absolute',
   },
   onlineShockwave: {
     width: 10,
     height: 10,
     borderRadius: 5,
-    backgroundColor: '#4CAF50',
+    backgroundColor: theme.colors.status.success,
     position: 'absolute',
   },
   location: {

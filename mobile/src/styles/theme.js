@@ -13,6 +13,7 @@ export const theme = {
     background: {
       primary: '#fff',
       secondary: '#f8f9fa',
+      tertiary: '#f0f0f0',
       overlay: 'rgba(0, 0, 0, 0.5)',
     },
     status: {
