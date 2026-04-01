@@ -115,10 +115,10 @@ const ChatScreen = ({ route, navigation }) => {
   const shockwaveScale = useRef(new Animated.Value(1)).current;
   const shockwaveOpacity = useRef(new Animated.Value(0.6)).current;
 
-  // Shockwave animation for online dot
+  // Shockwave animation for online dot — only run when screen is focused
   useEffect(() => {
     let shockwaveAnimation;
-    if (onlineStatus && isPremium) {
+    if (onlineStatus && isPremium && isFocused) {
       shockwaveAnimation = Animated.loop(
         Animated.parallel([
           Animated.sequence([
@@ -157,7 +157,7 @@ const ChatScreen = ({ route, navigation }) => {
         shockwaveAnimation.stop();
       }
     };
-  }, [onlineStatus, isPremium, shockwaveScale, shockwaveOpacity]);
+  }, [onlineStatus, isPremium, isFocused, shockwaveScale, shockwaveOpacity]);
 
   // Keep focus ref in sync for callbacks
   useEffect(() => {
@@ -215,7 +215,7 @@ const ChatScreen = ({ route, navigation }) => {
   // Load messages on mount
   useEffect(() => {
     loadMessages();
-    joinChatRoom();
+    const unsubscribeListeners = joinChatRoom();
     // Clear any pending notification for this conversation
     clearNotificationForMatch(match.matchId);
     // Track chat opened in analytics
@@ -223,6 +223,7 @@ const ChatScreen = ({ route, navigation }) => {
     // Don't mark as read on mount - wait until we have messages
 
     return () => {
+      unsubscribeListeners?.();
       leaveChatRoom();
       // Clear typing timeout on unmount
       if (otherUserTypingTimeoutRef.current) {
@@ -332,16 +333,24 @@ const ChatScreen = ({ route, navigation }) => {
         handleNewMessage(data);
       } else if (event === 'message-reaction' && data.matchId === match.matchId) {
         handleMessageReaction(data);
-      } else if (event === 'user-typing' && data.matchId === match.matchId) {
+      } else if (
+        event === 'user-typing' &&
+        data.matchId === match.matchId &&
+        isFocusedRef.current
+      ) {
         handleUserTyping(data);
-      } else if (event === 'messages-read' && data.matchId === match.matchId) {
+      } else if (
+        event === 'messages-read' &&
+        data.matchId === match.matchId &&
+        isFocusedRef.current
+      ) {
         handleMessagesRead(data);
       }
     });
 
-    // Check online status
+    // Check online status — skip state updates when screen is not focused
     const unsubscribeOnline = SocketService.onUserStatus((userId, isOnline, timestamp) => {
-      if (userId === match.otherUser.id) {
+      if (userId === match.otherUser.id && isFocusedRef.current) {
         setOnlineStatus(isOnline);
         if (!isOnline && timestamp) {
           setLastSeen(new Date(timestamp));
