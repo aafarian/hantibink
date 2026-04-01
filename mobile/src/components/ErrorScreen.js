@@ -7,9 +7,6 @@ import Animated, {
   withSpring,
   withTiming,
   withDelay,
-  withRepeat,
-  withSequence,
-  Easing,
 } from 'react-native-reanimated';
 import { commonStyles } from '../styles/commonStyles';
 import { theme } from '../styles/theme';
@@ -83,50 +80,35 @@ export const EmptyState = ({
   action = null, // { text: "Get Started", onPress: () => {} }
   style = {},
 }) => {
-  // Animation values
+  // Animation values - clean entrance, no ongoing animations
   const iconScale = useSharedValue(0);
   const iconOpacity = useSharedValue(0);
-  const iconFloat = useSharedValue(0);
   const titleOpacity = useSharedValue(0);
-  const titleTranslateY = useSharedValue(20);
+  const titleTranslateY = useSharedValue(15);
   const subtitleOpacity = useSharedValue(0);
-  const subtitleTranslateY = useSharedValue(20);
+  const subtitleTranslateY = useSharedValue(15);
   const buttonOpacity = useSharedValue(0);
   const buttonScale = useSharedValue(0.9);
 
   useEffect(() => {
-    // Icon appears with bounce
-    iconScale.value = withSpring(1, { damping: 10, stiffness: 80 });
-    iconOpacity.value = withTiming(1, { duration: 400 });
+    // Icon appears first with gentle scale
+    iconScale.value = withSpring(1, { damping: 14, stiffness: 100 });
+    iconOpacity.value = withTiming(1, { duration: 300 });
 
-    // Gentle floating animation for the icon
-    iconFloat.value = withDelay(
-      500,
-      withRepeat(
-        withSequence(
-          withTiming(-6, { duration: 1500, easing: Easing.inOut(Easing.ease) }),
-          withTiming(6, { duration: 1500, easing: Easing.inOut(Easing.ease) })
-        ),
-        -1, // infinite
-        true // reverse
-      )
-    );
+    // Title fades and slides up
+    titleOpacity.value = withDelay(150, withTiming(1, { duration: 250 }));
+    titleTranslateY.value = withDelay(150, withTiming(0, { duration: 300 }));
 
-    // Title slides up
-    titleOpacity.value = withDelay(200, withTiming(1, { duration: 300 }));
-    titleTranslateY.value = withDelay(200, withSpring(0, { damping: 15 }));
-
-    // Subtitle slides up
-    subtitleOpacity.value = withDelay(350, withTiming(1, { duration: 300 }));
-    subtitleTranslateY.value = withDelay(350, withSpring(0, { damping: 15 }));
+    // Subtitle follows
+    subtitleOpacity.value = withDelay(250, withTiming(1, { duration: 250 }));
+    subtitleTranslateY.value = withDelay(250, withTiming(0, { duration: 300 }));
 
     // Button appears last
-    buttonOpacity.value = withDelay(500, withTiming(1, { duration: 300 }));
-    buttonScale.value = withDelay(500, withSpring(1, { damping: 12 }));
+    buttonOpacity.value = withDelay(350, withTiming(1, { duration: 250 }));
+    buttonScale.value = withDelay(350, withSpring(1, { damping: 14 }));
   }, [
     iconScale,
     iconOpacity,
-    iconFloat,
     titleOpacity,
     titleTranslateY,
     subtitleOpacity,
@@ -136,7 +118,7 @@ export const EmptyState = ({
   ]);
 
   const iconAnimatedStyle = useAnimatedStyle(() => ({
-    transform: [{ scale: iconScale.value }, { translateY: iconFloat.value }],
+    transform: [{ scale: iconScale.value }],
     opacity: iconOpacity.value,
   }));
 
