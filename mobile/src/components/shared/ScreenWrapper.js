@@ -28,7 +28,7 @@ const ScreenWrapper = ({
   statusBarStyle = 'light-content',
   useSafeArea = true,
   edges = ['top', 'bottom'], // Which edges to apply safe area insets
-  backgroundColor = '#fff',
+  backgroundColor = theme.colors.background.primary,
 }) => {
   const insets = useSafeAreaInsets();
 

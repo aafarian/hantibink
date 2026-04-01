@@ -11,6 +11,7 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { theme } from '../styles/theme';
 import Logger from '../utils/logger';
 
 const Toast = ({
@@ -81,25 +82,25 @@ const Toast = ({
     switch (type) {
       case 'success':
         return {
-          backgroundColor: '#4CAF50',
+          backgroundColor: theme.colors.status.success,
           iconName: 'checkmark-circle',
           title: 'Success',
         };
       case 'error':
         return {
-          backgroundColor: '#F44336',
+          backgroundColor: theme.colors.status.error,
           iconName: 'alert-circle',
           title: 'Error',
         };
       case 'warning':
         return {
-          backgroundColor: '#FF9800',
+          backgroundColor: theme.colors.status.warning,
           iconName: 'warning',
           title: 'Warning',
         };
       default:
         return {
-          backgroundColor: '#333',
+          backgroundColor: theme.colors.text.primary,
           iconName: 'information-circle',
           title: 'Info',
         };
@@ -174,7 +175,12 @@ const Toast = ({
           disabled={type !== 'error'}
         >
           <View style={styles.messageContainer}>
-            <Ionicons name={toastStyle.iconName} size={18} color="#fff" style={styles.icon} />
+            <Ionicons
+              name={toastStyle.iconName}
+              size={18}
+              color={theme.colors.text.white}
+              style={styles.icon}
+            />
             <View style={styles.messageTextContainer}>
               <Text style={styles.message} numberOfLines={2}>
                 {message}
@@ -204,7 +210,7 @@ const Toast = ({
                 hideToast();
               }}
             >
-              <Ionicons name="close" size={16} color="#fff" />
+              <Ionicons name="close" size={16} color={theme.colors.text.white} />
             </TouchableOpacity>
           </View>
         </TouchableOpacity>
@@ -219,10 +225,10 @@ const Toast = ({
           <View style={styles.modalContent}>
             {/* Header */}
             <View style={[styles.modalHeader, { backgroundColor: toastStyle.backgroundColor }]}>
-              <Ionicons name={toastStyle.iconName} size={24} color="#fff" />
+              <Ionicons name={toastStyle.iconName} size={24} color={theme.colors.text.white} />
               <Text style={styles.modalTitle}>{toastStyle.title}</Text>
               <TouchableOpacity onPress={handleCloseModal} style={styles.modalCloseButton}>
-                <Ionicons name="close" size={24} color="#fff" />
+                <Ionicons name="close" size={24} color={theme.colors.text.white} />
               </TouchableOpacity>
             </View>
 
@@ -308,7 +314,7 @@ const Toast = ({
                 style={[styles.modalButton, styles.reportButton]}
                 onPress={handleReportError}
               >
-                <Ionicons name="mail-outline" size={18} color="#555" />
+                <Ionicons name="mail-outline" size={18} color={theme.colors.text.secondary} />
                 <Text style={styles.reportButtonText}>Report</Text>
               </TouchableOpacity>
 
@@ -360,13 +366,13 @@ const styles = StyleSheet.create({
   },
   message: {
     fontSize: 14,
-    color: '#fff',
+    color: theme.colors.text.white,
     fontWeight: '500',
     lineHeight: 18,
   },
   tapHint: {
     fontSize: 11,
-    color: 'rgba(255,255,255,0.7)',
+    color: `${theme.colors.text.white}B3`, // 70% opacity
     marginTop: 1,
   },
   actions: {
@@ -377,12 +383,12 @@ const styles = StyleSheet.create({
   actionButton: {
     paddingHorizontal: 10,
     paddingVertical: 4,
-    backgroundColor: 'rgba(255, 255, 255, 0.2)',
+    backgroundColor: `${theme.colors.text.white}33`, // 20% opacity
     borderRadius: 6,
     marginRight: 6,
   },
   actionText: {
-    color: '#fff',
+    color: theme.colors.text.white,
     fontSize: 13,
     fontWeight: '600',
   },
@@ -398,10 +404,10 @@ const styles = StyleSheet.create({
   },
   modalBackdrop: {
     ...StyleSheet.absoluteFillObject,
-    backgroundColor: 'rgba(0,0,0,0.5)',
+    backgroundColor: theme.colors.background.overlay,
   },
   modalContent: {
-    backgroundColor: '#fff',
+    backgroundColor: theme.colors.background.primary,
     borderRadius: 16,
     width: '100%',
     maxWidth: 400,
@@ -417,7 +423,7 @@ const styles = StyleSheet.create({
     flex: 1,
     fontSize: 18,
     fontWeight: '600',
-    color: '#fff',
+    color: theme.colors.text.white,
     marginLeft: 12,
   },
   modalCloseButton: {
@@ -430,25 +436,25 @@ const styles = StyleSheet.create({
   },
   detailsScroll: {
     borderTopWidth: 1,
-    borderTopColor: '#eee',
+    borderTopColor: theme.colors.border.light,
     paddingHorizontal: 20,
     maxHeight: 280,
   },
   detailItem: {
     paddingVertical: 10,
     borderBottomWidth: 1,
-    borderBottomColor: '#f0f0f0',
+    borderBottomColor: theme.colors.background.tertiary,
   },
   modalMessage: {
     fontSize: 15,
-    color: '#333',
+    color: theme.colors.text.primary,
     lineHeight: 22,
   },
   modalFooter: {
     flexDirection: 'row',
     padding: 16,
     borderTopWidth: 1,
-    borderTopColor: '#eee',
+    borderTopColor: theme.colors.border.light,
     gap: 12,
   },
   modalButton: {
@@ -461,56 +467,56 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   reportButton: {
-    backgroundColor: '#f5f5f5',
+    backgroundColor: theme.colors.background.secondary,
   },
   reportButtonText: {
     fontSize: 15,
     fontWeight: '500',
-    color: '#555',
+    color: theme.colors.text.secondary,
   },
   dismissButton: {
-    backgroundColor: '#333',
+    backgroundColor: theme.colors.text.primary,
   },
   dismissButtonText: {
     fontSize: 15,
     fontWeight: '600',
-    color: '#fff',
+    color: theme.colors.text.white,
   },
   // Error details styles
   detailLabel: {
     fontSize: 12,
     fontWeight: '600',
-    color: '#888',
+    color: theme.colors.text.muted,
     textTransform: 'uppercase',
     letterSpacing: 0.5,
     marginBottom: 4,
   },
   detailValue: {
     fontSize: 14,
-    color: '#333',
+    color: theme.colors.text.primary,
     lineHeight: 20,
   },
   detailValueMono: {
     fontSize: 13,
-    color: '#333',
+    color: theme.colors.text.primary,
     fontFamily: 'monospace',
     lineHeight: 18,
   },
   stackContainer: {
-    backgroundColor: '#f8f8f8',
+    backgroundColor: theme.colors.background.secondary,
     borderRadius: 8,
     padding: 12,
     marginTop: 4,
   },
   stackTrace: {
     fontSize: 11,
-    color: '#666',
+    color: theme.colors.text.secondary,
     fontFamily: 'monospace',
     lineHeight: 16,
   },
   noDetailsText: {
     fontSize: 14,
-    color: '#888',
+    color: theme.colors.text.muted,
     fontStyle: 'italic',
   },
 });

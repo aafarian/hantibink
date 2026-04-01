@@ -1,13 +1,20 @@
 import React from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Image, Animated } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, Animated } from 'react-native';
+import ReanimatedAnimated from 'react-native-reanimated';
 import { Ionicons } from '@expo/vector-icons';
 import { getUserProfilePhoto, getUserDisplayName } from '../../utils/profileHelpers';
 import { formatLastSeen } from '../../utils/timeHelpers';
+import {
+  createSharedTag,
+  SharedTagPrefixes,
+  TransitionPresets,
+} from '../../utils/sharedElementTransition';
 
 /**
  * Chat header component displaying user info, online status, and navigation controls
  * @param {Object} props
  * @param {Object} props.otherUser - The other user in the conversation
+ * @param {string} props.matchId - The match ID for shared element transitions
  * @param {boolean} props.isPremium - Whether the current user has premium
  * @param {boolean} props.onlineStatus - Whether the other user is online
  * @param {Date|null} props.lastSeen - Last seen timestamp for the other user
@@ -20,6 +27,7 @@ import { formatLastSeen } from '../../utils/timeHelpers';
  */
 const ChatHeader = ({
   otherUser,
+  matchId,
   isPremium,
   onlineStatus,
   lastSeen,
@@ -30,6 +38,8 @@ const ChatHeader = ({
   shockwaveScale,
   shockwaveOpacity,
 }) => {
+  // Generate shared transition tag for profile photo morphing between screens
+  const sharedPhotoTag = matchId ? createSharedTag(SharedTagPrefixes.CHAT_AVATAR, matchId) : null;
   return (
     <View style={styles.header}>
       <TouchableOpacity onPress={onBack} style={styles.backButton}>
@@ -37,7 +47,12 @@ const ChatHeader = ({
       </TouchableOpacity>
 
       <TouchableOpacity style={styles.headerProfile} onPress={onProfilePress}>
-        <Image source={{ uri: getUserProfilePhoto(otherUser) }} style={styles.headerAvatar} />
+        <ReanimatedAnimated.Image
+          source={{ uri: getUserProfilePhoto(otherUser) }}
+          style={styles.headerAvatar}
+          sharedTransitionTag={sharedPhotoTag}
+          sharedTransitionStyle={sharedPhotoTag ? TransitionPresets.smooth : undefined}
+        />
         <View style={styles.headerInfo}>
           <Text style={styles.headerName}>{getUserDisplayName(otherUser)}</Text>
           <View style={styles.statusRow}>

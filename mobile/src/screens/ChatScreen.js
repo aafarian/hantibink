@@ -1152,6 +1152,7 @@ const ChatScreen = ({ route, navigation }) => {
           {/* Header */}
           <ChatHeader
             otherUser={match.otherUser}
+            matchId={match.matchId}
             isPremium={isPremium}
             onlineStatus={onlineStatus}
             lastSeen={lastSeen}

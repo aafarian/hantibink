@@ -1,12 +1,11 @@
-import React, { useRef, useEffect } from 'react';
+import React, { useRef, useEffect, useCallback } from 'react';
 import { NavigationContainer } from '@react-navigation/native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { createStackNavigator } from '@react-navigation/stack';
-import { Ionicons } from '@expo/vector-icons';
-import { Platform, View, ActivityIndicator, Text } from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { View, ActivityIndicator } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as Notifications from 'expo-notifications';
+import * as Haptics from 'expo-haptics';
 import { useAuth } from '../contexts/AuthContext';
 import { useUnread } from '../contexts/UnreadContext';
 import { LocationProvider } from '../contexts/LocationContext';
@@ -15,6 +14,10 @@ import LocationPromptModal from '../components/LocationPromptModal';
 import Logger from '../utils/logger';
 import { useLocationTracking } from '../hooks/useLocationTracking';
 import { theme } from '../styles/theme';
+import { screenOptions } from './transitions';
+
+// Import components
+import AnimatedTabBar from '../components/navigation/AnimatedTabBar';
 
 // Import screens
 import ProfileScreen from '../screens/ProfileScreen';
@@ -43,62 +46,9 @@ import AuthNavigator from './AuthNavigator';
 const Tab = createBottomTabNavigator();
 const Stack = createStackNavigator();
 
-// Extract badge component to avoid creating components during render
-const TabBadge = ({ iconName, size, color, count }) => (
-  <View style={{ position: 'relative' }}>
-    <Ionicons name={iconName} size={size} color={color} />
-    <View style={styles.badge}>
-      <Text style={styles.badgeText}>{count > 99 ? '99+' : count}</Text>
-    </View>
-  </View>
-);
-
-// Extract tab icon renderer to avoid creating components during render
-const renderTabIcon = (route, focused, color, size, unreadCount) => {
-  let iconName;
-
-  if (route.name === 'Profile') {
-    iconName = focused ? 'person' : 'person-outline';
-  } else if (route.name === 'People') {
-    iconName = focused ? 'people' : 'people-outline';
-  } else if (route.name === 'Liked You') {
-    iconName = focused ? 'heart' : 'heart-outline';
-  } else if (route.name === 'Messages') {
-    iconName = focused ? 'chatbubbles' : 'chatbubbles-outline';
-  } else if (route.name === 'API Test') {
-    iconName = focused ? 'flask' : 'flask-outline';
-  }
-
-  // Add badge for Messages tab if there are unread conversations
-  if (route.name === 'Messages' && unreadCount > 0) {
-    return <TabBadge iconName={iconName} size={size} color={color} count={unreadCount} />;
-  }
-
-  return <Ionicons name={iconName} size={size} color={color} />;
-};
-
-const styles = {
-  badge: {
-    position: 'absolute',
-    right: -6,
-    top: -3,
-    backgroundColor: theme.colors.primary,
-    borderRadius: 10,
-    minWidth: 20,
-    height: 20,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  badgeText: {
-    color: 'white',
-    fontSize: 12,
-    fontWeight: 'bold',
-  },
-};
-
 const PeopleStack = () => {
   return (
-    <Stack.Navigator>
+    <Stack.Navigator screenOptions={screenOptions.horizontalIOS}>
       <Stack.Screen
         name="PeopleMain"
         component={PeopleScreenOptimized}
@@ -126,7 +76,7 @@ const PeopleStack = () => {
 
 const ProfileStack = () => {
   return (
-    <Stack.Navigator>
+    <Stack.Navigator screenOptions={screenOptions.horizontalIOS}>
       <Stack.Screen
         name="ProfileMain"
         component={ProfileScreen}
@@ -182,11 +132,12 @@ const ProfileStack = () => {
 
 const MessagesStack = () => {
   return (
-    <Stack.Navigator>
+    <Stack.Navigator screenOptions={screenOptions.horizontalIOS}>
       <Stack.Screen
         name="MessagesList"
         component={MessagesScreen}
         options={{
+          headerShown: true,
           title: 'Messages',
           headerStyle: {
             backgroundColor: theme.colors.primary,
@@ -209,7 +160,6 @@ const MessagesStack = () => {
 };
 
 const MainNavigator = () => {
-  const insets = useSafeAreaInsets();
   const { loading, userProfile, refreshUserProfile, user } = useAuth();
   const { unreadConversationCount } = useUnread();
   const [showSetupModal, setShowSetupModal] = React.useState(false);
@@ -226,6 +176,12 @@ const MainNavigator = () => {
     clearStaleFlags();
   }, []);
 
+  // Memoize tab bar render function to prevent re-renders
+  const renderTabBar = useCallback(
+    props => <AnimatedTabBar {...props} unreadCount={unreadConversationCount} />,
+    [unreadConversationCount]
+  );
+
   if (loading) {
     return (
       <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
@@ -237,22 +193,7 @@ const MainNavigator = () => {
   return (
     <>
       <UpdateBanner />
-      <Tab.Navigator
-        screenOptions={({ route }) => ({
-          tabBarIcon: ({ focused, color, size }) =>
-            renderTabIcon(route, focused, color, size, unreadConversationCount),
-          tabBarActiveTintColor: theme.colors.primary,
-          tabBarInactiveTintColor: 'gray',
-          tabBarStyle: {
-            backgroundColor: '#ffffff',
-            borderTopWidth: 1,
-            borderTopColor: '#e0e0e0',
-            paddingBottom: Platform.OS === 'android' ? insets.bottom : 5,
-            paddingTop: 5,
-            height: Platform.OS === 'android' ? 60 + insets.bottom : 60,
-          },
-        })}
-      >
+      <Tab.Navigator tabBar={renderTabBar}>
         <Tab.Screen
           name="Profile"
           component={ProfileStack}
@@ -263,6 +204,7 @@ const MainNavigator = () => {
           name="Liked You"
           component={LikedYouScreen}
           options={{
+            headerShown: true,
             title: 'Liked You',
             headerStyle: {
               backgroundColor: theme.colors.primary,
@@ -310,12 +252,22 @@ const MainNavigator = () => {
   );
 };
 
+/**
+ * Minimum interval between haptic feedback triggers (ms).
+ * Prevents double-fires on rapid navigation.
+ */
+const HAPTIC_DEBOUNCE_MS = 150;
+
 const AppNavigator = () => {
   const { user, userProfile, loading } = useAuth();
   const navigationRef = useRef();
   const notificationResponseListener = useRef();
   const pendingNavigationRef = useRef(null);
   const [isNavigationReady, setIsNavigationReady] = React.useState(false);
+
+  // Refs for navigation transition haptics
+  const lastNavigationKeyRef = useRef(null);
+  const lastHapticTimeRef = useRef(0);
 
   // Force update check
   const { showUpdateModal, isUpdateRequired, versionConfig, currentVersion, dismissModal } =
@@ -385,6 +337,38 @@ const AppNavigator = () => {
   // This was causing a race condition where the flag was being cleared
   // before MainNavigator could check it
 
+  /**
+   * Handle navigation state changes and trigger subtle haptic feedback.
+   * Uses debouncing to prevent double-fires on rapid navigation.
+   * Only fires when navigation actually completes (not on back gesture cancel).
+   */
+  const handleNavigationStateChange = useCallback(state => {
+    if (!state) return;
+
+    // Get the current active route key
+    const currentKey = state.routes[state.index]?.key;
+
+    // Skip if this is the same route (back gesture cancel returns to same route)
+    if (currentKey === lastNavigationKeyRef.current) {
+      return;
+    }
+
+    // Debounce rapid navigation
+    const now = Date.now();
+    if (now - lastHapticTimeRef.current < HAPTIC_DEBOUNCE_MS) {
+      return;
+    }
+
+    // Update tracking refs
+    lastNavigationKeyRef.current = currentKey;
+    lastHapticTimeRef.current = now;
+
+    // Trigger light haptic feedback (respects system haptic settings)
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {
+      // Silently ignore haptic errors (e.g., device doesn't support haptics)
+    });
+  }, []);
+
   // Show loading screen while checking authentication
   if (loading) {
     return (
@@ -398,7 +382,11 @@ const AppNavigator = () => {
 
   return (
     <>
-      <NavigationContainer ref={navigationRef} onReady={handleNavigationReady}>
+      <NavigationContainer
+        ref={navigationRef}
+        onReady={handleNavigationReady}
+        onStateChange={handleNavigationStateChange}
+      >
         <ToastProvider>
           <LocationProvider>
             {(() => {

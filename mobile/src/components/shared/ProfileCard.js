@@ -2,6 +2,7 @@ import React, { useState, useMemo, useCallback } from 'react';
 import { View, Text, StyleSheet, Image, TouchableOpacity, ScrollView } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
+import { theme } from '../../styles/theme';
 
 /**
  * Extract photo URL from photo object or string (pure utility function)
@@ -93,7 +94,7 @@ const ProfileCard = ({
   }, [onPhotoTap, photos.length]);
 
   // Render info row with icon - memoized (must be before early returns)
-  const renderInfoRow = useCallback((icon, text, iconColor = '#fff') => {
+  const renderInfoRow = useCallback((icon, text, iconColor = theme.colors.text.white) => {
     if (!text) return null;
     return (
       <View style={styles.infoRow}>
@@ -133,7 +134,11 @@ const ProfileCard = ({
     return (
       <View style={[styles.card, styles.noPhotoCard, style]}>
         <View style={styles.noPhotoContent}>
-          <Ionicons name="person-circle-outline" size={80} color="rgba(255,255,255,0.5)" />
+          <Ionicons
+            name="person-circle-outline"
+            size={80}
+            color={theme.colors.background.overlay}
+          />
           <Text style={styles.cardName}>
             {profile.name}
             {age && `, ${age}`}
@@ -187,7 +192,7 @@ const ProfileCard = ({
             {/* Location */}
             {profile.location && (
               <View style={styles.locationRow}>
-                <Ionicons name="location-outline" size={14} color="#fff" />
+                <Ionicons name="location-outline" size={14} color={theme.colors.text.white} />
                 <Text style={styles.cardLocation}>{profile.location}</Text>
               </View>
             )}
@@ -274,12 +279,8 @@ const styles = StyleSheet.create({
     flex: 1,
     borderRadius: 20,
     overflow: 'hidden',
-    backgroundColor: '#2a2a2a',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.25,
-    shadowRadius: 3.84,
-    elevation: 5,
+    backgroundColor: theme.colors.text.primary,
+    ...theme.shadows.medium,
   },
   imageContainer: {
     flex: 1,
@@ -306,7 +307,7 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(255,255,255,0.4)',
   },
   photoIndicatorActive: {
-    backgroundColor: '#fff',
+    backgroundColor: theme.colors.text.white,
     width: 20,
   },
   gradient: {
@@ -326,7 +327,7 @@ const styles = StyleSheet.create({
   cardName: {
     fontSize: 24,
     fontWeight: 'bold',
-    color: '#fff',
+    color: theme.colors.text.white,
     marginBottom: 4,
   },
   locationRow: {
@@ -336,7 +337,7 @@ const styles = StyleSheet.create({
   },
   cardLocation: {
     fontSize: 14,
-    color: '#fff',
+    color: theme.colors.text.white,
     marginLeft: 4,
   },
   cardBio: {
@@ -370,7 +371,7 @@ const styles = StyleSheet.create({
   },
   infoText: {
     fontSize: 14,
-    color: '#fff',
+    color: theme.colors.text.white,
     flex: 1,
   },
   tagsContainer: {
@@ -385,7 +386,7 @@ const styles = StyleSheet.create({
     borderRadius: 15,
   },
   tagText: {
-    color: '#fff',
+    color: theme.colors.text.white,
     fontSize: 12,
   },
   interestsSection: {
