@@ -23,7 +23,7 @@ export const theme = {
       info: '#2196F3',
     },
     border: {
-      light: '#e0e0e0',
+      light: '#e0e0e0', // Same as gray[300] - intentionally duplicated for semantic clarity
       medium: '#ccc',
     },
     gray: {

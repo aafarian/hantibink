@@ -191,7 +191,7 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    paddingHorizontal: 30,
+    paddingHorizontal: theme.spacing.xxxl,
   },
   statusContainer: {
     alignItems: 'center',
@@ -203,14 +203,14 @@ const styles = StyleSheet.create({
     color: theme.colors.text.primary,
     textAlign: 'center',
     marginTop: theme.spacing.xl,
-    marginBottom: 10,
+    marginBottom: theme.spacing.sm,
   },
   subtitle: {
     fontSize: theme.typography.sizes.lg,
     color: theme.colors.text.secondary,
     textAlign: 'center',
     lineHeight: 22,
-    marginTop: 10,
+    marginTop: theme.spacing.sm,
   },
   statusText: {
     fontSize: theme.typography.sizes.xxl,
@@ -222,12 +222,12 @@ const styles = StyleSheet.create({
   },
   locationText: {
     fontSize: theme.typography.sizes.xl,
-    color: theme.colors.primary,
+    color: theme.colors.secondary,
     fontWeight: theme.typography.weights.medium,
     marginBottom: theme.spacing.sm,
   },
   footer: {
-    paddingHorizontal: 30,
+    paddingHorizontal: theme.spacing.xxxl,
   },
   primaryButton: {
     backgroundColor: theme.colors.primary,

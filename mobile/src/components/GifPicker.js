@@ -270,7 +270,7 @@ const styles = StyleSheet.create({
     color: theme.colors.text.primary,
   },
   headerSpacer: {
-    width: 36,
+    width: theme.icons.lg + theme.spacing.xs, // Match close button touchable area
   },
   searchContainer: {
     flexDirection: 'row',
@@ -295,7 +295,7 @@ const styles = StyleSheet.create({
   },
   gridContainer: {
     paddingHorizontal: theme.spacing.md,
-    paddingBottom: 60,
+    paddingBottom: theme.icons.xxl, // Space for attribution overlay
   },
   gifItem: {
     width: GIF_SIZE,
@@ -335,7 +335,7 @@ const styles = StyleSheet.create({
   retryButton: {
     marginTop: theme.spacing.lg,
     paddingHorizontal: theme.spacing.xxl,
-    paddingVertical: 10,
+    paddingVertical: theme.spacing.sm,
     backgroundColor: theme.colors.primary,
     borderRadius: theme.borderRadius.xxl,
   },
