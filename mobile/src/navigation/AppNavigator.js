@@ -1,10 +1,8 @@
-import React, { useRef, useEffect } from 'react';
+import React, { useRef, useEffect, useCallback } from 'react';
 import { NavigationContainer } from '@react-navigation/native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { createStackNavigator } from '@react-navigation/stack';
-import { Ionicons } from '@expo/vector-icons';
-import { Platform, View, ActivityIndicator, Text } from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { View, ActivityIndicator } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as Notifications from 'expo-notifications';
 import { useAuth } from '../contexts/AuthContext';
@@ -16,6 +14,9 @@ import Logger from '../utils/logger';
 import { useLocationTracking } from '../hooks/useLocationTracking';
 import { theme } from '../styles/theme';
 import { screenOptions } from './transitions';
+
+// Import components
+import AnimatedTabBar from '../components/navigation/AnimatedTabBar';
 
 // Import screens
 import ProfileScreen from '../screens/ProfileScreen';
@@ -43,59 +44,6 @@ import AuthNavigator from './AuthNavigator';
 
 const Tab = createBottomTabNavigator();
 const Stack = createStackNavigator();
-
-// Extract badge component to avoid creating components during render
-const TabBadge = ({ iconName, size, color, count }) => (
-  <View style={{ position: 'relative' }}>
-    <Ionicons name={iconName} size={size} color={color} />
-    <View style={styles.badge}>
-      <Text style={styles.badgeText}>{count > 99 ? '99+' : count}</Text>
-    </View>
-  </View>
-);
-
-// Extract tab icon renderer to avoid creating components during render
-const renderTabIcon = (route, focused, color, size, unreadCount) => {
-  let iconName;
-
-  if (route.name === 'Profile') {
-    iconName = focused ? 'person' : 'person-outline';
-  } else if (route.name === 'People') {
-    iconName = focused ? 'people' : 'people-outline';
-  } else if (route.name === 'Liked You') {
-    iconName = focused ? 'heart' : 'heart-outline';
-  } else if (route.name === 'Messages') {
-    iconName = focused ? 'chatbubbles' : 'chatbubbles-outline';
-  } else if (route.name === 'API Test') {
-    iconName = focused ? 'flask' : 'flask-outline';
-  }
-
-  // Add badge for Messages tab if there are unread conversations
-  if (route.name === 'Messages' && unreadCount > 0) {
-    return <TabBadge iconName={iconName} size={size} color={color} count={unreadCount} />;
-  }
-
-  return <Ionicons name={iconName} size={size} color={color} />;
-};
-
-const styles = {
-  badge: {
-    position: 'absolute',
-    right: -6,
-    top: -3,
-    backgroundColor: theme.colors.primary,
-    borderRadius: 10,
-    minWidth: 20,
-    height: 20,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  badgeText: {
-    color: 'white',
-    fontSize: 12,
-    fontWeight: 'bold',
-  },
-};
 
 const PeopleStack = () => {
   return (
@@ -203,7 +151,6 @@ const MessagesStack = () => {
 };
 
 const MainNavigator = () => {
-  const insets = useSafeAreaInsets();
   const { loading, userProfile, refreshUserProfile, user } = useAuth();
   const { unreadConversationCount } = useUnread();
   const [showSetupModal, setShowSetupModal] = React.useState(false);
@@ -220,6 +167,12 @@ const MainNavigator = () => {
     clearStaleFlags();
   }, []);
 
+  // Memoize tab bar render function to prevent re-renders
+  const renderTabBar = useCallback(
+    props => <AnimatedTabBar {...props} unreadCount={unreadConversationCount} />,
+    [unreadConversationCount]
+  );
+
   if (loading) {
     return (
       <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
@@ -232,20 +185,10 @@ const MainNavigator = () => {
     <>
       <UpdateBanner />
       <Tab.Navigator
-        screenOptions={({ route }) => ({
-          tabBarIcon: ({ focused, color, size }) =>
-            renderTabIcon(route, focused, color, size, unreadConversationCount),
-          tabBarActiveTintColor: theme.colors.primary,
-          tabBarInactiveTintColor: 'gray',
-          tabBarStyle: {
-            backgroundColor: '#ffffff',
-            borderTopWidth: 1,
-            borderTopColor: '#e0e0e0',
-            paddingBottom: Platform.OS === 'android' ? insets.bottom : 5,
-            paddingTop: 5,
-            height: Platform.OS === 'android' ? 60 + insets.bottom : 60,
-          },
-        })}
+        tabBar={renderTabBar}
+        screenOptions={{
+          headerShown: false,
+        }}
       >
         <Tab.Screen
           name="Profile"
