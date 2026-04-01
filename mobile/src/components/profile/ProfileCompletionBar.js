@@ -59,8 +59,8 @@ const ProfileCompletionBar = ({ userProfile, formData, onPress, compact = false 
 
   // Determine color based on percentage
   const getProgressColor = () => {
-    if (percentage >= 80) return '#4CAF50'; // Green
-    if (percentage >= 50) return '#FF9800'; // Orange
+    if (percentage >= 80) return theme.colors.status.success; // Green
+    if (percentage >= 50) return theme.colors.status.warning; // Orange
     return theme.colors.primary; // Red/Pink
   };
 
@@ -80,7 +80,7 @@ const ProfileCompletionBar = ({ userProfile, formData, onPress, compact = false 
           {missingFields.length > 0 && (
             <Text style={styles.compactHint}>Add {missingFields.join(', ')}</Text>
           )}
-          {onPress && <Ionicons name="chevron-forward" size={16} color="#999" />}
+          {onPress && <Ionicons name="chevron-forward" size={16} color={theme.colors.gray[500]} />}
         </View>
         <View style={styles.progressBarContainer}>
           <View
@@ -118,33 +118,33 @@ const ProfileCompletionBar = ({ userProfile, formData, onPress, compact = false 
 
 const styles = StyleSheet.create({
   container: {
-    backgroundColor: '#fff',
-    marginHorizontal: 15,
-    marginVertical: 8,
-    paddingHorizontal: 14,
-    paddingVertical: 12,
-    borderRadius: 10,
+    backgroundColor: theme.colors.background.primary,
+    marginHorizontal: theme.spacing.lg,
+    marginVertical: theme.spacing.sm,
+    paddingHorizontal: theme.spacing.md,
+    paddingVertical: theme.spacing.md,
+    borderRadius: theme.borderRadius.lg,
     borderWidth: 1,
-    borderColor: '#f0f0f0',
+    borderColor: theme.colors.gray[200],
   },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 10,
+    gap: theme.spacing.sm,
   },
   percentage: {
-    fontSize: 14,
-    fontWeight: '600',
+    fontSize: theme.typography.sizes.md,
+    fontWeight: theme.typography.weights.semibold,
   },
   subtitle: {
-    fontSize: 13,
-    color: '#888',
-    marginTop: 6,
+    fontSize: theme.typography.sizes.sm,
+    color: theme.colors.gray[500],
+    marginTop: theme.spacing.xs,
   },
   progressBarContainer: {
     flex: 1,
     height: 6,
-    backgroundColor: '#f0f0f0',
+    backgroundColor: theme.colors.gray[200],
     borderRadius: 3,
     overflow: 'hidden',
   },
@@ -154,36 +154,36 @@ const styles = StyleSheet.create({
   },
   // Compact styles
   compactContainer: {
-    backgroundColor: '#fff',
-    paddingHorizontal: 16,
-    paddingTop: 10,
-    paddingBottom: 4,
+    backgroundColor: theme.colors.background.primary,
+    paddingHorizontal: theme.spacing.lg,
+    paddingTop: theme.spacing.sm,
+    paddingBottom: theme.spacing.xs,
     borderBottomWidth: 1,
-    borderBottomColor: '#f0f0f0',
+    borderBottomColor: theme.colors.gray[200],
   },
   compactHeader: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 6,
+    marginBottom: theme.spacing.xs,
   },
   compactLeft: {
     flexDirection: 'row',
     alignItems: 'baseline',
   },
   compactPercentage: {
-    fontSize: 16,
-    fontWeight: 'bold',
-    marginRight: 4,
+    fontSize: theme.typography.sizes.lg,
+    fontWeight: theme.typography.weights.bold,
+    marginRight: theme.spacing.xs,
   },
   compactLabel: {
-    fontSize: 13,
-    color: '#666',
-    marginRight: 10,
+    fontSize: theme.typography.sizes.sm,
+    color: theme.colors.gray[600],
+    marginRight: theme.spacing.sm,
   },
   compactHint: {
     flex: 1,
-    fontSize: 12,
-    color: '#999',
+    fontSize: theme.typography.sizes.sm,
+    color: theme.colors.gray[500],
     textAlign: 'right',
   },
 });

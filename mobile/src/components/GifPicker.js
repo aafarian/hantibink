@@ -16,6 +16,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import Logger from '../utils/logger';
 import environment from '../config/environment';
+import { theme } from '../styles/theme';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 const GIF_SIZE = (SCREEN_WIDTH - 48) / 3; // 3 columns with padding
@@ -147,7 +148,7 @@ const GifPicker = ({ visible, onClose, onSelectGif }) => {
     if (loading) {
       return (
         <View style={styles.centerContainer}>
-          <ActivityIndicator size="large" color="#E91E63" />
+          <ActivityIndicator size="large" color={theme.colors.primary} />
           <Text style={styles.loadingText}>Loading GIFs...</Text>
         </View>
       );
@@ -156,7 +157,7 @@ const GifPicker = ({ visible, onClose, onSelectGif }) => {
     if (error) {
       return (
         <View style={styles.centerContainer}>
-          <Ionicons name="sad-outline" size={48} color="#999" />
+          <Ionicons name="sad-outline" size={theme.icons.xl} color={theme.colors.text.muted} />
           <Text style={styles.errorText}>{error}</Text>
           <TouchableOpacity style={styles.retryButton} onPress={loadTrendingGifs}>
             <Text style={styles.retryText}>Retry</Text>
@@ -168,7 +169,7 @@ const GifPicker = ({ visible, onClose, onSelectGif }) => {
     if (searchQuery && gifs.length === 0) {
       return (
         <View style={styles.centerContainer}>
-          <Ionicons name="search-outline" size={48} color="#999" />
+          <Ionicons name="search-outline" size={theme.icons.xl} color={theme.colors.text.muted} />
           <Text style={styles.emptyText}>No GIFs found for "{searchQuery}"</Text>
         </View>
       );
@@ -188,7 +189,7 @@ const GifPicker = ({ visible, onClose, onSelectGif }) => {
         {/* Header */}
         <View style={styles.header}>
           <TouchableOpacity onPress={handleClose} style={styles.closeButton}>
-            <Ionicons name="close" size={28} color="#333" />
+            <Ionicons name="close" size={28} color={theme.colors.text.primary} />
           </TouchableOpacity>
           <Text style={styles.title}>Choose a GIF</Text>
           <View style={styles.headerSpacer} />
@@ -196,11 +197,16 @@ const GifPicker = ({ visible, onClose, onSelectGif }) => {
 
         {/* Search */}
         <View style={styles.searchContainer}>
-          <Ionicons name="search" size={20} color="#999" style={styles.searchIcon} />
+          <Ionicons
+            name="search"
+            size={theme.icons.sm}
+            color={theme.colors.text.muted}
+            style={styles.searchIcon}
+          />
           <TextInput
             style={styles.searchInput}
             placeholder="Search GIPHY"
-            placeholderTextColor="#999"
+            placeholderTextColor={theme.colors.text.muted}
             value={searchQuery}
             onChangeText={setSearchQuery}
             autoCorrect={false}
@@ -208,7 +214,7 @@ const GifPicker = ({ visible, onClose, onSelectGif }) => {
           />
           {searchQuery.length > 0 && (
             <TouchableOpacity onPress={() => setSearchQuery('')} style={styles.clearButton}>
-              <Ionicons name="close-circle" size={20} color="#999" />
+              <Ionicons name="close-circle" size={theme.icons.sm} color={theme.colors.text.muted} />
             </TouchableOpacity>
           )}
         </View>
@@ -244,60 +250,60 @@ const GifPicker = ({ visible, onClose, onSelectGif }) => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#fff',
+    backgroundColor: theme.colors.background.primary,
   },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingHorizontal: 16,
-    paddingVertical: 12,
+    paddingHorizontal: theme.spacing.lg,
+    paddingVertical: theme.spacing.md,
     borderBottomWidth: 1,
-    borderBottomColor: '#eee',
+    borderBottomColor: theme.colors.gray[200],
   },
   closeButton: {
-    padding: 4,
+    padding: theme.spacing.xs,
   },
   title: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: '#333',
+    fontSize: theme.typography.sizes.xl,
+    fontWeight: theme.typography.weights.semibold,
+    color: theme.colors.text.primary,
   },
   headerSpacer: {
-    width: 36,
+    width: theme.icons.lg + theme.spacing.xs, // Match close button touchable area
   },
   searchContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#f5f5f5',
-    marginHorizontal: 16,
-    marginVertical: 12,
-    borderRadius: 12,
-    paddingHorizontal: 12,
+    backgroundColor: theme.colors.gray[100],
+    marginHorizontal: theme.spacing.lg,
+    marginVertical: theme.spacing.md,
+    borderRadius: theme.borderRadius.lg,
+    paddingHorizontal: theme.spacing.md,
   },
   searchIcon: {
-    marginRight: 8,
+    marginRight: theme.spacing.sm,
   },
   searchInput: {
     flex: 1,
-    fontSize: 16,
-    paddingVertical: 12,
-    color: '#333',
+    fontSize: theme.typography.sizes.lg,
+    paddingVertical: theme.spacing.md,
+    color: theme.colors.text.primary,
   },
   clearButton: {
-    padding: 4,
+    padding: theme.spacing.xs,
   },
   gridContainer: {
-    paddingHorizontal: 12,
-    paddingBottom: 60,
+    paddingHorizontal: theme.spacing.md,
+    paddingBottom: theme.icons.xxl, // Space for attribution overlay
   },
   gifItem: {
     width: GIF_SIZE,
     height: GIF_SIZE,
-    margin: 4,
-    borderRadius: 8,
+    margin: theme.spacing.xs,
+    borderRadius: theme.borderRadius.md,
     overflow: 'hidden',
-    backgroundColor: '#f0f0f0',
+    backgroundColor: theme.colors.background.tertiary,
   },
   gifImage: {
     width: '100%',
@@ -307,52 +313,52 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    paddingHorizontal: 32,
+    paddingHorizontal: theme.spacing.xxxl,
   },
   loadingText: {
-    marginTop: 12,
-    fontSize: 16,
-    color: '#666',
+    marginTop: theme.spacing.md,
+    fontSize: theme.typography.sizes.lg,
+    color: theme.colors.text.secondary,
   },
   errorText: {
-    marginTop: 12,
-    fontSize: 16,
-    color: '#666',
+    marginTop: theme.spacing.md,
+    fontSize: theme.typography.sizes.lg,
+    color: theme.colors.text.secondary,
     textAlign: 'center',
   },
   emptyText: {
-    marginTop: 12,
-    fontSize: 16,
-    color: '#666',
+    marginTop: theme.spacing.md,
+    fontSize: theme.typography.sizes.lg,
+    color: theme.colors.text.secondary,
     textAlign: 'center',
   },
   retryButton: {
-    marginTop: 16,
-    paddingHorizontal: 24,
-    paddingVertical: 10,
-    backgroundColor: '#E91E63',
-    borderRadius: 20,
+    marginTop: theme.spacing.lg,
+    paddingHorizontal: theme.spacing.xxl,
+    paddingVertical: theme.spacing.sm,
+    backgroundColor: theme.colors.primary,
+    borderRadius: theme.borderRadius.xxl,
   },
   retryText: {
-    color: '#fff',
-    fontSize: 16,
-    fontWeight: '600',
+    color: theme.colors.text.white,
+    fontSize: theme.typography.sizes.lg,
+    fontWeight: theme.typography.weights.semibold,
   },
   attribution: {
     position: 'absolute',
-    bottom: 16,
+    bottom: theme.spacing.lg,
     left: 0,
     right: 0,
     flexDirection: 'row',
     justifyContent: 'center',
     alignItems: 'center',
     backgroundColor: 'rgba(255,255,255,0.9)',
-    paddingVertical: 8,
+    paddingVertical: theme.spacing.sm,
   },
   attributionText: {
-    fontSize: 12,
-    color: '#999',
-    marginRight: 4,
+    fontSize: theme.typography.sizes.sm,
+    color: theme.colors.text.muted,
+    marginRight: theme.spacing.xs,
   },
   giphyLogo: {
     width: 60,

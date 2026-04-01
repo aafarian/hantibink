@@ -67,7 +67,11 @@ const ForceUpdateModal = ({
           {/* Buttons */}
           <View style={styles.buttonContainer}>
             <TouchableOpacity style={styles.updateButton} onPress={handleUpdate}>
-              <Ionicons name="download-outline" size={20} color="#fff" />
+              <Ionicons
+                name="download-outline"
+                size={theme.icons.sm}
+                color={theme.colors.text.white}
+              />
               <Text style={styles.updateButtonText}>Update Now</Text>
             </TouchableOpacity>
 
@@ -89,69 +93,69 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(0, 0, 0, 0.7)',
     justifyContent: 'center',
     alignItems: 'center',
-    padding: 24,
+    padding: theme.spacing.xxl,
   },
   container: {
-    backgroundColor: '#fff',
-    borderRadius: 20,
-    padding: 32,
+    backgroundColor: theme.colors.background.primary,
+    borderRadius: theme.borderRadius.xxl,
+    padding: theme.spacing.xxxl,
     width: '100%',
     maxWidth: 340,
     alignItems: 'center',
   },
   iconContainer: {
-    marginBottom: 20,
+    marginBottom: theme.spacing.xl,
   },
   title: {
     fontSize: 22,
-    fontWeight: '700',
-    color: '#333',
-    marginBottom: 12,
+    fontWeight: theme.typography.weights.bold,
+    color: theme.colors.text.primary,
+    marginBottom: theme.spacing.md,
     textAlign: 'center',
   },
   message: {
     fontSize: 15,
-    color: '#666',
+    color: theme.colors.text.secondary,
     textAlign: 'center',
     lineHeight: 22,
-    marginBottom: 16,
+    marginBottom: theme.spacing.lg,
   },
   versionInfo: {
-    backgroundColor: '#f5f5f5',
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    borderRadius: 8,
-    marginBottom: 24,
+    backgroundColor: theme.colors.gray[100],
+    paddingHorizontal: theme.spacing.lg,
+    paddingVertical: theme.spacing.sm,
+    borderRadius: theme.borderRadius.md,
+    marginBottom: theme.spacing.xxl,
   },
   versionText: {
-    fontSize: 13,
-    color: '#888',
+    fontSize: theme.typography.sizes.sm,
+    color: theme.colors.gray[500],
     fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace',
   },
   buttonContainer: {
     width: '100%',
-    gap: 12,
+    gap: theme.spacing.md,
   },
   updateButton: {
     backgroundColor: theme.colors.primary,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: 16,
-    borderRadius: 12,
-    gap: 8,
+    paddingVertical: theme.spacing.lg,
+    borderRadius: theme.borderRadius.lg,
+    gap: theme.spacing.sm,
   },
   updateButtonText: {
-    color: '#fff',
-    fontSize: 16,
-    fontWeight: '600',
+    color: theme.colors.text.white,
+    fontSize: theme.typography.sizes.lg,
+    fontWeight: theme.typography.weights.semibold,
   },
   laterButton: {
-    paddingVertical: 12,
+    paddingVertical: theme.spacing.md,
     alignItems: 'center',
   },
   laterButtonText: {
-    color: '#888',
+    color: theme.colors.gray[500],
     fontSize: 15,
   },
 });

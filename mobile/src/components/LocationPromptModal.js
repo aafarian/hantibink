@@ -4,6 +4,7 @@ import { MaterialIcons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useLocation } from '../contexts/LocationContext';
 import Logger from '../utils/logger';
+import { theme } from '../styles/theme';
 
 const LocationPromptModal = () => {
   const insets = useSafeAreaInsets();
@@ -42,7 +43,7 @@ const LocationPromptModal = () => {
       case 'fetching':
         return (
           <View style={styles.statusContainer}>
-            <ActivityIndicator size="large" color="#007AFF" />
+            <ActivityIndicator size="large" color={theme.colors.primary} />
             <Text style={styles.statusText}>Getting your location...</Text>
           </View>
         );
@@ -50,7 +51,11 @@ const LocationPromptModal = () => {
       case 'success':
         return (
           <View style={styles.statusContainer}>
-            <MaterialIcons name="check-circle" size={48} color="#4CAF50" />
+            <MaterialIcons
+              name="check-circle"
+              size={theme.icons.xl}
+              color={theme.colors.status.success}
+            />
             <Text style={styles.statusText}>Location found!</Text>
             <Text style={styles.locationText}>{localLocation?.cityName}</Text>
             {localLocation?.hasMultipleOptions && (
@@ -91,7 +96,11 @@ const LocationPromptModal = () => {
       case 'permission_denied':
         return (
           <View style={styles.statusContainer}>
-            <MaterialIcons name="location-off" size={48} color="#FF9800" />
+            <MaterialIcons
+              name="location-off"
+              size={theme.icons.xl}
+              color={theme.colors.status.warning}
+            />
             <Text style={styles.statusText}>Location permission denied</Text>
             <Text style={styles.subtitle}>
               Location is required to use the app. Please enable location permissions to continue.
@@ -102,7 +111,7 @@ const LocationPromptModal = () => {
       case 'error':
         return (
           <View style={styles.statusContainer}>
-            <MaterialIcons name="error" size={48} color="#F44336" />
+            <MaterialIcons name="error" size={theme.icons.xl} color={theme.colors.status.error} />
             <Text style={styles.statusText}>Couldn't get location</Text>
             <Text style={styles.subtitle}>
               Location is required to use the app. Please check your connection and try again.
@@ -113,7 +122,7 @@ const LocationPromptModal = () => {
       default:
         return (
           <View style={styles.statusContainer}>
-            <MaterialIcons name="location-on" size={64} color="#007AFF" />
+            <MaterialIcons name="location-on" size={theme.icons.xxl} color={theme.colors.primary} />
             <Text style={styles.title}>Find people near you</Text>
             <Text style={styles.subtitle}>
               Location is required to show you potential matches in your area. Your exact location
@@ -176,95 +185,94 @@ const LocationPromptModal = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#fff',
+    backgroundColor: theme.colors.background.primary,
   },
   content: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    paddingHorizontal: 30,
+    paddingHorizontal: theme.spacing.xxxl,
   },
   statusContainer: {
     alignItems: 'center',
     maxWidth: 300,
   },
   title: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    color: '#333',
+    fontSize: theme.typography.sizes.xxxl,
+    fontWeight: theme.typography.weights.bold,
+    color: theme.colors.text.primary,
     textAlign: 'center',
-    marginTop: 20,
-    marginBottom: 10,
+    marginTop: theme.spacing.xl,
+    marginBottom: theme.spacing.sm,
   },
   subtitle: {
-    fontSize: 16,
-    color: '#666',
+    fontSize: theme.typography.sizes.lg,
+    color: theme.colors.text.secondary,
     textAlign: 'center',
     lineHeight: 22,
-    marginTop: 10,
+    marginTop: theme.spacing.sm,
   },
   statusText: {
-    fontSize: 20,
-    fontWeight: '600',
-    color: '#333',
+    fontSize: theme.typography.sizes.xxl,
+    fontWeight: theme.typography.weights.semibold,
+    color: theme.colors.text.primary,
     textAlign: 'center',
-    marginTop: 16,
-    marginBottom: 8,
+    marginTop: theme.spacing.lg,
+    marginBottom: theme.spacing.sm,
   },
   locationText: {
-    fontSize: 18,
-    color: '#007AFF',
-    fontWeight: '500',
-    marginBottom: 8,
+    fontSize: theme.typography.sizes.xl,
+    color: theme.colors.secondary,
+    fontWeight: theme.typography.weights.medium,
+    marginBottom: theme.spacing.sm,
   },
   footer: {
-    paddingHorizontal: 30,
+    paddingHorizontal: theme.spacing.xxxl,
   },
-
   primaryButton: {
-    backgroundColor: '#007AFF',
-    paddingVertical: 16,
-    borderRadius: 12,
+    backgroundColor: theme.colors.primary,
+    paddingVertical: theme.spacing.lg,
+    borderRadius: theme.borderRadius.lg,
     alignItems: 'center',
   },
   primaryButtonText: {
-    color: '#fff',
-    fontSize: 16,
-    fontWeight: '600',
+    color: theme.colors.text.white,
+    fontSize: theme.typography.sizes.lg,
+    fontWeight: theme.typography.weights.semibold,
   },
   locationOptionsContainer: {
-    marginTop: 16,
+    marginTop: theme.spacing.lg,
     width: '100%',
     maxWidth: 300,
   },
   optionsTitle: {
-    fontSize: 14,
-    color: '#666',
+    fontSize: theme.typography.sizes.md,
+    color: theme.colors.text.secondary,
     textAlign: 'center',
-    marginBottom: 12,
+    marginBottom: theme.spacing.md,
   },
   locationOption: {
-    backgroundColor: '#f8f9fa',
+    backgroundColor: theme.colors.background.secondary,
     borderWidth: 1,
-    borderColor: '#e1e5e9',
-    borderRadius: 8,
-    padding: 12,
-    marginBottom: 8,
+    borderColor: theme.colors.border.light,
+    borderRadius: theme.borderRadius.md,
+    padding: theme.spacing.md,
+    marginBottom: theme.spacing.sm,
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
   },
   selectedLocationOption: {
-    backgroundColor: '#007AFF',
-    borderColor: '#007AFF',
+    backgroundColor: theme.colors.primary,
+    borderColor: theme.colors.primary,
   },
   locationOptionText: {
-    fontSize: 16,
-    color: '#333',
-    fontWeight: '500',
+    fontSize: theme.typography.sizes.lg,
+    color: theme.colors.text.primary,
+    fontWeight: theme.typography.weights.medium,
   },
   selectedLocationOptionText: {
-    color: '#fff',
+    color: theme.colors.text.white,
   },
 });
 

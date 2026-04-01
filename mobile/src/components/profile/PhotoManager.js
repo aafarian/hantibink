@@ -425,7 +425,7 @@ const PhotoManager = ({
         )}
         {isDragging && (
           <View style={styles.dragIndicator}>
-            <Ionicons name="move" size={20} color="#fff" />
+            <Ionicons name="move" size={20} color={theme.colors.text.white} />
           </View>
         )}
       </View>
@@ -481,7 +481,7 @@ const PhotoManager = ({
         </>
       ) : (
         <View style={styles.noPhotosContainer}>
-          <Ionicons name="camera-outline" size={40} color="#ccc" />
+          <Ionicons name="camera-outline" size={40} color={theme.colors.gray[300]} />
           <Text style={styles.noPhotosText}>No photos yet</Text>
           {mode === 'edit' && <Text style={styles.noPhotosSubtext}>Tap + to add photos</Text>}
         </View>
@@ -511,19 +511,19 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   title: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    marginBottom: 15,
-    color: '#333',
+    fontSize: theme.typography.sizes.xl,
+    fontWeight: theme.typography.weights.bold,
+    marginBottom: theme.spacing.lg,
+    color: theme.colors.text.primary,
   },
   photoWrapper: {
     width: 110,
     height: 110,
     position: 'relative',
-    borderRadius: 8,
+    borderRadius: theme.borderRadius.md,
     overflow: 'hidden',
     elevation: 2,
-    shadowColor: '#000',
+    shadowColor: theme.colors.gray[900],
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
     shadowRadius: 4,
@@ -532,7 +532,7 @@ const styles = StyleSheet.create({
   gridPhoto: {
     width: 110,
     height: 110,
-    borderRadius: 8,
+    borderRadius: theme.borderRadius.md,
   },
 
   mainBadge: {
@@ -540,14 +540,14 @@ const styles = StyleSheet.create({
     top: 5,
     left: 5,
     backgroundColor: theme.colors.primary,
-    paddingHorizontal: 6,
+    paddingHorizontal: theme.spacing.xs,
     paddingVertical: 2,
-    borderRadius: 4,
+    borderRadius: theme.borderRadius.sm,
   },
   mainBadgeText: {
-    color: '#fff',
-    fontSize: 10,
-    fontWeight: 'bold',
+    color: theme.colors.text.white,
+    fontSize: theme.typography.sizes.xs,
+    fontWeight: theme.typography.weights.bold,
   },
 
   draggableGridContainer: {
@@ -562,28 +562,28 @@ const styles = StyleSheet.create({
   addPhotoButtonWide: {
     width: '100%',
     height: 50,
-    borderRadius: 8,
+    borderRadius: theme.borderRadius.md,
     borderWidth: 2,
     borderColor: theme.colors.primary,
     borderStyle: 'dashed',
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: '#f8f9fa',
-    marginTop: 15,
+    backgroundColor: theme.colors.gray[100],
+    marginTop: theme.spacing.lg,
     flexDirection: 'row',
   },
   addPhotoText: {
     color: theme.colors.primary,
-    fontSize: 14,
-    marginLeft: 8,
+    fontSize: theme.typography.sizes.md,
+    marginLeft: theme.spacing.sm,
     textAlign: 'center',
-    fontWeight: '600',
+    fontWeight: theme.typography.weights.semibold,
   },
   dragHint: {
-    fontSize: 12,
-    color: '#666',
+    fontSize: theme.typography.sizes.sm,
+    color: theme.colors.gray[600],
     textAlign: 'center',
-    marginTop: 10,
+    marginTop: theme.spacing.sm,
     fontStyle: 'italic',
   },
 
@@ -591,7 +591,7 @@ const styles = StyleSheet.create({
   photoWrapperDragging: {
     transform: [{ scale: 1.1 }],
     elevation: 8,
-    shadowColor: '#000',
+    shadowColor: theme.colors.gray[900],
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.3,
     shadowRadius: 8,
@@ -616,21 +616,21 @@ const styles = StyleSheet.create({
     height: 120,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: '#f8f9fa',
-    borderRadius: 8,
+    backgroundColor: theme.colors.gray[100],
+    borderRadius: theme.borderRadius.md,
     borderWidth: 1,
-    borderColor: '#ddd',
+    borderColor: theme.colors.gray[300],
     borderStyle: 'dashed',
-    marginHorizontal: 10,
+    marginHorizontal: theme.spacing.sm,
   },
   noPhotosText: {
-    fontSize: 14,
-    color: '#999',
-    marginTop: 8,
+    fontSize: theme.typography.sizes.md,
+    color: theme.colors.gray[500],
+    marginTop: theme.spacing.sm,
   },
   noPhotosSubtext: {
-    fontSize: 12,
-    color: '#ccc',
+    fontSize: theme.typography.sizes.sm,
+    color: theme.colors.gray[300],
     textAlign: 'center',
   },
 });

@@ -67,7 +67,7 @@ const ProfilePhotoGrid = ({
         </ScrollView>
       ) : (
         <View style={[styles.emptyContainer, { height: photoSize }]}>
-          <Ionicons name={emptyIcon} size={40} color="#ccc" />
+          <Ionicons name={emptyIcon} size={40} color={theme.colors.gray[300]} />
           <Text style={styles.emptyText}>{emptyMessage}</Text>
         </View>
       )}
@@ -80,13 +80,13 @@ const styles = StyleSheet.create({
     // Container styles will be inherited from parent
   },
   title: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    marginBottom: 15,
-    color: '#333',
+    fontSize: theme.typography.sizes.xl,
+    fontWeight: theme.typography.weights.bold,
+    marginBottom: theme.spacing.lg,
+    color: theme.colors.text.primary,
   },
   photosContainer: {
-    paddingHorizontal: 5,
+    paddingHorizontal: theme.spacing.xs,
   },
   photoWrapper: {
     position: 'relative',
@@ -103,28 +103,28 @@ const styles = StyleSheet.create({
     top: 5,
     left: 5,
     backgroundColor: theme.colors.primary,
-    paddingHorizontal: 6,
+    paddingHorizontal: theme.spacing.xs,
     paddingVertical: 2,
-    borderRadius: 4,
+    borderRadius: theme.borderRadius.sm,
   },
   mainBadgeText: {
-    color: '#fff',
-    fontSize: 10,
-    fontWeight: 'bold',
+    color: theme.colors.text.white,
+    fontSize: theme.typography.sizes.xs,
+    fontWeight: theme.typography.weights.bold,
   },
   emptyContainer: {
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: '#f8f9fa',
-    borderRadius: 8,
+    backgroundColor: theme.colors.gray[100],
+    borderRadius: theme.borderRadius.md,
     borderWidth: 1,
-    borderColor: '#ddd',
+    borderColor: theme.colors.gray[300],
     borderStyle: 'dashed',
   },
   emptyText: {
-    fontSize: 14,
-    color: '#999',
-    marginTop: 8,
+    fontSize: theme.typography.sizes.md,
+    color: theme.colors.gray[500],
+    marginTop: theme.spacing.sm,
     textAlign: 'center',
   },
 });

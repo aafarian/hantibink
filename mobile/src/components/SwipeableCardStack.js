@@ -276,7 +276,7 @@ const SwipeableCardStack = forwardRef(
             </>
           ) : (
             <>
-              <Ionicons name="people-outline" size={60} color="#ccc" />
+              <Ionicons name="people-outline" size={60} color={theme.colors.gray[300]} />
               <Text style={styles.noMoreText}>No more profiles</Text>
               <Text style={styles.noMoreSubtext}>Check back later for more matches!</Text>
             </>
@@ -340,7 +340,7 @@ const SwipeableCardStack = forwardRef(
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f5f5f5',
+    backgroundColor: theme.colors.gray[100],
   },
   cardContainer: {
     position: 'absolute',
@@ -359,24 +359,24 @@ const styles = StyleSheet.create({
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
-    padding: 40,
+    padding: theme.spacing.xxxl,
   },
   noMoreText: {
-    fontSize: 20,
-    fontWeight: 'bold',
-    color: '#333',
-    marginTop: 20,
+    fontSize: theme.typography.sizes.xxl,
+    fontWeight: theme.typography.weights.bold,
+    color: theme.colors.text.primary,
+    marginTop: theme.spacing.xl,
   },
   noMoreSubtext: {
-    fontSize: 16,
-    color: '#666',
-    marginTop: 10,
+    fontSize: theme.typography.sizes.lg,
+    color: theme.colors.gray[600],
+    marginTop: theme.spacing.sm,
     textAlign: 'center',
   },
   loadingText: {
-    fontSize: 18,
-    color: '#666',
-    marginTop: 20,
+    fontSize: theme.typography.sizes.xl,
+    color: theme.colors.gray[600],
+    marginTop: theme.spacing.xl,
   },
 });
 

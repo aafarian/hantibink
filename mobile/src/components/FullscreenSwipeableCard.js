@@ -315,7 +315,7 @@ const FullscreenSwipeableCard = ({
           <Ionicons
             name={field.icon}
             size={18}
-            color={hasValue ? '#666' : '#ccc'}
+            color={hasValue ? theme.colors.gray[600] : theme.colors.gray[300]}
             style={styles.infoIcon}
           />
           <Text style={[styles.infoValue, !hasValue && styles.placeholderValue]}>
@@ -521,7 +521,7 @@ const FullscreenSwipeableCard = ({
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#fff',
+    backgroundColor: theme.colors.background.primary,
     overflow: 'hidden',
   },
   scrollView: {
@@ -550,32 +550,32 @@ const styles = StyleSheet.create({
   heroInfo: {
     position: 'absolute',
     bottom: 24,
-    left: 20,
-    right: 20,
+    left: theme.spacing.xl,
+    right: theme.spacing.xl,
   },
   heroName: {
     fontSize: 32,
-    fontWeight: 'bold',
-    color: '#fff',
+    fontWeight: theme.typography.weights.bold,
+    color: theme.colors.text.white,
     textShadowColor: 'rgba(0,0,0,0.5)',
     textShadowOffset: { width: 0, height: 1 },
     textShadowRadius: 4,
   },
   heroAge: {
-    fontWeight: '400',
+    fontWeight: theme.typography.weights.regular,
   },
   heroDetails: {
-    marginTop: 8,
-    gap: 4,
+    marginTop: theme.spacing.sm,
+    gap: theme.spacing.xs,
   },
   heroDetailItem: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 6,
+    gap: theme.spacing.xs,
   },
   heroDetailText: {
-    fontSize: 14,
-    color: '#fff',
+    fontSize: theme.typography.sizes.md,
+    color: theme.colors.text.white,
     textShadowColor: 'rgba(0,0,0,0.5)',
     textShadowOffset: { width: 0, height: 1 },
     textShadowRadius: 3,
@@ -592,104 +592,104 @@ const styles = StyleSheet.create({
   },
   photoExpandHint: {
     position: 'absolute',
-    bottom: 12,
-    right: 12,
+    bottom: theme.spacing.md,
+    right: theme.spacing.md,
     backgroundColor: 'rgba(0,0,0,0.5)',
-    borderRadius: 20,
-    padding: 8,
+    borderRadius: theme.borderRadius.xxl,
+    padding: theme.spacing.sm,
   },
   photoDivider: {
     height: 50,
-    backgroundColor: '#fff',
+    backgroundColor: theme.colors.background.primary,
     justifyContent: 'center',
     alignItems: 'center',
   },
   photoDividerLine: {
     width: 60,
     height: 4,
-    backgroundColor: '#e0e0e0',
-    borderRadius: 2,
+    backgroundColor: theme.colors.gray[300],
+    borderRadius: theme.borderRadius.xs,
   },
   // Content sections
   section: {
-    paddingHorizontal: 20,
-    paddingVertical: 20,
-    backgroundColor: '#fff',
+    paddingHorizontal: theme.spacing.xl,
+    paddingVertical: theme.spacing.xl,
+    backgroundColor: theme.colors.background.primary,
   },
   sectionTitle: {
-    fontSize: 13,
-    fontWeight: '600',
-    color: '#888',
+    fontSize: theme.typography.sizes.sm,
+    fontWeight: theme.typography.weights.semibold,
+    color: theme.colors.gray[500],
     textTransform: 'uppercase',
     letterSpacing: 0.5,
-    marginBottom: 12,
+    marginBottom: theme.spacing.md,
   },
   // Bio
   bioText: {
-    fontSize: 16,
+    fontSize: theme.typography.sizes.lg,
     lineHeight: 24,
-    color: '#333',
+    color: theme.colors.text.primary,
   },
   // Placeholder text for empty fields
   placeholderText: {
     fontSize: 15,
     lineHeight: 22,
-    color: '#999',
+    color: theme.colors.gray[500],
     fontStyle: 'italic',
   },
   placeholderValue: {
-    color: '#bbb',
+    color: theme.colors.gray[400],
     fontStyle: 'italic',
-    fontWeight: '400',
+    fontWeight: theme.typography.weights.regular,
   },
   // Info fields (label + value pairs)
   infoFieldsContainer: {
-    backgroundColor: '#fff',
+    backgroundColor: theme.colors.background.primary,
   },
   infoField: {
-    paddingVertical: 16,
+    paddingVertical: theme.spacing.lg,
   },
   infoFieldBorder: {
     borderBottomWidth: 1,
-    borderBottomColor: '#f0f0f0',
+    borderBottomColor: theme.colors.gray[200],
   },
   infoLabel: {
-    fontSize: 12,
-    fontWeight: '600',
-    color: '#888',
+    fontSize: theme.typography.sizes.sm,
+    fontWeight: theme.typography.weights.semibold,
+    color: theme.colors.gray[500],
     textTransform: 'uppercase',
     letterSpacing: 0.5,
-    marginBottom: 6,
+    marginBottom: theme.spacing.xs,
   },
   infoValueRow: {
     flexDirection: 'row',
     alignItems: 'center',
   },
   infoIcon: {
-    marginRight: 10,
+    marginRight: theme.spacing.sm,
   },
   infoValue: {
-    fontSize: 16,
-    color: '#222',
-    fontWeight: '500',
+    fontSize: theme.typography.sizes.lg,
+    color: theme.colors.gray[900],
+    fontWeight: theme.typography.weights.medium,
     flex: 1,
   },
   // Chips for multi-select (languages, interests)
   chipContainer: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: 8,
+    gap: theme.spacing.sm,
   },
   chip: {
-    backgroundColor: '#f5f5f5',
-    paddingHorizontal: 16,
-    paddingVertical: 10,
-    borderRadius: 20,
+    backgroundColor: theme.colors.gray[100],
+    paddingHorizontal: theme.spacing.lg,
+    paddingVertical: theme.spacing.sm,
+    borderRadius: theme.borderRadius.xxl,
   },
   chipText: {
-    fontSize: 14,
-    color: '#333',
-    fontWeight: '500',
+    fontSize: theme.typography.sizes.md,
+    color: theme.colors.text.primary,
+    fontWeight: theme.typography.weights.medium,
   },
   bottomSpacer: {
     height: 200,
@@ -699,11 +699,11 @@ const styles = StyleSheet.create({
     position: 'absolute',
     top: 100,
     left: 30,
-    paddingHorizontal: 20,
-    paddingVertical: 12,
+    paddingHorizontal: theme.spacing.xl,
+    paddingVertical: theme.spacing.md,
     borderWidth: 4,
     borderColor: theme.colors.status.success,
-    borderRadius: 8,
+    borderRadius: theme.borderRadius.md,
     backgroundColor: 'rgba(76, 175, 80, 0.1)',
   },
   likeText: {
@@ -716,11 +716,11 @@ const styles = StyleSheet.create({
     position: 'absolute',
     top: 100,
     right: 30,
-    paddingHorizontal: 20,
-    paddingVertical: 12,
+    paddingHorizontal: theme.spacing.xl,
+    paddingVertical: theme.spacing.md,
     borderWidth: 4,
     borderColor: theme.colors.status.error,
-    borderRadius: 8,
+    borderRadius: theme.borderRadius.md,
     backgroundColor: 'rgba(255, 82, 82, 0.1)',
   },
   nopeText: {
