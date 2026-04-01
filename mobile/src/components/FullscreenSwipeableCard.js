@@ -6,6 +6,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { getUserProfilePhoto } from '../utils/profileHelpers';
 import { formatDistanceAway } from '../utils/distanceUtils';
+import { theme } from '../styles/theme';
 
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
 const HERO_HEIGHT = SCREEN_HEIGHT * 0.55;
@@ -49,16 +50,44 @@ const FullscreenSwipeableCard = ({
     return calculatedAge;
   }, [profile?.age, profile?.birthDate]);
 
-  // Like/Nope label opacity based on swipe
-  const likeOpacity = useAnimatedStyle(() => {
+  // Like/Nope label animation based on swipe - opacity AND scale for more impact
+  const likeAnimatedStyle = useAnimatedStyle(() => {
+    const opacity = interpolate(
+      translateX.value,
+      [0, SCREEN_WIDTH / 4],
+      [0, 1],
+      Extrapolation.CLAMP
+    );
+    // Scale grows from 0.5 to 1.1 (slight overshoot) as you swipe right
+    const scale = interpolate(
+      translateX.value,
+      [0, SCREEN_WIDTH / 4, SCREEN_WIDTH / 2],
+      [0.5, 1, 1.1],
+      Extrapolation.CLAMP
+    );
     return {
-      opacity: interpolate(translateX.value, [0, SCREEN_WIDTH / 4], [0, 1], Extrapolation.CLAMP),
+      opacity,
+      transform: [{ rotate: '-25deg' }, { scale }],
     };
   });
 
-  const nopeOpacity = useAnimatedStyle(() => {
+  const nopeAnimatedStyle = useAnimatedStyle(() => {
+    const opacity = interpolate(
+      translateX.value,
+      [-SCREEN_WIDTH / 4, 0],
+      [1, 0],
+      Extrapolation.CLAMP
+    );
+    // Scale grows from 0.5 to 1.1 as you swipe left
+    const scale = interpolate(
+      translateX.value,
+      [-SCREEN_WIDTH / 2, -SCREEN_WIDTH / 4, 0],
+      [1.1, 1, 0.5],
+      Extrapolation.CLAMP
+    );
     return {
-      opacity: interpolate(translateX.value, [-SCREEN_WIDTH / 4, 0], [1, 0], Extrapolation.CLAMP),
+      opacity,
+      transform: [{ rotate: '25deg' }, { scale }],
     };
   });
 
@@ -474,13 +503,13 @@ const FullscreenSwipeableCard = ({
         <View style={styles.bottomSpacer} />
       </ScrollView>
 
-      {/* Like/Nope labels - only show on top card */}
+      {/* Like/Nope stamps - only show on top card */}
       {isTop && (
         <>
-          <Animated.View style={[styles.likeLabel, likeOpacity]}>
+          <Animated.View style={[styles.likeLabel, likeAnimatedStyle]}>
             <Text style={styles.likeText}>LIKE</Text>
           </Animated.View>
-          <Animated.View style={[styles.nopeLabel, nopeOpacity]}>
+          <Animated.View style={[styles.nopeLabel, nopeAnimatedStyle]}>
             <Text style={styles.nopeText}>NOPE</Text>
           </Animated.View>
         </>
@@ -665,38 +694,40 @@ const styles = StyleSheet.create({
   bottomSpacer: {
     height: 200,
   },
-  // Like/Nope labels
+  // Like/Nope stamp labels
   likeLabel: {
     position: 'absolute',
     top: 100,
     left: 30,
-    paddingHorizontal: 15,
-    paddingVertical: 10,
+    paddingHorizontal: 20,
+    paddingVertical: 12,
     borderWidth: 4,
-    borderColor: '#4CAF50',
-    borderRadius: 10,
-    transform: [{ rotate: '-25deg' }],
+    borderColor: theme.colors.status.success,
+    borderRadius: 8,
+    backgroundColor: 'rgba(76, 175, 80, 0.1)',
   },
   likeText: {
-    fontSize: 36,
-    fontWeight: 'bold',
-    color: '#4CAF50',
+    fontSize: 40,
+    fontWeight: '900',
+    color: theme.colors.status.success,
+    letterSpacing: 2,
   },
   nopeLabel: {
     position: 'absolute',
     top: 100,
     right: 30,
-    paddingHorizontal: 15,
-    paddingVertical: 10,
+    paddingHorizontal: 20,
+    paddingVertical: 12,
     borderWidth: 4,
-    borderColor: '#FF5252',
-    borderRadius: 10,
-    transform: [{ rotate: '25deg' }],
+    borderColor: theme.colors.status.error,
+    borderRadius: 8,
+    backgroundColor: 'rgba(255, 82, 82, 0.1)',
   },
   nopeText: {
-    fontSize: 36,
-    fontWeight: 'bold',
-    color: '#FF5252',
+    fontSize: 40,
+    fontWeight: '900',
+    color: theme.colors.status.error,
+    letterSpacing: 2,
   },
 });
 
