@@ -5,6 +5,7 @@
  * @module navigation/transitions
  */
 import { Easing } from 'react-native-reanimated';
+import { Platform } from 'react-native';
 import { theme } from '../styles/theme';
 
 /**
@@ -128,11 +129,85 @@ export const forVerticalSlide = ({ current, layouts }) => ({
 });
 
 /**
+ * Card style interpolator for iOS-style horizontal slide with parallax and shadow.
+ * Creates a native iOS feel with the previous screen sliding slightly left
+ * and a shadow appearing under the top card during the gesture.
+ * @param {Object} params - Interpolation params from React Navigation
+ * @returns {Object} Card and overlay styles with transforms, opacity, and shadow
+ */
+export const forHorizontalIOS = ({ current, next, layouts }) => {
+  const translateFocused = current.progress.interpolate({
+    inputRange: [0, 1],
+    outputRange: [layouts.screen.width, 0],
+  });
+
+  // Parallax effect: previous screen slides left slightly (30% of screen width)
+  const translateUnfocused = next
+    ? next.progress.interpolate({
+        inputRange: [0, 1],
+        outputRange: [0, layouts.screen.width * -0.3],
+      })
+    : 0;
+
+  // Shadow opacity during gesture
+  const shadowOpacity = current.progress.interpolate({
+    inputRange: [0, 1],
+    outputRange: [0, 0.25],
+  });
+
+  // Overlay on previous screen during transition
+  const overlayOpacity = next
+    ? next.progress.interpolate({
+        inputRange: [0, 1],
+        outputRange: [0, 0.1],
+      })
+    : 0;
+
+  return {
+    cardStyle: {
+      transform: [{ translateX: translateFocused }, { translateX: translateUnfocused }],
+      // Add shadow to the card (iOS only, Android uses elevation)
+      ...(Platform.OS === 'ios' && {
+        shadowColor: '#000',
+        shadowOffset: { width: -3, height: 0 },
+        shadowOpacity,
+        shadowRadius: 8,
+      }),
+      ...(Platform.OS === 'android' && {
+        elevation: current.progress.interpolate({
+          inputRange: [0, 1],
+          outputRange: [0, 8],
+        }),
+      }),
+    },
+    overlayStyle: {
+      opacity: overlayOpacity,
+      backgroundColor: '#000',
+    },
+  };
+};
+
+/**
+ * iOS back gesture configuration with enhanced response distance.
+ * Increases the hit area for easier gesture triggering.
+ */
+export const iosGestureConfig = {
+  // Increase gesture response distance for easier back gesture triggering
+  // Default is ~25, we increase to 50 for a larger hit area
+  gestureResponseDistance: 50,
+  // Use full screen width for gesture on iOS
+  ...(Platform.OS === 'ios' && {
+    fullScreenGestureEnabled: true,
+  }),
+};
+
+/**
  * Factory function to create screen options with custom transitions.
  * Use this to apply consistent transitions across stack navigators.
  *
  * @param {Object} options - Configuration options
- * @param {string} options.variant - Transition variant: 'fade', 'slide', 'fadeSlide', 'vertical'
+ * @param {string} options.variant - Transition variant: 'fade', 'slide', 'fadeSlide', 'vertical', 'horizontalIOS'
+ * @param {boolean} options.enhancedGesture - Enable enhanced iOS back gesture (default: true for horizontal variants)
  * @returns {Object} Screen options object for React Navigation
  *
  * @example
@@ -140,12 +215,13 @@ export const forVerticalSlide = ({ current, layouts }) => ({
  *   <Stack.Screen name="Home" component={HomeScreen} />
  * </Stack.Navigator>
  */
-export const createScreenOptions = ({ variant = 'fadeSlide' } = {}) => {
+export const createScreenOptions = ({ variant = 'fadeSlide', enhancedGesture = true } = {}) => {
   const cardStyleInterpolators = {
     fade: forFade,
     slide: forSlide,
     fadeSlide: forFadeSlide,
     vertical: forVerticalSlide,
+    horizontalIOS: forHorizontalIOS,
   };
 
   const transitionSpecs = {
@@ -156,14 +232,26 @@ export const createScreenOptions = ({ variant = 'fadeSlide' } = {}) => {
     slide: fadeSlideTransitionSpec,
     fadeSlide: fadeSlideTransitionSpec,
     vertical: fadeSlideTransitionSpec,
+    horizontalIOS: fadeSlideTransitionSpec,
   };
 
-  return {
+  const isVertical = variant === 'vertical';
+  const isHorizontal = !isVertical;
+
+  // Base options
+  const options = {
     transitionSpec: transitionSpecs[variant],
     cardStyleInterpolator: cardStyleInterpolators[variant],
     gestureEnabled: true,
-    gestureDirection: variant === 'vertical' ? 'vertical' : 'horizontal',
+    gestureDirection: isVertical ? 'vertical' : 'horizontal',
   };
+
+  // Add enhanced gesture config for horizontal transitions on iOS
+  if (enhancedGesture && isHorizontal && Platform.OS === 'ios') {
+    options.gestureResponseDistance = iosGestureConfig.gestureResponseDistance;
+  }
+
+  return options;
 };
 
 /**
@@ -178,6 +266,8 @@ export const screenOptions = {
   fadeSlide: createScreenOptions({ variant: 'fadeSlide' }),
   /** Vertical slide for modal-style screens */
   vertical: createScreenOptions({ variant: 'vertical' }),
+  /** iOS-style horizontal slide with parallax and shadow (recommended for main stacks) */
+  horizontalIOS: createScreenOptions({ variant: 'horizontalIOS' }),
 };
 
 /**
