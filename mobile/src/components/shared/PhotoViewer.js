@@ -17,6 +17,7 @@ import Animated, {
   useAnimatedStyle,
   withTiming,
   withSpring,
+  runOnJS,
   Easing,
 } from 'react-native-reanimated';
 import Logger from '../../utils/logger';
@@ -87,6 +88,19 @@ const PhotoViewer = forwardRef(
       onClose?.();
     }, [onClose]);
 
+    // Callback to finalize photo transition (called from animation thread)
+    const finalizePhotoTransition = useCallback(
+      newIndex => {
+        setCurrentPhotoIndex(newIndex);
+        setNextPhotoIndex(null);
+        // Reset animation values for current
+        currentOpacity.value = 1;
+        currentScale.value = 1;
+        currentTranslateX.value = 0;
+      },
+      [currentOpacity, currentScale, currentTranslateX]
+    );
+
     // Animate to a new photo with crossfade and slide
     const animateToPhoto = useCallback(
       (newIndex, direction) => {
@@ -106,23 +120,18 @@ const PhotoViewer = forwardRef(
         currentScale.value = withTiming(0.95, { duration: 200 });
         currentTranslateX.value = withTiming(-slideOffset, { duration: 200 });
 
-        // Animate next photo in
-        nextOpacity.value = withTiming(1, { duration: 250 });
+        // Animate next photo in, finalize state after animation completes
+        nextOpacity.value = withTiming(1, { duration: 250 }, finished => {
+          // Only finalize if animation completed (not cancelled by rapid navigation)
+          if (finished) {
+            runOnJS(finalizePhotoTransition)(newIndex);
+          }
+        });
         nextScale.value = withSpring(1, { damping: 15, stiffness: 150 });
         nextTranslateX.value = withTiming(0, {
           duration: 250,
           easing: Easing.out(Easing.ease),
         });
-
-        // After animation completes, update state
-        setTimeout(() => {
-          setCurrentPhotoIndex(newIndex);
-          setNextPhotoIndex(null);
-          // Reset animation values for current
-          currentOpacity.value = 1;
-          currentScale.value = 1;
-          currentTranslateX.value = 0;
-        }, 260);
       },
       [
         currentPhotoIndex,
@@ -133,6 +142,7 @@ const PhotoViewer = forwardRef(
         nextOpacity,
         nextScale,
         nextTranslateX,
+        finalizePhotoTransition,
       ]
     );
 

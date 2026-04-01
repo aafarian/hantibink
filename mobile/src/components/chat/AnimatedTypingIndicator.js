@@ -1,4 +1,4 @@
-import React, { useEffect, memo } from 'react';
+import React, { useEffect, useState, memo } from 'react';
 import { View, Image, StyleSheet } from 'react-native';
 import Animated, {
   useAnimatedStyle,
@@ -8,6 +8,7 @@ import Animated, {
   withTiming,
   withDelay,
   cancelAnimation,
+  runOnJS,
   Easing,
 } from 'react-native-reanimated';
 import { theme } from '../../styles/theme';
@@ -23,6 +24,9 @@ import { theme } from '../../styles/theme';
  * @param {string} props.avatarUrl - URL of the typing user's avatar
  */
 const AnimatedTypingIndicator = ({ isVisible, avatarUrl }) => {
+  // Track whether component should render (stays true during fade-out)
+  const [shouldRender, setShouldRender] = useState(isVisible);
+
   // Individual animated values for each dot
   const dot1Y = useSharedValue(0);
   const dot2Y = useSharedValue(0);
@@ -33,6 +37,8 @@ const AnimatedTypingIndicator = ({ isVisible, avatarUrl }) => {
 
   useEffect(() => {
     if (isVisible) {
+      // Ensure component is rendered before animating in
+      setShouldRender(true);
       // Fade in the container
       containerOpacity.value = withTiming(1, { duration: 150 });
 
@@ -60,14 +66,19 @@ const AnimatedTypingIndicator = ({ isVisible, avatarUrl }) => {
       dot2Y.value = bounceAnimation(100);
       dot3Y.value = bounceAnimation(200);
     } else {
-      // Fade out and stop animations
-      containerOpacity.value = withTiming(0, { duration: 150 });
+      // Stop dot animations
       cancelAnimation(dot1Y);
       cancelAnimation(dot2Y);
       cancelAnimation(dot3Y);
       dot1Y.value = 0;
       dot2Y.value = 0;
       dot3Y.value = 0;
+      // Fade out, then unmount after animation completes
+      containerOpacity.value = withTiming(0, { duration: 150 }, finished => {
+        if (finished) {
+          runOnJS(setShouldRender)(false);
+        }
+      });
     }
   }, [isVisible, containerOpacity, dot1Y, dot2Y, dot3Y]);
 
@@ -87,7 +98,7 @@ const AnimatedTypingIndicator = ({ isVisible, avatarUrl }) => {
     transform: [{ translateY: dot3Y.value }],
   }));
 
-  if (!isVisible) return null;
+  if (!shouldRender) return null;
 
   return (
     <Animated.View style={[styles.container, containerStyle]}>

@@ -1,5 +1,5 @@
 import React, { useEffect } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet, Platform } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import Animated, {
@@ -180,6 +180,6 @@ export const EmptyState = ({
 
 const styles = StyleSheet.create({
   draggableIcon: {
-    cursor: 'grab',
+    ...(Platform.OS === 'web' ? { cursor: 'grab' } : {}),
   },
 });
