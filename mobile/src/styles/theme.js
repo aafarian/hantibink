@@ -8,7 +8,7 @@ export const theme = {
     secondaryLight: '#2D62C4', // Links, secondary buttons
     secondaryTint: '#E8EEF8', // Info backgrounds
     accent: '#D97706', // Golden amber (Armenian apricot/orange)
-    accentLight: '#F59E0B', // Badges, highlights
+    accentLight: '#FBBF24', // Badges, highlights — amber-400
     accentTint: '#FEF3C7', // Premium/special backgrounds
     premium: '#F59E0B', // Rich amber gold for premium features
     text: {
@@ -16,9 +16,10 @@ export const theme = {
       secondary: '#64748B', // Slate-500
       muted: '#94A3B8', // Slate-400
       white: '#fff',
+      shadow: 'rgba(0, 0, 0, 0.5)', // Text shadow on photos
     },
     background: {
-      primary: '#FAFAF9', // Stone-50, subtle warmth
+      primary: '#FFFFFF', // Pure white to avoid scroll strobe with off-white
       secondary: '#F5F5F4', // Stone-100
       tertiary: '#E7E5E4', // Stone-200
     },
@@ -37,6 +38,7 @@ export const theme = {
     border: {
       light: '#D6D3D1', // Stone-300
       medium: '#A8A29E', // Stone-400
+      primary: 'rgba(192, 57, 43, 0.15)', // Primary red tint for borders
     },
     gray: {
       50: '#fafafa',

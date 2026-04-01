@@ -407,13 +407,13 @@ const styles = StyleSheet.create({
   },
   messageText: {
     fontSize: 16,
-    color: '#1c1c1e',
+    color: theme.colors.text.primary,
     lineHeight: 22,
     letterSpacing: 0.2,
     fontWeight: '400',
   },
   ownMessageText: {
-    color: '#FFFFFF',
+    color: theme.colors.text.white,
     fontWeight: '400',
   },
   gifMessage: {
@@ -446,7 +446,7 @@ const styles = StyleSheet.create({
     backgroundColor: theme.colors.primaryTint,
   },
   quotingOtherStandalone: {
-    backgroundColor: 'rgba(21, 101, 192, 0.12)', // theme.colors.secondary with opacity
+    backgroundColor: theme.colors.secondaryTint,
   },
   quotedReplyBar: {
     width: 3,
@@ -482,7 +482,7 @@ const styles = StyleSheet.create({
     color: theme.colors.text.secondary,
   },
   quotingOtherText: {
-    color: '#555',
+    color: theme.colors.text.secondary,
   },
   reactionsContainer: {
     flexDirection: 'row',
@@ -533,7 +533,7 @@ const styles = StyleSheet.create({
   },
   messageTime: {
     fontSize: 11,
-    color: '#8e8e93',
+    color: theme.colors.text.muted,
     fontWeight: '400',
   },
   readIcon: {

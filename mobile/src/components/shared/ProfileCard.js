@@ -134,7 +134,7 @@ const ProfileCard = ({
     return (
       <View style={[styles.card, styles.noPhotoCard, style]}>
         <View style={styles.noPhotoContent}>
-          <Ionicons name="person-circle-outline" size={80} color={theme.colors.overlay.medium} />
+          <Ionicons name="person-circle-outline" size={80} color={theme.colors.text.muted} />
           <Text style={styles.cardName}>
             {profile.name}
             {age && `, ${age}`}

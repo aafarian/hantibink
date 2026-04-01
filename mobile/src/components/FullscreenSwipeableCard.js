@@ -560,7 +560,7 @@ const styles = StyleSheet.create({
     fontSize: 32,
     fontWeight: theme.typography.weights.bold,
     color: theme.colors.text.white,
-    textShadowColor: theme.colors.overlay.medium,
+    textShadowColor: theme.colors.text.shadow,
     textShadowOffset: { width: 0, height: 1 },
     textShadowRadius: 4,
   },
@@ -579,7 +579,7 @@ const styles = StyleSheet.create({
   heroDetailText: {
     fontSize: theme.typography.sizes.md,
     color: theme.colors.text.white,
-    textShadowColor: theme.colors.overlay.medium,
+    textShadowColor: theme.colors.text.shadow,
     textShadowOffset: { width: 0, height: 1 },
     textShadowRadius: 3,
   },

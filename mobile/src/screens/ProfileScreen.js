@@ -645,7 +645,7 @@ const styles = StyleSheet.create({
     marginRight: 8,
     marginBottom: 8,
     borderWidth: 1,
-    borderColor: theme.colors.primaryTint,
+    borderColor: theme.colors.border.primary,
   },
   interestText: {
     color: theme.colors.primary,
@@ -758,7 +758,7 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
     borderRadius: 25,
     borderWidth: 1,
-    borderColor: theme.colors.primaryTint,
+    borderColor: theme.colors.border.primary,
     marginRight: 8,
     marginBottom: 8,
   },
