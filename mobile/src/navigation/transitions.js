@@ -4,8 +4,7 @@
  *
  * @module navigation/transitions
  */
-import { Easing } from 'react-native-reanimated';
-import { Platform } from 'react-native';
+import { Easing, Platform } from 'react-native';
 import { theme } from '../styles/theme';
 
 /**
