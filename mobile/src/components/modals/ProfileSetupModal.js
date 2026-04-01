@@ -1030,7 +1030,11 @@ const ProfileSetupModal = ({ visible, onClose, onComplete, userProfile }) => {
                       }));
                     }}
                   >
-                    <Ionicons name="close-circle" size={24} color="#FF3B30" />
+                    <Ionicons
+                      name="close-circle"
+                      size={theme.icons.md}
+                      color={theme.colors.status.error}
+                    />
                   </TouchableOpacity>
                 </View>
               ))}
@@ -1095,7 +1099,7 @@ const ProfileSetupModal = ({ visible, onClose, onComplete, userProfile }) => {
         <View style={styles.container}>
           <View style={styles.header}>
             <TouchableOpacity onPress={onClose} style={styles.closeButton}>
-              <Ionicons name="close" size={24} color="#666" />
+              <Ionicons name="close" size={theme.icons.md} color={theme.colors.text.secondary} />
             </TouchableOpacity>
             <Text style={styles.headerTitle}>Complete Your Profile</Text>
             <View style={{ width: 40 }} />
@@ -1168,7 +1172,7 @@ const ProfileSetupModal = ({ visible, onClose, onComplete, userProfile }) => {
 const styles = StyleSheet.create({
   modalOverlay: {
     flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    backgroundColor: theme.colors.background.overlay,
     justifyContent: 'flex-end',
   },
   backdrop: {
@@ -1179,9 +1183,9 @@ const styles = StyleSheet.create({
     bottom: 0,
   },
   container: {
-    backgroundColor: '#FFF',
-    borderTopLeftRadius: 20,
-    borderTopRightRadius: 20,
+    backgroundColor: theme.colors.background.primary,
+    borderTopLeftRadius: theme.borderRadius.xxl,
+    borderTopRightRadius: theme.borderRadius.xxl,
     maxHeight: '92%',
     minHeight: '70%',
   },
@@ -1189,7 +1193,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingHorizontal: 20,
+    paddingHorizontal: theme.spacing.xl,
     paddingTop: Platform.OS === 'ios' ? 50 : 30,
     paddingBottom: 15,
   },
@@ -1198,33 +1202,33 @@ const styles = StyleSheet.create({
     height: 40,
     alignItems: 'center',
     justifyContent: 'center',
-    borderRadius: 20,
-    backgroundColor: '#F5F5F5',
+    borderRadius: theme.borderRadius.xxl,
+    backgroundColor: theme.colors.gray[100],
   },
   headerTitle: {
-    fontSize: 20,
-    fontWeight: '700',
-    color: '#333',
+    fontSize: theme.typography.sizes.xxl,
+    fontWeight: theme.typography.weights.bold,
+    color: theme.colors.text.primary,
   },
   headerSubtitle: {
-    fontSize: 14,
-    color: '#666',
+    fontSize: theme.typography.sizes.md,
+    color: theme.colors.text.secondary,
     textAlign: 'center',
-    paddingHorizontal: 20,
+    paddingHorizontal: theme.spacing.xl,
     marginTop: -10,
   },
   progressContainer: {
     flexDirection: 'row',
     justifyContent: 'center',
     paddingVertical: 15,
-    paddingHorizontal: 20,
+    paddingHorizontal: theme.spacing.xl,
     gap: 10,
   },
   progressDot: {
     width: 8,
     height: 8,
-    borderRadius: 4,
-    backgroundColor: '#E5E5E5',
+    borderRadius: theme.borderRadius.sm,
+    backgroundColor: theme.colors.gray[300],
   },
   progressDotActive: {
     backgroundColor: theme.colors.primary,
@@ -1236,7 +1240,7 @@ const styles = StyleSheet.create({
   scrollContentContainer: {
     paddingHorizontal: 25,
     paddingTop: 10,
-    paddingBottom: 20,
+    paddingBottom: theme.spacing.xl,
     flexGrow: 1,
   },
   loadingContainer: {
@@ -1247,24 +1251,24 @@ const styles = StyleSheet.create({
   },
   loadingText: {
     marginTop: 15,
-    fontSize: 16,
-    color: '#666',
+    fontSize: theme.typography.sizes.lg,
+    color: theme.colors.text.secondary,
   },
   stepContent: {
     paddingTop: 10,
   },
   stepTitle: {
-    fontSize: 32,
+    fontSize: theme.typography.sizes.huge,
     fontWeight: '800',
-    marginBottom: 8,
+    marginBottom: theme.spacing.sm,
     textAlign: 'center',
-    color: '#1A1A1A',
+    color: theme.colors.gray[900],
   },
   helperText: {
     fontSize: 15,
-    color: '#777',
+    color: theme.colors.gray[600],
     textAlign: 'center',
-    marginTop: 8,
+    marginTop: theme.spacing.sm,
     lineHeight: 22,
   },
   datePickerButton: {
@@ -1273,22 +1277,22 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     marginTop: 35,
     padding: 18,
-    borderRadius: 16,
+    borderRadius: theme.borderRadius.xl,
     borderWidth: 2,
-    borderColor: '#F0F0F0',
-    backgroundColor: '#FAFAFA',
-    gap: 12,
+    borderColor: theme.colors.gray[200],
+    backgroundColor: theme.colors.gray[50],
+    gap: theme.spacing.md,
   },
   datePickerButtonText: {
     fontSize: 17,
-    fontWeight: '600',
-    color: '#444',
+    fontWeight: theme.typography.weights.semibold,
+    color: theme.colors.gray[700],
   },
   datePickerContainer: {
     marginTop: 25,
     alignItems: 'center',
-    backgroundColor: '#FAFAFA',
-    borderRadius: 16,
+    backgroundColor: theme.colors.gray[50],
+    borderRadius: theme.borderRadius.xl,
     padding: 10,
   },
   datePicker: {
@@ -1297,50 +1301,43 @@ const styles = StyleSheet.create({
   },
   optionsContainer: {
     marginTop: 35,
-    gap: 12,
+    gap: theme.spacing.md,
   },
   optionButton: {
     padding: 18,
-    borderRadius: 16,
+    borderRadius: theme.borderRadius.xl,
     borderWidth: 2,
-    borderColor: '#F0F0F0',
+    borderColor: theme.colors.gray[200],
     alignItems: 'center',
-    backgroundColor: '#FAFAFA',
+    backgroundColor: theme.colors.gray[50],
   },
   optionButtonSelected: {
     borderColor: theme.colors.primary,
-    backgroundColor: '#FFF5F5',
+    backgroundColor: `${theme.colors.primary}08`,
   },
   optionText: {
     fontSize: 17,
-    fontWeight: '600',
-    color: '#444',
+    fontWeight: theme.typography.weights.semibold,
+    color: theme.colors.gray[700],
   },
   optionTextSelected: {
     color: theme.colors.primary,
-    fontWeight: '700',
+    fontWeight: theme.typography.weights.bold,
   },
   photosGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: 12,
+    gap: theme.spacing.md,
     marginTop: 35,
     justifyContent: 'center',
   },
   photoContainer: {
     width: 100,
     height: 133,
-    borderRadius: 12,
+    borderRadius: theme.borderRadius.lg,
     overflow: 'hidden',
     position: 'relative',
-    shadowColor: '#000',
-    shadowOffset: {
-      width: 0,
-      height: 2,
-    },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
+    ...theme.shadows.small,
   },
   photo: {
     width: '100%',
@@ -1351,50 +1348,50 @@ const styles = StyleSheet.create({
     top: 5,
     right: 5,
     backgroundColor: 'rgba(255, 255, 255, 0.9)',
-    borderRadius: 12,
+    borderRadius: theme.borderRadius.lg,
   },
   addPhotoButton: {
     width: 100,
     height: 133,
-    borderRadius: 12,
+    borderRadius: theme.borderRadius.lg,
     borderWidth: 2,
     borderColor: theme.colors.primary,
     borderStyle: 'dashed',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#FFF5F5',
+    backgroundColor: `${theme.colors.primary}08`,
   },
   locationContainer: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    marginTop: 40,
-    padding: 20,
-    backgroundColor: '#FFF5F5',
-    borderRadius: 16,
+    marginTop: theme.spacing.huge,
+    padding: theme.spacing.xl,
+    backgroundColor: `${theme.colors.primary}08`,
+    borderRadius: theme.borderRadius.xl,
     gap: 10,
     borderWidth: 2,
     borderColor: theme.colors.primary,
   },
   locationText: {
     fontSize: 17,
-    fontWeight: '600',
+    fontWeight: theme.typography.weights.semibold,
     color: theme.colors.primary,
   },
   locationLoadingContainer: {
     alignItems: 'center',
     justifyContent: 'center',
-    marginTop: 40,
+    marginTop: theme.spacing.huge,
     padding: 30,
   },
   locationLoadingText: {
-    fontSize: 16,
-    color: '#666',
+    fontSize: theme.typography.sizes.lg,
+    color: theme.colors.text.secondary,
     marginTop: 15,
   },
   locationAutoProgressText: {
-    fontSize: 14,
-    color: '#999',
+    fontSize: theme.typography.sizes.md,
+    color: theme.colors.text.muted,
     marginTop: 15,
     textAlign: 'center',
     fontStyle: 'italic',
@@ -1403,31 +1400,31 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingHorizontal: 20,
+    paddingHorizontal: theme.spacing.xl,
     paddingVertical: 15,
-    paddingBottom: Platform.OS === 'ios' ? 30 : 20,
-    backgroundColor: '#FFF',
+    paddingBottom: Platform.OS === 'ios' ? 30 : theme.spacing.xl,
+    backgroundColor: theme.colors.background.primary,
   },
   footerLeft: {
     flex: 1,
   },
   backButton: {
-    paddingHorizontal: 20,
-    paddingVertical: 12,
+    paddingHorizontal: theme.spacing.xl,
+    paddingVertical: theme.spacing.md,
   },
   backButtonText: {
-    fontSize: 16,
-    color: '#666',
-    fontWeight: '500',
+    fontSize: theme.typography.sizes.lg,
+    color: theme.colors.text.secondary,
+    fontWeight: theme.typography.weights.medium,
   },
   skipButton: {
-    paddingHorizontal: 20,
-    paddingVertical: 12,
+    paddingHorizontal: theme.spacing.xl,
+    paddingVertical: theme.spacing.md,
   },
   skipButtonText: {
-    fontSize: 16,
-    color: '#999',
-    fontWeight: '500',
+    fontSize: theme.typography.sizes.lg,
+    color: theme.colors.text.muted,
+    fontWeight: theme.typography.weights.medium,
   },
   nextButton: {
     backgroundColor: theme.colors.primary,
@@ -1450,9 +1447,9 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.1,
   },
   nextButtonText: {
-    color: '#FFF',
+    color: theme.colors.text.white,
     fontSize: 17,
-    fontWeight: '700',
+    fontWeight: theme.typography.weights.bold,
   },
 });
 

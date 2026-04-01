@@ -49,7 +49,11 @@ const ReportReasonModal = ({ visible, userName, onSubmit, onCancel, isSubmitting
               <View style={styles.header}>
                 <Text style={styles.title}>Report {userName}</Text>
                 <TouchableOpacity onPress={handleCancel} style={styles.closeButton}>
-                  <Ionicons name="close" size={24} color="#666" />
+                  <Ionicons
+                    name="close"
+                    size={theme.icons.md}
+                    color={theme.colors.text.secondary}
+                  />
                 </TouchableOpacity>
               </View>
 
@@ -89,7 +93,7 @@ const ReportReasonModal = ({ visible, userName, onSubmit, onCancel, isSubmitting
                     <TextInput
                       style={styles.descriptionInput}
                       placeholder="Tell us more about what happened..."
-                      placeholderTextColor="#999"
+                      placeholderTextColor={theme.colors.text.muted}
                       multiline
                       numberOfLines={4}
                       maxLength={500}
@@ -126,48 +130,48 @@ const ReportReasonModal = ({ visible, userName, onSubmit, onCancel, isSubmitting
 const styles = StyleSheet.create({
   overlay: {
     flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    backgroundColor: theme.colors.background.overlay,
     justifyContent: 'flex-end',
   },
   modalContainer: {
-    backgroundColor: '#fff',
-    borderTopLeftRadius: 20,
-    borderTopRightRadius: 20,
+    backgroundColor: theme.colors.background.primary,
+    borderTopLeftRadius: theme.borderRadius.xxl,
+    borderTopRightRadius: theme.borderRadius.xxl,
     maxHeight: '80%',
   },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingHorizontal: 20,
-    paddingTop: 20,
-    paddingBottom: 12,
+    paddingHorizontal: theme.spacing.xl,
+    paddingTop: theme.spacing.xl,
+    paddingBottom: theme.spacing.md,
     borderBottomWidth: 1,
-    borderBottomColor: '#f0f0f0',
+    borderBottomColor: theme.colors.background.tertiary,
   },
   title: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: '#333',
+    fontSize: theme.typography.sizes.xl,
+    fontWeight: theme.typography.weights.semibold,
+    color: theme.colors.text.primary,
   },
   closeButton: {
-    padding: 4,
+    padding: theme.spacing.xs,
   },
   subtitle: {
-    fontSize: 14,
-    color: '#666',
-    paddingHorizontal: 20,
-    paddingVertical: 16,
+    fontSize: theme.typography.sizes.md,
+    color: theme.colors.text.secondary,
+    paddingHorizontal: theme.spacing.xl,
+    paddingVertical: theme.spacing.lg,
   },
   reasonsContainer: {
-    paddingHorizontal: 20,
+    paddingHorizontal: theme.spacing.xl,
   },
   reasonOption: {
     flexDirection: 'row',
     alignItems: 'center',
     paddingVertical: 14,
     borderBottomWidth: 1,
-    borderBottomColor: '#f0f0f0',
+    borderBottomColor: theme.colors.background.tertiary,
   },
   reasonOptionSelected: {
     backgroundColor: `${theme.colors.primary}08`,
@@ -177,10 +181,10 @@ const styles = StyleSheet.create({
     height: 22,
     borderRadius: 11,
     borderWidth: 2,
-    borderColor: '#ddd',
+    borderColor: theme.colors.border.light,
     alignItems: 'center',
     justifyContent: 'center',
-    marginRight: 12,
+    marginRight: theme.spacing.md,
   },
   radioInner: {
     width: 12,
@@ -189,58 +193,58 @@ const styles = StyleSheet.create({
     backgroundColor: theme.colors.primary,
   },
   reasonText: {
-    fontSize: 16,
-    color: '#333',
+    fontSize: theme.typography.sizes.lg,
+    color: theme.colors.text.primary,
   },
   reasonTextSelected: {
-    fontWeight: '500',
+    fontWeight: theme.typography.weights.medium,
     color: theme.colors.primary,
   },
   descriptionContainer: {
-    marginTop: 16,
-    marginBottom: 20,
+    marginTop: theme.spacing.lg,
+    marginBottom: theme.spacing.xl,
   },
   descriptionLabel: {
-    fontSize: 14,
-    fontWeight: '500',
-    color: '#666',
-    marginBottom: 8,
+    fontSize: theme.typography.sizes.md,
+    fontWeight: theme.typography.weights.medium,
+    color: theme.colors.text.secondary,
+    marginBottom: theme.spacing.sm,
   },
   descriptionInput: {
     borderWidth: 1,
-    borderColor: '#ddd',
-    borderRadius: 10,
-    padding: 12,
+    borderColor: theme.colors.border.light,
+    borderRadius: theme.borderRadius.lg,
+    padding: theme.spacing.md,
     fontSize: 15,
-    color: '#333',
+    color: theme.colors.text.primary,
     minHeight: 100,
   },
   charCount: {
-    fontSize: 12,
-    color: '#999',
+    fontSize: theme.typography.sizes.sm,
+    color: theme.colors.text.muted,
     textAlign: 'right',
-    marginTop: 4,
+    marginTop: theme.spacing.xs,
   },
   footer: {
-    paddingHorizontal: 20,
-    paddingVertical: 16,
+    paddingHorizontal: theme.spacing.xl,
+    paddingVertical: theme.spacing.lg,
     paddingBottom: 34,
     borderTopWidth: 1,
-    borderTopColor: '#f0f0f0',
+    borderTopColor: theme.colors.background.tertiary,
   },
   submitButton: {
-    backgroundColor: theme.colors.error,
-    paddingVertical: 16,
-    borderRadius: 12,
+    backgroundColor: theme.colors.status.error,
+    paddingVertical: theme.spacing.lg,
+    borderRadius: theme.borderRadius.lg,
     alignItems: 'center',
   },
   submitButtonDisabled: {
     opacity: 0.5,
   },
   submitButtonText: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#fff',
+    fontSize: theme.typography.sizes.lg,
+    fontWeight: theme.typography.weights.semibold,
+    color: theme.colors.text.white,
   },
 });
 
