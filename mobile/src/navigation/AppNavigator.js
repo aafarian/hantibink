@@ -185,12 +185,7 @@ const MainNavigator = () => {
   return (
     <>
       <UpdateBanner />
-      <Tab.Navigator
-        tabBar={renderTabBar}
-        screenOptions={{
-          headerShown: false,
-        }}
-      >
+      <Tab.Navigator tabBar={renderTabBar}>
         <Tab.Screen
           name="Profile"
           component={ProfileStack}
@@ -201,6 +196,7 @@ const MainNavigator = () => {
           name="Liked You"
           component={LikedYouScreen}
           options={{
+            headerShown: true,
             title: 'Liked You',
             headerStyle: {
               backgroundColor: theme.colors.primary,

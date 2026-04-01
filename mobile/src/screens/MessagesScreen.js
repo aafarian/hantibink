@@ -100,7 +100,7 @@ const MessagesScreen = () => {
   return (
     <View style={commonStyles.container}>
       {/* Collapsible Header */}
-      <Animated.View style={[styles.header, { paddingTop: insets.top }, animatedHeaderStyle]}>
+      <Animated.View style={[styles.header, animatedHeaderStyle]}>
         <Animated.View style={[styles.headerContent, animatedContentStyle]}>
           <Text style={styles.headerTitle}>Messages</Text>
         </Animated.View>
