@@ -5,6 +5,7 @@ import { createStackNavigator } from '@react-navigation/stack';
 import { View, ActivityIndicator } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as Notifications from 'expo-notifications';
+import * as Haptics from 'expo-haptics';
 import { useAuth } from '../contexts/AuthContext';
 import { useUnread } from '../contexts/UnreadContext';
 import { LocationProvider } from '../contexts/LocationContext';
@@ -247,12 +248,22 @@ const MainNavigator = () => {
   );
 };
 
+/**
+ * Minimum interval between haptic feedback triggers (ms).
+ * Prevents double-fires on rapid navigation.
+ */
+const HAPTIC_DEBOUNCE_MS = 150;
+
 const AppNavigator = () => {
   const { user, userProfile, loading } = useAuth();
   const navigationRef = useRef();
   const notificationResponseListener = useRef();
   const pendingNavigationRef = useRef(null);
   const [isNavigationReady, setIsNavigationReady] = React.useState(false);
+
+  // Refs for navigation transition haptics
+  const lastNavigationKeyRef = useRef(null);
+  const lastHapticTimeRef = useRef(0);
 
   // Force update check
   const { showUpdateModal, isUpdateRequired, versionConfig, currentVersion, dismissModal } =
@@ -322,6 +333,38 @@ const AppNavigator = () => {
   // This was causing a race condition where the flag was being cleared
   // before MainNavigator could check it
 
+  /**
+   * Handle navigation state changes and trigger subtle haptic feedback.
+   * Uses debouncing to prevent double-fires on rapid navigation.
+   * Only fires when navigation actually completes (not on back gesture cancel).
+   */
+  const handleNavigationStateChange = useCallback(state => {
+    if (!state) return;
+
+    // Get the current active route key
+    const currentKey = state.routes[state.index]?.key;
+
+    // Skip if this is the same route (back gesture cancel returns to same route)
+    if (currentKey === lastNavigationKeyRef.current) {
+      return;
+    }
+
+    // Debounce rapid navigation
+    const now = Date.now();
+    if (now - lastHapticTimeRef.current < HAPTIC_DEBOUNCE_MS) {
+      return;
+    }
+
+    // Update tracking refs
+    lastNavigationKeyRef.current = currentKey;
+    lastHapticTimeRef.current = now;
+
+    // Trigger light haptic feedback (respects system haptic settings)
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {
+      // Silently ignore haptic errors (e.g., device doesn't support haptics)
+    });
+  }, []);
+
   // Show loading screen while checking authentication
   if (loading) {
     return (
@@ -335,7 +378,11 @@ const AppNavigator = () => {
 
   return (
     <>
-      <NavigationContainer ref={navigationRef} onReady={handleNavigationReady}>
+      <NavigationContainer
+        ref={navigationRef}
+        onReady={handleNavigationReady}
+        onStateChange={handleNavigationStateChange}
+      >
         <ToastProvider>
           <LocationProvider>
             {(() => {
