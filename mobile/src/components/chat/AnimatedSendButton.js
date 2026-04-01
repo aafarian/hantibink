@@ -1,25 +1,15 @@
 import React, { useCallback, memo } from 'react';
-import { StyleSheet, Pressable } from 'react-native';
-import Animated, {
-  useAnimatedStyle,
-  useSharedValue,
-  withSpring,
-  withSequence,
-} from 'react-native-reanimated';
+import { StyleSheet, TouchableOpacity } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { theme } from '../../styles/theme';
 
-const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
-
 /**
- * AnimatedSendButton - A send button with satisfying press animations.
+ * AnimatedSendButton - A send button with haptic feedback.
  *
- * Features:
- * - Scale down on press
- * - Pop/bounce effect when actually sending
- * - Haptic feedback
- * - Disabled state styling
+ * Note: Visual animations removed since the button switches to mic immediately
+ * after sending (text clears), so animations aren't visible. Haptic feedback
+ * provides the tactile confirmation instead.
  *
  * @param {Object} props
  * @param {Function} props.onSend - Called when button is pressed and enabled
@@ -27,60 +17,29 @@ const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
  * @param {string} props.iconColor - Color of the send icon
  */
 const AnimatedSendButton = ({ onSend, disabled = false, iconColor }) => {
-  const scale = useSharedValue(1);
-  const rotation = useSharedValue(0);
-
-  const handlePressIn = useCallback(() => {
-    if (disabled) return;
-    scale.value = withSpring(0.8, { damping: 15, stiffness: 400 });
-  }, [disabled, scale]);
-
-  const handlePressOut = useCallback(() => {
-    if (disabled) return;
-    scale.value = withSpring(1, theme.animation.springs.bouncy);
-  }, [disabled, scale]);
-
   const handlePress = useCallback(() => {
     if (disabled) return;
 
-    // Trigger haptic
+    // Haptic feedback is the main feedback since visual animation isn't visible
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
 
-    // Pop effect: quick scale up then back with rotation
-    scale.value = withSequence(
-      withSpring(1.25, { damping: 6, stiffness: 400 }),
-      withSpring(1, { damping: 10, stiffness: 200 })
-    );
-
-    rotation.value = withSequence(
-      withSpring(-8, { damping: 8, stiffness: 350 }),
-      withSpring(0, { damping: 10, stiffness: 200 })
-    );
-
-    // Call the onSend callback
     if (onSend) {
       onSend();
     }
-  }, [disabled, scale, rotation, onSend]);
-
-  const animatedStyle = useAnimatedStyle(() => ({
-    transform: [{ scale: scale.value }, { rotate: `${rotation.value}deg` }],
-    opacity: disabled ? 0.5 : 1,
-  }));
+  }, [disabled, onSend]);
 
   const color = disabled ? theme.colors.text.muted : iconColor || theme.colors.primary;
 
   return (
-    <AnimatedPressable
-      style={[styles.button, animatedStyle]}
-      onPressIn={handlePressIn}
-      onPressOut={handlePressOut}
+    <TouchableOpacity
+      style={[styles.button, disabled && styles.disabled]}
       onPress={handlePress}
       disabled={disabled}
+      activeOpacity={0.7}
       hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
     >
       <Ionicons name="send" size={22} color={color} />
-    </AnimatedPressable>
+    </TouchableOpacity>
   );
 };
 
@@ -91,6 +50,9 @@ const styles = StyleSheet.create({
     borderRadius: 22,
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  disabled: {
+    opacity: 0.5,
   },
 });
 

@@ -3,18 +3,21 @@ import { StyleSheet } from 'react-native';
 import Animated, {
   useAnimatedStyle,
   useSharedValue,
-  withSpring,
+  withTiming,
+  withSequence,
+  withDelay,
   interpolate,
   Extrapolation,
+  Easing,
 } from 'react-native-reanimated';
 
 /**
  * AnimatedMessageBubble - Wrapper component that provides entry animations for chat messages.
  *
- * Animates NEW messages (isTemp or recently added) with:
- * - Fade in from 0 to 1 opacity
- * - Scale from 0.7 to 1 (bouncy pop effect)
- * - Slide up from bottom
+ * Animates sent messages with a visible "pop up" effect:
+ * - Starts small and below final position
+ * - Scales up with slight overshoot
+ * - Slides into place
  *
  * @param {Object} props
  * @param {React.ReactNode} props.children - The message content to animate
@@ -29,35 +32,47 @@ const AnimatedMessageBubble = ({ children, isOwnMessage, shouldAnimate = false }
   useEffect(() => {
     if (shouldAnimate && !hasAnimated.current) {
       hasAnimated.current = true;
-      // Bouncy spring for a noticeable pop effect
-      progress.value = withSpring(1, {
-        damping: 12,
-        stiffness: 180,
-        mass: 0.8,
-      });
+
+      // Slower, more visible animation with overshoot
+      progress.value = withSequence(
+        // First animate to 1.08 (slight overshoot) over 250ms
+        withTiming(1.08, {
+          duration: 250,
+          easing: Easing.out(Easing.back(1.5)),
+        }),
+        // Then settle back to 1 over 150ms
+        withDelay(
+          20,
+          withTiming(1, {
+            duration: 150,
+            easing: Easing.out(Easing.ease),
+          })
+        )
+      );
     }
   }, [shouldAnimate, progress]);
 
   const animatedStyle = useAnimatedStyle(() => {
-    const opacity = interpolate(progress.value, [0, 1], [0, 1], Extrapolation.CLAMP);
+    // Fade in
+    const opacity = interpolate(progress.value, [0, 0.5, 1], [0, 1, 1], Extrapolation.CLAMP);
 
-    // More dramatic scale for noticeable pop
-    const scale = interpolate(progress.value, [0, 1], [0.7, 1], Extrapolation.CLAMP);
+    // Scale with overshoot support (progress goes to 1.08 then back to 1)
+    const scale = interpolate(progress.value, [0, 1, 1.08], [0.5, 1, 1.05], Extrapolation.CLAMP);
 
-    // Slide up from bottom (more noticeable for sent messages)
-    const translateY = interpolate(progress.value, [0, 1], [30, 0], Extrapolation.CLAMP);
+    // Slide up from below - more dramatic 50px
+    const translateY = interpolate(progress.value, [0, 1], [50, 0], Extrapolation.CLAMP);
 
-    // Slight horizontal slide based on message owner
+    // Slide from side based on sender
     const translateX = interpolate(
       progress.value,
       [0, 1],
-      [isOwnMessage ? 15 : -15, 0],
+      [isOwnMessage ? 30 : -30, 0],
       Extrapolation.CLAMP
     );
 
     return {
       opacity,
-      transform: [{ scale }, { translateY }, { translateX }],
+      transform: [{ translateY }, { translateX }, { scale }],
     };
   });
 
