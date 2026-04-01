@@ -28,16 +28,15 @@ export const fadeTransitionSpec = {
 };
 
 /**
- * TransitionSpec for slide animations using spring physics.
- * Uses theme.animation.springs.smooth for spring config.
+ * TransitionSpec for slide animations using timing.
+ * Spring animations can block touches while settling, so we use
+ * timing for reliable touch responsiveness after transitions.
  */
 export const slideTransitionSpec = {
-  animation: 'spring',
+  animation: 'timing',
   config: {
-    ...theme.animation.springs.smooth,
-    overshootClamping: false,
-    restDisplacementThreshold: 0.01,
-    restSpeedThreshold: 0.01,
+    duration: theme.animation.durations.slow,
+    easing: createBezier(theme.animation.easings.decelerate),
   },
 };
 

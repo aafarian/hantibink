@@ -26,12 +26,13 @@ export const ErrorScreen = ({
   const buttonScale = useSharedValue(0.9);
 
   useEffect(() => {
+    // Use timing for button animations to avoid blocking touches
     iconScale.value = withSpring(1, { damping: 12, stiffness: 100 });
     iconOpacity.value = withTiming(1, { duration: 300 });
     textOpacity.value = withDelay(150, withTiming(1, { duration: 300 }));
-    textTranslateY.value = withDelay(150, withSpring(0, { damping: 15 }));
+    textTranslateY.value = withDelay(150, withTiming(0, { duration: 300 }));
     buttonOpacity.value = withDelay(300, withTiming(1, { duration: 300 }));
-    buttonScale.value = withDelay(300, withSpring(1, { damping: 12 }));
+    buttonScale.value = withDelay(300, withTiming(1, { duration: 300 }));
   }, [iconScale, iconOpacity, textOpacity, textTranslateY, buttonOpacity, buttonScale]);
 
   const iconAnimatedStyle = useAnimatedStyle(() => ({
