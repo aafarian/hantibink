@@ -690,6 +690,7 @@ const PeopleScreenOptimized = ({ navigation }) => {
             icon="heart-outline"
             title="No more profiles nearby"
             subtitle="Try adjusting your filters or check back later"
+            draggableIcon={true}
             action={{
               text: 'Adjust Filters',
               onPress: () =>
