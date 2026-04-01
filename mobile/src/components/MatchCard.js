@@ -212,10 +212,6 @@ export const MatchCard = memo(
             <Text style={styles.unreadText}>{unreadCount > 99 ? '99+' : unreadCount}</Text>
           </View>
         )}
-
-        <View style={styles.matchBadge}>
-          <Ionicons name="heart" size={14} color={theme.colors.primary} />
-        </View>
       </TouchableOpacity>
     );
   }
@@ -294,14 +290,6 @@ const styles = {
     fontSize: theme.typography.sizes.sm,
     marginLeft: theme.spacing.xs,
     fontWeight: theme.typography.weights.medium,
-  },
-  matchBadge: {
-    backgroundColor: 'rgba(211, 47, 47, 0.1)',
-    borderRadius: theme.borderRadius.md,
-    paddingHorizontal: theme.spacing.sm,
-    paddingVertical: theme.spacing.xs,
-    justifyContent: 'center',
-    alignItems: 'center',
   },
   unreadBadge: {
     backgroundColor: theme.colors.primary,
