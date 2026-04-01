@@ -234,7 +234,7 @@ const ProfileBottomSheet = forwardRef(
                 {section.data.age && <Text style={styles.ageText}>, {section.data.age}</Text>}
               </Text>
               <View style={styles.locationRow}>
-                <Ionicons name="location-outline" size={18} color="#666" />
+                <Ionicons name="location-outline" size={18} color={theme.colors.text.secondary} />
                 <Text style={styles.locationText}>{section.data.location}</Text>
               </View>
             </View>
@@ -262,13 +262,17 @@ const ProfileBottomSheet = forwardRef(
               <Text style={styles.sectionTitle}>Work & Education</Text>
               {section.data.profession && (
                 <View style={styles.infoRow}>
-                  <Ionicons name="briefcase-outline" size={18} color="#666" />
+                  <Ionicons
+                    name="briefcase-outline"
+                    size={18}
+                    color={theme.colors.text.secondary}
+                  />
                   <Text style={styles.infoText}>{section.data.profession}</Text>
                 </View>
               )}
               {section.data.education && (
                 <View style={styles.infoRow}>
-                  <Ionicons name="school-outline" size={18} color="#666" />
+                  <Ionicons name="school-outline" size={18} color={theme.colors.text.secondary} />
                   <Text style={styles.infoText}>{section.data.education}</Text>
                 </View>
               )}
@@ -284,13 +288,13 @@ const ProfileBottomSheet = forwardRef(
               <Text style={styles.sectionTitle}>Basic Info</Text>
               {section.data.height && (
                 <View style={styles.infoRow}>
-                  <Ionicons name="resize-outline" size={18} color="#666" />
+                  <Ionicons name="resize-outline" size={18} color={theme.colors.text.secondary} />
                   <Text style={styles.infoText}>{section.data.height}</Text>
                 </View>
               )}
               {section.data.relationshipType && (
                 <View style={styles.infoRow}>
-                  <Ionicons name="heart-outline" size={18} color="#666" />
+                  <Ionicons name="heart-outline" size={18} color={theme.colors.text.secondary} />
                   <Text style={styles.infoText}>
                     {Array.isArray(section.data.relationshipType)
                       ? section.data.relationshipType.join(', ')
@@ -300,7 +304,7 @@ const ProfileBottomSheet = forwardRef(
               )}
               {section.data.religion && (
                 <View style={styles.infoRow}>
-                  <Ionicons name="library-outline" size={18} color="#666" />
+                  <Ionicons name="library-outline" size={18} color={theme.colors.text.secondary} />
                   <Text style={styles.infoText}>{section.data.religion}</Text>
                 </View>
               )}
@@ -316,25 +320,25 @@ const ProfileBottomSheet = forwardRef(
               <Text style={styles.sectionTitle}>Lifestyle</Text>
               {section.data.smoking && (
                 <View style={styles.infoRow}>
-                  <Ionicons name="ban-outline" size={18} color="#666" />
+                  <Ionicons name="ban-outline" size={18} color={theme.colors.text.secondary} />
                   <Text style={styles.infoText}>{section.data.smoking}</Text>
                 </View>
               )}
               {section.data.drinking && (
                 <View style={styles.infoRow}>
-                  <Ionicons name="wine-outline" size={18} color="#666" />
+                  <Ionicons name="wine-outline" size={18} color={theme.colors.text.secondary} />
                   <Text style={styles.infoText}>{section.data.drinking}</Text>
                 </View>
               )}
               {section.data.pets && (
                 <View style={styles.infoRow}>
-                  <Ionicons name="paw-outline" size={18} color="#666" />
+                  <Ionicons name="paw-outline" size={18} color={theme.colors.text.secondary} />
                   <Text style={styles.infoText}>{section.data.pets}</Text>
                 </View>
               )}
               {section.data.travel && (
                 <View style={styles.infoRow}>
-                  <Ionicons name="airplane-outline" size={18} color="#666" />
+                  <Ionicons name="airplane-outline" size={18} color={theme.colors.text.secondary} />
                   <Text style={styles.infoText}>{section.data.travel}</Text>
                 </View>
               )}
@@ -394,7 +398,7 @@ const ProfileBottomSheet = forwardRef(
           <View style={styles.headerLeft} />
           <Text style={styles.headerTitle}>Profile</Text>
           <TouchableOpacity onPress={handleClose} style={styles.closeButton}>
-            <Ionicons name="close" size={24} color="#333" />
+            <Ionicons name="close" size={24} color={theme.colors.text.primary} />
           </TouchableOpacity>
         </View>
 
@@ -442,12 +446,12 @@ const ProfileBottomSheet = forwardRef(
 
 const styles = StyleSheet.create({
   bottomSheetBackground: {
-    backgroundColor: '#fff',
+    backgroundColor: theme.colors.background.primary,
     borderTopLeftRadius: 24,
     borderTopRightRadius: 24,
   },
   bottomSheetIndicator: {
-    backgroundColor: '#ddd',
+    backgroundColor: theme.colors.border.light,
     width: 36,
     height: 4,
   },
@@ -458,7 +462,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     paddingVertical: 12,
     borderBottomWidth: 1,
-    borderBottomColor: '#f0f0f0',
+    borderBottomColor: theme.colors.border.light,
   },
   headerLeft: {
     width: 32,
@@ -466,7 +470,7 @@ const styles = StyleSheet.create({
   headerTitle: {
     fontSize: 18,
     fontWeight: '600',
-    color: '#333',
+    color: theme.colors.text.primary,
   },
   closeButton: {
     width: 32,
@@ -484,7 +488,7 @@ const styles = StyleSheet.create({
   photoSection: {
     width: screenWidth,
     height: screenWidth * 1.2,
-    backgroundColor: '#f8f9fa',
+    backgroundColor: theme.colors.background.secondary,
   },
   fullPhoto: {
     width: '100%',
@@ -493,18 +497,18 @@ const styles = StyleSheet.create({
   contentSection: {
     paddingHorizontal: 20,
     paddingVertical: 24,
-    backgroundColor: '#fff',
+    backgroundColor: theme.colors.background.primary,
   },
   nameText: {
     fontSize: 32,
     fontWeight: 'bold',
-    color: '#1a1a1a',
+    color: theme.colors.text.primary,
     marginBottom: 8,
   },
   ageText: {
     fontSize: 28,
     fontWeight: 'normal',
-    color: '#4a4a4a',
+    color: theme.colors.text.secondary,
   },
   locationRow: {
     flexDirection: 'row',
@@ -513,23 +517,23 @@ const styles = StyleSheet.create({
   },
   locationText: {
     fontSize: 16,
-    color: '#666',
+    color: theme.colors.text.secondary,
     marginLeft: 6,
   },
   sectionTitle: {
     fontSize: 20,
     fontWeight: '700',
     marginBottom: 12,
-    color: '#1a1a1a',
+    color: theme.colors.text.primary,
   },
   bioText: {
     fontSize: 16,
     lineHeight: 24,
-    color: '#4a4a4a',
+    color: theme.colors.text.secondary,
   },
   notProvidedText: {
     fontSize: 16,
-    color: '#999',
+    color: theme.colors.text.muted,
     fontStyle: 'italic',
   },
   infoRow: {
@@ -539,7 +543,7 @@ const styles = StyleSheet.create({
   },
   infoText: {
     fontSize: 16,
-    color: '#4a4a4a',
+    color: theme.colors.text.secondary,
     marginLeft: 10,
     flex: 1,
   },
@@ -564,7 +568,7 @@ const styles = StyleSheet.create({
   actionSection: {
     paddingHorizontal: 20,
     paddingVertical: 20,
-    backgroundColor: '#fff',
+    backgroundColor: theme.colors.background.primary,
   },
   actionButtons: {
     flexDirection: 'row',
@@ -584,7 +588,7 @@ const styles = StyleSheet.create({
     marginLeft: 8,
     fontSize: 16,
     fontWeight: '600',
-    color: '#fff',
+    color: theme.colors.text.white,
   },
   bottomPadding: {
     height: 40,

@@ -2,6 +2,7 @@ import React from 'react';
 import { TouchableOpacity, Image, StyleSheet, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { usePhotoViewer } from '../../contexts/PhotoViewerContext';
+import { theme } from '../../styles/theme';
 
 /**
  * Clickable photo component that opens PhotoViewer bottom sheet
@@ -80,7 +81,7 @@ const ClickablePhoto = ({
 
       {showExpandIcon && (
         <View style={styles.expandIcon}>
-          <Ionicons name="expand-outline" size={16} color="#fff" />
+          <Ionicons name="expand-outline" size={16} color={theme.colors.text.white} />
         </View>
       )}
     </TouchableOpacity>
@@ -91,11 +92,7 @@ const styles = StyleSheet.create({
   container: {
     position: 'relative',
     overflow: 'hidden',
-    elevation: 2,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
+    ...theme.shadows.small,
   },
   image: {
     width: '100%',
@@ -105,7 +102,7 @@ const styles = StyleSheet.create({
     position: 'absolute',
     bottom: 4,
     right: 4,
-    backgroundColor: 'rgba(0,0,0,0.6)',
+    backgroundColor: theme.colors.background.overlay,
     borderRadius: 10,
     width: 20,
     height: 20,

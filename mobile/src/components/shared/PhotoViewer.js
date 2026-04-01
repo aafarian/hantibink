@@ -177,7 +177,7 @@ const PhotoViewer = forwardRef(
               {/* Header */}
               <View style={styles.header}>
                 <TouchableOpacity onPress={handleClose} style={styles.backButton}>
-                  <Ionicons name="arrow-back" size={24} color="#666" />
+                  <Ionicons name="arrow-back" size={24} color={theme.colors.text.secondary} />
                 </TouchableOpacity>
                 <View style={styles.headerCenter}>
                   <Text style={styles.headerTitle}>
@@ -202,7 +202,11 @@ const PhotoViewer = forwardRef(
                         !canDelete && styles.headerActionButtonDisabled,
                       ]}
                     >
-                      <Ionicons name="trash" size={22} color={canDelete ? '#FF4444' : '#ccc'} />
+                      <Ionicons
+                        name="trash"
+                        size={22}
+                        color={canDelete ? theme.colors.status.error : theme.colors.border.medium}
+                      />
                     </TouchableOpacity>
                   )}
                 </View>
@@ -235,7 +239,7 @@ const PhotoViewer = forwardRef(
                         style={[styles.navButton, styles.prevButton]}
                         onPress={handlePrevious}
                       >
-                        <Ionicons name="chevron-back" size={30} color="#fff" />
+                        <Ionicons name="chevron-back" size={30} color={theme.colors.text.white} />
                       </TouchableOpacity>
                     )}
 
@@ -244,7 +248,11 @@ const PhotoViewer = forwardRef(
                         style={[styles.navButton, styles.nextButton]}
                         onPress={handleNext}
                       >
-                        <Ionicons name="chevron-forward" size={30} color="#fff" />
+                        <Ionicons
+                          name="chevron-forward"
+                          size={30}
+                          color={theme.colors.text.white}
+                        />
                       </TouchableOpacity>
                     )}
                   </>
@@ -276,9 +284,18 @@ const PhotoViewer = forwardRef(
                         onPress={button.onPress}
                       >
                         {button.icon && (
-                          <Ionicons name={button.icon} size={20} color={button.color || '#333'} />
+                          <Ionicons
+                            name={button.icon}
+                            size={20}
+                            color={button.color || theme.colors.text.primary}
+                          />
                         )}
-                        <Text style={[styles.actionButtonText, { color: button.color || '#333' }]}>
+                        <Text
+                          style={[
+                            styles.actionButtonText,
+                            { color: button.color || theme.colors.text.primary },
+                          ]}
+                        >
                           {button.label}
                         </Text>
                       </TouchableOpacity>
@@ -299,22 +316,22 @@ const PhotoViewer = forwardRef(
 
 const styles = StyleSheet.create({
   bottomSheetBackground: {
-    backgroundColor: '#fff',
+    backgroundColor: theme.colors.background.primary,
   },
   bottomSheetIndicator: {
-    backgroundColor: '#ccc',
+    backgroundColor: theme.colors.border.medium,
     width: 40,
   },
   bottomSheetContent: {
     flex: 1,
-    backgroundColor: '#fff',
+    backgroundColor: theme.colors.background.primary,
     flexDirection: 'column',
   },
   gestureWrapper: {
     flex: 1,
   },
   bottomSection: {
-    backgroundColor: '#fff',
+    backgroundColor: theme.colors.background.primary,
     flexShrink: 0, // Prevent shrinking
   },
   header: {
@@ -323,13 +340,13 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     paddingHorizontal: 20,
     paddingVertical: 15,
-    backgroundColor: '#fff',
+    backgroundColor: theme.colors.background.primary,
     borderBottomWidth: 1,
-    borderBottomColor: '#f0f0f0',
+    borderBottomColor: theme.colors.border.light,
     flexShrink: 0, // Prevent shrinking
   },
   backButton: {
-    backgroundColor: '#f8f9fa',
+    backgroundColor: theme.colors.background.secondary,
     borderRadius: 20,
     width: 40,
     height: 40,
@@ -346,7 +363,7 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   headerActionButton: {
-    backgroundColor: '#f8f9fa',
+    backgroundColor: theme.colors.background.secondary,
     borderRadius: 20,
     width: 40,
     height: 40,
@@ -357,7 +374,7 @@ const styles = StyleSheet.create({
     opacity: 0.5,
   },
   headerTitle: {
-    color: '#333',
+    color: theme.colors.text.primary,
     fontSize: 18,
     fontWeight: '600',
   },
@@ -366,7 +383,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     position: 'relative',
-    backgroundColor: '#000', // Dark background for photo viewing
+    backgroundColor: theme.colors.text.primary, // Dark background for photo viewing
   },
   photo: {
     width: '100%',
@@ -376,7 +393,7 @@ const styles = StyleSheet.create({
     position: 'absolute',
     top: '50%',
     marginTop: -25,
-    backgroundColor: 'rgba(0,0,0,0.5)',
+    backgroundColor: theme.colors.background.overlay,
     borderRadius: 25,
     width: 50,
     height: 50,
@@ -394,15 +411,15 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     paddingVertical: 15,
-    backgroundColor: '#fff',
+    backgroundColor: theme.colors.background.primary,
     borderTopWidth: 1,
-    borderTopColor: '#f0f0f0',
+    borderTopColor: theme.colors.border.light,
   },
   dot: {
     width: 8,
     height: 8,
     borderRadius: 4,
-    backgroundColor: '#ddd',
+    backgroundColor: theme.colors.border.light,
     marginHorizontal: 4,
   },
   activeDot: {
@@ -416,26 +433,26 @@ const styles = StyleSheet.create({
     justifyContent: 'space-around',
     paddingHorizontal: 20,
     paddingVertical: 15,
-    backgroundColor: '#fff',
+    backgroundColor: theme.colors.background.primary,
   },
   actionButton: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#f8f9fa',
+    backgroundColor: theme.colors.background.secondary,
     paddingHorizontal: 15,
     paddingVertical: 10,
     borderRadius: 20,
     borderWidth: 1,
-    borderColor: '#e9ecef',
+    borderColor: theme.colors.border.light,
   },
   actionButtonText: {
     marginLeft: 8,
     fontSize: 14,
     fontWeight: '600',
-    color: '#333',
+    color: theme.colors.text.primary,
   },
   customContent: {
-    backgroundColor: '#fff',
+    backgroundColor: theme.colors.background.primary,
     paddingHorizontal: 20,
     paddingVertical: 15,
   },
@@ -445,7 +462,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   noPhotoText: {
-    color: '#fff',
+    color: theme.colors.text.white,
     fontSize: 16,
   },
 });
