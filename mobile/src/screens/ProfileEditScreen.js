@@ -182,7 +182,7 @@ const ProfileEditScreen = ({ navigation }) => {
 
       if (success) {
         await refreshUserProfile();
-        showSuccess('Profile updated successfully! ✨');
+        showSuccess('Profile updated successfully!');
 
         // Reset initial form data to match what was just saved
         // This ensures the next comparison starts fresh

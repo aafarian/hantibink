@@ -69,7 +69,7 @@ const ProfileDetailsScreen = ({ navigation, route }) => {
           const completionResult = await completeOnboarding(user?.uid || route.params?.userId);
 
           if (completionResult.success) {
-            showSuccess('Profile completed! Welcome to Hantibink! 🎉');
+            showSuccess('Profile completed! Welcome to Hantibink!');
             Logger.success('✅ Onboarding completed successfully');
             // Navigation to main app happens automatically when user is set in context
           } else {

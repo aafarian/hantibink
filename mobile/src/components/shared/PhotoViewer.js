@@ -4,7 +4,6 @@ import {
   Text,
   StyleSheet,
   TouchableOpacity,
-  Image,
   Dimensions,
   StatusBar,
   Platform,
@@ -13,6 +12,14 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import BottomSheet, { BottomSheetView } from '@gorhom/bottom-sheet';
 import { PanGestureHandler, State } from 'react-native-gesture-handler';
+import Animated, {
+  useSharedValue,
+  useAnimatedStyle,
+  withTiming,
+  withSpring,
+  runOnJS,
+  Easing,
+} from 'react-native-reanimated';
 import Logger from '../../utils/logger';
 import { theme } from '../../styles/theme';
 
@@ -23,34 +30,47 @@ const availableHeight = screenHeight - statusBarHeight;
 /**
  * Reusable PhotoViewer component that opens a full-screen bottom sheet
  * Can be used anywhere in the app for viewing photos
+ * Features smooth crossfade transitions between photos
  */
 const PhotoViewer = forwardRef(
   (
     {
       photos = [],
       initialPhotoIndex = 0,
-      showActions = false, // Whether to show action buttons
+      showActions = false,
       onSetMain,
       onDelete,
-      actionButtons = [], // Custom action buttons
+      actionButtons = [],
       title = 'Photo',
-      children, // Custom content below photo
-      onClose, // Callback when bottom sheet closes
+      children,
+      onClose,
     },
     ref
   ) => {
     const bottomSheetRef = useRef(null);
-    const snapPoints = useMemo(() => [availableHeight], []); // Full screen minus status bar
+    const snapPoints = useMemo(() => [availableHeight], []);
 
     const [currentPhotoIndex, setCurrentPhotoIndex] = React.useState(initialPhotoIndex);
+    const [nextPhotoIndex, setNextPhotoIndex] = React.useState(null);
+
+    // Animation values for photo transitions
+    const currentOpacity = useSharedValue(1);
+    const currentScale = useSharedValue(1);
+    const currentTranslateX = useSharedValue(0);
+    const nextOpacity = useSharedValue(0);
+    const nextScale = useSharedValue(0.95);
+    const nextTranslateX = useSharedValue(0);
 
     // Expose methods to parent
     useImperativeHandle(ref, () => ({
       open: photoIndex => {
         const indexToUse = photoIndex !== undefined ? photoIndex : initialPhotoIndex;
-
         setCurrentPhotoIndex(indexToUse);
-        // Add a small delay to ensure BottomSheet is ready
+        setNextPhotoIndex(null);
+        // Reset animation values
+        currentOpacity.value = 1;
+        currentScale.value = 1;
+        currentTranslateX.value = 0;
         setTimeout(() => {
           bottomSheetRef.current?.expand();
         }, 50);
@@ -61,23 +81,82 @@ const PhotoViewer = forwardRef(
     }));
 
     const currentPhoto = photos[currentPhotoIndex];
+    const nextPhoto = nextPhotoIndex !== null ? photos[nextPhotoIndex] : null;
 
     const handleClose = useCallback(() => {
       bottomSheetRef.current?.close();
-      onClose?.(); // Notify parent component
+      onClose?.();
     }, [onClose]);
+
+    // Callback to finalize photo transition (called from animation thread)
+    const finalizePhotoTransition = useCallback(
+      newIndex => {
+        setCurrentPhotoIndex(newIndex);
+        setNextPhotoIndex(null);
+        // Reset animation values for current
+        currentOpacity.value = 1;
+        currentScale.value = 1;
+        currentTranslateX.value = 0;
+      },
+      [currentOpacity, currentScale, currentTranslateX]
+    );
+
+    // Animate to a new photo with crossfade and slide
+    const animateToPhoto = useCallback(
+      (newIndex, direction) => {
+        if (newIndex === currentPhotoIndex || newIndex < 0 || newIndex >= photos.length) return;
+
+        // Set up the next photo
+        setNextPhotoIndex(newIndex);
+
+        // Initial position for next photo (slight offset in direction of swipe)
+        const slideOffset = direction === 'next' ? 30 : -30;
+        nextTranslateX.value = slideOffset;
+        nextOpacity.value = 0;
+        nextScale.value = 0.98;
+
+        // Animate current photo out
+        currentOpacity.value = withTiming(0, { duration: 200 });
+        currentScale.value = withTiming(0.95, { duration: 200 });
+        currentTranslateX.value = withTiming(-slideOffset, { duration: 200 });
+
+        // Animate next photo in, finalize state after animation completes
+        nextOpacity.value = withTiming(1, { duration: 250 }, finished => {
+          // Only finalize if animation completed (not cancelled by rapid navigation)
+          if (finished) {
+            runOnJS(finalizePhotoTransition)(newIndex);
+          }
+        });
+        nextScale.value = withSpring(1, { damping: 15, stiffness: 150 });
+        nextTranslateX.value = withTiming(0, {
+          duration: 250,
+          easing: Easing.out(Easing.ease),
+        });
+      },
+      [
+        currentPhotoIndex,
+        photos.length,
+        currentOpacity,
+        currentScale,
+        currentTranslateX,
+        nextOpacity,
+        nextScale,
+        nextTranslateX,
+        finalizePhotoTransition,
+      ]
+    );
 
     const handlePrevious = useCallback(() => {
       if (currentPhotoIndex > 0) {
-        setCurrentPhotoIndex(currentPhotoIndex - 1);
+        animateToPhoto(currentPhotoIndex - 1, 'prev');
       }
-    }, [currentPhotoIndex]);
+    }, [currentPhotoIndex, animateToPhoto]);
 
     const handleNext = useCallback(() => {
       if (currentPhotoIndex < photos.length - 1) {
-        setCurrentPhotoIndex(currentPhotoIndex + 1);
+        animateToPhoto(currentPhotoIndex + 1, 'next');
       }
-    }, [currentPhotoIndex, photos.length]);
+    }, [currentPhotoIndex, photos.length, animateToPhoto]);
 
     // Handle swipe gestures for photo navigation and sheet closing
     const onGestureEvent = useCallback(
@@ -86,11 +165,11 @@ const PhotoViewer = forwardRef(
 
         if (state === State.END) {
           const HORIZONTAL_THRESHOLD = 50;
-          const VERTICAL_THRESHOLD = 150; // Increased for less sensitivity
-          const VELOCITY_THRESHOLD = 800; // Increased for less sensitivity
-          const HORIZONTAL_PRIORITY_THRESHOLD = 30; // If horizontal > vertical, prioritize navigation
+          const VERTICAL_THRESHOLD = 150;
+          const VELOCITY_THRESHOLD = 800;
+          const HORIZONTAL_PRIORITY_THRESHOLD = 30;
 
-          // Prioritize horizontal navigation if user is clearly swiping left/right
+          // Prioritize horizontal navigation
           if (
             Math.abs(translationX) > HORIZONTAL_PRIORITY_THRESHOLD &&
             Math.abs(translationX) > Math.abs(translationY)
@@ -104,7 +183,7 @@ const PhotoViewer = forwardRef(
             }
           }
 
-          // Check for vertical drag to close (much more restrictive now)
+          // Check for vertical drag to close
           if (
             (Math.abs(translationY) > VERTICAL_THRESHOLD &&
               Math.abs(translationX) < HORIZONTAL_PRIORITY_THRESHOLD) ||
@@ -113,13 +192,12 @@ const PhotoViewer = forwardRef(
               Math.abs(translationX) < HORIZONTAL_PRIORITY_THRESHOLD)
           ) {
             if (translationY > 0) {
-              // Dragging down
               handleClose();
               return;
             }
           }
 
-          // Check for horizontal swipe for photo navigation (fallback)
+          // Fallback horizontal swipe
           if (Math.abs(translationY) < VERTICAL_THRESHOLD / 3) {
             if (translationX > HORIZONTAL_THRESHOLD) {
               handlePrevious();
@@ -155,6 +233,26 @@ const PhotoViewer = forwardRef(
       handleClose();
     }, [currentPhotoIndex, onDelete, handleClose, canDelete]);
 
+    // Tap on dot to go directly to photo
+    const handleDotPress = useCallback(
+      index => {
+        if (index === currentPhotoIndex) return;
+        animateToPhoto(index, index > currentPhotoIndex ? 'next' : 'prev');
+      },
+      [currentPhotoIndex, animateToPhoto]
+    );
+
+    // Animated styles
+    const currentPhotoStyle = useAnimatedStyle(() => ({
+      opacity: currentOpacity.value,
+      transform: [{ scale: currentScale.value }, { translateX: currentTranslateX.value }],
+    }));
+
+    const nextPhotoStyle = useAnimatedStyle(() => ({
+      opacity: nextOpacity.value,
+      transform: [{ scale: nextScale.value }, { translateX: nextTranslateX.value }],
+    }));
+
     if (!photos.length) return null;
 
     return (
@@ -166,9 +264,9 @@ const PhotoViewer = forwardRef(
         backgroundStyle={styles.bottomSheetBackground}
         handleIndicatorStyle={styles.bottomSheetIndicator}
         onClose={() => {
-          // Reset state when fully closed
           setCurrentPhotoIndex(initialPhotoIndex);
-          onClose?.(); // Notify parent component
+          setNextPhotoIndex(null);
+          onClose?.();
         }}
       >
         <BottomSheetView style={styles.bottomSheetContent}>
@@ -187,13 +285,11 @@ const PhotoViewer = forwardRef(
                   </Text>
                 </View>
                 <View style={styles.headerActions}>
-                  {/* Make Main Button - only show if not already main and onSetMain provided */}
                   {showActions && onSetMain && !isMainPhoto && (
                     <TouchableOpacity onPress={handleSetMain} style={styles.headerActionButton}>
                       <Ionicons name="star" size={22} color={theme.colors.primary} />
                     </TouchableOpacity>
                   )}
-                  {/* Delete Button */}
                   {showActions && onDelete && (
                     <TouchableOpacity
                       onPress={handleDelete}
@@ -212,26 +308,40 @@ const PhotoViewer = forwardRef(
                 </View>
               </View>
 
-              {/* Photo Display */}
+              {/* Photo Display with animated transitions */}
               <View style={styles.photoContainer}>
-                {currentPhoto ? (
-                  <Image
+                {/* Current Photo */}
+                {currentPhoto && (
+                  <Animated.Image
                     source={{
                       uri: typeof currentPhoto === 'string' ? currentPhoto : currentPhoto?.url,
                     }}
-                    style={styles.photo}
+                    style={[styles.photo, styles.photoAbsolute, currentPhotoStyle]}
                     resizeMode="contain"
                     onError={error => {
                       Logger.log('Photo failed to load:', error, currentPhoto);
                     }}
                   />
-                ) : (
+                )}
+
+                {/* Next Photo (during transition) */}
+                {nextPhoto && (
+                  <Animated.Image
+                    source={{
+                      uri: typeof nextPhoto === 'string' ? nextPhoto : nextPhoto?.url,
+                    }}
+                    style={[styles.photo, styles.photoAbsolute, nextPhotoStyle]}
+                    resizeMode="contain"
+                  />
+                )}
+
+                {!currentPhoto && !nextPhoto && (
                   <View style={styles.noPhotoContainer}>
                     <Text style={styles.noPhotoText}>No photo to display</Text>
                   </View>
                 )}
 
-                {/* Navigation Arrows (if multiple photos) */}
+                {/* Navigation Arrows */}
                 {photos.length > 1 && (
                   <>
                     {currentPhotoIndex > 0 && (
@@ -268,13 +378,13 @@ const PhotoViewer = forwardRef(
                       <TouchableOpacity
                         key={index}
                         style={[styles.dot, index === currentPhotoIndex && styles.activeDot]}
-                        onPress={() => setCurrentPhotoIndex(index)}
+                        onPress={() => handleDotPress(index)}
                       />
                     ))}
                   </View>
                 )}
 
-                {/* Custom Action Buttons (if any) */}
+                {/* Custom Action Buttons */}
                 {showActions && actionButtons.length > 0 && (
                   <View style={styles.actionButtons}>
                     {actionButtons.map((button, index) => (
@@ -332,7 +442,7 @@ const styles = StyleSheet.create({
   },
   bottomSection: {
     backgroundColor: theme.colors.background.primary,
-    flexShrink: 0, // Prevent shrinking
+    flexShrink: 0,
   },
   header: {
     flexDirection: 'row',
@@ -343,7 +453,7 @@ const styles = StyleSheet.create({
     backgroundColor: theme.colors.background.primary,
     borderBottomWidth: 1,
     borderBottomColor: theme.colors.border.light,
-    flexShrink: 0, // Prevent shrinking
+    flexShrink: 0,
   },
   backButton: {
     backgroundColor: theme.colors.background.secondary,
@@ -379,15 +489,23 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   photoContainer: {
-    height: 400, // Fixed height for photo display
+    height: 400,
     justifyContent: 'center',
     alignItems: 'center',
     position: 'relative',
-    backgroundColor: theme.colors.text.primary, // Dark background for photo viewing
+    backgroundColor: theme.colors.text.primary,
+    overflow: 'hidden',
   },
   photo: {
     width: '100%',
     height: '100%',
+  },
+  photoAbsolute: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
   },
   navButton: {
     position: 'absolute',
@@ -399,6 +517,7 @@ const styles = StyleSheet.create({
     height: 50,
     justifyContent: 'center',
     alignItems: 'center',
+    zIndex: 10,
   },
   prevButton: {
     left: 20,

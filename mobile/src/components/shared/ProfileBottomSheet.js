@@ -15,16 +15,24 @@ import {
   Dimensions,
   StatusBar,
   Platform,
-  Image,
   BackHandler,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import BottomSheet, { BottomSheetScrollView } from '@gorhom/bottom-sheet';
+import Animated, {
+  useSharedValue,
+  useAnimatedStyle,
+  useAnimatedScrollHandler,
+  interpolate,
+  Extrapolation,
+} from 'react-native-reanimated';
 import { theme } from '../../styles/theme';
+import AnimatedInterestTags from './AnimatedInterestTags';
 
 const { height: screenHeight, width: screenWidth } = Dimensions.get('window');
 const statusBarHeight = Platform.OS === 'android' ? StatusBar.currentHeight || 24 : 44;
 const availableHeight = screenHeight - statusBarHeight;
+const PHOTO_HEIGHT = screenWidth * 1.2;
 
 /**
  * Calculate age from birth date (pure utility function)
@@ -51,6 +59,47 @@ const getPhotoUrl = photo => {
 };
 
 /**
+ * Photo with parallax scroll effect
+ */
+const ParallaxPhoto = ({ uri, index, scrollY }) => {
+  // Calculate the approximate Y position of this photo in the scroll view
+  // Each photo section is PHOTO_HEIGHT, content sections are ~100-200px
+  const estimatedOffset = index * (PHOTO_HEIGHT + 150);
+
+  const animatedStyle = useAnimatedStyle(() => {
+    // Parallax: photo moves slower than scroll (0.3x speed)
+    const translateY = interpolate(
+      scrollY.value,
+      [estimatedOffset - screenHeight, estimatedOffset, estimatedOffset + PHOTO_HEIGHT],
+      [30, 0, -30],
+      Extrapolation.CLAMP
+    );
+
+    // Subtle scale effect as photo comes into view
+    const scale = interpolate(
+      scrollY.value,
+      [estimatedOffset - screenHeight, estimatedOffset, estimatedOffset + PHOTO_HEIGHT],
+      [1.05, 1, 1.05],
+      Extrapolation.CLAMP
+    );
+
+    return {
+      transform: [{ translateY }, { scale }],
+    };
+  });
+
+  return (
+    <View style={styles.photoSection}>
+      <Animated.Image
+        source={{ uri }}
+        style={[styles.fullPhoto, animatedStyle]}
+        resizeMode="cover"
+      />
+    </View>
+  );
+};
+
+/**
  * Bottom sheet for viewing other users' full profiles
  * Bumble-style layout with interspersed photos and information
  */
@@ -60,6 +109,15 @@ const ProfileBottomSheet = forwardRef(
     const snapPoints = useMemo(() => ['50%', availableHeight * 0.9], []);
     const isOpenRef = useRef(false);
     const [enableContentPanning, setEnableContentPanning] = useState(false);
+
+    // Scroll position for parallax effect
+    const scrollY = useSharedValue(0);
+
+    const scrollHandler = useAnimatedScrollHandler({
+      onScroll: event => {
+        scrollY.value = event.contentOffset.y;
+      },
+    });
 
     // Expose methods to parent
     useImperativeHandle(ref, () => ({
@@ -92,10 +150,9 @@ const ProfileBottomSheet = forwardRef(
       return () => backHandler.remove();
     }, [handleClose]);
 
-    // Handle scroll to detect when at top
-    const handleScroll = useCallback(event => {
+    // Handle scroll to detect when at top (for sheet dragging)
+    const handleScrollState = useCallback(event => {
       const { contentOffset } = event.nativeEvent;
-      // Enable sheet dragging when scrolled to top
       const isAtTop = contentOffset.y <= 0;
       setEnableContentPanning(isAtTop);
     }, []);
@@ -110,19 +167,20 @@ const ProfileBottomSheet = forwardRef(
 
       // Helper to add a photo section if available
       let photoIndex = 0;
+      let photoSectionIndex = 0;
       const addPhotoSection = () => {
         while (photoIndex < photos.length) {
           const photoUrl = getPhotoUrl(photos[photoIndex]);
-          photoIndex++; // Always increment to avoid infinite loop
+          photoIndex++;
           if (photoUrl) {
             sections.push({
               type: 'photo',
               data: photoUrl,
-              key: `photo-${photoIndex - 1}`, // Use previous index since we already incremented
+              key: `photo-${photoIndex - 1}`,
+              photoSectionIndex: photoSectionIndex++,
             });
             return true;
           }
-          // Continue to next photo if URL is falsy
         }
         return false;
       };
@@ -206,9 +264,13 @@ const ProfileBottomSheet = forwardRef(
 
       // Section Last: Interests (always at the end)
       if (profile.interests && profile.interests.length > 0) {
+        // Extract interest names
+        const interestNames = profile.interests.map(interest =>
+          typeof interest === 'object' ? interest.interest?.name || interest.name : interest
+        );
         sections.push({
           type: 'interests',
-          data: profile.interests,
+          data: interestNames,
           key: 'interests',
         });
       }
@@ -217,159 +279,165 @@ const ProfileBottomSheet = forwardRef(
     }, [profile]);
 
     // Memoized render function for sections
-    const renderSection = useCallback(section => {
-      switch (section.type) {
-        case 'photo':
-          return (
-            <View style={styles.photoSection} key={section.key}>
-              <Image source={{ uri: section.data }} style={styles.fullPhoto} resizeMode="cover" />
-            </View>
-          );
+    const renderSection = useCallback(
+      section => {
+        switch (section.type) {
+          case 'photo':
+            return (
+              <ParallaxPhoto
+                key={section.key}
+                uri={section.data}
+                index={section.photoSectionIndex}
+                scrollY={scrollY}
+              />
+            );
 
-        case 'header':
-          return (
-            <View style={styles.contentSection} key={section.key}>
-              <Text style={styles.nameText}>
-                {section.data.name}
-                {section.data.age && <Text style={styles.ageText}>, {section.data.age}</Text>}
-              </Text>
-              <View style={styles.locationRow}>
-                <Ionicons name="location-outline" size={18} color={theme.colors.text.secondary} />
-                <Text style={styles.locationText}>{section.data.location}</Text>
+          case 'header':
+            return (
+              <View style={styles.contentSection} key={section.key}>
+                <Text style={styles.nameText}>
+                  {section.data.name}
+                  {section.data.age && <Text style={styles.ageText}>, {section.data.age}</Text>}
+                </Text>
+                <View style={styles.locationRow}>
+                  <Ionicons name="location-outline" size={18} color={theme.colors.text.secondary} />
+                  <Text style={styles.locationText}>{section.data.location}</Text>
+                </View>
               </View>
-            </View>
-          );
+            );
 
-        case 'bio':
-          return (
-            <View style={styles.contentSection} key={section.key}>
-              <Text style={styles.sectionTitle}>About me</Text>
-              <Text style={styles.bioText}>{section.data}</Text>
-            </View>
-          );
+          case 'bio':
+            return (
+              <View style={styles.contentSection} key={section.key}>
+                <Text style={styles.sectionTitle}>About me</Text>
+                <Text style={styles.bioText}>{section.data}</Text>
+              </View>
+            );
 
-        case 'work-education':
-          if (!section.hasData) {
+          case 'work-education':
+            if (!section.hasData) {
+              return (
+                <View style={styles.contentSection} key={section.key}>
+                  <Text style={styles.sectionTitle}>Work & Education</Text>
+                  <Text style={styles.notProvidedText}>Not provided</Text>
+                </View>
+              );
+            }
             return (
               <View style={styles.contentSection} key={section.key}>
                 <Text style={styles.sectionTitle}>Work & Education</Text>
-                <Text style={styles.notProvidedText}>Not provided</Text>
+                {section.data.profession && (
+                  <View style={styles.infoRow}>
+                    <Ionicons
+                      name="briefcase-outline"
+                      size={18}
+                      color={theme.colors.text.secondary}
+                    />
+                    <Text style={styles.infoText}>{section.data.profession}</Text>
+                  </View>
+                )}
+                {section.data.education && (
+                  <View style={styles.infoRow}>
+                    <Ionicons name="school-outline" size={18} color={theme.colors.text.secondary} />
+                    <Text style={styles.infoText}>{section.data.education}</Text>
+                  </View>
+                )}
               </View>
             );
-          }
-          return (
-            <View style={styles.contentSection} key={section.key}>
-              <Text style={styles.sectionTitle}>Work & Education</Text>
-              {section.data.profession && (
-                <View style={styles.infoRow}>
-                  <Ionicons
-                    name="briefcase-outline"
-                    size={18}
-                    color={theme.colors.text.secondary}
-                  />
-                  <Text style={styles.infoText}>{section.data.profession}</Text>
-                </View>
-              )}
-              {section.data.education && (
-                <View style={styles.infoRow}>
-                  <Ionicons name="school-outline" size={18} color={theme.colors.text.secondary} />
-                  <Text style={styles.infoText}>{section.data.education}</Text>
-                </View>
-              )}
-            </View>
-          );
 
-        case 'basic-info':
-          if (!section.hasData) {
-            return null; // Skip this section if no data
-          }
-          return (
-            <View style={styles.contentSection} key={section.key}>
-              <Text style={styles.sectionTitle}>Basic Info</Text>
-              {section.data.height && (
-                <View style={styles.infoRow}>
-                  <Ionicons name="resize-outline" size={18} color={theme.colors.text.secondary} />
-                  <Text style={styles.infoText}>{section.data.height}</Text>
-                </View>
-              )}
-              {section.data.relationshipType && (
-                <View style={styles.infoRow}>
-                  <Ionicons name="heart-outline" size={18} color={theme.colors.text.secondary} />
-                  <Text style={styles.infoText}>
-                    {Array.isArray(section.data.relationshipType)
-                      ? section.data.relationshipType.join(', ')
-                      : section.data.relationshipType}
-                  </Text>
-                </View>
-              )}
-              {section.data.religion && (
-                <View style={styles.infoRow}>
-                  <Ionicons name="library-outline" size={18} color={theme.colors.text.secondary} />
-                  <Text style={styles.infoText}>{section.data.religion}</Text>
-                </View>
-              )}
-            </View>
-          );
-
-        case 'lifestyle':
-          if (!section.hasData) {
-            return null; // Skip this section if no data
-          }
-          return (
-            <View style={styles.contentSection} key={section.key}>
-              <Text style={styles.sectionTitle}>Lifestyle</Text>
-              {section.data.smoking && (
-                <View style={styles.infoRow}>
-                  <Ionicons name="ban-outline" size={18} color={theme.colors.text.secondary} />
-                  <Text style={styles.infoText}>{section.data.smoking}</Text>
-                </View>
-              )}
-              {section.data.drinking && (
-                <View style={styles.infoRow}>
-                  <Ionicons name="wine-outline" size={18} color={theme.colors.text.secondary} />
-                  <Text style={styles.infoText}>{section.data.drinking}</Text>
-                </View>
-              )}
-              {section.data.pets && (
-                <View style={styles.infoRow}>
-                  <Ionicons name="paw-outline" size={18} color={theme.colors.text.secondary} />
-                  <Text style={styles.infoText}>{section.data.pets}</Text>
-                </View>
-              )}
-              {section.data.travel && (
-                <View style={styles.infoRow}>
-                  <Ionicons name="airplane-outline" size={18} color={theme.colors.text.secondary} />
-                  <Text style={styles.infoText}>{section.data.travel}</Text>
-                </View>
-              )}
-            </View>
-          );
-
-        case 'interests':
-          return (
-            <View style={styles.contentSection} key={section.key}>
-              <Text style={styles.sectionTitle}>Interests</Text>
-              <View style={styles.interestsContainer}>
-                {section.data.map((interest, index) => {
-                  const interestName =
-                    typeof interest === 'object'
-                      ? interest.interest?.name || interest.name
-                      : interest;
-
-                  return (
-                    <View key={index} style={styles.interestBubble}>
-                      <Text style={styles.interestText}>{interestName}</Text>
-                    </View>
-                  );
-                })}
+          case 'basic-info':
+            if (!section.hasData) {
+              return null;
+            }
+            return (
+              <View style={styles.contentSection} key={section.key}>
+                <Text style={styles.sectionTitle}>Basic Info</Text>
+                {section.data.height && (
+                  <View style={styles.infoRow}>
+                    <Ionicons name="resize-outline" size={18} color={theme.colors.text.secondary} />
+                    <Text style={styles.infoText}>{section.data.height}</Text>
+                  </View>
+                )}
+                {section.data.relationshipType && (
+                  <View style={styles.infoRow}>
+                    <Ionicons name="heart-outline" size={18} color={theme.colors.text.secondary} />
+                    <Text style={styles.infoText}>
+                      {Array.isArray(section.data.relationshipType)
+                        ? section.data.relationshipType.join(', ')
+                        : section.data.relationshipType}
+                    </Text>
+                  </View>
+                )}
+                {section.data.religion && (
+                  <View style={styles.infoRow}>
+                    <Ionicons
+                      name="library-outline"
+                      size={18}
+                      color={theme.colors.text.secondary}
+                    />
+                    <Text style={styles.infoText}>{section.data.religion}</Text>
+                  </View>
+                )}
               </View>
-            </View>
-          );
+            );
 
-        default:
-          return null;
-      }
-    }, []);
+          case 'lifestyle':
+            if (!section.hasData) {
+              return null;
+            }
+            return (
+              <View style={styles.contentSection} key={section.key}>
+                <Text style={styles.sectionTitle}>Lifestyle</Text>
+                {section.data.smoking && (
+                  <View style={styles.infoRow}>
+                    <Ionicons name="ban-outline" size={18} color={theme.colors.text.secondary} />
+                    <Text style={styles.infoText}>{section.data.smoking}</Text>
+                  </View>
+                )}
+                {section.data.drinking && (
+                  <View style={styles.infoRow}>
+                    <Ionicons name="wine-outline" size={18} color={theme.colors.text.secondary} />
+                    <Text style={styles.infoText}>{section.data.drinking}</Text>
+                  </View>
+                )}
+                {section.data.pets && (
+                  <View style={styles.infoRow}>
+                    <Ionicons name="paw-outline" size={18} color={theme.colors.text.secondary} />
+                    <Text style={styles.infoText}>{section.data.pets}</Text>
+                  </View>
+                )}
+                {section.data.travel && (
+                  <View style={styles.infoRow}>
+                    <Ionicons
+                      name="airplane-outline"
+                      size={18}
+                      color={theme.colors.text.secondary}
+                    />
+                    <Text style={styles.infoText}>{section.data.travel}</Text>
+                  </View>
+                )}
+              </View>
+            );
+
+          case 'interests':
+            return (
+              <View style={styles.contentSection} key={section.key}>
+                <Text style={styles.sectionTitle}>Interests</Text>
+                <AnimatedInterestTags
+                  items={section.data}
+                  maxItems={12}
+                  tagStyle={styles.interestBubble}
+                  textStyle={styles.interestText}
+                />
+              </View>
+            );
+
+          default:
+            return null;
+        }
+      },
+      [scrollY]
+    );
 
     if (!profile) return null;
 
@@ -402,14 +470,19 @@ const ProfileBottomSheet = forwardRef(
           </TouchableOpacity>
         </View>
 
-        {/* Scrollable Content */}
+        {/* Scrollable Content with parallax */}
         <BottomSheetScrollView
           style={styles.scrollView}
           showsVerticalScrollIndicator={true}
           contentContainerStyle={styles.scrollContent}
           bounces={true}
           overScrollMode="always"
-          onScroll={handleScroll}
+          onScroll={event => {
+            // Update scroll state for sheet dragging
+            handleScrollState(event);
+            // Run worklet handler for parallax
+            scrollHandler(event);
+          }}
           scrollEventThrottle={16}
         >
           {profileSections.map(section => renderSection(section))}
@@ -480,19 +553,21 @@ const styles = StyleSheet.create({
   },
   scrollView: {
     flex: 1,
-    marginTop: -1, // Overlap the header border slightly
+    marginTop: -1,
   },
   scrollContent: {
-    paddingBottom: 40, // More padding for better scrolling
+    paddingBottom: 40,
   },
   photoSection: {
     width: screenWidth,
-    height: screenWidth * 1.2,
+    height: PHOTO_HEIGHT,
     backgroundColor: theme.colors.background.secondary,
+    overflow: 'hidden',
   },
   fullPhoto: {
     width: '100%',
-    height: '100%',
+    height: '110%', // Slightly larger for parallax movement
+    marginTop: -20, // Center the extra height
   },
   contentSection: {
     paddingHorizontal: 20,
@@ -547,18 +622,11 @@ const styles = StyleSheet.create({
     marginLeft: 10,
     flex: 1,
   },
-  interestsContainer: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    marginTop: 4,
-  },
   interestBubble: {
     backgroundColor: 'rgba(211, 47, 47, 0.1)',
     paddingHorizontal: 16,
     paddingVertical: 8,
     borderRadius: 20,
-    marginRight: 8,
-    marginBottom: 8,
   },
   interestText: {
     fontSize: 14,

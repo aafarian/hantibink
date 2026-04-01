@@ -5,7 +5,6 @@ import {
   StyleSheet,
   FlatList,
   TouchableOpacity,
-  Image,
   KeyboardAvoidingView,
   Platform,
   Animated,
@@ -47,6 +46,9 @@ import ChatHeader from './chat/ChatHeader';
 import ChatInput from './chat/ChatInput';
 import ChatReactionsSheet from './chat/ChatReactionsSheet';
 import ChatMessageBubble from './chat/ChatMessageBubble';
+import AnimatedTypingIndicator from '../components/chat/AnimatedTypingIndicator';
+import AnimatedMessageBubble from '../components/chat/AnimatedMessageBubble';
+import AnimatedScrollToBottom from '../components/chat/AnimatedScrollToBottom';
 import { theme } from '../styles/theme';
 
 const ChatScreen = ({ route, navigation }) => {
@@ -101,8 +103,6 @@ const ChatScreen = ({ route, navigation }) => {
   const swipeableRefs = useRef({});
   const sentMessageIdsRef = useRef(new Set()); // Track IDs of messages we sent to avoid socket duplicates
   const sentMessageTimeoutsRef = useRef(new Map()); // Track cleanup timeouts for sentMessageIds
-  const scrollButtonAnim = useRef(new Animated.Value(0)).current;
-  const rightIconAnim = useRef(new Animated.Value(1)).current; // For icon transitions
   const isFocusedRef = useRef(isFocused); // Track focus state for callbacks
   const appStateRef = useRef(AppState.currentState); // Track app foreground/background state
 
@@ -112,11 +112,6 @@ const ChatScreen = ({ route, navigation }) => {
   const inputRef = useRef(null);
 
   // Animation values
-  const typingDotsAnim = useRef([
-    new Animated.Value(0),
-    new Animated.Value(0),
-    new Animated.Value(0),
-  ]).current;
   const shockwaveScale = useRef(new Animated.Value(1)).current;
   const shockwaveOpacity = useRef(new Animated.Value(0.6)).current;
 
@@ -277,29 +272,7 @@ const ChatScreen = ({ route, navigation }) => {
     };
   }, [showReactionPicker]);
 
-  // Animate right icon when switching between mic and send
-  const showSendButton = messageText.trim() && !isRecording;
-  const prevShowSendButtonRef = useRef(showSendButton);
-
-  useEffect(() => {
-    if (prevShowSendButtonRef.current !== showSendButton) {
-      // Quick scale down and up for a subtle transition
-      Animated.sequence([
-        Animated.timing(rightIconAnim, {
-          toValue: 0.8,
-          duration: 50,
-          useNativeDriver: true,
-        }),
-        Animated.spring(rightIconAnim, {
-          toValue: 1,
-          friction: 5,
-          tension: 100,
-          useNativeDriver: true,
-        }),
-      ]).start();
-      prevShowSendButtonRef.current = showSendButton;
-    }
-  }, [showSendButton, rightIconAnim]);
+  // Note: Send button animation is now handled by AnimatedSendButton component
 
   // Load messages from API
   const loadMessages = async () => {
@@ -790,15 +763,9 @@ const ChatScreen = ({ route, navigation }) => {
 
       if (shouldShow !== showScrollButton) {
         setShowScrollButton(shouldShow);
-        Animated.spring(scrollButtonAnim, {
-          toValue: shouldShow ? 1 : 0,
-          useNativeDriver: true,
-          tension: 50,
-          friction: 7,
-        }).start();
       }
     },
-    [showScrollButton, scrollButtonAnim]
+    [showScrollButton]
   );
 
   // Scroll to a specific message (for tapping on quoted reply)
@@ -840,32 +807,7 @@ const ChatScreen = ({ route, navigation }) => {
     []
   );
 
-  // Animate typing dots
-  useEffect(() => {
-    if (otherUserTyping) {
-      const animations = typingDotsAnim.map((anim, index) =>
-        Animated.loop(
-          Animated.sequence([
-            Animated.delay(index * 200),
-            Animated.timing(anim, {
-              toValue: 1,
-              duration: 400,
-              useNativeDriver: true,
-            }),
-            Animated.timing(anim, {
-              toValue: 0.3,
-              duration: 400,
-              useNativeDriver: true,
-            }),
-          ])
-        )
-      );
-
-      Animated.parallel(animations).start();
-    } else {
-      typingDotsAnim.forEach(anim => anim.setValue(0));
-    }
-  }, [otherUserTyping, typingDotsAnim]);
+  // Note: Typing dots animation is now handled by AnimatedTypingIndicator component
 
   // Handle long press on message
   const handleMessageLongPress = useCallback(message => {
@@ -897,7 +839,7 @@ const ChatScreen = ({ route, navigation }) => {
     reactionsSheetRef.current?.expand();
   }, []);
 
-  // Render message item using ChatMessageBubble component
+  // Render message item using ChatMessageBubble component with entry animation
   const renderMessage = useCallback(
     ({ item, index }) => {
       const isOwnMessage = item.senderId === user.uid;
@@ -905,25 +847,29 @@ const ChatScreen = ({ route, navigation }) => {
       // For inverted list, the last message in a group is when the next message (index - 1) is from a different sender
       const isLastInGroup = index === 0 || reversedMessages[index - 1]?.senderId !== item.senderId;
       const isTapped = tappedMessageId === item.id;
+      // Only animate temp messages (optimistically added) - they're new messages being sent
+      const shouldAnimate = item.isTemp === true;
 
       return (
-        <ChatMessageBubble
-          message={item}
-          isOwnMessage={isOwnMessage}
-          showAvatar={showAvatar}
-          isLastInGroup={isLastInGroup}
-          isTapped={isTapped}
-          otherUser={match.otherUser}
-          currentUser={user}
-          isPremium={isPremium}
-          onTap={handleMessageTap}
-          onLongPress={handleMessageLongPress}
-          onSwipeToReply={handleSwipeToReply}
-          onReactionsPress={handleReactionsPress}
-          onQuotedReplyPress={scrollToMessage}
-          onPhotoPress={openPhotoViewer}
-          swipeableRef={ref => (swipeableRefs.current[item.id] = ref)}
-        />
+        <AnimatedMessageBubble isOwnMessage={isOwnMessage} shouldAnimate={shouldAnimate}>
+          <ChatMessageBubble
+            message={item}
+            isOwnMessage={isOwnMessage}
+            showAvatar={showAvatar}
+            isLastInGroup={isLastInGroup}
+            isTapped={isTapped}
+            otherUser={match.otherUser}
+            currentUser={user}
+            isPremium={isPremium}
+            onTap={handleMessageTap}
+            onLongPress={handleMessageLongPress}
+            onSwipeToReply={handleSwipeToReply}
+            onReactionsPress={handleReactionsPress}
+            onQuotedReplyPress={scrollToMessage}
+            onPhotoPress={openPhotoViewer}
+            swipeableRef={ref => (swipeableRefs.current[item.id] = ref)}
+          />
+        </AnimatedMessageBubble>
       );
     },
     [
@@ -943,22 +889,11 @@ const ChatScreen = ({ route, navigation }) => {
 
   // Render typing indicator (premium only)
   const renderTypingIndicator = () => {
-    if (!otherUserTyping || !isPremium) return null;
-
     return (
-      <View style={[styles.messageRow, styles.typingRow]}>
-        <Image
-          source={{ uri: getUserProfilePhoto(match.otherUser) }}
-          style={styles.messageAvatar}
-        />
-        <View style={styles.typingBubble}>
-          <View style={styles.typingDots}>
-            {typingDotsAnim.map((anim, index) => (
-              <Animated.View key={index} style={[styles.typingDot, { opacity: anim }]} />
-            ))}
-          </View>
-        </View>
-      </View>
+      <AnimatedTypingIndicator
+        isVisible={otherUserTyping && isPremium}
+        avatarUrl={getUserProfilePhoto(match.otherUser)}
+      />
     );
   };
 
@@ -1198,7 +1133,11 @@ const ChatScreen = ({ route, navigation }) => {
                 ListHeaderComponent={renderTypingIndicator}
                 ListEmptyComponent={
                   <View style={styles.emptyStateContainer}>
-                    <Text style={styles.emptyStateIcon}>&#128075;</Text>
+                    <Ionicons
+                      name="chatbubble-ellipses-outline"
+                      size={48}
+                      color={theme.colors.text.muted}
+                    />
                     <Text style={styles.emptyStateTitle}>Start the conversation!</Text>
                     <Text style={styles.emptyStateSubtitle}>
                       Say hi to {getUserDisplayName(match.otherUser)}
@@ -1234,34 +1173,10 @@ const ChatScreen = ({ route, navigation }) => {
 
               {/* Scroll to bottom FAB - hidden when profile sheet or reactions panel is open */}
               {!isProfileSheetOpen && !reactionsDetailMessage && (
-                <Animated.View
-                  style={[
-                    styles.scrollToBottomFab,
-                    {
-                      opacity: scrollButtonAnim,
-                      transform: [
-                        {
-                          scale: scrollButtonAnim.interpolate({
-                            inputRange: [0, 1],
-                            outputRange: [0.5, 1],
-                          }),
-                        },
-                      ],
-                    },
-                  ]}
-                  pointerEvents={showScrollButton ? 'auto' : 'none'}
-                >
-                  <TouchableOpacity
-                    style={styles.scrollToBottomButton}
-                    onPress={() => {
-                      scrollToBottom(true);
-                      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                    }}
-                    activeOpacity={0.8}
-                  >
-                    <Ionicons name="chevron-down" size={24} color="#fff" />
-                  </TouchableOpacity>
-                </Animated.View>
+                <AnimatedScrollToBottom
+                  visible={showScrollButton}
+                  onPress={() => scrollToBottom(true)}
+                />
               )}
             </>
           )}
@@ -1293,7 +1208,6 @@ const ChatScreen = ({ route, navigation }) => {
             }}
             isSending={isSending}
             isUploadingAudio={isUploadingAudio}
-            rightIconAnim={rightIconAnim}
             inputRef={inputRef}
           />
 
@@ -1429,62 +1343,7 @@ const styles = StyleSheet.create({
     paddingVertical: 16,
     flexGrow: 1,
   },
-  // Typing indicator styles - still used in ChatScreen
-  messageRow: {
-    flexDirection: 'row',
-    paddingHorizontal: 16,
-    alignItems: 'flex-end',
-  },
-  messageAvatar: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    marginRight: 8,
-  },
-  typingRow: {
-    marginBottom: 8,
-  },
-  typingBubble: {
-    backgroundColor: '#f0f0f0',
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    borderRadius: 20,
-    borderBottomLeftRadius: 4,
-  },
-  typingDots: {
-    flexDirection: 'row',
-  },
-  typingDot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-    backgroundColor: '#666',
-    marginHorizontal: 2,
-  },
-  scrollToBottomFab: {
-    position: 'absolute',
-    bottom: 80,
-    alignSelf: 'center',
-    left: '50%',
-    marginLeft: -22,
-    zIndex: 10,
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.25,
-    shadowRadius: 4,
-    elevation: 5,
-  },
-  scrollToBottomButton: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    backgroundColor: theme.colors.primary,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
+  // Note: Typing indicator and scroll-to-bottom styles now in dedicated components
   errorStateText: {
     fontSize: theme.typography.sizes.lg,
     color: theme.colors.text.secondary,
@@ -1510,11 +1369,8 @@ const styles = StyleSheet.create({
     // Inverted list renders from bottom, so this keeps the empty state visually centered
     transform: [{ scaleY: -1 }],
   },
-  emptyStateIcon: {
-    fontSize: 48,
-    marginBottom: theme.spacing.md,
-  },
   emptyStateTitle: {
+    marginTop: theme.spacing.md,
     fontSize: theme.typography.sizes.xl,
     fontWeight: theme.typography.weights.semibold,
     color: theme.colors.text.primary,

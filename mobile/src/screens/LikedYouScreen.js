@@ -330,7 +330,7 @@ const LikedYouScreen = () => {
             if (!existingLike) {
               // Use setTimeout to avoid React state update warnings
               setTimeout(() => {
-                showInfo('Someone new liked you! 💕');
+                showInfo('Someone new liked you!');
               }, 100);
             }
 
@@ -360,7 +360,7 @@ const LikedYouScreen = () => {
   // Handle pending match toast separately
   useEffect(() => {
     if (pendingMatchToast && !showMatchModal) {
-      showSuccess("It's a match! 🎉 Check your messages to start chatting!");
+      showSuccess("It's a match! Check your messages to start chatting.");
       setPendingMatchToast(false);
     }
   }, [pendingMatchToast, showMatchModal, showSuccess]);

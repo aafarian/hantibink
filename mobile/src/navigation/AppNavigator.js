@@ -68,6 +68,17 @@ const PeopleStack = () => {
         component={FilterScreen}
         options={{
           headerShown: false, // FilterScreen has its own header
+          // Use faster timing animation to prevent touch blocking after transition
+          transitionSpec: {
+            open: {
+              animation: 'timing',
+              config: { duration: 250 },
+            },
+            close: {
+              animation: 'timing',
+              config: { duration: 200 },
+            },
+          },
         }}
       />
     </Stack.Navigator>
