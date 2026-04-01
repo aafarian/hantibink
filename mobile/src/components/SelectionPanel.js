@@ -165,7 +165,7 @@ const SelectionPanel = ({
 const styles = StyleSheet.create({
   overlay: {
     flex: 1,
-    backgroundColor: theme.colors.background.overlay,
+    backgroundColor: theme.colors.overlay.medium,
     justifyContent: 'flex-end',
   },
   panelContainer: {

@@ -120,7 +120,7 @@ const styles = StyleSheet.create({
     position: 'absolute',
     bottom: 4,
     right: 4,
-    backgroundColor: theme.colors.background.overlay,
+    backgroundColor: theme.colors.overlay.medium,
     borderRadius: 10,
     width: 20,
     height: 20,

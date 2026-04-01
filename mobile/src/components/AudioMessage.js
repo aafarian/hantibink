@@ -4,6 +4,7 @@ import { Audio } from 'expo-av';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import Logger from '../utils/logger';
+import { theme } from '../styles/theme';
 
 // Layout constants - WhatsApp style (no scrolling)
 const WAVEFORM_BAR_COUNT = 35;
@@ -314,7 +315,7 @@ const AudioMessage = ({
       }
     : {
         playBg: 'rgba(0,0,0,0.08)',
-        playIcon: '#666',
+        playIcon: theme.colors.text.secondary,
         barPlayed: '#555',
         barUnplayed: 'rgba(0,0,0,0.2)',
         timeText: '#888',

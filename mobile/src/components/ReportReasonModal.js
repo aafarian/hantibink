@@ -113,7 +113,7 @@ const ReportReasonModal = ({ visible, userName, onSubmit, onCancel, isSubmitting
                   disabled={!canSubmit || isSubmitting}
                 >
                   {isSubmitting ? (
-                    <ActivityIndicator color="#fff" />
+                    <ActivityIndicator color={theme.colors.text.white} />
                   ) : (
                     <Text style={styles.submitButtonText}>Submit Report</Text>
                   )}
@@ -130,7 +130,7 @@ const ReportReasonModal = ({ visible, userName, onSubmit, onCancel, isSubmitting
 const styles = StyleSheet.create({
   overlay: {
     flex: 1,
-    backgroundColor: theme.colors.background.overlay,
+    backgroundColor: theme.colors.overlay.medium,
     justifyContent: 'flex-end',
   },
   modalContainer: {

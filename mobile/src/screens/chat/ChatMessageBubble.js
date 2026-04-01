@@ -289,11 +289,21 @@ const ChatMessageBubble = ({
                         style={styles.readIcon}
                       />
                     ) : (
-                      <Ionicons name="checkmark" size={14} color="#999" style={styles.readIcon} />
+                      <Ionicons
+                        name="checkmark"
+                        size={14}
+                        color={theme.colors.text.muted}
+                        style={styles.readIcon}
+                      />
                     )
                   ) : (
                     <View style={styles.premiumHint}>
-                      <Ionicons name="checkmark" size={14} color="#999" style={styles.readIcon} />
+                      <Ionicons
+                        name="checkmark"
+                        size={14}
+                        color={theme.colors.text.muted}
+                        style={styles.readIcon}
+                      />
                       <Ionicons
                         name="diamond-outline"
                         size={12}
@@ -433,7 +443,7 @@ const styles = StyleSheet.create({
   },
   // Colors based on WHO is being quoted
   quotingSelfStandalone: {
-    backgroundColor: 'rgba(211, 47, 47, 0.15)', // theme.colors.primary with opacity
+    backgroundColor: theme.colors.primaryTint,
   },
   quotingOtherStandalone: {
     backgroundColor: 'rgba(21, 101, 192, 0.12)', // theme.colors.secondary with opacity
@@ -469,7 +479,7 @@ const styles = StyleSheet.create({
     fontSize: 13,
   },
   quotingSelfText: {
-    color: '#666',
+    color: theme.colors.text.secondary,
   },
   quotingOtherText: {
     color: '#555',
@@ -477,7 +487,7 @@ const styles = StyleSheet.create({
   reactionsContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#fff',
+    backgroundColor: theme.colors.background.primary,
     borderRadius: 12,
     paddingHorizontal: 6,
     paddingVertical: 3,
@@ -507,7 +517,7 @@ const styles = StyleSheet.create({
   },
   reactionOverflow: {
     fontSize: 12,
-    color: '#666',
+    color: theme.colors.text.secondary,
     marginLeft: 2,
     fontWeight: '500',
   },
@@ -537,7 +547,7 @@ const styles = StyleSheet.create({
     marginLeft: 2,
   },
   swipeableContainer: {
-    backgroundColor: '#fff',
+    backgroundColor: theme.colors.background.primary,
   },
   swipeActionRight: {
     justifyContent: 'center',

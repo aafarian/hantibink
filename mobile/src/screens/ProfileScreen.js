@@ -144,7 +144,7 @@ const ProfileScreen = ({ navigation }) => {
               onPress={() => navigation.navigate('ProfileEdit')}
               activeOpacity={0.8}
             >
-              <Ionicons name="camera-outline" size={60} color="#ccc" />
+              <Ionicons name="camera-outline" size={60} color={theme.colors.border.medium} />
               <Text style={styles.emptyPhotoText}>Add Photos</Text>
               <View style={styles.editPill}>
                 <Text style={styles.editPillText}>Edit Profile</Text>
@@ -252,7 +252,7 @@ const ProfileScreen = ({ navigation }) => {
                 style={styles.emptyStateContainer}
                 onPress={() => navigation.navigate('ProfileEdit')}
               >
-                <Ionicons name="add-circle-outline" size={20} color="#999" />
+                <Ionicons name="add-circle-outline" size={20} color={theme.colors.text.muted} />
                 <Text style={styles.emptyStateText}>Add a bio to tell others about yourself</Text>
               </TouchableOpacity>
             )}
@@ -299,7 +299,7 @@ const ProfileScreen = ({ navigation }) => {
                   style={styles.emptyStateContainer}
                   onPress={() => navigation.navigate('ProfileEdit')}
                 >
-                  <Ionicons name="add-circle-outline" size={20} color="#999" />
+                  <Ionicons name="add-circle-outline" size={20} color={theme.colors.text.muted} />
                   <Text style={styles.emptyStateText}>Add interests to find better matches</Text>
                 </TouchableOpacity>
               )}
@@ -313,7 +313,7 @@ const ProfileScreen = ({ navigation }) => {
               <View style={styles.languagesContainer}>
                 {userProfile.languages.map((language, index) => (
                   <View key={index} style={styles.languageTag}>
-                    <Ionicons name="globe-outline" size={14} color="#666" />
+                    <Ionicons name="globe-outline" size={14} color={theme.colors.text.secondary} />
                     <Text style={styles.languageText}>{language}</Text>
                   </View>
                 ))}
@@ -408,7 +408,7 @@ const ProfileScreen = ({ navigation }) => {
           >
             <Ionicons name="settings" size={20} color={theme.colors.primary} />
             <Text style={styles.settingText}>Edit Profile</Text>
-            <Ionicons name="chevron-forward" size={20} color="#ccc" />
+            <Ionicons name="chevron-forward" size={20} color={theme.colors.border.medium} />
           </TouchableOpacity>
 
           <TouchableOpacity
@@ -417,7 +417,7 @@ const ProfileScreen = ({ navigation }) => {
           >
             <Ionicons name="filter" size={20} color={theme.colors.primary} />
             <Text style={styles.settingText}>Preferences</Text>
-            <Ionicons name="chevron-forward" size={20} color="#ccc" />
+            <Ionicons name="chevron-forward" size={20} color={theme.colors.border.medium} />
           </TouchableOpacity>
 
           <TouchableOpacity
@@ -426,7 +426,7 @@ const ProfileScreen = ({ navigation }) => {
           >
             <Ionicons name="notifications" size={20} color={theme.colors.primary} />
             <Text style={styles.settingText}>Notifications</Text>
-            <Ionicons name="chevron-forward" size={20} color="#ccc" />
+            <Ionicons name="chevron-forward" size={20} color={theme.colors.border.medium} />
           </TouchableOpacity>
 
           <TouchableOpacity
@@ -435,7 +435,7 @@ const ProfileScreen = ({ navigation }) => {
           >
             <Ionicons name="person-circle" size={20} color={theme.colors.primary} />
             <Text style={styles.settingText}>Account</Text>
-            <Ionicons name="chevron-forward" size={20} color="#ccc" />
+            <Ionicons name="chevron-forward" size={20} color={theme.colors.border.medium} />
           </TouchableOpacity>
         </View>
 
@@ -524,14 +524,14 @@ const ProfileScreen = ({ navigation }) => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f8f9fa',
+    backgroundColor: theme.colors.background.secondary,
   },
   scrollView: {
     flex: 1,
   },
 
   mainPhotoSection: {
-    backgroundColor: '#fff',
+    backgroundColor: theme.colors.background.primary,
     marginBottom: 10,
     alignItems: 'center',
     overflow: 'hidden',
@@ -571,14 +571,14 @@ const styles = StyleSheet.create({
     position: 'absolute',
     top: 20,
     right: 20,
-    backgroundColor: 'rgba(0,0,0,0.7)',
+    backgroundColor: theme.colors.overlay.heavy,
     paddingHorizontal: 12,
     paddingVertical: 6,
     borderRadius: 20,
     zIndex: 3,
   },
   editPillText: {
-    color: '#fff',
+    color: theme.colors.text.white,
     fontSize: 12,
     fontWeight: '600',
   },
@@ -591,23 +591,23 @@ const styles = StyleSheet.create({
     borderStyle: 'dashed',
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: '#f8f9fa',
+    backgroundColor: theme.colors.background.secondary,
     position: 'relative',
   },
   emptyPhotoText: {
     fontSize: 16,
-    color: '#999',
+    color: theme.colors.text.muted,
     marginTop: 10,
   },
   sectionTitle: {
     fontSize: 18,
     fontWeight: 'bold',
     marginBottom: 15,
-    color: '#333',
+    color: theme.colors.text.primary,
   },
   infoSection: {
     padding: 20,
-    backgroundColor: '#fff',
+    backgroundColor: theme.colors.background.primary,
     marginBottom: 10,
   },
   bioSection: {
@@ -617,11 +617,11 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: 'bold',
     marginBottom: 10,
-    color: '#333',
+    color: theme.colors.text.primary,
   },
   bioText: {
     fontSize: 14,
-    color: '#666',
+    color: theme.colors.text.secondary,
     lineHeight: 20,
   },
   interestsSection: {
@@ -631,7 +631,7 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: 'bold',
     marginBottom: 10,
-    color: '#333',
+    color: theme.colors.text.primary,
   },
   interestsContainer: {
     flexDirection: 'row',
@@ -645,7 +645,7 @@ const styles = StyleSheet.create({
     marginRight: 8,
     marginBottom: 8,
     borderWidth: 1,
-    borderColor: 'rgba(211, 47, 47, 0.15)',
+    borderColor: theme.colors.primaryTint,
   },
   interestText: {
     color: theme.colors.primary,
@@ -660,7 +660,7 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: 'bold',
     marginBottom: 10,
-    color: '#333',
+    color: theme.colors.text.primary,
   },
   languagesContainer: {
     flexDirection: 'row',
@@ -682,12 +682,12 @@ const styles = StyleSheet.create({
   },
   languageText: {
     fontSize: 14,
-    color: '#666',
+    color: theme.colors.text.secondary,
     marginLeft: 4,
   },
   settingsSection: {
     padding: 20,
-    backgroundColor: '#fff',
+    backgroundColor: theme.colors.background.primary,
     marginBottom: 20,
   },
   settingItem: {
@@ -695,13 +695,13 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingVertical: 15,
     borderBottomWidth: 1,
-    borderBottomColor: '#f0f0f0',
+    borderBottomColor: theme.colors.background.tertiary,
   },
   settingText: {
     flex: 1,
     fontSize: 16,
     marginLeft: 15,
-    color: '#333',
+    color: theme.colors.text.primary,
   },
   // Guidance styles
   guidanceContainer: {
@@ -737,7 +737,7 @@ const styles = StyleSheet.create({
     marginLeft: 12,
   },
   guidanceButtonText: {
-    color: '#fff',
+    color: theme.colors.text.white,
     fontSize: 14,
     fontWeight: '600',
   },
@@ -758,7 +758,7 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
     borderRadius: 25,
     borderWidth: 1,
-    borderColor: 'rgba(211, 47, 47, 0.15)',
+    borderColor: theme.colors.primaryTint,
     marginRight: 8,
     marginBottom: 8,
   },
@@ -798,7 +798,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingVertical: 12,
     borderBottomWidth: 1,
-    borderBottomColor: '#F0F0F0',
+    borderBottomColor: theme.colors.background.tertiary,
   },
   infoIconWrapper: {
     width: 36,
@@ -814,7 +814,7 @@ const styles = StyleSheet.create({
   },
   infoLabel: {
     fontSize: 11,
-    color: '#999',
+    color: theme.colors.text.muted,
     textTransform: 'uppercase',
     letterSpacing: 0.5,
     marginBottom: 2,
@@ -822,7 +822,7 @@ const styles = StyleSheet.create({
   },
   infoValue: {
     fontSize: 15,
-    color: '#333',
+    color: theme.colors.text.primary,
     fontWeight: '500',
   },
 
@@ -835,7 +835,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingVertical: 12,
     borderBottomWidth: 1,
-    borderBottomColor: '#F0F0F0',
+    borderBottomColor: theme.colors.background.tertiary,
   },
   lifestyleIcon: {
     width: 36,
@@ -851,7 +851,7 @@ const styles = StyleSheet.create({
   },
   lifestyleLabel: {
     fontSize: 11,
-    color: '#999',
+    color: theme.colors.text.muted,
     textTransform: 'uppercase',
     letterSpacing: 0.5,
     marginBottom: 2,
@@ -859,14 +859,14 @@ const styles = StyleSheet.create({
   },
   lifestyleText: {
     fontSize: 15,
-    color: '#333',
+    color: theme.colors.text.primary,
     fontWeight: '400',
   },
   toggleSwitch: {
     width: 50,
     height: 26,
     borderRadius: 13,
-    backgroundColor: '#e0e0e0',
+    backgroundColor: theme.colors.border.light,
     padding: 2,
     justifyContent: 'center',
   },
@@ -877,7 +877,7 @@ const styles = StyleSheet.create({
     width: 22,
     height: 22,
     borderRadius: 11,
-    backgroundColor: '#fff',
+    backgroundColor: theme.colors.background.primary,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.2,
@@ -906,7 +906,7 @@ const styles = StyleSheet.create({
   },
   devInfoSubtext: {
     fontSize: 12,
-    color: '#666',
+    color: theme.colors.text.secondary,
   },
   buildInfoSection: {
     marginTop: 24,
@@ -919,7 +919,7 @@ const styles = StyleSheet.create({
   buildInfoTitle: {
     fontSize: 12,
     fontWeight: '600',
-    color: '#999',
+    color: theme.colors.text.muted,
     marginBottom: 12,
     textTransform: 'uppercase',
     letterSpacing: 0.5,
@@ -931,11 +931,11 @@ const styles = StyleSheet.create({
   },
   buildInfoLabel: {
     fontSize: 13,
-    color: '#666',
+    color: theme.colors.text.secondary,
   },
   buildInfoValue: {
     fontSize: 13,
-    color: '#333',
+    color: theme.colors.text.primary,
     fontFamily: 'monospace',
   },
   emptyStateContainer: {
@@ -945,13 +945,13 @@ const styles = StyleSheet.create({
     padding: 16,
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: '#e0e0e0',
+    borderColor: theme.colors.border.light,
     borderStyle: 'dashed',
   },
   emptyStateText: {
     marginLeft: 10,
     fontSize: 14,
-    color: '#999',
+    color: theme.colors.text.muted,
     fontStyle: 'italic',
   },
 });

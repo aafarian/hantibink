@@ -742,7 +742,7 @@ const LikedYouScreen = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f8f9fa',
+    backgroundColor: theme.colors.background.secondary,
   },
   header: {
     backgroundColor: 'white',
@@ -824,18 +824,18 @@ const styles = StyleSheet.create({
   emptyTitle: {
     fontSize: 22,
     fontWeight: 'bold',
-    color: '#333',
+    color: theme.colors.text.primary,
     marginBottom: 10,
   },
   emptySubtitle: {
     fontSize: 15,
-    color: '#666',
+    color: theme.colors.text.secondary,
     textAlign: 'center',
     marginBottom: 20,
     paddingHorizontal: 10,
   },
   tipContainer: {
-    backgroundColor: '#f8f9fa',
+    backgroundColor: theme.colors.background.secondary,
     padding: 20,
     borderRadius: 16,
     width: '100%',
@@ -846,7 +846,7 @@ const styles = StyleSheet.create({
   tipTitle: {
     fontSize: 16,
     fontWeight: '700',
-    color: '#333',
+    color: theme.colors.text.primary,
     marginBottom: 16,
   },
   tipItem: {
@@ -894,7 +894,7 @@ const styles = StyleSheet.create({
     marginRight: 8,
   },
   emptyUpgradeButtonText: {
-    color: '#fff',
+    color: theme.colors.text.white,
     fontSize: 16,
     fontWeight: '600',
   },
@@ -906,7 +906,7 @@ const styles = StyleSheet.create({
   loadingMoreText: {
     marginTop: 8,
     fontSize: 14,
-    color: '#666',
+    color: theme.colors.text.secondary,
   },
 });
 

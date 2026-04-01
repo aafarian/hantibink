@@ -90,7 +90,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingTop: 4,
     paddingBottom: 4,
-    backgroundColor: '#fff',
+    backgroundColor: theme.colors.background.primary,
   },
   attachButton: {
     paddingBottom: 4,
@@ -100,7 +100,7 @@ const styles = StyleSheet.create({
   gifButtonText: {
     fontSize: 24,
     fontWeight: 'bold',
-    color: '#666',
+    color: theme.colors.text.secondary,
   },
   disabledText: {
     opacity: 0.4,

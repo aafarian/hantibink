@@ -33,7 +33,7 @@ const LikedYouUserModal = ({ user, visible, onClose, onLike, onPass, loadingActi
         <View style={styles.modalContainer}>
           <View style={styles.modalContent}>
             <TouchableOpacity style={styles.modalClose} onPress={onClose}>
-              <Ionicons name="close" size={28} color="#333" />
+              <Ionicons name="close" size={28} color={theme.colors.text.primary} />
             </TouchableOpacity>
 
             <Image source={{ uri: user.mainPhoto }} style={styles.modalImage} />
@@ -43,13 +43,14 @@ const LikedYouUserModal = ({ user, visible, onClose, onLike, onPass, loadingActi
                 {user.name}, {user.age}
               </Text>
               <Text style={styles.modalLocation}>
-                <Ionicons name="location" size={16} color="#666" /> {user.location}
+                <Ionicons name="location" size={16} color={theme.colors.text.secondary} />{' '}
+                {user.location}
               </Text>
               <Text style={styles.modalBio}>{user.bio}</Text>
 
               {user.isSuperLike && (
                 <View style={styles.superLikeInfo}>
-                  <Ionicons name="star" size={20} color="#FFD700" />
+                  <Ionicons name="star" size={20} color={theme.colors.premium} />
                   <Text style={styles.superLikeText}>They Super Liked You!</Text>
                 </View>
               )}
@@ -124,17 +125,17 @@ const styles = StyleSheet.create({
   modalName: {
     fontSize: 24,
     fontWeight: 'bold',
-    color: '#333',
+    color: theme.colors.text.primary,
     marginBottom: 5,
   },
   modalLocation: {
     fontSize: 16,
-    color: '#666',
+    color: theme.colors.text.secondary,
     marginBottom: 15,
   },
   modalBio: {
     fontSize: 16,
-    color: '#333',
+    color: theme.colors.text.primary,
     lineHeight: 24,
   },
   superLikeInfo: {
@@ -147,7 +148,7 @@ const styles = StyleSheet.create({
   },
   superLikeText: {
     marginLeft: 8,
-    color: '#FFD700',
+    color: theme.colors.premium,
     fontWeight: 'bold',
   },
   modalActions: {

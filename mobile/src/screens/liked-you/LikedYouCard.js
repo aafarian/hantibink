@@ -38,7 +38,7 @@ const LikedYouCard = ({ item, index, isPremium, onPress, onLike, onPass, loading
     >
       {item.isSuperLike && (
         <View style={styles.superLikeBadge}>
-          <Ionicons name="star" size={16} color="#FFD700" />
+          <Ionicons name="star" size={16} color={theme.colors.premium} />
         </View>
       )}
 
@@ -69,7 +69,10 @@ const LikedYouCard = ({ item, index, isPremium, onPress, onLike, onPass, loading
         )}
 
         {isPremium && (
-          <LinearGradient colors={['transparent', 'rgba(0,0,0,0.8)']} style={styles.gradient}>
+          <LinearGradient
+            colors={['transparent', theme.colors.overlay.heavy]}
+            style={styles.gradient}
+          >
             <Text style={styles.cardName}>
               {item.name}, {item.age}
             </Text>
@@ -153,7 +156,7 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(0, 0, 0, 0.2)', // Slight dark overlay for better contrast
   },
   lockCircle: {
-    backgroundColor: 'rgba(0, 0, 0, 0.6)',
+    backgroundColor: theme.colors.overlay.heavy,
     borderRadius: 30,
     width: 60,
     height: 60,
@@ -181,7 +184,7 @@ const styles = StyleSheet.create({
     position: 'absolute',
     top: 10,
     right: 10,
-    backgroundColor: '#FFD700',
+    backgroundColor: theme.colors.premium,
     borderRadius: 15,
     padding: 6,
     zIndex: 1,

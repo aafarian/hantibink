@@ -37,7 +37,7 @@ const ChatReplyPreview = ({ replyTo, currentUserId, otherUserName, onClear }) =>
         </View>
       </View>
       <TouchableOpacity onPress={onClear} style={styles.replyPreviewClose}>
-        <Ionicons name="close" size={20} color="#666" />
+        <Ionicons name="close" size={20} color={theme.colors.text.secondary} />
       </TouchableOpacity>
     </View>
   );
@@ -51,7 +51,7 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
     backgroundColor: '#f5f5f5',
     borderTopWidth: 1,
-    borderTopColor: '#e0e0e0',
+    borderTopColor: theme.colors.border.light,
   },
   replyPreviewContent: {
     flex: 1,
@@ -77,7 +77,7 @@ const styles = StyleSheet.create({
   },
   replyPreviewMessage: {
     fontSize: 14,
-    color: '#666',
+    color: theme.colors.text.secondary,
   },
   replyPreviewClose: {
     padding: 4,

@@ -289,7 +289,11 @@ const ProfileForm = forwardRef(
               <Ionicons
                 name="chevron-forward"
                 size={20}
-                color={changedFields.has(field.key) ? '#4CAF50' : '#666'}
+                color={
+                  changedFields.has(field.key)
+                    ? theme.colors.status.success
+                    : theme.colors.text.secondary
+                }
               />
             </View>
           </TouchableOpacity>

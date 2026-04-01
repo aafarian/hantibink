@@ -138,7 +138,7 @@ const styles = StyleSheet.create({
   },
   overlayBackground: {
     ...StyleSheet.absoluteFillObject,
-    backgroundColor: theme.colors.background.overlay,
+    backgroundColor: theme.colors.overlay.medium,
   },
   dismissArea: {
     flex: 1,

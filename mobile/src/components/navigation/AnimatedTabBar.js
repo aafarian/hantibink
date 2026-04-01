@@ -227,9 +227,9 @@ const AnimatedTabBar = ({ state, descriptors, navigation, unreadCount = 0 }) => 
 const styles = StyleSheet.create({
   tabBar: {
     flexDirection: 'row',
-    backgroundColor: '#ffffff',
+    backgroundColor: theme.colors.background.primary,
     borderTopWidth: 1,
-    borderTopColor: '#e0e0e0',
+    borderTopColor: theme.colors.border.light,
     paddingTop: 5,
   },
   tabButton: {

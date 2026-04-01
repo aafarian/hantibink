@@ -57,7 +57,7 @@ const PeopleStack = () => {
           headerStyle: {
             backgroundColor: theme.colors.primary,
           },
-          headerTintColor: '#fff',
+          headerTintColor: theme.colors.text.white,
           headerTitleStyle: {
             fontWeight: 'bold',
           },
@@ -85,7 +85,7 @@ const ProfileStack = () => {
           headerStyle: {
             backgroundColor: theme.colors.primary,
           },
-          headerTintColor: '#fff',
+          headerTintColor: theme.colors.text.white,
           headerTitleStyle: {
             fontWeight: 'bold',
           },
@@ -142,7 +142,7 @@ const MessagesStack = () => {
           headerStyle: {
             backgroundColor: theme.colors.primary,
           },
-          headerTintColor: '#fff',
+          headerTintColor: theme.colors.text.white,
           headerTitleStyle: {
             fontWeight: 'bold',
           },
@@ -209,7 +209,7 @@ const MainNavigator = () => {
             headerStyle: {
               backgroundColor: theme.colors.primary,
             },
-            headerTintColor: '#fff',
+            headerTintColor: theme.colors.text.white,
             headerTitleStyle: {
               fontWeight: 'bold',
             },
@@ -373,7 +373,12 @@ const AppNavigator = () => {
   if (loading) {
     return (
       <View
-        style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#fff' }}
+        style={{
+          flex: 1,
+          justifyContent: 'center',
+          alignItems: 'center',
+          backgroundColor: theme.colors.background.primary,
+        }}
       >
         <ActivityIndicator size="large" color={theme.colors.primary} />
       </View>

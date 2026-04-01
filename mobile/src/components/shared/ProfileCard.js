@@ -134,11 +134,7 @@ const ProfileCard = ({
     return (
       <View style={[styles.card, styles.noPhotoCard, style]}>
         <View style={styles.noPhotoContent}>
-          <Ionicons
-            name="person-circle-outline"
-            size={80}
-            color={theme.colors.background.overlay}
-          />
+          <Ionicons name="person-circle-outline" size={80} color={theme.colors.overlay.medium} />
           <Text style={styles.cardName}>
             {profile.name}
             {age && `, ${age}`}
@@ -176,7 +172,10 @@ const ProfileCard = ({
         )}
 
         {/* Gradient overlay */}
-        <LinearGradient colors={['transparent', 'rgba(0,0,0,0.8)']} style={styles.gradient}>
+        <LinearGradient
+          colors={['transparent', theme.colors.overlay.heavy]}
+          style={styles.gradient}
+        >
           <ScrollView
             style={styles.infoScroll}
             showsVerticalScrollIndicator={false}
@@ -380,7 +379,7 @@ const styles = StyleSheet.create({
     gap: 6,
   },
   tag: {
-    backgroundColor: 'rgba(255,255,255,0.2)',
+    backgroundColor: theme.colors.overlay.light,
     paddingHorizontal: 10,
     paddingVertical: 5,
     borderRadius: 15,

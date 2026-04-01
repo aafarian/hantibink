@@ -289,7 +289,7 @@ const SimpleRegisterScreen = ({ navigation }) => {
         >
           <View style={styles.header}>
             <TouchableOpacity style={styles.backButton} onPress={() => navigation.goBack()}>
-              <MaterialIcons name="arrow-back" size={24} color="#333" />
+              <MaterialIcons name="arrow-back" size={24} color={theme.colors.text.primary} />
             </TouchableOpacity>
             <Text style={styles.title}>Create Your Account</Text>
             <View style={styles.placeholder} />
@@ -375,7 +375,7 @@ const SimpleRegisterScreen = ({ navigation }) => {
                   <MaterialIcons
                     name={showPassword ? 'visibility' : 'visibility-off'}
                     size={24}
-                    color="#666"
+                    color={theme.colors.text.secondary}
                   />
                 </TouchableOpacity>
               </View>
@@ -411,7 +411,7 @@ const SimpleRegisterScreen = ({ navigation }) => {
                   <MaterialIcons
                     name={showConfirmPassword ? 'visibility' : 'visibility-off'}
                     size={24}
-                    color="#666"
+                    color={theme.colors.text.secondary}
                   />
                 </TouchableOpacity>
               </View>
@@ -471,7 +471,7 @@ const SimpleRegisterScreen = ({ navigation }) => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f8f9fa',
+    backgroundColor: theme.colors.background.secondary,
   },
   scrollContent: {
     flexGrow: 1,
@@ -489,7 +489,7 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 24,
     fontWeight: 'bold',
-    color: '#333',
+    color: theme.colors.text.primary,
   },
   placeholder: {
     width: 40,
@@ -503,25 +503,25 @@ const styles = StyleSheet.create({
   label: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#333',
+    color: theme.colors.text.primary,
     marginBottom: 8,
   },
   input: {
-    backgroundColor: '#fff',
+    backgroundColor: theme.colors.background.primary,
     borderRadius: 12,
     paddingHorizontal: 16,
     paddingVertical: 16,
     fontSize: 16,
     borderWidth: 1,
-    borderColor: '#e0e0e0',
+    borderColor: theme.colors.border.light,
   },
   passwordContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#fff',
+    backgroundColor: theme.colors.background.primary,
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: '#e0e0e0',
+    borderColor: theme.colors.border.light,
   },
   passwordInput: {
     flex: 1,
@@ -549,7 +549,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#FFB6B6',
   },
   registerButtonText: {
-    color: '#fff',
+    color: theme.colors.text.white,
     fontSize: 18,
     fontWeight: 'bold',
   },
@@ -560,7 +560,7 @@ const styles = StyleSheet.create({
     marginTop: 20,
   },
   footerText: {
-    color: '#666',
+    color: theme.colors.text.secondary,
     fontSize: 14,
   },
   footerLink: {
@@ -579,7 +579,7 @@ const styles = StyleSheet.create({
     marginLeft: 4,
   },
   helperText: {
-    color: '#666',
+    color: theme.colors.text.secondary,
     fontSize: 11,
     marginTop: 4,
     marginLeft: 4,
@@ -591,7 +591,7 @@ const styles = StyleSheet.create({
   },
   legalText: {
     fontSize: 13,
-    color: '#666',
+    color: theme.colors.text.secondary,
     textAlign: 'center',
     lineHeight: 20,
   },

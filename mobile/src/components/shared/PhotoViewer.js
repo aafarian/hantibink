@@ -511,7 +511,7 @@ const styles = StyleSheet.create({
     position: 'absolute',
     top: '50%',
     marginTop: -25,
-    backgroundColor: theme.colors.background.overlay,
+    backgroundColor: theme.colors.overlay.medium,
     borderRadius: 25,
     width: 50,
     height: 50,

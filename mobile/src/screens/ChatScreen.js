@@ -1256,18 +1256,18 @@ const ChatScreen = ({ route, navigation }) => {
             backdrop: '#00000080',
             knob: theme.colors.primary,
             category: {
-              icon: '#666',
+              icon: theme.colors.text.secondary,
               iconActive: theme.colors.primary,
-              container: '#fff',
+              container: theme.colors.background.primary,
               containerActive: 'rgba(211, 47, 47, 0.15)',
             },
             search: {
               background: '#f5f5f5',
-              placeholder: '#999',
-              text: '#333',
+              placeholder: theme.colors.text.muted,
+              text: theme.colors.text.primary,
             },
-            header: '#999',
-            skinTonesContainer: '#fff',
+            header: theme.colors.text.muted,
+            skinTonesContainer: theme.colors.background.primary,
           }}
           enableSearchBar={true}
           enableRecentlyUsed={true}
@@ -1325,11 +1325,11 @@ const ChatScreen = ({ route, navigation }) => {
 const styles = StyleSheet.create({
   wrapper: {
     flex: 1,
-    backgroundColor: '#fff', // White background
+    backgroundColor: theme.colors.background.primary, // White background
   },
   container: {
     flex: 1,
-    backgroundColor: '#fff', // White background for chat content
+    backgroundColor: theme.colors.background.primary, // White background for chat content
   },
   chatContainer: {
     flex: 1,

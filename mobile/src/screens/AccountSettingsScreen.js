@@ -134,7 +134,7 @@ const AccountSettingsScreen = ({ navigation }) => {
         <Text style={[styles.settingLabel, destructive && styles.destructiveLabel]}>{label}</Text>
         {description && <Text style={styles.settingDescription}>{description}</Text>}
       </View>
-      <Ionicons name="chevron-forward" size={20} color="#ccc" />
+      <Ionicons name="chevron-forward" size={20} color={theme.colors.border.medium} />
     </TouchableOpacity>
   );
 
@@ -142,7 +142,7 @@ const AccountSettingsScreen = ({ navigation }) => {
     <ScreenWrapper edges={['top']}>
       <View style={styles.header}>
         <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
-          <MaterialIcons name="arrow-back" size={24} color="#fff" />
+          <MaterialIcons name="arrow-back" size={24} color={theme.colors.text.white} />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Account Settings</Text>
         <View style={{ width: 40 }} />
@@ -189,7 +189,7 @@ const AccountSettingsScreen = ({ navigation }) => {
               value={isProfilePaused}
               onValueChange={handlePauseToggle}
               disabled={isPauseLoading}
-              trackColor={{ false: '#e0e0e0', true: `${theme.colors.primary}80` }}
+              trackColor={{ false: theme.colors.border.light, true: `${theme.colors.primary}80` }}
               thumbColor={isProfilePaused ? theme.colors.primary : '#f4f3f4'}
             />
           </View>
@@ -243,7 +243,7 @@ const AccountSettingsScreen = ({ navigation }) => {
         </View>
 
         <View style={styles.infoSection}>
-          <Ionicons name="information-circle-outline" size={20} color="#999" />
+          <Ionicons name="information-circle-outline" size={20} color={theme.colors.text.muted} />
           <Text style={styles.infoText}>
             Deleting your account will remove all your photos, matches, messages, and profile data.
             This action cannot be reversed.
@@ -269,7 +269,7 @@ const styles = StyleSheet.create({
   headerTitle: {
     fontSize: 18,
     fontWeight: '600',
-    color: '#fff',
+    color: theme.colors.text.white,
   },
   content: {
     flex: 1,
@@ -285,17 +285,17 @@ const styles = StyleSheet.create({
   sectionTitle: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#333',
+    color: theme.colors.text.primary,
     marginBottom: 4,
   },
   sectionDescription: {
     fontSize: 13,
-    color: '#666',
+    color: theme.colors.text.secondary,
   },
   dangerSection: {
     marginTop: 20,
     borderTopWidth: 1,
-    borderTopColor: '#f0f0f0',
+    borderTopColor: theme.colors.background.tertiary,
   },
   dangerSectionTitle: {
     color: '#FF3B30',
@@ -304,7 +304,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     paddingVertical: 12,
-    backgroundColor: '#f8f9fa',
+    backgroundColor: theme.colors.background.secondary,
     borderRadius: 12,
     paddingHorizontal: 16,
     marginTop: 10,
@@ -323,12 +323,12 @@ const styles = StyleSheet.create({
   },
   accountInfoLabel: {
     fontSize: 13,
-    color: '#666',
+    color: theme.colors.text.secondary,
   },
   accountInfoValue: {
     fontSize: 16,
     fontWeight: '500',
-    color: '#333',
+    color: theme.colors.text.primary,
     marginTop: 2,
   },
   settingsContainer: {
@@ -339,7 +339,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingVertical: 16,
     borderBottomWidth: 1,
-    borderBottomColor: '#f0f0f0',
+    borderBottomColor: theme.colors.background.tertiary,
   },
   settingIcon: {
     width: 44,
@@ -360,14 +360,14 @@ const styles = StyleSheet.create({
   settingLabel: {
     fontSize: 16,
     fontWeight: '500',
-    color: '#333',
+    color: theme.colors.text.primary,
   },
   destructiveLabel: {
     color: '#FF3B30',
   },
   settingDescription: {
     fontSize: 13,
-    color: '#666',
+    color: theme.colors.text.secondary,
     marginTop: 2,
   },
   infoSection: {
@@ -379,7 +379,7 @@ const styles = StyleSheet.create({
   },
   infoText: {
     fontSize: 13,
-    color: '#999',
+    color: theme.colors.text.muted,
     marginLeft: 8,
     flex: 1,
     lineHeight: 18,

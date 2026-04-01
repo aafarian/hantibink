@@ -963,7 +963,7 @@ const ProfileSetupModal = ({ visible, onClose, onComplete, userProfile }) => {
         <View style={styles.container}>
           <View style={styles.header}>
             <TouchableOpacity onPress={onClose} style={styles.closeButton}>
-              <Ionicons name="close" size={24} color="#666" />
+              <Ionicons name="close" size={24} color={theme.colors.text.secondary} />
             </TouchableOpacity>
             <Text style={styles.headerTitle}>Complete Your Profile</Text>
             <View style={{ width: 40 }} />
@@ -1072,11 +1072,11 @@ const styles = StyleSheet.create({
   headerTitle: {
     fontSize: 20,
     fontWeight: '700',
-    color: '#333',
+    color: theme.colors.text.primary,
   },
   headerSubtitle: {
     fontSize: 14,
-    color: '#666',
+    color: theme.colors.text.secondary,
     textAlign: 'center',
     paddingHorizontal: 20,
     marginTop: -10,
@@ -1116,7 +1116,7 @@ const styles = StyleSheet.create({
   loadingText: {
     marginTop: 15,
     fontSize: 16,
-    color: '#666',
+    color: theme.colors.text.secondary,
   },
   footer: {
     flexDirection: 'row',
@@ -1136,7 +1136,7 @@ const styles = StyleSheet.create({
   },
   backButtonText: {
     fontSize: 16,
-    color: '#666',
+    color: theme.colors.text.secondary,
     fontWeight: '500',
   },
   skipButton: {
@@ -1145,7 +1145,7 @@ const styles = StyleSheet.create({
   },
   skipButtonText: {
     fontSize: 16,
-    color: '#999',
+    color: theme.colors.text.muted,
     fontWeight: '500',
   },
   nextButton: {

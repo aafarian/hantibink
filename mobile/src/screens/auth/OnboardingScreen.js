@@ -87,7 +87,7 @@ const OnboardingScreen = ({ navigation }) => {
             <Text style={styles.nextButtonText}>
               {currentStep === steps.length - 1 ? 'Get Started' : 'Next'}
             </Text>
-            <Ionicons name="arrow-forward" size={20} color="#fff" />
+            <Ionicons name="arrow-forward" size={20} color={theme.colors.text.white} />
           </TouchableOpacity>
         </View>
       </ScrollView>
@@ -98,7 +98,7 @@ const OnboardingScreen = ({ navigation }) => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f8f9fa',
+    backgroundColor: theme.colors.background.secondary,
   },
   scrollContainer: {
     flexGrow: 1,
@@ -113,7 +113,7 @@ const styles = StyleSheet.create({
     padding: 10,
   },
   skipText: {
-    color: '#666',
+    color: theme.colors.text.secondary,
     fontSize: 16,
   },
   content: {
@@ -126,7 +126,7 @@ const styles = StyleSheet.create({
     width: 120,
     height: 120,
     borderRadius: 60,
-    backgroundColor: '#fff',
+    backgroundColor: theme.colors.background.primary,
     justifyContent: 'center',
     alignItems: 'center',
     marginBottom: 40,
@@ -142,7 +142,7 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 28,
     fontWeight: 'bold',
-    color: '#333',
+    color: theme.colors.text.primary,
     textAlign: 'center',
     marginBottom: 10,
   },
@@ -154,7 +154,7 @@ const styles = StyleSheet.create({
   },
   description: {
     fontSize: 16,
-    color: '#666',
+    color: theme.colors.text.secondary,
     textAlign: 'center',
     lineHeight: 24,
   },
@@ -185,7 +185,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   nextButtonText: {
-    color: '#fff',
+    color: theme.colors.text.white,
     fontSize: 16,
     fontWeight: 'bold',
     marginRight: 10,
