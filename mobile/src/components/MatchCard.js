@@ -13,6 +13,11 @@ import { formatRelativeTime } from '../utils/timeHelpers';
 import ClickablePhoto from './shared/ClickablePhoto';
 import { usePhotoViewer } from '../contexts/PhotoViewerContext';
 import { useIsPremium } from '../contexts/FeatureFlagsContext';
+import {
+  createSharedTag,
+  SharedTagPrefixes,
+  TransitionPresets,
+} from '../utils/sharedElementTransition';
 
 export const MatchCard = memo(
   ({
@@ -28,6 +33,10 @@ export const MatchCard = memo(
     const user = match.otherUser || match;
     const profilePhotoUrl = getUserProfilePhoto(user);
     const { openProfileSheet } = usePhotoViewer();
+
+    // Generate shared transition tag for profile photo morphing between screens
+    const matchId = match.matchId || match.id;
+    const sharedPhotoTag = matchId ? createSharedTag(SharedTagPrefixes.CHAT_AVATAR, matchId) : null;
 
     // Online status (premium only)
     const isOnline = isPremium && isUserOnline(user.lastActive);
@@ -126,6 +135,8 @@ export const MatchCard = memo(
           showExpandIcon={false}
           onPress={handlePhotoPress}
           style={styles.photo}
+          sharedTransitionTag={sharedPhotoTag}
+          sharedTransitionStyle={TransitionPresets.smooth}
         />
 
         <View style={styles.info}>

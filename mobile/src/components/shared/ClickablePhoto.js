@@ -1,5 +1,6 @@
 import React from 'react';
 import { TouchableOpacity, Image, StyleSheet, View } from 'react-native';
+import Animated from 'react-native-reanimated';
 import { Ionicons } from '@expo/vector-icons';
 import { usePhotoViewer } from '../../contexts/PhotoViewerContext';
 import { theme } from '../../styles/theme';
@@ -25,6 +26,9 @@ const ClickablePhoto = ({
   children, // Custom content for PhotoViewer
   onLongPress, // For drag functionality
   delayLongPress = 300,
+  sharedTransitionTag, // Tag for shared element transitions
+  sharedTransitionStyle, // Style for shared element transitions
+  onPress: customOnPress, // Custom onPress handler (bypasses photo viewer)
   ...touchableProps
 }) => {
   const { openPhotoViewer } = usePhotoViewer();
@@ -34,6 +38,10 @@ const ClickablePhoto = ({
   const currentPhotoIndex = photos.length > 0 ? photoIndex : 0;
 
   const handlePress = () => {
+    if (customOnPress) {
+      customOnPress();
+      return;
+    }
     openPhotoViewer({
       photos: allPhotos,
       initialIndex: currentPhotoIndex,
@@ -48,6 +56,15 @@ const ClickablePhoto = ({
   const photoUrl = typeof photo === 'string' ? photo : photo?.url;
 
   if (!photoUrl) return null;
+
+  // Use Animated.Image for shared element transitions, regular Image otherwise
+  const ImageComponent = sharedTransitionTag ? Animated.Image : Image;
+  const sharedProps = sharedTransitionTag
+    ? {
+        sharedTransitionTag,
+        ...(sharedTransitionStyle && { sharedTransitionStyle }),
+      }
+    : {};
 
   return (
     <TouchableOpacity
@@ -66,7 +83,7 @@ const ClickablePhoto = ({
       activeOpacity={0.8}
       {...touchableProps}
     >
-      <Image
+      <ImageComponent
         source={{ uri: photoUrl }}
         style={[
           styles.image,
@@ -77,6 +94,7 @@ const ClickablePhoto = ({
           },
           imageStyle,
         ]}
+        {...sharedProps}
       />
 
       {showExpandIcon && (
