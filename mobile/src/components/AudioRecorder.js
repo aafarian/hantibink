@@ -4,6 +4,7 @@ import { Audio } from 'expo-av';
 import * as Haptics from 'expo-haptics';
 import { Ionicons } from '@expo/vector-icons';
 import Logger from '../utils/logger';
+import { theme } from '../styles/theme';
 
 const CANCEL_THRESHOLD = -80; // Slide left this far to cancel
 const MIN_RECORDING_DURATION = 500; // Minimum 500ms recording
@@ -400,7 +401,7 @@ const AudioRecorder = ({
       <View style={styles.recordingContainer}>
         {/* Trash button */}
         <TouchableOpacity style={[styles.actionButton, styles.trashButton]} onPress={handleCancel}>
-          <Ionicons name="trash-outline" size={22} color="#F44336" />
+          <Ionicons name="trash-outline" size={22} color={theme.colors.status.error} />
         </TouchableOpacity>
 
         {/* Swipe area wrapper - clips the sliding content */}
@@ -436,7 +437,7 @@ const AudioRecorder = ({
             {/* Slide hint text */}
             {!isCancelling && (
               <View style={styles.slideHint}>
-                <Ionicons name="chevron-back" size={14} color="#999" />
+                <Ionicons name="chevron-back" size={14} color={theme.colors.gray[500]} />
                 <Text style={styles.slideText}>Slide to cancel</Text>
               </View>
             )}
@@ -451,7 +452,7 @@ const AudioRecorder = ({
 
         {/* Send button */}
         <TouchableOpacity style={[styles.actionButton, styles.sendButton]} onPress={handleSend}>
-          <Ionicons name="send" size={22} color="#fff" />
+          <Ionicons name="send" size={22} color={theme.colors.text.white} />
         </TouchableOpacity>
       </View>
     );
@@ -463,7 +464,11 @@ const AudioRecorder = ({
       {...panResponder.panHandlers}
       style={[styles.micButton, disabled && styles.micButtonDisabled]}
     >
-      <Ionicons name="mic" size={22} color={disabled ? '#ccc' : '#F44336'} />
+      <Ionicons
+        name="mic"
+        size={22}
+        color={disabled ? theme.colors.gray[300] : theme.colors.status.error}
+      />
     </Animated.View>
   );
 };
@@ -484,7 +489,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     flex: 1,
-    paddingVertical: 4,
+    paddingVertical: theme.spacing.xs,
   },
   actionButton: {
     width: 44,
@@ -494,15 +499,15 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   trashButton: {
-    backgroundColor: '#FEE2E2',
+    backgroundColor: '#FEE2E2', // Light error background - semantic color
   },
   sendButton: {
-    backgroundColor: '#F44336',
+    backgroundColor: theme.colors.status.error,
   },
   swipeAreaWrapper: {
     flex: 1,
     overflow: 'hidden',
-    marginHorizontal: 4,
+    marginHorizontal: theme.spacing.xs,
   },
   swipeArea: {
     width: '100%',
@@ -520,11 +525,11 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     width: '100%',
-    paddingHorizontal: 8,
+    paddingHorizontal: theme.spacing.sm,
   },
   waveBar: {
     width: 2,
-    backgroundColor: '#F44336',
+    backgroundColor: theme.colors.status.error,
     borderRadius: 1,
   },
   slideHint: {
@@ -533,31 +538,31 @@ const styles = StyleSheet.create({
     marginTop: 2,
   },
   slideText: {
-    fontSize: 11,
-    color: '#999',
+    fontSize: theme.typography.sizes.xs,
+    color: theme.colors.gray[500],
   },
   cancelText: {
-    fontSize: 14,
-    color: '#F44336',
-    fontWeight: '500',
+    fontSize: theme.typography.sizes.md,
+    color: theme.colors.status.error,
+    fontWeight: theme.typography.weights.medium,
   },
   recordingIndicator: {
     flexDirection: 'row',
     alignItems: 'center',
     marginLeft: 2,
-    marginRight: 4,
+    marginRight: theme.spacing.xs,
   },
   recordingDot: {
     width: 8,
     height: 8,
     borderRadius: 4,
-    backgroundColor: '#F44336',
+    backgroundColor: theme.colors.status.error,
     marginRight: 6,
   },
   durationText: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#333',
+    fontSize: theme.typography.sizes.md,
+    fontWeight: theme.typography.weights.semibold,
+    color: theme.colors.text.primary,
     minWidth: 40,
   },
 });

@@ -219,7 +219,7 @@ const ProfileForm = forwardRef(
                   ? '#FF9999'
                   : changedFields.has(field.key)
                     ? '#A5D6A7'
-                    : '#999'
+                    : theme.colors.gray[500]
               }
               multiline={field.multiline}
               numberOfLines={field.numberOfLines}
@@ -377,7 +377,11 @@ const ProfileForm = forwardRef(
                 <Ionicons
                   name="chevron-forward"
                   size={20}
-                  color={changedFields.has(field.key) ? '#4CAF50' : '#666'}
+                  color={
+                    changedFields.has(field.key)
+                      ? theme.colors.status.success
+                      : theme.colors.gray[600]
+                  }
                 />
               </View>
             </TouchableOpacity>
@@ -511,57 +515,57 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   section: {
-    backgroundColor: '#fff',
-    marginVertical: 5,
-    paddingHorizontal: 20,
-    paddingVertical: 20,
+    backgroundColor: theme.colors.background.primary,
+    marginVertical: theme.spacing.xs,
+    paddingHorizontal: theme.spacing.xl,
+    paddingVertical: theme.spacing.xl,
   },
   sectionTitle: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    marginBottom: 15,
-    color: '#333',
+    fontSize: theme.typography.sizes.xl,
+    fontWeight: theme.typography.weights.bold,
+    marginBottom: theme.spacing.lg,
+    color: theme.colors.text.primary,
   },
   inputContainer: {
-    marginBottom: 20,
+    marginBottom: theme.spacing.xl,
   },
   label: {
-    fontSize: 16,
-    fontWeight: '600',
-    marginBottom: 8,
-    color: '#333',
+    fontSize: theme.typography.sizes.lg,
+    fontWeight: theme.typography.weights.semibold,
+    marginBottom: theme.spacing.sm,
+    color: theme.colors.text.primary,
   },
   required: {
     color: theme.colors.primary,
   },
   counter: {
-    fontSize: 12,
-    fontWeight: 'normal',
-    color: '#666',
+    fontSize: theme.typography.sizes.sm,
+    fontWeight: theme.typography.weights.regular,
+    color: theme.colors.gray[600],
   },
   textInput: {
     borderWidth: 1,
-    borderColor: '#ddd',
-    borderRadius: 8,
-    paddingHorizontal: 12,
-    paddingVertical: 12,
-    fontSize: 16,
-    backgroundColor: '#fff',
+    borderColor: theme.colors.gray[300],
+    borderRadius: theme.borderRadius.md,
+    paddingHorizontal: theme.spacing.md,
+    paddingVertical: theme.spacing.md,
+    fontSize: theme.typography.sizes.lg,
+    backgroundColor: theme.colors.background.primary,
   },
   textArea: {
     height: 100,
   },
   selectorButton: {
-    marginBottom: 20,
+    marginBottom: theme.spacing.xl,
   },
   multiSelectContainer: {
-    marginBottom: 20,
+    marginBottom: theme.spacing.xl,
   },
   selectedTagsContainer: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    marginTop: 12,
-    marginHorizontal: 4,
+    marginTop: theme.spacing.md,
+    marginHorizontal: theme.spacing.xs,
   },
   selectedTag: {
     flexDirection: 'row',
@@ -569,59 +573,59 @@ const styles = StyleSheet.create({
     backgroundColor: '#FFF5F5',
     borderWidth: 1,
     borderColor: '#FFE0E0',
-    borderRadius: 16,
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    marginRight: 8,
-    marginBottom: 8,
+    borderRadius: theme.borderRadius.lg,
+    paddingHorizontal: theme.spacing.md,
+    paddingVertical: theme.spacing.xs,
+    marginRight: theme.spacing.sm,
+    marginBottom: theme.spacing.sm,
   },
   selectedTagText: {
-    fontSize: 14,
-    color: '#666',
-    marginRight: 4,
+    fontSize: theme.typography.sizes.md,
+    color: theme.colors.gray[600],
+    marginRight: theme.spacing.xs,
   },
   removeTagButton: {
-    marginLeft: 4,
+    marginLeft: theme.spacing.xs,
   },
   selectorRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingHorizontal: 12,
-    paddingVertical: 12,
+    paddingHorizontal: theme.spacing.md,
+    paddingVertical: theme.spacing.md,
     borderWidth: 1,
-    borderColor: '#ddd',
-    borderRadius: 8,
-    backgroundColor: '#fff',
+    borderColor: theme.colors.gray[300],
+    borderRadius: theme.borderRadius.md,
+    backgroundColor: theme.colors.background.primary,
   },
   selectorText: {
-    fontSize: 16,
-    color: '#333',
+    fontSize: theme.typography.sizes.lg,
+    color: theme.colors.text.primary,
   },
   bubblesContainer: {
     flexDirection: 'row',
     flexWrap: 'wrap',
   },
   bubble: {
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    borderRadius: 20,
+    paddingHorizontal: theme.spacing.lg,
+    paddingVertical: theme.spacing.sm,
+    borderRadius: theme.borderRadius.xxl,
     borderWidth: 1,
-    borderColor: '#ddd',
-    marginRight: 8,
-    marginBottom: 8,
-    backgroundColor: '#fff',
+    borderColor: theme.colors.gray[300],
+    marginRight: theme.spacing.sm,
+    marginBottom: theme.spacing.sm,
+    backgroundColor: theme.colors.background.primary,
   },
   bubbleSelected: {
     backgroundColor: theme.colors.primary,
     borderColor: theme.colors.primary,
   },
   bubbleText: {
-    fontSize: 14,
-    color: '#333',
+    fontSize: theme.typography.sizes.md,
+    color: theme.colors.text.primary,
   },
   bubbleTextSelected: {
-    color: '#fff',
+    color: theme.colors.text.white,
   },
   bottomPadding: {
     height: 50,
@@ -632,26 +636,26 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 8,
+    marginBottom: theme.spacing.sm,
   },
   labelChanged: {
-    color: '#4CAF50',
+    color: theme.colors.status.success,
   },
   changedIndicator: {
     backgroundColor: '#E8F5E9',
-    paddingHorizontal: 8,
+    paddingHorizontal: theme.spacing.sm,
     paddingVertical: 3,
-    borderRadius: 12,
+    borderRadius: theme.borderRadius.lg,
     borderWidth: 1,
     borderColor: '#C8E6C9',
   },
   changedText: {
-    fontSize: 11,
-    color: '#4CAF50',
-    fontWeight: '600',
+    fontSize: theme.typography.sizes.xs,
+    color: theme.colors.status.success,
+    fontWeight: theme.typography.weights.semibold,
   },
   textInputChanged: {
-    borderColor: '#4CAF50',
+    borderColor: theme.colors.status.success,
     borderWidth: 1.5,
     backgroundColor: '#F1F8E9',
   },
@@ -660,31 +664,31 @@ const styles = StyleSheet.create({
   },
   selectorRowChanged: {
     backgroundColor: '#F1F8E9',
-    borderColor: '#4CAF50',
+    borderColor: theme.colors.status.success,
     borderWidth: 1.5,
   },
   selectorTextChanged: {
-    color: '#4CAF50',
-    fontWeight: '500',
+    color: theme.colors.status.success,
+    fontWeight: theme.typography.weights.medium,
   },
   bubbleChangedSelected: {
-    backgroundColor: '#4CAF50',
+    backgroundColor: theme.colors.status.success,
     borderColor: '#388E3C',
   },
 
   // Validation error styles
   labelError: {
-    color: '#FF5252',
+    color: theme.colors.status.error,
   },
   textInputError: {
-    borderColor: '#FF5252',
+    borderColor: theme.colors.status.error,
     borderWidth: 1.5,
     backgroundColor: '#FFF5F5',
   },
   errorText: {
-    color: '#FF5252',
-    fontSize: 12,
-    marginTop: 4,
+    color: theme.colors.status.error,
+    fontSize: theme.typography.sizes.sm,
+    marginTop: theme.spacing.xs,
     marginLeft: 2,
   },
 });

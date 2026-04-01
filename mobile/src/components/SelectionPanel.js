@@ -101,7 +101,7 @@ const SelectionPanel = ({
             {/* Header */}
             <View style={styles.header}>
               <TouchableOpacity onPress={onClose} style={styles.closeButton}>
-                <MaterialIcons name="chevron-left" size={24} color="#007AFF" />
+                <MaterialIcons name="chevron-left" size={24} color={theme.colors.primary} />
               </TouchableOpacity>
               <Text style={styles.title}>{title}</Text>
               <View style={styles.placeholder} />
@@ -133,14 +133,16 @@ const SelectionPanel = ({
                   >
                     {multiSelect && (
                       <View style={[styles.checkbox, isSelected && styles.checkboxSelected]}>
-                        {isSelected && <MaterialIcons name="check" size={16} color="#fff" />}
+                        {isSelected && (
+                          <MaterialIcons name="check" size={16} color={theme.colors.text.white} />
+                        )}
                       </View>
                     )}
                     <Text style={[styles.optionText, isSelected && styles.optionTextSelected]}>
                       {optionLabel}
                     </Text>
                     {!multiSelect && isSelected && (
-                      <MaterialIcons name="check" size={20} color="#007AFF" />
+                      <MaterialIcons name="check" size={20} color={theme.colors.primary} />
                     )}
                   </TouchableOpacity>
                 );
@@ -163,33 +165,33 @@ const SelectionPanel = ({
 const styles = StyleSheet.create({
   overlay: {
     flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    backgroundColor: theme.colors.background.overlay,
     justifyContent: 'flex-end',
   },
   panelContainer: {
     maxHeight: _height * 0.8,
   },
   panel: {
-    backgroundColor: '#fff',
-    borderTopLeftRadius: 20,
-    borderTopRightRadius: 20,
+    backgroundColor: theme.colors.background.primary,
+    borderTopLeftRadius: theme.borderRadius.xxl,
+    borderTopRightRadius: theme.borderRadius.xxl,
     // paddingBottom is applied dynamically based on safe area insets
   },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    padding: 20,
+    padding: theme.spacing.xl,
     borderBottomWidth: 1,
-    borderBottomColor: '#E5E5EA',
+    borderBottomColor: theme.colors.gray[300],
   },
   closeButton: {
-    padding: 5,
+    padding: theme.spacing.xs,
   },
   title: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: '#333',
+    fontSize: theme.typography.sizes.xl,
+    fontWeight: theme.typography.weights.semibold,
+    color: theme.colors.text.primary,
     flex: 1,
     textAlign: 'center',
   },
@@ -203,33 +205,33 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    padding: 20,
+    padding: theme.spacing.xl,
     borderBottomWidth: 1,
-    borderBottomColor: '#F0F0F0',
+    borderBottomColor: theme.colors.gray[200],
   },
   optionSelected: {
-    backgroundColor: '#F8F9FA',
+    backgroundColor: theme.colors.gray[100],
   },
   lastOption: {
     borderBottomWidth: 0,
   },
   optionText: {
-    fontSize: 16,
-    color: '#333',
+    fontSize: theme.typography.sizes.lg,
+    color: theme.colors.text.primary,
     flex: 1,
   },
   optionTextSelected: {
-    color: '#007AFF',
-    fontWeight: '600',
+    color: theme.colors.primary,
+    fontWeight: theme.typography.weights.semibold,
   },
   checkbox: {
     width: 24,
     height: 24,
-    borderRadius: 4,
+    borderRadius: theme.borderRadius.sm,
     borderWidth: 2,
-    borderColor: '#C8C7CC',
-    backgroundColor: '#fff',
-    marginRight: 12,
+    borderColor: theme.colors.gray[400],
+    backgroundColor: theme.colors.background.primary,
+    marginRight: theme.spacing.md,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -239,15 +241,15 @@ const styles = StyleSheet.create({
   },
   confirmButton: {
     backgroundColor: theme.colors.primary,
-    margin: 20,
-    padding: 15,
-    borderRadius: 8,
+    margin: theme.spacing.xl,
+    padding: theme.spacing.lg,
+    borderRadius: theme.borderRadius.md,
     alignItems: 'center',
   },
   confirmButtonText: {
-    color: '#fff',
-    fontSize: 16,
-    fontWeight: '600',
+    color: theme.colors.text.white,
+    fontSize: theme.typography.sizes.lg,
+    fontWeight: theme.typography.weights.semibold,
   },
 });
 
