@@ -48,6 +48,7 @@ import ChatReactionsSheet from './chat/ChatReactionsSheet';
 import ChatMessageBubble from './chat/ChatMessageBubble';
 import AnimatedTypingIndicator from '../components/chat/AnimatedTypingIndicator';
 import AnimatedMessageBubble from '../components/chat/AnimatedMessageBubble';
+import AnimatedScrollToBottom from '../components/chat/AnimatedScrollToBottom';
 import { theme } from '../styles/theme';
 
 const ChatScreen = ({ route, navigation }) => {
@@ -102,7 +103,6 @@ const ChatScreen = ({ route, navigation }) => {
   const swipeableRefs = useRef({});
   const sentMessageIdsRef = useRef(new Set()); // Track IDs of messages we sent to avoid socket duplicates
   const sentMessageTimeoutsRef = useRef(new Map()); // Track cleanup timeouts for sentMessageIds
-  const scrollButtonAnim = useRef(new Animated.Value(0)).current;
   const isFocusedRef = useRef(isFocused); // Track focus state for callbacks
   const appStateRef = useRef(AppState.currentState); // Track app foreground/background state
 
@@ -763,15 +763,9 @@ const ChatScreen = ({ route, navigation }) => {
 
       if (shouldShow !== showScrollButton) {
         setShowScrollButton(shouldShow);
-        Animated.spring(scrollButtonAnim, {
-          toValue: shouldShow ? 1 : 0,
-          useNativeDriver: true,
-          tension: 50,
-          friction: 7,
-        }).start();
       }
     },
-    [showScrollButton, scrollButtonAnim]
+    [showScrollButton]
   );
 
   // Scroll to a specific message (for tapping on quoted reply)
@@ -1182,34 +1176,10 @@ const ChatScreen = ({ route, navigation }) => {
 
               {/* Scroll to bottom FAB - hidden when profile sheet or reactions panel is open */}
               {!isProfileSheetOpen && !reactionsDetailMessage && (
-                <Animated.View
-                  style={[
-                    styles.scrollToBottomFab,
-                    {
-                      opacity: scrollButtonAnim,
-                      transform: [
-                        {
-                          scale: scrollButtonAnim.interpolate({
-                            inputRange: [0, 1],
-                            outputRange: [0.5, 1],
-                          }),
-                        },
-                      ],
-                    },
-                  ]}
-                  pointerEvents={showScrollButton ? 'auto' : 'none'}
-                >
-                  <TouchableOpacity
-                    style={styles.scrollToBottomButton}
-                    onPress={() => {
-                      scrollToBottom(true);
-                      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                    }}
-                    activeOpacity={0.8}
-                  >
-                    <Ionicons name="chevron-down" size={24} color="#fff" />
-                  </TouchableOpacity>
-                </Animated.View>
+                <AnimatedScrollToBottom
+                  visible={showScrollButton}
+                  onPress={() => scrollToBottom(true)}
+                />
               )}
             </>
           )}
@@ -1376,31 +1346,7 @@ const styles = StyleSheet.create({
     paddingVertical: 16,
     flexGrow: 1,
   },
-  // Note: Typing indicator styles now in AnimatedTypingIndicator component
-  scrollToBottomFab: {
-    position: 'absolute',
-    bottom: 80,
-    alignSelf: 'center',
-    left: '50%',
-    marginLeft: -22,
-    zIndex: 10,
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.25,
-    shadowRadius: 4,
-    elevation: 5,
-  },
-  scrollToBottomButton: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    backgroundColor: theme.colors.primary,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
+  // Note: Typing indicator and scroll-to-bottom styles now in dedicated components
   errorStateText: {
     fontSize: theme.typography.sizes.lg,
     color: theme.colors.text.secondary,
