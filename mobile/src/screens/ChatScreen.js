@@ -1133,7 +1133,11 @@ const ChatScreen = ({ route, navigation }) => {
                 ListHeaderComponent={renderTypingIndicator}
                 ListEmptyComponent={
                   <View style={styles.emptyStateContainer}>
-                    <Text style={styles.emptyStateIcon}>&#128075;</Text>
+                    <Ionicons
+                      name="chatbubble-ellipses-outline"
+                      size={48}
+                      color={theme.colors.text.muted}
+                    />
                     <Text style={styles.emptyStateTitle}>Start the conversation!</Text>
                     <Text style={styles.emptyStateSubtitle}>
                       Say hi to {getUserDisplayName(match.otherUser)}
@@ -1365,11 +1369,8 @@ const styles = StyleSheet.create({
     // Inverted list renders from bottom, so this keeps the empty state visually centered
     transform: [{ scaleY: -1 }],
   },
-  emptyStateIcon: {
-    fontSize: 48,
-    marginBottom: theme.spacing.md,
-  },
   emptyStateTitle: {
+    marginTop: theme.spacing.md,
     fontSize: theme.typography.sizes.xl,
     fontWeight: theme.typography.weights.semibold,
     color: theme.colors.text.primary,

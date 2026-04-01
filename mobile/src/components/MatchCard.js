@@ -173,7 +173,7 @@ export const MatchCard = memo(
                   : lastMessageText.includes('giphy.com') ||
                       lastMessageText.includes('media.giphy') ||
                       lastMessageText === '[GIF]'
-                    ? 'Sent a GIF 🎬'
+                    ? 'Sent a GIF'
                     : lastMessageText || 'Start a conversation...'}
               </Text>
               <Text style={styles.lastMessageTime} numberOfLines={1}>
@@ -214,7 +214,7 @@ export const MatchCard = memo(
         )}
 
         <View style={styles.matchBadge}>
-          <Text style={styles.matchBadgeText}>💕</Text>
+          <Ionicons name="heart" size={14} color={theme.colors.primary} />
         </View>
       </TouchableOpacity>
     );
@@ -300,9 +300,8 @@ const styles = {
     borderRadius: theme.borderRadius.md,
     paddingHorizontal: theme.spacing.sm,
     paddingVertical: theme.spacing.xs,
-  },
-  matchBadgeText: {
-    fontSize: theme.typography.sizes.sm,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   unreadBadge: {
     backgroundColor: theme.colors.primary,
