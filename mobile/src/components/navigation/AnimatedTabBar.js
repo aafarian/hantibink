@@ -1,6 +1,11 @@
-import React, { useCallback, useMemo } from 'react';
+import React, { useCallback, useMemo, useEffect } from 'react';
 import { View, Text, StyleSheet, Platform } from 'react-native';
-import Animated, { useAnimatedStyle, useSharedValue, withSpring } from 'react-native-reanimated';
+import Animated, {
+  useAnimatedStyle,
+  useSharedValue,
+  withSpring,
+  withSequence,
+} from 'react-native-reanimated';
 import { Pressable } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
@@ -34,14 +39,26 @@ const TAB_ICONS = {
  * @param {number} [props.badgeCount] - Optional badge count to display
  */
 const AnimatedTabButton = ({ route, isFocused, options, onPress, onLongPress, badgeCount }) => {
-  // Animation shared value
+  // Animation shared values
   const scale = useSharedValue(theme.animation.scales.resting);
+  const iconBounce = useSharedValue(1);
 
   // Get icon names based on route
   const iconConfig = TAB_ICONS[route.name] || TAB_ICONS.Profile;
   const iconName = isFocused ? iconConfig.active : iconConfig.inactive;
   const iconColor = isFocused ? theme.colors.primary : 'gray';
   const iconSize = 24;
+
+  // Trigger bounce animation when tab becomes focused
+  useEffect(() => {
+    if (isFocused) {
+      // Bounce: scale up to 1.3, then settle back to 1
+      iconBounce.value = withSequence(
+        withSpring(1.3, { damping: 8, stiffness: 400 }),
+        withSpring(1, { damping: 10, stiffness: 200 })
+      );
+    }
+  }, [isFocused, iconBounce]);
 
   // Get label
   const label =
@@ -70,10 +87,17 @@ const AnimatedTabButton = ({ route, isFocused, options, onPress, onLongPress, ba
     onPress();
   }, [isFocused, onPress]);
 
-  // Animated style with scale transform
+  // Animated style with scale transform for press
   const animatedStyle = useAnimatedStyle(() => {
     return {
       transform: [{ scale: scale.value }],
+    };
+  });
+
+  // Animated style for icon bounce on selection
+  const iconAnimatedStyle = useAnimatedStyle(() => {
+    return {
+      transform: [{ scale: iconBounce.value }],
     };
   });
 
@@ -92,7 +116,9 @@ const AnimatedTabButton = ({ route, isFocused, options, onPress, onLongPress, ba
       onLongPress={onLongPress}
     >
       <View style={styles.iconContainer}>
-        <Ionicons name={iconName} size={iconSize} color={iconColor} />
+        <Animated.View style={iconAnimatedStyle}>
+          <Ionicons name={iconName} size={iconSize} color={iconColor} />
+        </Animated.View>
         {/* Badge for unread counts */}
         {badgeCount > 0 && (
           <View style={styles.badge}>
