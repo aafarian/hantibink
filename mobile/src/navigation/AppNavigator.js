@@ -137,7 +137,15 @@ const MessagesStack = () => {
         name="MessagesList"
         component={MessagesScreen}
         options={{
-          headerShown: false, // MessagesScreen has custom collapsible header
+          headerShown: true,
+          title: 'Messages',
+          headerStyle: {
+            backgroundColor: theme.colors.primary,
+          },
+          headerTintColor: '#fff',
+          headerTitleStyle: {
+            fontWeight: 'bold',
+          },
         }}
       />
       <Stack.Screen
