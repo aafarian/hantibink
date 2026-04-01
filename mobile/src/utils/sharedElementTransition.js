@@ -31,8 +31,12 @@
  * />
  */
 
-import { SharedTransition, withSpring, withTiming } from 'react-native-reanimated';
+import Reanimated, { withSpring, withTiming } from 'react-native-reanimated';
 import { theme } from '../styles/theme';
+
+// SharedTransition was introduced in Reanimated 4.2.0
+// Gracefully handle older versions where it's undefined
+const SharedTransition = Reanimated.SharedTransition;
 
 /**
  * Creates a unique shared element tag for transition matching.
@@ -77,6 +81,13 @@ export const SharedTagPrefixes = {
 };
 
 /**
+ * Check if SharedTransition API is available (requires Reanimated 4.2.0+)
+ */
+export const isSharedTransitionSupported = () => {
+  return SharedTransition && typeof SharedTransition.custom === 'function';
+};
+
+/**
  * Creates a spring-based shared transition configuration.
  * Spring animations feel more natural for element morphing.
  *
@@ -84,9 +95,13 @@ export const SharedTagPrefixes = {
  * @param {number} [springConfig.damping] - Spring damping (default: 15)
  * @param {number} [springConfig.stiffness] - Spring stiffness (default: 120)
  * @param {number} [springConfig.mass] - Spring mass (default: 0.8)
- * @returns {SharedTransition} Configured SharedTransition object
+ * @returns {SharedTransition|undefined} Configured SharedTransition object, or undefined if not supported
  */
 export const createSpringTransition = (springConfig = {}) => {
+  if (!isSharedTransitionSupported()) {
+    return undefined;
+  }
+
   const config = {
     ...theme.animation.springs.smooth,
     ...springConfig,
@@ -109,9 +124,13 @@ export const createSpringTransition = (springConfig = {}) => {
  *
  * @param {Object} [options] - Timing options
  * @param {number} [options.duration] - Animation duration in ms (default: 300)
- * @returns {SharedTransition} Configured SharedTransition object
+ * @returns {SharedTransition|undefined} Configured SharedTransition object, or undefined if not supported
  */
 export const createTimingTransition = (options = {}) => {
+  if (!isSharedTransitionSupported()) {
+    return undefined;
+  }
+
   const duration = options.duration ?? theme.animation.durations.slow;
 
   return SharedTransition.custom(values => {
@@ -132,9 +151,13 @@ export const createTimingTransition = (options = {}) => {
  * @param {Object} [options] - Configuration options
  * @param {Object} [options.progressSpring] - Spring config for forward navigation
  * @param {Object} [options.regressSpring] - Spring config for back navigation
- * @returns {SharedTransition} Configured SharedTransition object
+ * @returns {SharedTransition|undefined} Configured SharedTransition object, or undefined if not supported
  */
 export const createAsymmetricTransition = (options = {}) => {
+  if (!isSharedTransitionSupported()) {
+    return undefined;
+  }
+
   const progressConfig = {
     ...theme.animation.springs.smooth,
     ...options.progressSpring,
@@ -161,40 +184,56 @@ export const createAsymmetricTransition = (options = {}) => {
 
 /**
  * Transition preset configurations for common use cases.
+ * Returns undefined for each preset if SharedTransition is not supported.
  */
 export const TransitionPresets = {
   /** Smooth spring for profile photo morphing */
-  smooth: createSpringTransition(theme.animation.springs.smooth),
+  get smooth() {
+    return createSpringTransition(theme.animation.springs.smooth);
+  },
 
   /** Bouncy spring for playful interactions */
-  bouncy: createSpringTransition(theme.animation.springs.bouncy),
+  get bouncy() {
+    return createSpringTransition(theme.animation.springs.bouncy);
+  },
 
   /** Stiff spring for snappy feedback */
-  stiff: createSpringTransition(theme.animation.springs.stiff),
+  get stiff() {
+    return createSpringTransition(theme.animation.springs.stiff);
+  },
 
   /** Gentle spring for subtle transitions */
-  gentle: createSpringTransition(theme.animation.springs.gentle),
+  get gentle() {
+    return createSpringTransition(theme.animation.springs.gentle);
+  },
 
   /** Timing-based for predictable animations */
-  linear: createTimingTransition({ duration: theme.animation.durations.slow }),
+  get linear() {
+    return createTimingTransition({ duration: theme.animation.durations.slow });
+  },
 };
 
 /**
  * Default shared transition - smooth spring animation.
  * Use this for most shared element transitions.
+ * Returns undefined if SharedTransition is not supported.
  */
-export const defaultTransition = TransitionPresets.smooth;
+export const getDefaultTransition = () => TransitionPresets.smooth;
+
+// For backwards compatibility - but will be undefined if not supported
+export const defaultTransition = undefined; // Lazy-evaluated via getDefaultTransition()
 
 /**
  * Helper hook to generate consistent shared element props.
  * Returns an object spread for Animated.Image or Animated.View.
+ * Returns empty object if SharedTransition is not supported.
  *
  * @param {string} prefix - Tag prefix from SharedTagPrefixes
  * @param {string|number} id - Unique identifier
  * @param {Object} [options] - Configuration options
  * @param {number} [options.index] - Optional index for galleries
  * @param {SharedTransition} [options.transition] - Custom transition (default: smooth)
- * @returns {Object} Props object with sharedTransitionTag and sharedTransitionStyle
+ * @returns {Object} Props object with sharedTransitionTag and sharedTransitionStyle, or empty object
  *
  * @example
  * const sharedProps = getSharedElementProps(
@@ -206,7 +245,11 @@ export const defaultTransition = TransitionPresets.smooth;
  * <Animated.Image {...sharedProps} source={{ uri: photoUrl }} />
  */
 export const getSharedElementProps = (prefix, id, options = {}) => {
-  const { index, transition = defaultTransition } = options;
+  if (!isSharedTransitionSupported()) {
+    return {}; // Return empty props, component will render without shared transition
+  }
+
+  const { index, transition = getDefaultTransition() } = options;
 
   return {
     sharedTransitionTag: createSharedTag(prefix, id, index),
@@ -236,7 +279,7 @@ export const getSharedElementProps = (prefix, id, options = {}) => {
 export const createSharedElementFactory = defaults => {
   return (id, options = {}) =>
     getSharedElementProps(defaults.prefix, id, {
-      transition: defaults.transition || defaultTransition,
+      transition: defaults.transition || getDefaultTransition(),
       ...options,
     });
 };
@@ -244,11 +287,12 @@ export const createSharedElementFactory = defaults => {
 export default {
   createSharedTag,
   SharedTagPrefixes,
+  isSharedTransitionSupported,
   createSpringTransition,
   createTimingTransition,
   createAsymmetricTransition,
   TransitionPresets,
-  defaultTransition,
+  getDefaultTransition,
   getSharedElementProps,
   createSharedElementFactory,
 };
