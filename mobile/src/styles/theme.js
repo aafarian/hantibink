@@ -20,8 +20,8 @@ export const theme = {
     },
     background: {
       primary: '#FFFFFF', // Pure white to avoid scroll strobe with off-white
-      secondary: '#F5F5F4', // Stone-100
-      tertiary: '#E7E5E4', // Stone-200
+      secondary: '#F9FAFB', // Gray-50, neutral
+      tertiary: '#F3F4F6', // Gray-100, neutral
     },
     overlay: {
       light: 'rgba(255, 255, 255, 0.2)',
@@ -36,8 +36,8 @@ export const theme = {
       info: '#2196F3',
     },
     border: {
-      light: '#D6D3D1', // Stone-300
-      medium: '#A8A29E', // Stone-400
+      light: '#E5E7EB', // Gray-200, neutral
+      medium: '#D1D5DB', // Gray-300, neutral
       primary: 'rgba(192, 57, 43, 0.15)', // Primary red tint for borders
     },
     gray: {
