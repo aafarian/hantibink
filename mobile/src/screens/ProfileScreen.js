@@ -459,9 +459,12 @@ const ProfileScreen = ({ navigation }) => {
             </TouchableOpacity>
 
             <View style={styles.devInfo}>
-              <Text style={styles.devInfoText}>
-                🛠️ {getBuildEnvironment() === 'development' ? 'Development' : 'Preview'} Mode
-              </Text>
+              <View style={styles.devModeRow}>
+                <Ionicons name="build-outline" size={14} color={theme.colors.text.secondary} />
+                <Text style={styles.devInfoText}>
+                  {getBuildEnvironment() === 'development' ? 'Development' : 'Preview'} Mode
+                </Text>
+              </View>
               <Text style={styles.devInfoSubtext}>
                 Premium features {devPremium ? 'enabled' : 'disabled'}
               </Text>
@@ -890,11 +893,16 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(245, 124, 0, 0.08)',
     borderRadius: 8,
   },
+  devModeRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    marginBottom: 4,
+  },
   devInfoText: {
     fontSize: 14,
     fontWeight: '600',
     color: theme.colors.accent,
-    marginBottom: 4,
   },
   devInfoSubtext: {
     fontSize: 12,

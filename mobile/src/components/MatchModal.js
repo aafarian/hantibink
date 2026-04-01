@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect, useCallback } from 'react';
 import {
   Modal,
   View,
@@ -11,6 +11,19 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
+import Animated, {
+  useSharedValue,
+  useAnimatedStyle,
+  withSpring,
+  withTiming,
+  withDelay,
+  withRepeat,
+  withSequence,
+  interpolate,
+  Extrapolation,
+  Easing,
+} from 'react-native-reanimated';
+import * as Haptics from 'expo-haptics';
 import { theme } from '../styles/theme';
 
 const { width: screenWidth } = Dimensions.get('window');
@@ -29,19 +42,123 @@ const MatchModal = ({
   const safeCurrentPhoto = currentUserPhoto || 'https://via.placeholder.com/150';
   const safeMatchedPhoto = matchedUserPhoto || 'https://via.placeholder.com/150';
 
+  // Animation values
+  const containerScale = useSharedValue(0);
+  const containerOpacity = useSharedValue(0);
+  const leftPhotoX = useSharedValue(-100);
+  const rightPhotoX = useSharedValue(100);
+  const photoOpacity = useSharedValue(0);
+  const heartScale = useSharedValue(0);
+  const heartPulse = useSharedValue(1);
+  const buttonOpacity = useSharedValue(0);
+  const buttonTranslateY = useSharedValue(20);
+
+  // Start animations when modal becomes visible
+  useEffect(() => {
+    if (visible) {
+      // Trigger haptic feedback
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+
+      // Reset values
+      containerScale.value = 0.8;
+      containerOpacity.value = 0;
+      leftPhotoX.value = -100;
+      rightPhotoX.value = 100;
+      photoOpacity.value = 0;
+      heartScale.value = 0;
+      heartPulse.value = 1;
+      buttonOpacity.value = 0;
+      buttonTranslateY.value = 20;
+
+      // Container entrance
+      containerScale.value = withSpring(1, { damping: 15, stiffness: 120 });
+      containerOpacity.value = withTiming(1, { duration: 200 });
+
+      // Photos slide in
+      leftPhotoX.value = withDelay(150, withSpring(0, { damping: 12, stiffness: 100 }));
+      rightPhotoX.value = withDelay(150, withSpring(0, { damping: 12, stiffness: 100 }));
+      photoOpacity.value = withDelay(150, withTiming(1, { duration: 300 }));
+
+      // Heart appears with bounce
+      heartScale.value = withDelay(
+        350,
+        withSequence(
+          withSpring(1.3, { damping: 8, stiffness: 200 }),
+          withSpring(1, { damping: 10, stiffness: 150 })
+        )
+      );
+
+      // Heart pulse animation (repeating)
+      heartPulse.value = withDelay(
+        600,
+        withRepeat(
+          withSequence(
+            withTiming(1.15, { duration: 400, easing: Easing.inOut(Easing.ease) }),
+            withTiming(1, { duration: 400, easing: Easing.inOut(Easing.ease) })
+          ),
+          -1, // infinite repeat
+          false
+        )
+      );
+
+      // Buttons fade in
+      buttonOpacity.value = withDelay(500, withTiming(1, { duration: 300 }));
+      buttonTranslateY.value = withDelay(500, withSpring(0, { damping: 15, stiffness: 120 }));
+    }
+  }, [
+    visible,
+    containerScale,
+    containerOpacity,
+    leftPhotoX,
+    rightPhotoX,
+    photoOpacity,
+    heartScale,
+    heartPulse,
+    buttonOpacity,
+    buttonTranslateY,
+  ]);
+
+  // Animated styles
+  const containerAnimatedStyle = useAnimatedStyle(() => ({
+    transform: [{ scale: containerScale.value }],
+    opacity: containerOpacity.value,
+  }));
+
+  const leftPhotoAnimatedStyle = useAnimatedStyle(() => ({
+    transform: [{ translateX: leftPhotoX.value }],
+    opacity: photoOpacity.value,
+  }));
+
+  const rightPhotoAnimatedStyle = useAnimatedStyle(() => ({
+    transform: [{ translateX: rightPhotoX.value }],
+    opacity: photoOpacity.value,
+  }));
+
+  const heartAnimatedStyle = useAnimatedStyle(() => ({
+    transform: [{ scale: heartScale.value * heartPulse.value }],
+    opacity: interpolate(heartScale.value, [0, 0.5, 1], [0, 1, 1], Extrapolation.CLAMP),
+  }));
+
+  const buttonAnimatedStyle = useAnimatedStyle(() => ({
+    opacity: buttonOpacity.value,
+    transform: [{ translateY: buttonTranslateY.value }],
+  }));
+
   // Handle send message - parent handles modal closing and navigation
-  const handleSendMessage = () => {
+  const handleSendMessage = useCallback(() => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     if (onSendMessage) {
       onSendMessage();
     }
-  };
+  }, [onSendMessage]);
 
   // Handle keep swiping - parent handles modal closing
-  const handleKeepSwiping = () => {
+  const handleKeepSwiping = useCallback(() => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     if (onKeepSwiping) {
       onKeepSwiping();
     }
-  };
+  }, [onKeepSwiping]);
 
   return (
     <Modal animationType="fade" transparent={true} visible={visible} onRequestClose={onClose}>
@@ -49,7 +166,7 @@ const MatchModal = ({
         {/* Tappable background to dismiss */}
         <Pressable style={styles.dismissArea} onPress={onClose} />
 
-        <View style={styles.container}>
+        <Animated.View style={[styles.container, containerAnimatedStyle]}>
           {/* Close button */}
           <TouchableOpacity style={styles.closeIcon} onPress={onClose}>
             <Ionicons name="close" size={24} color={theme.colors.text.secondary} />
@@ -68,25 +185,25 @@ const MatchModal = ({
 
           {/* Photos section */}
           <View style={styles.photosContainer}>
-            <View style={styles.photoWrapper}>
+            <Animated.View style={[styles.photoWrapper, leftPhotoAnimatedStyle]}>
               <Image source={{ uri: safeCurrentPhoto }} style={styles.photo} />
               <Text style={styles.photoName}>{currentUserName || 'You'}</Text>
-            </View>
+            </Animated.View>
 
-            <View style={styles.heartContainer}>
+            <Animated.View style={[styles.heartContainer, heartAnimatedStyle]}>
               <View style={styles.heartBadge}>
                 <Ionicons name="heart" size={28} color={theme.colors.primary} />
               </View>
-            </View>
+            </Animated.View>
 
-            <View style={styles.photoWrapper}>
+            <Animated.View style={[styles.photoWrapper, rightPhotoAnimatedStyle]}>
               <Image source={{ uri: safeMatchedPhoto }} style={styles.photo} />
               <Text style={styles.photoName}>{matchedUserName}</Text>
-            </View>
+            </Animated.View>
           </View>
 
           {/* Actions */}
-          <View style={styles.actions}>
+          <Animated.View style={[styles.actions, buttonAnimatedStyle]}>
             <TouchableOpacity
               style={styles.primaryButton}
               onPress={handleSendMessage}
@@ -99,8 +216,8 @@ const MatchModal = ({
             <TouchableOpacity style={styles.secondaryButton} onPress={handleKeepSwiping}>
               <Text style={styles.secondaryButtonText}>Keep Swiping</Text>
             </TouchableOpacity>
-          </View>
-        </View>
+          </Animated.View>
+        </Animated.View>
       </View>
     </Modal>
   );
