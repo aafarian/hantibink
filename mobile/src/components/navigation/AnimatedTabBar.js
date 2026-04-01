@@ -5,6 +5,7 @@ import Animated, {
   useSharedValue,
   withSpring,
   withSequence,
+  cancelAnimation,
 } from 'react-native-reanimated';
 import { Pressable } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
@@ -51,12 +52,18 @@ const AnimatedTabButton = ({ route, isFocused, options, onPress, onLongPress, ba
 
   // Trigger bounce animation when tab becomes focused
   useEffect(() => {
+    // Cancel any in-progress animation first
+    cancelAnimation(iconBounce);
+
     if (isFocused) {
       // Bounce: scale up to 1.3, then settle back to 1
       iconBounce.value = withSequence(
         withSpring(1.3, { damping: 8, stiffness: 400 }),
         withSpring(1, { damping: 10, stiffness: 200 })
       );
+    } else {
+      // Reset when unfocused
+      iconBounce.value = 1;
     }
   }, [isFocused, iconBounce]);
 
