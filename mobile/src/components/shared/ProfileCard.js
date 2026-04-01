@@ -1,7 +1,31 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo, useCallback } from 'react';
 import { View, Text, StyleSheet, Image, TouchableOpacity, ScrollView } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
+
+/**
+ * Extract photo URL from photo object or string (pure utility function)
+ */
+const getPhotoUrl = photo => {
+  if (typeof photo === 'string') return photo;
+  if (photo?.url) return photo.url;
+  return null;
+};
+
+/**
+ * Calculate age from birth date (pure utility function)
+ */
+const calculateAge = birthDate => {
+  if (!birthDate) return null;
+  const today = new Date();
+  const birth = new Date(birthDate);
+  let age = today.getFullYear() - birth.getFullYear();
+  const monthDiff = today.getMonth() - birth.getMonth();
+  if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birth.getDate())) {
+    age--;
+  }
+  return age;
+};
 
 /**
  * Shared ProfileCard component used across the app
@@ -19,37 +43,14 @@ const ProfileCard = ({
 }) => {
   const [currentPhotoIndex, setCurrentPhotoIndex] = useState(0);
 
-  if (!profile) return null;
-
-  // Helper to get photo URL
-  const getPhotoUrl = photo => {
-    if (typeof photo === 'string') return photo;
-    if (photo?.url) return photo.url;
-    return null;
-  };
-
-  // Get all valid photo URLs
-  const getPhotos = () => {
-    if (!profile.photos) return [];
+  // Memoize all derived values from profile
+  const photos = useMemo(() => {
+    if (!profile?.photos) return [];
     return profile.photos.map(getPhotoUrl).filter(Boolean);
-  };
+  }, [profile?.photos]);
 
-  // Calculate age from birthDate if age not provided
-  const calculateAge = birthDate => {
-    if (!birthDate) return null;
-    const today = new Date();
-    const birth = new Date(birthDate);
-    let age = today.getFullYear() - birth.getFullYear();
-    const monthDiff = today.getMonth() - birth.getMonth();
-    if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birth.getDate())) {
-      age--;
-    }
-    return age;
-  };
-
-  // Get interests as strings
-  const getInterests = () => {
-    if (!profile.interests) return [];
+  const interests = useMemo(() => {
+    if (!profile?.interests) return [];
     return profile.interests
       .map(interest => {
         if (typeof interest === 'object') {
@@ -58,17 +59,15 @@ const ProfileCard = ({
         return interest;
       })
       .filter(Boolean);
-  };
+  }, [profile?.interests]);
 
-  // Get languages as strings
-  const getLanguages = () => {
-    if (!profile.languages) return [];
+  const languages = useMemo(() => {
+    if (!profile?.languages) return [];
     return Array.isArray(profile.languages) ? profile.languages : [];
-  };
+  }, [profile?.languages]);
 
-  // Format relationship type
-  const getRelationshipTypes = () => {
-    if (!profile.relationshipType) return [];
+  const relationshipTypes = useMemo(() => {
+    if (!profile?.relationshipType) return [];
     if (Array.isArray(profile.relationshipType)) {
       return profile.relationshipType.map(
         type => type.charAt(0).toUpperCase() + type.slice(1).replace('-', ' ')
@@ -80,9 +79,52 @@ const ProfileCard = ({
         .map(type => type.trim().charAt(0).toUpperCase() + type.trim().slice(1).replace('-', ' '));
     }
     return [];
-  };
+  }, [profile?.relationshipType]);
 
-  const photos = getPhotos();
+  // Handle photo tap to cycle through photos - memoized (must be before early returns)
+  const handlePhotoTap = useCallback(() => {
+    if (onPhotoTap) {
+      onPhotoTap();
+      return;
+    }
+    if (photos.length > 1) {
+      setCurrentPhotoIndex(prev => (prev + 1) % photos.length);
+    }
+  }, [onPhotoTap, photos.length]);
+
+  // Render info row with icon - memoized (must be before early returns)
+  const renderInfoRow = useCallback((icon, text, iconColor = '#fff') => {
+    if (!text) return null;
+    return (
+      <View style={styles.infoRow}>
+        <Ionicons name={icon} size={16} color={iconColor} style={styles.infoIcon} />
+        <Text style={styles.infoText}>{text}</Text>
+      </View>
+    );
+  }, []);
+
+  // Render tag pills - memoized (must be before early returns)
+  const renderTags = useCallback((items, maxItems = 6) => {
+    if (!items || items.length === 0) return null;
+    return (
+      <View style={styles.tagsContainer}>
+        {items.slice(0, maxItems).map((item, index) => (
+          <View key={index} style={styles.tag}>
+            <Text style={styles.tagText}>{item}</Text>
+          </View>
+        ))}
+        {items.length > maxItems && (
+          <View style={styles.tag}>
+            <Text style={styles.tagText}>+{items.length - maxItems}</Text>
+          </View>
+        )}
+      </View>
+    );
+  }, []);
+
+  // Early return for null profile
+  if (!profile) return null;
+
   const currentPhoto = photos[currentPhotoIndex] || photos[0] || profile.mainPhoto || null;
   const age = profile.age || calculateAge(profile.birthDate);
 
@@ -102,50 +144,6 @@ const ProfileCard = ({
       </View>
     );
   }
-  const interests = getInterests();
-  const languages = getLanguages();
-  const relationshipTypes = getRelationshipTypes();
-
-  // Handle photo tap to cycle through photos
-  const handlePhotoTap = () => {
-    if (onPhotoTap) {
-      onPhotoTap();
-      return;
-    }
-    if (photos.length > 1) {
-      setCurrentPhotoIndex(prev => (prev + 1) % photos.length);
-    }
-  };
-
-  // Render info row with icon
-  const renderInfoRow = (icon, text, iconColor = '#fff') => {
-    if (!text) return null;
-    return (
-      <View style={styles.infoRow}>
-        <Ionicons name={icon} size={16} color={iconColor} style={styles.infoIcon} />
-        <Text style={styles.infoText}>{text}</Text>
-      </View>
-    );
-  };
-
-  // Render tag pills
-  const renderTags = (items, maxItems = 6) => {
-    if (!items || items.length === 0) return null;
-    return (
-      <View style={styles.tagsContainer}>
-        {items.slice(0, maxItems).map((item, index) => (
-          <View key={index} style={styles.tag}>
-            <Text style={styles.tagText}>{item}</Text>
-          </View>
-        ))}
-        {items.length > maxItems && (
-          <View style={styles.tag}>
-            <Text style={styles.tagText}>+{items.length - maxItems}</Text>
-          </View>
-        )}
-      </View>
-    );
-  };
 
   return (
     <View style={[styles.card, style]}>
