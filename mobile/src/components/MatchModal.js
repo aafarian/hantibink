@@ -101,9 +101,9 @@ const MatchModal = ({
         )
       );
 
-      // Buttons fade in
+      // Buttons fade in - use timing instead of spring to avoid blocking touches
       buttonOpacity.value = withDelay(500, withTiming(1, { duration: 300 }));
-      buttonTranslateY.value = withDelay(500, withSpring(0, { damping: 15, stiffness: 120 }));
+      buttonTranslateY.value = withDelay(500, withTiming(0, { duration: 300 }));
     }
   }, [
     visible,
