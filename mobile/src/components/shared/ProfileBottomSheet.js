@@ -27,6 +27,30 @@ const statusBarHeight = Platform.OS === 'android' ? StatusBar.currentHeight || 2
 const availableHeight = screenHeight - statusBarHeight;
 
 /**
+ * Calculate age from birth date (pure utility function)
+ */
+const calculateAge = birthDate => {
+  if (!birthDate) return null;
+  const today = new Date();
+  const birth = new Date(birthDate);
+  let age = today.getFullYear() - birth.getFullYear();
+  const monthDiff = today.getMonth() - birth.getMonth();
+  if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birth.getDate())) {
+    age--;
+  }
+  return age;
+};
+
+/**
+ * Extract photo URL from photo object or string (pure utility function)
+ */
+const getPhotoUrl = photo => {
+  if (typeof photo === 'string') return photo;
+  if (photo?.url) return photo.url;
+  return null;
+};
+
+/**
  * Bottom sheet for viewing other users' full profiles
  * Bumble-style layout with interspersed photos and information
  */
@@ -76,27 +100,8 @@ const ProfileBottomSheet = forwardRef(
       setEnableContentPanning(isAtTop);
     }, []);
 
-    const calculateAge = birthDate => {
-      if (!birthDate) return null;
-      const today = new Date();
-      const birth = new Date(birthDate);
-      let age = today.getFullYear() - birth.getFullYear();
-      const monthDiff = today.getMonth() - birth.getMonth();
-      if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birth.getDate())) {
-        age--;
-      }
-      return age;
-    };
-
-    // Helper to get photo URL
-    const getPhotoUrl = photo => {
-      if (typeof photo === 'string') return photo;
-      if (photo?.url) return photo.url;
-      return null;
-    };
-
-    // Build the interspersed content sections
-    const buildProfileSections = () => {
+    // Build the interspersed content sections - memoized to prevent recalculation
+    const profileSections = useMemo(() => {
       if (!profile) return [];
 
       const sections = [];
@@ -209,9 +214,10 @@ const ProfileBottomSheet = forwardRef(
       }
 
       return sections;
-    };
+    }, [profile]);
 
-    const renderSection = section => {
+    // Memoized render function for sections
+    const renderSection = useCallback(section => {
       switch (section.type) {
         case 'photo':
           return (
@@ -359,11 +365,9 @@ const ProfileBottomSheet = forwardRef(
         default:
           return null;
       }
-    };
+    }, []);
 
     if (!profile) return null;
-
-    const profileSections = buildProfileSections();
 
     return (
       <BottomSheet
