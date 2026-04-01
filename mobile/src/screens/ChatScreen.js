@@ -847,18 +847,11 @@ const ChatScreen = ({ route, navigation }) => {
       // For inverted list, the last message in a group is when the next message (index - 1) is from a different sender
       const isLastInGroup = index === 0 || reversedMessages[index - 1]?.senderId !== item.senderId;
       const isTapped = tappedMessageId === item.id;
-      // New messages are temp messages or recent messages (first few in inverted list)
-      const isNew = item.isTemp || index < 2;
-      // Skip animation for messages loaded during initial fetch
-      const skipAnimation = hasInitialScrollRef.current && !item.isTemp && index > 2;
+      // Only animate temp messages (optimistically added) - they're new messages being sent
+      const shouldAnimate = item.isTemp === true;
 
       return (
-        <AnimatedMessageBubble
-          isOwnMessage={isOwnMessage}
-          isNew={isNew}
-          index={index}
-          skipAnimation={skipAnimation}
-        >
+        <AnimatedMessageBubble isOwnMessage={isOwnMessage} shouldAnimate={shouldAnimate}>
           <ChatMessageBubble
             message={item}
             isOwnMessage={isOwnMessage}

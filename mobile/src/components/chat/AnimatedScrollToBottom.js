@@ -5,6 +5,7 @@ import Animated, {
   useSharedValue,
   withSpring,
   withSequence,
+  withTiming,
   interpolate,
   Extrapolation,
 } from 'react-native-reanimated';
@@ -31,10 +32,16 @@ const AnimatedScrollToBottom = ({ visible, onPress }) => {
   const pressScale = useSharedValue(1);
 
   useEffect(() => {
-    progress.value = withSpring(visible ? 1 : 0, {
-      damping: 15,
-      stiffness: 150,
-    });
+    if (visible) {
+      // Spring animation when appearing
+      progress.value = withSpring(1, {
+        damping: 15,
+        stiffness: 150,
+      });
+    } else {
+      // Fast timing animation when disappearing to ensure full hide
+      progress.value = withTiming(0, { duration: 150 });
+    }
   }, [visible, progress]);
 
   const handlePressIn = useCallback(() => {
@@ -61,17 +68,19 @@ const AnimatedScrollToBottom = ({ visible, onPress }) => {
 
   const containerStyle = useAnimatedStyle(() => {
     const opacity = interpolate(progress.value, [0, 1], [0, 1], Extrapolation.CLAMP);
-
     const scale = interpolate(progress.value, [0, 1], [0.5, 1], Extrapolation.CLAMP);
-
     const translateY = interpolate(progress.value, [0, 1], [20, 0], Extrapolation.CLAMP);
 
     return {
       opacity,
       transform: [{ scale: scale * pressScale.value }, { translateY }],
-      pointerEvents: progress.value > 0.5 ? 'auto' : 'none',
     };
   });
+
+  // Don't render at all when not visible to avoid ghost artifacts
+  if (!visible && progress.value === 0) {
+    return null;
+  }
 
   return (
     <AnimatedPressable
@@ -79,6 +88,7 @@ const AnimatedScrollToBottom = ({ visible, onPress }) => {
       onPressIn={handlePressIn}
       onPressOut={handlePressOut}
       onPress={handlePress}
+      pointerEvents={visible ? 'auto' : 'none'}
     >
       <Ionicons name="chevron-down" size={24} color={theme.colors.text.white} />
     </AnimatedPressable>

@@ -5,7 +5,6 @@ import Animated, {
   useSharedValue,
   withSpring,
   withSequence,
-  runOnJS,
 } from 'react-native-reanimated';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
@@ -33,7 +32,7 @@ const AnimatedSendButton = ({ onSend, disabled = false, iconColor }) => {
 
   const handlePressIn = useCallback(() => {
     if (disabled) return;
-    scale.value = withSpring(0.85, theme.animation.springs.stiff);
+    scale.value = withSpring(0.8, { damping: 15, stiffness: 400 });
   }, [disabled, scale]);
 
   const handlePressOut = useCallback(() => {
@@ -41,34 +40,28 @@ const AnimatedSendButton = ({ onSend, disabled = false, iconColor }) => {
     scale.value = withSpring(1, theme.animation.springs.bouncy);
   }, [disabled, scale]);
 
-  const triggerSendAnimation = useCallback(() => {
-    // Pop effect: quick scale up then back
-    scale.value = withSequence(
-      withSpring(1.15, { damping: 8, stiffness: 400 }),
-      withSpring(1, { damping: 12, stiffness: 200 })
-    );
-
-    // Slight rotation for extra flair
-    rotation.value = withSequence(
-      withSpring(-5, { damping: 10, stiffness: 300 }),
-      withSpring(0, { damping: 12, stiffness: 200 })
-    );
-  }, [scale, rotation]);
-
   const handlePress = useCallback(() => {
     if (disabled) return;
 
     // Trigger haptic
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
 
-    // Trigger animation
-    triggerSendAnimation();
+    // Pop effect: quick scale up then back with rotation
+    scale.value = withSequence(
+      withSpring(1.25, { damping: 6, stiffness: 400 }),
+      withSpring(1, { damping: 10, stiffness: 200 })
+    );
+
+    rotation.value = withSequence(
+      withSpring(-8, { damping: 8, stiffness: 350 }),
+      withSpring(0, { damping: 10, stiffness: 200 })
+    );
 
     // Call the onSend callback
     if (onSend) {
-      runOnJS(onSend)();
+      onSend();
     }
-  }, [disabled, triggerSendAnimation, onSend]);
+  }, [disabled, scale, rotation, onSend]);
 
   const animatedStyle = useAnimatedStyle(() => ({
     transform: [{ scale: scale.value }, { rotate: `${rotation.value}deg` }],
