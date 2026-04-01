@@ -1,5 +1,6 @@
 import React from 'react';
 import { createStackNavigator } from '@react-navigation/stack';
+import { screenOptions } from './transitions';
 import LoginScreen from '../screens/auth/LoginScreen';
 import SimpleRegisterScreen from '../screens/auth/SimpleRegisterScreen';
 import PhotoSelectionScreen from '../screens/auth/PhotoSelectionScreen';
@@ -22,6 +23,7 @@ const AuthNavigator = () => {
       initialRouteName={initialRouteName}
       screenOptions={{
         headerShown: false,
+        ...screenOptions.fadeSlide,
       }}
     >
       <Stack.Screen name="Login" component={LoginScreen} />

@@ -15,6 +15,7 @@ import LocationPromptModal from '../components/LocationPromptModal';
 import Logger from '../utils/logger';
 import { useLocationTracking } from '../hooks/useLocationTracking';
 import { theme } from '../styles/theme';
+import { screenOptions } from './transitions';
 
 // Import screens
 import ProfileScreen from '../screens/ProfileScreen';
@@ -98,7 +99,7 @@ const styles = {
 
 const PeopleStack = () => {
   return (
-    <Stack.Navigator>
+    <Stack.Navigator screenOptions={screenOptions.fadeSlide}>
       <Stack.Screen
         name="PeopleMain"
         component={PeopleScreenOptimized}
@@ -126,7 +127,7 @@ const PeopleStack = () => {
 
 const ProfileStack = () => {
   return (
-    <Stack.Navigator>
+    <Stack.Navigator screenOptions={screenOptions.fadeSlide}>
       <Stack.Screen
         name="ProfileMain"
         component={ProfileScreen}
@@ -182,19 +183,12 @@ const ProfileStack = () => {
 
 const MessagesStack = () => {
   return (
-    <Stack.Navigator>
+    <Stack.Navigator screenOptions={screenOptions.fadeSlide}>
       <Stack.Screen
         name="MessagesList"
         component={MessagesScreen}
         options={{
-          title: 'Messages',
-          headerStyle: {
-            backgroundColor: theme.colors.primary,
-          },
-          headerTintColor: '#fff',
-          headerTitleStyle: {
-            fontWeight: 'bold',
-          },
+          headerShown: false, // MessagesScreen has custom collapsible header
         }}
       />
       <Stack.Screen
