@@ -26,6 +26,26 @@ export const theme = {
       light: '#e0e0e0',
       medium: '#ccc',
     },
+    gray: {
+      50: '#fafafa',
+      100: '#f5f5f5',
+      200: '#eeeeee',
+      300: '#e0e0e0',
+      400: '#bdbdbd',
+      500: '#9e9e9e',
+      600: '#757575',
+      700: '#616161',
+      800: '#424242',
+      900: '#212121',
+    },
+  },
+  icons: {
+    xs: 16,
+    sm: 20,
+    md: 24,
+    lg: 32,
+    xl: 48,
+    xxl: 64,
   },
   typography: {
     sizes: {
