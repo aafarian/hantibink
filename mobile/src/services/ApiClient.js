@@ -2,6 +2,62 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import Logger from '../utils/logger';
 import environment from '../config/environment';
 
+// Retry configuration for transient failures
+const RETRY_CONFIG = {
+  maxRetries: 3,
+  baseDelayMs: 1000, // 1 second initial delay
+  // HTTP methods that are safe to retry (idempotent)
+  safeMethodsToRetry: ['GET', 'HEAD', 'OPTIONS'],
+};
+
+/**
+ * Check if an error is transient and should be retried
+ * @param {number|null} status - HTTP status code (null for network errors)
+ * @param {Error|null} error - Error object for network failures
+ * @returns {boolean} - Whether the error is transient
+ */
+function isTransientError(status, error) {
+  // Network errors (no response received) are transient
+  if (error && !status) {
+    const errorMsg = error.message?.toLowerCase() || '';
+    // Common transient network errors
+    return (
+      errorMsg.includes('network') ||
+      errorMsg.includes('timeout') ||
+      errorMsg.includes('connection') ||
+      errorMsg.includes('failed to fetch') ||
+      errorMsg.includes('aborted')
+    );
+  }
+
+  // 5xx server errors are transient (server may recover)
+  if (status >= 500 && status < 600) {
+    return true;
+  }
+
+  return false;
+}
+
+/**
+ * Calculate delay for exponential backoff
+ * @param {number} attempt - Current retry attempt (0-indexed)
+ * @param {number} baseDelayMs - Base delay in milliseconds
+ * @returns {number} - Delay in milliseconds
+ */
+function getBackoffDelay(attempt, baseDelayMs) {
+  // Exponential backoff: 1s, 2s, 4s...
+  return baseDelayMs * Math.pow(2, attempt);
+}
+
+/**
+ * Sleep for specified milliseconds
+ * @param {number} ms - Milliseconds to sleep
+ * @returns {Promise<void>}
+ */
+function sleep(ms) {
+  return new Promise(resolve => setTimeout(resolve, ms));
+}
+
 class ApiClient {
   constructor() {
     this.baseURL = `${environment.apiUrl}/api`;
@@ -151,27 +207,72 @@ class ApiClient {
   }
 
   /**
-   * Make HTTP request with automatic token refresh
+   * Make HTTP request with automatic token refresh and retry for transient failures
+   * @param {string} endpoint - API endpoint
+   * @param {Object} options - Request options
+   * @param {boolean} options.noRetry - Skip retry logic for this request
+   * @param {number} _retryAttempt - Internal: current retry attempt (0-indexed)
    */
-  async request(endpoint, options = {}) {
+  async request(endpoint, options = {}, _retryAttempt = 0) {
     const url = `${this.baseURL}${endpoint}`;
+    const method = options.method || 'GET';
+    const { noRetry, ...fetchOptions } = options;
     const config = {
-      ...options,
+      ...fetchOptions,
       headers: {
         ...this.getAuthHeaders(),
-        ...options.headers,
+        ...fetchOptions.headers,
       },
     };
 
-    Logger.info(`🌐 API Request: ${options.method || 'GET'} ${endpoint}`);
+    // Determine if this request is safe to retry
+    const isSafeMethod = RETRY_CONFIG.safeMethodsToRetry.includes(method.toUpperCase());
+    const canRetry = !noRetry && isSafeMethod && _retryAttempt < RETRY_CONFIG.maxRetries;
+
+    if (_retryAttempt === 0) {
+      Logger.info(`API Request: ${method} ${endpoint}`);
+    }
 
     try {
       const response = await fetch(url, config);
+
+      // Handle 5xx server errors - potentially retryable
+      if (response.status >= 500 && response.status < 600) {
+        let data;
+        try {
+          data = await response.json();
+        } catch {
+          data = { error: 'Server error', message: `Server returned ${response.status}` };
+        }
+
+        if (canRetry && isTransientError(response.status, null)) {
+          const delay = getBackoffDelay(_retryAttempt, RETRY_CONFIG.baseDelayMs);
+          Logger.warn(
+            `Transient error (${response.status}) on ${method} ${endpoint}. ` +
+              `Retrying in ${delay}ms (attempt ${_retryAttempt + 1}/${RETRY_CONFIG.maxRetries})`
+          );
+          await sleep(delay);
+          return this.request(endpoint, options, _retryAttempt + 1);
+        }
+
+        Logger.error(`API Error: ${response.status} ${endpoint}`, data);
+        return {
+          success: false,
+          error: data.error || 'Server error',
+          message: data.message || 'Server error occurred',
+          status: response.status,
+        };
+      }
+
       const data = await response.json();
 
       // Handle successful responses
       if (response.ok) {
-        Logger.success(`✅ API Success: ${options.method || 'GET'} ${endpoint}`);
+        if (_retryAttempt > 0) {
+          Logger.success(`API Success (after ${_retryAttempt} retries): ${method} ${endpoint}`);
+        } else {
+          Logger.success(`API Success: ${method} ${endpoint}`);
+        }
         // Unwrap API response if it follows { success, data, ...rest } pattern
         if (data?.success && 'data' in data) {
           const { success: _apiSuccess, data: innerData, ...rest } = data;
@@ -182,7 +283,7 @@ class ApiClient {
 
       // Handle 401 Unauthorized - try token refresh
       if (response.status === 401 && this.refreshToken && !endpoint.includes('/refresh')) {
-        Logger.warn('🔄 Token expired, attempting refresh...');
+        Logger.warn('Token expired, attempting refresh...');
         const refreshResult = await this.refreshAccessToken();
 
         if (refreshResult.success) {
@@ -191,7 +292,7 @@ class ApiClient {
             ...config,
             headers: {
               ...this.getAuthHeaders(),
-              ...options.headers,
+              ...fetchOptions.headers,
             },
           };
 
@@ -199,9 +300,7 @@ class ApiClient {
           const retryData = await retryResponse.json();
 
           if (retryResponse.ok) {
-            Logger.success(
-              `✅ API Success (after refresh): ${options.method || 'GET'} ${endpoint}`
-            );
+            Logger.success(`API Success (after refresh): ${method} ${endpoint}`);
             // Unwrap API response if it follows { success, data, ...rest } pattern
             if (retryData?.success && 'data' in retryData) {
               const { success: _apiSuccess, data: innerData, ...rest } = retryData;
@@ -212,10 +311,10 @@ class ApiClient {
         }
       }
 
-      // Handle rate limiting (429)
+      // Handle rate limiting (429) - do NOT retry, surface immediately
       if (response.status === 429) {
         const retryAfter = data.retryAfter || 60; // seconds
-        Logger.warn(`⏰ Rate limited. Retry after ${retryAfter}s. Endpoint: ${endpoint}`);
+        Logger.warn(`Rate limited. Retry after ${retryAfter}s. Endpoint: ${endpoint}`);
         return {
           success: false,
           error: data.error || 'Rate limited - too many requests',
@@ -226,8 +325,8 @@ class ApiClient {
         };
       }
 
-      // Handle other errors
-      Logger.error(`❌ API Error: ${response.status} ${endpoint}`, data);
+      // Handle other 4xx errors - do NOT retry (client errors)
+      Logger.error(`API Error: ${response.status} ${endpoint}`, data);
       return {
         success: false,
         error: data.error || 'Request failed',
@@ -235,7 +334,18 @@ class ApiClient {
         status: response.status,
       };
     } catch (error) {
-      Logger.error(`❌ Network Error: ${endpoint}`, error);
+      // Network error - potentially retryable
+      if (canRetry && isTransientError(null, error)) {
+        const delay = getBackoffDelay(_retryAttempt, RETRY_CONFIG.baseDelayMs);
+        Logger.warn(
+          `Network error on ${method} ${endpoint}: ${error.message}. ` +
+            `Retrying in ${delay}ms (attempt ${_retryAttempt + 1}/${RETRY_CONFIG.maxRetries})`
+        );
+        await sleep(delay);
+        return this.request(endpoint, options, _retryAttempt + 1);
+      }
+
+      Logger.error(`Network Error: ${endpoint}`, error);
       return {
         success: false,
         error: 'Network Error',

@@ -14,6 +14,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useToast } from '../../contexts/ToastContext';
 import apiClient from '../../services/ApiClient';
 import Logger from '../../utils/logger';
+import { ErrorScreen } from '../ErrorScreen';
 import { kmToMiles } from '../../utils/distanceUtils';
 import { theme } from '../../styles/theme';
 import ScreenWrapper from './ScreenWrapper';
@@ -94,6 +95,7 @@ const FilterPreferencesForm = ({
 }) => {
   const { showSuccess, showError } = useToast();
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(false);
   const [saving, setSaving] = useState(false);
 
   // Core preferences (synced with database via API)
@@ -114,6 +116,7 @@ const FilterPreferencesForm = ({
   const loadPreferences = useCallback(async () => {
     try {
       setLoading(true);
+      setError(false);
 
       // Load core preferences from API
       const response = await apiClient.getUserPreferences();
@@ -133,9 +136,10 @@ const FilterPreferencesForm = ({
         const parsed = JSON.parse(savedFilters);
         setAdvancedFilters(prev => ({ ...prev, ...parsed }));
       }
-    } catch (error) {
-      Logger.error('Failed to load preferences:', error);
+    } catch (err) {
+      Logger.error('Failed to load preferences:', err);
       showError('Failed to load preferences');
+      setError(true);
     } finally {
       setLoading(false);
     }
@@ -203,8 +207,8 @@ const FilterPreferencesForm = ({
 
       showSuccess('Preferences saved successfully!');
       navigation.goBack();
-    } catch (error) {
-      Logger.error('Failed to save preferences:', error);
+    } catch (err) {
+      Logger.error('Failed to save preferences:', err);
       showError('Failed to save preferences');
     } finally {
       setSaving(false);
@@ -278,6 +282,21 @@ const FilterPreferencesForm = ({
         <View style={styles.loadingContainer}>
           <ActivityIndicator size="large" color={theme.colors.primary} />
         </View>
+      </ScreenWrapper>
+    );
+  }
+
+  if (error) {
+    return (
+      <ScreenWrapper>
+        <View style={styles.header}>
+          <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
+            <MaterialIcons name="arrow-back" size={24} color="#fff" />
+          </TouchableOpacity>
+          <Text style={styles.headerTitle}>{headerTitle}</Text>
+          <View style={{ width: showReset ? 50 : 40 }} />
+        </View>
+        <ErrorScreen message="Failed to load preferences" onRetry={loadPreferences} />
       </ScreenWrapper>
     );
   }

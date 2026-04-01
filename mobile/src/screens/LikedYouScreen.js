@@ -4,14 +4,10 @@ import {
   Text,
   StyleSheet,
   FlatList,
-  Image,
   TouchableOpacity,
   RefreshControl,
-  Dimensions,
-  Modal,
   ActivityIndicator,
 } from 'react-native';
-import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../contexts/AuthContext';
 import { useToast } from '../contexts/ToastContext';
@@ -21,12 +17,13 @@ import apiClient from '../services/ApiClient';
 import SocketService from '../services/SocketService';
 import MatchModal from '../components/MatchModal';
 import PremiumUpgradeModal from '../components/modals/PremiumUpgradeModal';
+import { LoadingScreen } from '../components/LoadingScreen';
+import { ErrorScreen } from '../components/ErrorScreen';
 import Logger from '../utils/logger';
 import { useTabNavigation } from '../hooks/useTabNavigation';
 import { theme } from '../styles/theme';
-
-const { width: screenWidth } = Dimensions.get('window');
-const CARD_WIDTH = (screenWidth - 30) / 2; // 2 columns with padding
+import LikedYouCard from './liked-you/LikedYouCard';
+import LikedYouUserModal from './liked-you/LikedYouUserModal';
 
 const LikedYouScreen = () => {
   const { user, userProfile } = useAuth();
@@ -36,6 +33,7 @@ const LikedYouScreen = () => {
 
   const [incomingLikes, setIncomingLikes] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [loadingMore, setLoadingMore] = useState(false);
   const [hasMore, setHasMore] = useState(true);
@@ -82,6 +80,9 @@ const LikedYouScreen = () => {
           const responseData = response.data || [];
           const totalCount = response.totalCount || 0;
           const totalLikesCountFromAPI = response.totalLikesCount || 0;
+
+          // Clear error state on successful load
+          setError(false);
 
           // Set the total count
           setTotalLikesCount(totalCount);
@@ -245,13 +246,10 @@ const LikedYouScreen = () => {
           }
           setHasMore(false);
         }
-      } catch (error) {
-        Logger.error('Failed to fetch who liked me:', error);
-        // Only show toast, suppress expo error
-        if (error.message && !isLoadMore) {
-          showError('Could not load likes. Pull down to retry.');
-        }
+      } catch (err) {
+        Logger.error('Failed to fetch who liked me:', err);
         if (!isLoadMore) {
+          setError(true);
           setIncomingLikes([]);
         }
         setHasMore(false);
@@ -367,16 +365,16 @@ const LikedYouScreen = () => {
     }
   }, [pendingMatchToast, showMatchModal, showSuccess]);
 
-  const handleRefresh = async () => {
+  const handleRefresh = useCallback(async () => {
     setRefreshing(true);
     setOffset(0); // Reset offset for refresh
     setHasMore(true); // Reset hasMore flag
     setTotalLikesCount(0); // Reset total count
     await fetchWhoLikedMe(false); // false = not loading more, it's a refresh
     setRefreshing(false);
-  };
+  }, [fetchWhoLikedMe]);
 
-  const handleLoadMore = () => {
+  const handleLoadMore = useCallback(() => {
     Logger.info(
       `📜 handleLoadMore called - loadingMore: ${loadingMore}, hasMore: ${hasMore}, loading: ${loading}, offset: ${offset}`
     );
@@ -384,7 +382,7 @@ const LikedYouScreen = () => {
       Logger.info(`📜 Loading more users from offset ${offset}`);
       fetchWhoLikedMe(true); // true = loading more
     }
-  };
+  }, [loadingMore, hasMore, loading, offset, fetchWhoLikedMe]);
 
   // Handle match modal actions
   const handleSendMessage = useCallback(() => {
@@ -418,190 +416,122 @@ const LikedYouScreen = () => {
     setMatchedUser(null);
   }, []);
 
-  const handleLikeBack = async profile => {
-    if (!isPremium) {
-      setShowUpgradeModal(true);
-      return;
-    }
+  const handleLikeBack = useCallback(
+    async profile => {
+      if (!isPremium) {
+        setShowUpgradeModal(true);
+        return;
+      }
 
-    // Set loading state
-    setLoadingAction({ userId: profile.id, type: 'like' });
+      // Set loading state
+      setLoadingAction({ userId: profile.id, type: 'like' });
 
-    try {
-      const result = await ApiDataService.likeUser(profile.id);
+      try {
+        const result = await ApiDataService.likeUser(profile.id);
 
-      Logger.info(`💘 Like result for ${profile.name}:`, JSON.stringify(result, null, 2));
+        Logger.info(`💘 Like result for ${profile.name}:`, JSON.stringify(result, null, 2));
 
-      if (result.success) {
-        // Close the user detail modal first if it's open
-        if (selectedUser) {
-          setSelectedUser(null);
-        }
+        if (result.success) {
+          // Close the user detail modal first if it's open
+          if (selectedUser) {
+            setSelectedUser(null);
+          }
 
-        // When liking someone from LikedYou, it's ALWAYS a match
-        // because they already liked you!
-        if (result.isMatch) {
-          Logger.info(`🎉 It's a match with ${profile.name}! Match ID: ${result.match?.id}`);
-          // Close the user detail modal first
-          setSelectedUser(null);
+          // When liking someone from LikedYou, it's ALWAYS a match
+          // because they already liked you!
+          if (result.isMatch) {
+            Logger.info(`🎉 It's a match with ${profile.name}! Match ID: ${result.match?.id}`);
+            // Close the user detail modal first
+            setSelectedUser(null);
 
-          // Set matched user and show match modal
-          setMatchedUser({
-            id: profile.id,
-            name: profile.name,
-            photo: profile.mainPhoto,
-            matchId: result.match?.id, // Include the match ID
+            // Set matched user and show match modal
+            setMatchedUser({
+              id: profile.id,
+              name: profile.name,
+              photo: profile.mainPhoto,
+              matchId: result.match?.id, // Include the match ID
+            });
+            // Show match modal immediately without delay
+            setShowMatchModal(true);
+          } else {
+            // This shouldn't happen when liking from LikedYou
+            Logger.warn(`⚠️ Unexpected: Like to ${profile.name} didn't create a match`);
+            showSuccess('Like sent back! 💘');
+          }
+
+          // Remove from incoming likes
+          Logger.info(
+            `🗑️ Removing ${profile.name} (ID: ${profile.id}) from LikedYou list after match`
+          );
+          setIncomingLikes(prev => {
+            const newList = prev.filter(like => like.id !== profile.id);
+            Logger.info(`📊 LikedYou list updated: ${prev.length} -> ${newList.length} users`);
+            return newList;
           });
-          // Show match modal immediately without delay
-          setShowMatchModal(true);
-        } else {
-          // This shouldn't happen when liking from LikedYou
-          Logger.warn(`⚠️ Unexpected: Like to ${profile.name} didn't create a match`);
-          showSuccess('Like sent back! 💘');
+          // Decrement total count
+          setTotalLikesCount(prev => Math.max(0, prev - 1));
         }
-
-        // Remove from incoming likes
-        Logger.info(
-          `🗑️ Removing ${profile.name} (ID: ${profile.id}) from LikedYou list after match`
-        );
-        setIncomingLikes(prev => {
-          const newList = prev.filter(like => like.id !== profile.id);
-          Logger.info(`📊 LikedYou list updated: ${prev.length} -> ${newList.length} users`);
-          return newList;
-        });
-        // Decrement total count
-        setTotalLikesCount(prev => Math.max(0, prev - 1));
+      } catch (err) {
+        Logger.error('Failed to like back:', err);
+        showError('Could not like back. Please try again.');
+      } finally {
+        setLoadingAction(null);
       }
-    } catch (error) {
-      Logger.error('Failed to like back:', error);
-      showError('Could not like back. Please try again.');
-    } finally {
-      setLoadingAction(null);
-    }
-  };
+    },
+    [isPremium, selectedUser, showSuccess, showError]
+  );
 
-  const handlePass = async profile => {
-    if (!isPremium) {
-      setShowUpgradeModal(true);
-      return;
-    }
-
-    // Set loading state
-    setLoadingAction({ userId: profile.id, type: 'pass' });
-
-    try {
-      const result = await ApiDataService.passUser(profile.id);
-
-      if (result.success) {
-        // Remove from incoming likes with animation
-        Logger.info(
-          `🗑️ Removing ${profile.name} (ID: ${profile.id}) from LikedYou list after pass`
-        );
-        setIncomingLikes(prev => {
-          const newList = prev.filter(like => like.id !== profile.id);
-          Logger.info(`📊 LikedYou list updated: ${prev.length} -> ${newList.length} users`);
-          return newList;
-        });
-        setSelectedUser(null);
-        // Decrement total count
-        setTotalLikesCount(prev => Math.max(0, prev - 1));
+  const handlePass = useCallback(
+    async profile => {
+      if (!isPremium) {
+        setShowUpgradeModal(true);
+        return;
       }
-    } catch (error) {
-      Logger.error('Failed to pass:', error);
-      showError('Could not pass. Please try again.');
-    } finally {
-      setLoadingAction(null);
-    }
-  };
 
-  const renderLikeCard = ({ item, index }) => {
-    const isEven = index % 2 === 0;
+      // Set loading state
+      setLoadingAction({ userId: profile.id, type: 'pass' });
 
-    return (
-      <TouchableOpacity
-        style={[styles.likeCard, isEven && styles.leftCard]}
+      try {
+        const result = await ApiDataService.passUser(profile.id);
+
+        if (result.success) {
+          // Remove from incoming likes with animation
+          Logger.info(
+            `🗑️ Removing ${profile.name} (ID: ${profile.id}) from LikedYou list after pass`
+          );
+          setIncomingLikes(prev => {
+            const newList = prev.filter(like => like.id !== profile.id);
+            Logger.info(`📊 LikedYou list updated: ${prev.length} -> ${newList.length} users`);
+            return newList;
+          });
+          setSelectedUser(null);
+          // Decrement total count
+          setTotalLikesCount(prev => Math.max(0, prev - 1));
+        }
+      } catch (err) {
+        Logger.error('Failed to pass:', err);
+        showError('Could not pass. Please try again.');
+      } finally {
+        setLoadingAction(null);
+      }
+    },
+    [isPremium, showError]
+  );
+
+  const renderLikeCard = useCallback(
+    ({ item, index }) => (
+      <LikedYouCard
+        item={item}
+        index={index}
+        isPremium={isPremium}
         onPress={() => (isPremium ? setSelectedUser(item) : setShowUpgradeModal(true))}
-        activeOpacity={0.9}
-      >
-        {item.isSuperLike && (
-          <View style={styles.superLikeBadge}>
-            <Ionicons name="star" size={16} color="#FFD700" />
-          </View>
-        )}
-
-        {item.isNew && (
-          <View style={styles.newBadge}>
-            <Text style={styles.newBadgeText}>NEW</Text>
-          </View>
-        )}
-
-        <View style={styles.imageContainer}>
-          {/* Show blurred/pixelated image for non-premium users */}
-          {!isPremium ? (
-            <Image
-              source={{ uri: item.mainPhoto }}
-              style={styles.cardImage}
-              blurRadius={40} // Strong blur for maximum privacy
-            />
-          ) : (
-            <Image source={{ uri: item.mainPhoto }} style={styles.cardImage} />
-          )}
-
-          {!isPremium && (
-            <View style={styles.blurOverlay}>
-              <View style={styles.lockCircle}>
-                <Ionicons name="lock-closed" size={24} color="white" />
-              </View>
-            </View>
-          )}
-
-          {isPremium && (
-            <LinearGradient colors={['transparent', 'rgba(0,0,0,0.8)']} style={styles.gradient}>
-              <Text style={styles.cardName}>
-                {item.name}, {item.age}
-              </Text>
-              <Text style={styles.cardLocation}>
-                <Ionicons name="location-outline" size={12} color="white" /> {item.location}
-              </Text>
-            </LinearGradient>
-          )}
-        </View>
-
-        {isPremium && (
-          <View style={styles.quickActions}>
-            <TouchableOpacity
-              style={[styles.quickActionButton, styles.passQuickButton]}
-              onPress={e => {
-                e.stopPropagation();
-                handlePass(item);
-              }}
-              disabled={loadingAction?.userId === item.id}
-            >
-              {loadingAction?.userId === item.id && loadingAction?.type === 'pass' ? (
-                <ActivityIndicator size="small" color={theme.colors.primary} />
-              ) : (
-                <Ionicons name="close" size={20} color={theme.colors.primary} />
-              )}
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={[styles.quickActionButton, styles.likeQuickButton]}
-              onPress={e => {
-                e.stopPropagation();
-                handleLikeBack(item);
-              }}
-              disabled={loadingAction?.userId === item.id}
-            >
-              {loadingAction?.userId === item.id && loadingAction?.type === 'like' ? (
-                <ActivityIndicator size="small" color={theme.colors.secondary} />
-              ) : (
-                <Ionicons name="heart" size={20} color={theme.colors.secondary} />
-              )}
-            </TouchableOpacity>
-          </View>
-        )}
-      </TouchableOpacity>
-    );
-  };
+        onLike={handleLikeBack}
+        onPass={handlePass}
+        loadingAction={loadingAction}
+      />
+    ),
+    [isPremium, loadingAction, handleLikeBack, handlePass]
+  );
 
   const renderHeader = () => {
     // Log the actual count of users being displayed
@@ -717,83 +647,21 @@ const LikedYouScreen = () => {
     );
   };
 
-  // User detail modal
-  const renderUserModal = () => (
-    <Modal
-      visible={!!selectedUser && isPremium}
-      animationType="slide"
-      transparent={true}
-      onRequestClose={() => setSelectedUser(null)}
-    >
-      {selectedUser && (
-        <View style={styles.modalContainer}>
-          <View style={styles.modalContent}>
-            <TouchableOpacity style={styles.modalClose} onPress={() => setSelectedUser(null)}>
-              <Ionicons name="close" size={28} color="#333" />
-            </TouchableOpacity>
-
-            <Image source={{ uri: selectedUser.mainPhoto }} style={styles.modalImage} />
-
-            <View style={styles.modalInfo}>
-              <Text style={styles.modalName}>
-                {selectedUser.name}, {selectedUser.age}
-              </Text>
-              <Text style={styles.modalLocation}>
-                <Ionicons name="location" size={16} color="#666" /> {selectedUser.location}
-              </Text>
-              <Text style={styles.modalBio}>{selectedUser.bio}</Text>
-
-              {selectedUser.isSuperLike && (
-                <View style={styles.superLikeInfo}>
-                  <Ionicons name="star" size={20} color="#FFD700" />
-                  <Text style={styles.superLikeText}>They Super Liked You!</Text>
-                </View>
-              )}
-            </View>
-
-            <View style={styles.modalActions}>
-              <TouchableOpacity
-                style={[styles.modalButton, styles.passButton]}
-                onPress={() => handlePass(selectedUser)}
-                disabled={loadingAction?.userId === selectedUser?.id}
-              >
-                {loadingAction?.userId === selectedUser?.id && loadingAction?.type === 'pass' ? (
-                  <ActivityIndicator size="small" color={theme.colors.primary} />
-                ) : (
-                  <>
-                    <Ionicons name="close" size={24} color={theme.colors.primary} />
-                    <Text style={styles.passButtonText}>Pass</Text>
-                  </>
-                )}
-              </TouchableOpacity>
-
-              <TouchableOpacity
-                style={[styles.modalButton, styles.likeButton]}
-                onPress={() => handleLikeBack(selectedUser)}
-                disabled={loadingAction?.userId === selectedUser?.id}
-              >
-                {loadingAction?.userId === selectedUser?.id && loadingAction?.type === 'like' ? (
-                  <ActivityIndicator size="small" color="white" />
-                ) : (
-                  <>
-                    <Ionicons name="heart" size={24} color="white" />
-                    <Text style={styles.likeButtonText}>Like Back</Text>
-                  </>
-                )}
-              </TouchableOpacity>
-            </View>
-          </View>
-        </View>
-      )}
-    </Modal>
-  );
-
   if (loading) {
+    return <LoadingScreen message="Loading likes..." />;
+  }
+
+  if (error) {
     return (
-      <View style={styles.loadingContainer}>
-        <Ionicons name="heart" size={40} color={theme.colors.primary} />
-        <Text style={styles.loadingText}>Loading likes...</Text>
-      </View>
+      <ErrorScreen
+        message="Failed to load likes"
+        onRetry={() => {
+          setError(false);
+          setOffset(0);
+          setHasMore(true);
+          fetchWhoLikedMe(false);
+        }}
+      />
     );
   }
 
@@ -832,9 +700,21 @@ const LikedYouScreen = () => {
         onEndReached={handleLoadMore}
         onEndReachedThreshold={0.5}
         showsVerticalScrollIndicator={false}
+        // Performance optimizations
+        initialNumToRender={6}
+        maxToRenderPerBatch={4}
+        windowSize={5}
+        removeClippedSubviews={true}
       />
 
-      {renderUserModal()}
+      <LikedYouUserModal
+        user={selectedUser}
+        visible={!!selectedUser && isPremium}
+        onClose={() => setSelectedUser(null)}
+        onLike={handleLikeBack}
+        onPass={handlePass}
+        loadingAction={loadingAction}
+      />
       <PremiumUpgradeModal visible={showUpgradeModal} onClose={() => setShowUpgradeModal(false)} />
 
       {/* Match Modal */}
@@ -863,17 +743,6 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#f8f9fa',
-  },
-  loadingContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    backgroundColor: '#f8f9fa',
-  },
-  loadingText: {
-    marginTop: 10,
-    fontSize: 16,
-    color: '#666',
   },
   header: {
     backgroundColor: 'white',
@@ -944,108 +813,6 @@ const styles = StyleSheet.create({
   },
   row: {
     justifyContent: 'space-between',
-  },
-  likeCard: {
-    width: CARD_WIDTH,
-    marginBottom: 15,
-    borderRadius: 15,
-    backgroundColor: 'white',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
-  },
-  leftCard: {
-    marginRight: 10,
-  },
-  imageContainer: {
-    position: 'relative',
-    height: CARD_WIDTH * 1.3,
-    borderTopLeftRadius: 15,
-    borderTopRightRadius: 15,
-    overflow: 'hidden',
-  },
-  cardImage: {
-    width: '100%',
-    height: '100%',
-  },
-  blurOverlay: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-    justifyContent: 'center',
-    alignItems: 'center',
-    backgroundColor: 'rgba(0, 0, 0, 0.2)', // Slight dark overlay for better contrast
-  },
-  lockCircle: {
-    backgroundColor: 'rgba(0, 0, 0, 0.6)',
-    borderRadius: 30,
-    width: 60,
-    height: 60,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  gradient: {
-    position: 'absolute',
-    bottom: 0,
-    left: 0,
-    right: 0,
-    padding: 15,
-  },
-  cardName: {
-    color: 'white',
-    fontSize: 16,
-    fontWeight: 'bold',
-    marginBottom: 4,
-  },
-  cardLocation: {
-    color: 'white',
-    fontSize: 12,
-  },
-  superLikeBadge: {
-    position: 'absolute',
-    top: 10,
-    right: 10,
-    backgroundColor: '#FFD700',
-    borderRadius: 15,
-    padding: 6,
-    zIndex: 1,
-  },
-  newBadge: {
-    position: 'absolute',
-    top: 10,
-    left: 10,
-    backgroundColor: theme.colors.secondary,
-    borderRadius: 10,
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    zIndex: 1,
-  },
-  newBadgeText: {
-    color: 'white',
-    fontSize: 10,
-    fontWeight: 'bold',
-  },
-  quickActions: {
-    flexDirection: 'row',
-    justifyContent: 'space-around',
-    padding: 10,
-  },
-  quickActionButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  passQuickButton: {
-    backgroundColor: '#FFE5E5',
-  },
-  likeQuickButton: {
-    backgroundColor: '#E5F9F9',
   },
   emptyState: {
     padding: 24,
@@ -1130,91 +897,6 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontSize: 16,
     fontWeight: '600',
-  },
-  modalContainer: {
-    flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.5)',
-    justifyContent: 'flex-end',
-  },
-  modalContent: {
-    backgroundColor: 'white',
-    borderTopLeftRadius: 25,
-    borderTopRightRadius: 25,
-    maxHeight: '80%',
-  },
-  modalClose: {
-    position: 'absolute',
-    top: 20,
-    right: 20,
-    zIndex: 1,
-    backgroundColor: 'white',
-    borderRadius: 20,
-    padding: 5,
-  },
-  modalImage: {
-    width: '100%',
-    height: 300,
-  },
-  modalInfo: {
-    padding: 20,
-  },
-  modalName: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    color: '#333',
-    marginBottom: 5,
-  },
-  modalLocation: {
-    fontSize: 16,
-    color: '#666',
-    marginBottom: 15,
-  },
-  modalBio: {
-    fontSize: 16,
-    color: '#333',
-    lineHeight: 24,
-  },
-  superLikeInfo: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#FFF8DC',
-    padding: 10,
-    borderRadius: 10,
-    marginTop: 15,
-  },
-  superLikeText: {
-    marginLeft: 8,
-    color: '#FFD700',
-    fontWeight: 'bold',
-  },
-  modalActions: {
-    flexDirection: 'row',
-    padding: 20,
-    gap: 15,
-  },
-  modalButton: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 15,
-    borderRadius: 25,
-  },
-  passButton: {
-    backgroundColor: '#FFE5E5',
-  },
-  passButtonText: {
-    color: theme.colors.primary,
-    fontWeight: 'bold',
-    marginLeft: 8,
-  },
-  likeButton: {
-    backgroundColor: theme.colors.secondary,
-  },
-  likeButtonText: {
-    color: 'white',
-    fontWeight: 'bold',
-    marginLeft: 8,
   },
   footerLoader: {
     paddingVertical: 20,

@@ -12,12 +12,14 @@ import { MaterialIcons, Ionicons } from '@expo/vector-icons';
 import { useToast } from '../contexts/ToastContext';
 import apiClient from '../services/ApiClient';
 import Logger from '../utils/logger';
+import { ErrorScreen } from '../components/ErrorScreen';
 import { theme } from '../styles/theme';
 import ScreenWrapper from '../components/shared/ScreenWrapper';
 
 const NotificationSettingsScreen = ({ navigation }) => {
   const { showError } = useToast();
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(false);
   const [settings, setSettings] = useState({
     messages: true,
     matches: true,
@@ -26,14 +28,16 @@ const NotificationSettingsScreen = ({ navigation }) => {
 
   const loadSettings = useCallback(async () => {
     try {
+      setError(false);
       setLoading(true);
       const response = await apiClient.getNotificationSettings();
       if (response.success && response.data) {
         setSettings(response.data);
       }
-    } catch (error) {
-      Logger.error('Failed to load notification settings:', error);
+    } catch (err) {
+      Logger.error('Failed to load notification settings:', err);
       showError('Failed to load settings');
+      setError(true);
     } finally {
       setLoading(false);
     }
@@ -57,8 +61,8 @@ const NotificationSettingsScreen = ({ navigation }) => {
         showError(response.message || 'Failed to update settings');
       }
       // Silent success - the switch position is the feedback
-    } catch (error) {
-      Logger.error('Failed to update notification settings:', error);
+    } catch (err) {
+      Logger.error('Failed to update notification settings:', err);
       setSettings(previousSettings);
       showError('Failed to update settings');
     }
@@ -95,6 +99,21 @@ const NotificationSettingsScreen = ({ navigation }) => {
         <View style={styles.loadingContainer}>
           <ActivityIndicator size="large" color={theme.colors.primary} />
         </View>
+      </ScreenWrapper>
+    );
+  }
+
+  if (error) {
+    return (
+      <ScreenWrapper>
+        <View style={styles.header}>
+          <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
+            <MaterialIcons name="arrow-back" size={24} color="#fff" />
+          </TouchableOpacity>
+          <Text style={styles.headerTitle}>Notifications</Text>
+          <View style={{ width: 40 }} />
+        </View>
+        <ErrorScreen message="Failed to load notification settings" onRetry={loadSettings} />
       </ScreenWrapper>
     );
   }

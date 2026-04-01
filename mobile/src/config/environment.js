@@ -10,13 +10,17 @@ const ENV = {
     giphyApiKey,
   },
   staging: {
-    apiUrl: process.env.EXPO_PUBLIC_API_URL || 'https://staging-api.hantibink.com',
-    socketUrl: process.env.EXPO_PUBLIC_SOCKET_URL || 'https://staging-api.hantibink.com',
+    // TODO: Create staging Cloud Run service before launch
+    apiUrl: process.env.EXPO_PUBLIC_API_URL || 'https://hantibink-api-staging.us-central1.run.app',
+    socketUrl:
+      process.env.EXPO_PUBLIC_SOCKET_URL || 'wss://hantibink-api-staging.us-central1.run.app',
     giphyApiKey,
   },
   prod: {
-    apiUrl: process.env.EXPO_PUBLIC_API_URL || 'https://api.hantibink.com',
-    socketUrl: process.env.EXPO_PUBLIC_SOCKET_URL || 'https://api.hantibink.com',
+    apiUrl:
+      process.env.EXPO_PUBLIC_API_URL || 'https://hantibink-api-393816901275.us-central1.run.app',
+    socketUrl:
+      process.env.EXPO_PUBLIC_SOCKET_URL || 'wss://hantibink-api-393816901275.us-central1.run.app',
     giphyApiKey,
   },
 };

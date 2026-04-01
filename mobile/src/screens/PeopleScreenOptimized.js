@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, ActivityIndicator } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -13,6 +13,8 @@ import apiClient from '../services/ApiClient';
 import SocketService from '../services/SocketService';
 import SwipeableCardStack from '../components/SwipeableCardStack';
 import MatchModal from '../components/MatchModal';
+import { LoadingScreen } from '../components/LoadingScreen';
+import { ErrorScreen, EmptyState } from '../components/ErrorScreen';
 import ProfileSetupModal from '../components/modals/ProfileSetupModal';
 import PremiumUpgradeModal from '../components/modals/PremiumUpgradeModal';
 import Logger from '../utils/logger';
@@ -37,12 +39,13 @@ const PeopleScreenOptimized = ({ navigation }) => {
 
   // State
   const [profiles, setProfiles] = useState([]);
-  const [isLoading, setIsLoading] = useState(true); // Start as loading to prevent race condition
+  const [loading, setLoading] = useState(true); // Start as loading to prevent race condition
   const [isLoadingMore, setIsLoadingMore] = useState(false);
   const [hasMore, setHasMore] = useState(true);
   const [showMatchModal, setShowMatchModal] = useState(false);
   const [matchedUser, setMatchedUser] = useState(null);
   const [hasInitialized, setHasInitialized] = useState(false);
+  const [error, setError] = useState(null);
   const [showUpgradeModal, setShowUpgradeModal] = useState(false);
 
   // Photo viewer state
@@ -106,8 +109,8 @@ const PeopleScreenOptimized = ({ navigation }) => {
           ...advancedFilters,
           interestedIn: userProfile?.interestedIn || [],
         }));
-      } catch (error) {
-        Logger.error('Failed to load filters:', error);
+      } catch (loadFilterErr) {
+        Logger.error('Failed to load filters:', loadFilterErr);
       } finally {
         setFiltersLoaded(true);
       }
@@ -151,7 +154,7 @@ const PeopleScreenOptimized = ({ navigation }) => {
 
       if (!complete) {
         Logger.info('Profile incomplete - will show setup modal');
-        setIsLoading(false);
+        setLoading(false);
       }
     }
   }, [userProfile, isProfileComplete]);
@@ -190,7 +193,7 @@ const PeopleScreenOptimized = ({ navigation }) => {
   useFocusEffect(
     useCallback(() => {
       // If we have profiles and we're not loading, check if we need to remove any
-      if (profiles.length > 0 && !isLoading && hasInitialized) {
+      if (profiles.length > 0 && !loading && hasInitialized) {
         // The backend will handle exclusions, but we should check if current profiles need updating
         Logger.info('📱 People screen focused - checking for updates');
 
@@ -203,7 +206,7 @@ const PeopleScreenOptimized = ({ navigation }) => {
           return filtered;
         });
       }
-    }, [profiles.length, isLoading, hasInitialized])
+    }, [profiles.length, loading, hasInitialized])
   );
 
   // Listen for real-time match events
@@ -238,7 +241,7 @@ const PeopleScreenOptimized = ({ navigation }) => {
   // Load initial batch of profiles
   const loadInitialProfiles = async (customFilters = null) => {
     const filtersToUse = customFilters || filters;
-    setIsLoading(true);
+    setLoading(true);
     try {
       Logger.info('📱 Loading initial profiles batch...');
       const result = await ApiDataService.getUsersForDiscovery({
@@ -283,16 +286,21 @@ const PeopleScreenOptimized = ({ navigation }) => {
 
         setProfiles(newProfiles);
         setHasMore(newProfiles.length === BATCH_SIZE);
+        setError(null);
         Logger.success(`✅ Loaded ${newProfiles.length} initial profiles`);
       } else {
         Logger.warn('No profiles available');
         setHasMore(false);
+        setError(null);
       }
-    } catch (error) {
-      Logger.error('Failed to load profiles:', error);
+    } catch (loadProfilesErr) {
+      Logger.error('Failed to load profiles:', loadProfilesErr);
 
       // Handle specific discovery eligibility errors with robust API error parsing
-      const errorCode = error.response?.data?.error || error.message || error.toString();
+      const errorCode =
+        loadProfilesErr.response?.data?.error ||
+        loadProfilesErr.message ||
+        loadProfilesErr.toString();
 
       if (errorCode === 'PROFILE_INCOMPLETE' || errorCode.includes('PROFILE_INCOMPLETE')) {
         showError('Please complete your profile to use discovery');
@@ -308,9 +316,10 @@ const PeopleScreenOptimized = ({ navigation }) => {
         showError('Please verify your email to use discovery');
       } else {
         showError('Failed to load profiles. Please try again.');
+        setError('Failed to load profiles. Please try again.');
       }
     } finally {
-      setIsLoading(false);
+      setLoading(false);
       setHasInitialized(true); // Mark as initialized after first load
     }
   };
@@ -318,7 +327,7 @@ const PeopleScreenOptimized = ({ navigation }) => {
   // Load more profiles when running low
   const loadMoreProfiles = useCallback(async () => {
     // Don't load more if we haven't initialized yet or already loading
-    if (!hasInitialized || isLoading || isLoadingMore || !hasMore) return;
+    if (!hasInitialized || loading || isLoadingMore || !hasMore) return;
 
     setIsLoadingMore(true);
     try {
@@ -366,12 +375,12 @@ const PeopleScreenOptimized = ({ navigation }) => {
         setHasMore(false);
         Logger.info('No more profiles available');
       }
-    } catch (error) {
-      Logger.error('Failed to load more profiles:', error);
+    } catch (loadMoreErr) {
+      Logger.error('Failed to load more profiles:', loadMoreErr);
     } finally {
       setIsLoadingMore(false);
     }
-  }, [hasInitialized, isLoading, isLoadingMore, hasMore, filters]);
+  }, [hasInitialized, loading, isLoadingMore, hasMore, filters]);
 
   // Handle swipe left (pass)
   const handleSwipeLeft = useCallback(async profile => {
@@ -383,11 +392,11 @@ const PeopleScreenOptimized = ({ navigation }) => {
       processedIds.current.add(profile.id);
 
       // Fire and forget - don't wait for API response
-      ApiDataService.passUser(profile.id).catch(error => {
-        Logger.error('Failed to save pass:', error);
+      ApiDataService.passUser(profile.id).catch(passErr => {
+        Logger.error('Failed to save pass:', passErr);
       });
-    } catch (error) {
-      Logger.error('Error handling swipe left:', error);
+    } catch (swipeLeftErr) {
+      Logger.error('Error handling swipe left:', swipeLeftErr);
     }
   }, []);
 
@@ -437,11 +446,14 @@ const PeopleScreenOptimized = ({ navigation }) => {
             return;
           }
         }
-      } catch (error) {
-        Logger.error('Error handling swipe right:', error);
+      } catch (swipeRightErr) {
+        Logger.error('Error handling swipe right:', swipeRightErr);
         // Don't show error to user for "already acted" cases
         // This can happen if they matched from LikedYou and the profile wasn't removed yet
-        if (error.message?.includes('already acted') || error.message?.includes('already swiped')) {
+        if (
+          swipeRightErr.message?.includes('already acted') ||
+          swipeRightErr.message?.includes('already swiped')
+        ) {
           Logger.warn('User already acted on this person, silently skipping');
           return;
         }
@@ -489,9 +501,9 @@ const PeopleScreenOptimized = ({ navigation }) => {
             showError("You've used all your Super Likes for today");
           }
         }
-      } catch (error) {
-        Logger.error('Error handling super like:', error);
-        if (error.message?.includes('already acted')) {
+      } catch (superLikeErr) {
+        Logger.error('Error handling super like:', superLikeErr);
+        if (superLikeErr.message?.includes('already acted')) {
           Logger.warn('User already acted on this person, silently skipping');
           return;
         }
@@ -524,10 +536,10 @@ const PeopleScreenOptimized = ({ navigation }) => {
         }
         return { success: false, error: result.error };
       }
-    } catch (error) {
-      Logger.error('Error handling undo:', error);
+    } catch (undoErr) {
+      Logger.error('Error handling undo:', undoErr);
       showError('Failed to undo. Please try again.');
-      return { success: false, error: error.message };
+      return { success: false, error: undoErr.message };
     }
   }, [showError]);
 
@@ -630,13 +642,19 @@ const PeopleScreenOptimized = ({ navigation }) => {
   }
 
   // Loading state
-  if (isLoading) {
+  if (loading) {
     return (
       <SafeAreaView style={styles.container}>
-        <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color={theme.colors.primary} />
-          <Text style={styles.loadingText}>Finding people near you...</Text>
-        </View>
+        <LoadingScreen message="Finding people near you..." />
+      </SafeAreaView>
+    );
+  }
+
+  // Error state
+  if (error) {
+    return (
+      <SafeAreaView style={styles.container}>
+        <ErrorScreen message={error} onRetry={() => loadInitialProfiles()} />
       </SafeAreaView>
     );
   }
@@ -667,17 +685,41 @@ const PeopleScreenOptimized = ({ navigation }) => {
 
       {/* Fullscreen Card Stack */}
       <View style={styles.cardStackContainer}>
-        <SwipeableCardStack
-          ref={cardStackRef}
-          profiles={profiles}
-          onSwipeLeft={handleSwipeLeft}
-          onSwipeRight={handleSwipeRight}
-          onSwipeSuperLike={handleSwipeSuperLike}
-          onUndo={handleUndo}
-          onNeedMore={loadMoreProfiles}
-          onPhotoPress={handlePhotoPress}
-          loadingMore={isLoadingMore}
-        />
+        {profiles.length === 0 && hasInitialized && !loading && !error ? (
+          <EmptyState
+            icon="heart-outline"
+            title="No more profiles nearby"
+            subtitle="Try adjusting your filters or check back later"
+            action={{
+              text: 'Adjust Filters',
+              onPress: () =>
+                navigation.navigate('Filter', {
+                  userPreferences: filters,
+                  onSavePreferences: newFilters => {
+                    setFilters(newFilters);
+                    processedIds.current.clear();
+                    setProfiles([]);
+                    setHasMore(true);
+                    setHasInitialized(false);
+                    loadInitialProfiles(newFilters);
+                  },
+                }),
+            }}
+            style={{ flex: 1 }}
+          />
+        ) : (
+          <SwipeableCardStack
+            ref={cardStackRef}
+            profiles={profiles}
+            onSwipeLeft={handleSwipeLeft}
+            onSwipeRight={handleSwipeRight}
+            onSwipeSuperLike={handleSwipeSuperLike}
+            onUndo={handleUndo}
+            onNeedMore={loadMoreProfiles}
+            onPhotoPress={handlePhotoPress}
+            loadingMore={isLoadingMore}
+          />
+        )}
       </View>
 
       {/* Floating Action Buttons */}
@@ -833,16 +875,6 @@ const styles = StyleSheet.create({
     borderRadius: 23,
     borderWidth: 2,
     borderColor: '#FFB300',
-  },
-  loadingContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  loadingText: {
-    marginTop: 20,
-    fontSize: 16,
-    color: '#666',
   },
   noPhotosContainer: {
     flex: 1,
