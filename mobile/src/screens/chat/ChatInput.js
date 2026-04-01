@@ -1,7 +1,8 @@
 import React from 'react';
-import { View, TextInput, TouchableOpacity, Text, StyleSheet, Animated } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
+import { View, TextInput, TouchableOpacity, Text, StyleSheet } from 'react-native';
 import AudioRecorder from '../../components/AudioRecorder';
+import AnimatedSendButton from '../../components/chat/AnimatedSendButton';
+import { theme } from '../../styles/theme';
 
 /**
  * ChatInput component - Handles message input with text, GIF, and voice recording
@@ -18,7 +19,6 @@ import AudioRecorder from '../../components/AudioRecorder';
  * @param {Function} props.onRecordingError - Handler for recording errors
  * @param {boolean} props.isSending - Whether a message is being sent
  * @param {boolean} props.isUploadingAudio - Whether audio is being uploaded
- * @param {Animated.Value} props.rightIconAnim - Animation value for icon transitions
  * @param {Object} props.inputRef - Ref for the TextInput
  */
 const ChatInput = ({
@@ -33,7 +33,6 @@ const ChatInput = ({
   onRecordingError,
   isSending,
   isUploadingAudio,
-  rightIconAnim,
   inputRef,
 }) => {
   const showSendButton = messageText.trim() && !isRecording;
@@ -66,22 +65,11 @@ const ChatInput = ({
 
       {/* Show send button when has text, otherwise show AudioRecorder */}
       {showSendButton ? (
-        <Animated.View style={{ transform: [{ scale: rightIconAnim }] }}>
-          <TouchableOpacity
-            style={[
-              styles.sendButton,
-              (!messageText.trim() || isSending) && styles.sendButtonDisabled,
-            ]}
-            onPress={onSend}
-            disabled={!messageText.trim() || isSending}
-          >
-            <Ionicons
-              name="send"
-              size={22}
-              color={messageText.trim() && !isSending ? '#F44336' : '#999'}
-            />
-          </TouchableOpacity>
-        </Animated.View>
+        <AnimatedSendButton
+          onSend={onSend}
+          disabled={!messageText.trim() || isSending}
+          iconColor={theme.colors.primary}
+        />
       ) : (
         <AudioRecorder
           onRecordingComplete={onRecordingComplete}
@@ -126,16 +114,6 @@ const styles = StyleSheet.create({
     backgroundColor: '#f5f5f5',
     borderRadius: 20,
     fontSize: 15,
-  },
-  sendButton: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  sendButtonDisabled: {
-    opacity: 0.5,
   },
 });
 
