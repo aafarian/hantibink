@@ -164,15 +164,6 @@ const ChatScreen = ({ route, navigation }) => {
     isFocusedRef.current = isFocused;
   }, [isFocused]);
 
-  // When the screen loses focus (user switched tabs without going back),
-  // pop ChatScreen from the stack so MessagesList is visible when they return.
-  // This avoids the flash of ChatScreen animating away on tab switch.
-  useEffect(() => {
-    if (!isFocused && navigation.canGoBack()) {
-      navigation.goBack();
-    }
-  }, [isFocused, navigation]);
-
   // Memoize reversed messages to avoid creating new array on every render
   const reversedMessages = useMemo(() => [...messages].reverse(), [messages]);
 
