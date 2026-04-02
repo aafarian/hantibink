@@ -1,5 +1,5 @@
 import React, { useRef, useEffect, useCallback } from 'react';
-import { NavigationContainer } from '@react-navigation/native';
+import { NavigationContainer, CommonActions } from '@react-navigation/native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { createStackNavigator } from '@react-navigation/stack';
 import { View, ActivityIndicator } from 'react-native';
@@ -226,8 +226,23 @@ const MainNavigator = () => {
           options={{ headerShown: false }}
           listeners={({ navigation }) => ({
             tabPress: _e => {
-              // Navigate to the initial route of the Messages stack
-              navigation.navigate('Messages', { screen: 'MessagesList' });
+              // Reset the Messages stack to the root screen instantly
+              // (no animation) so the ChatScreen placeholder doesn't flash
+              navigation.dispatch(state => {
+                const messagesRoute = state.routes.find(r => r.name === 'Messages');
+                const hasNestedScreens = messagesRoute?.state?.routes?.length > 1;
+                if (hasNestedScreens) {
+                  return CommonActions.reset({
+                    ...state,
+                    routes: state.routes.map(r =>
+                      r.name === 'Messages'
+                        ? { ...r, state: { ...r.state, routes: [r.state.routes[0]], index: 0 } }
+                        : r
+                    ),
+                  });
+                }
+                return CommonActions.navigate('Messages');
+              });
             },
           })}
         />
