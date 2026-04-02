@@ -1138,6 +1138,13 @@ const ChatScreen = ({ route, navigation }) => {
                 <Text style={styles.retryButtonText}>Retry</Text>
               </TouchableOpacity>
             </View>
+          ) : !isFocused ? (
+            // When the screen is in the background (user switched tabs), render a
+            // lightweight placeholder instead of the inverted FlatList. The scaleY:-1
+            // transform on inverted FlatLists causes GPU compositor interference with
+            // scroll views on other tabs. Messages stay in state — the FlatList
+            // re-renders instantly when the user returns.
+            <View style={styles.chatContainer} />
           ) : (
             <>
               <FlatList
