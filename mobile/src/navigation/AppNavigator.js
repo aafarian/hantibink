@@ -132,7 +132,12 @@ const ProfileStack = () => {
 
 const MessagesStack = () => {
   return (
-    <Stack.Navigator screenOptions={screenOptions.horizontalIOS}>
+    <Stack.Navigator
+      screenOptions={{
+        ...screenOptions.horizontalIOS,
+        detachPreviousScreen: true,
+      }}
+    >
       <Stack.Screen
         name="MessagesList"
         component={MessagesScreen}

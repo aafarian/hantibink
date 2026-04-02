@@ -1101,7 +1101,7 @@ const ChatScreen = ({ route, navigation }) => {
           style={styles.container}
           behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
           keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : StatusBar.currentHeight}
-          enabled={true}
+          enabled={isFocused}
         >
           {/* Header */}
           <ChatHeader
@@ -1187,7 +1187,7 @@ const ChatScreen = ({ route, navigation }) => {
                 maxToRenderPerBatch={10}
                 windowSize={7}
                 updateCellsBatchingPeriod={50}
-                removeClippedSubviews={false}
+                removeClippedSubviews={Platform.OS === 'android'}
               />
 
               {/* Scroll to bottom FAB - hidden when profile sheet or reactions panel is open */}
