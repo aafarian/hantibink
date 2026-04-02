@@ -132,12 +132,7 @@ const ProfileStack = () => {
 
 const MessagesStack = () => {
   return (
-    <Stack.Navigator
-      screenOptions={{
-        ...screenOptions.horizontalIOS,
-        detachPreviousScreen: true,
-      }}
-    >
+    <Stack.Navigator screenOptions={screenOptions.horizontalIOS}>
       <Stack.Screen
         name="MessagesList"
         component={MessagesScreen}
@@ -220,17 +215,7 @@ const MainNavigator = () => {
             },
           }}
         />
-        <Tab.Screen
-          name="Messages"
-          component={MessagesStack}
-          options={{ headerShown: false }}
-          listeners={({ navigation }) => ({
-            tabPress: _e => {
-              // Navigate to the initial route of the Messages stack
-              navigation.navigate('Messages', { screen: 'MessagesList' });
-            },
-          })}
-        />
+        <Tab.Screen name="Messages" component={MessagesStack} options={{ headerShown: false }} />
       </Tab.Navigator>
 
       {/* Profile Setup Modal - Shows on app open if profile incomplete */}
