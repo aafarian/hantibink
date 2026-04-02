@@ -225,15 +225,18 @@ const MainNavigator = () => {
           component={MessagesStack}
           options={{ headerShown: false }}
           listeners={({ navigation }) => ({
-            tabPress: _e => {
-              // Reset the Messages stack to the root screen instantly
-              // (no animation) so the ChatScreen placeholder doesn't flash
+            tabPress: e => {
+              // Prevent default tab switch so ChatScreen doesn't flash.
+              // Reset the Messages stack AND switch tabs in one atomic dispatch.
+              e.preventDefault();
               navigation.dispatch(state => {
-                const messagesRoute = state.routes.find(r => r.name === 'Messages');
+                const messagesIdx = state.routes.findIndex(r => r.name === 'Messages');
+                const messagesRoute = state.routes[messagesIdx];
                 const hasNestedScreens = messagesRoute?.state?.routes?.length > 1;
                 if (hasNestedScreens) {
                   return CommonActions.reset({
                     ...state,
+                    index: messagesIdx,
                     routes: state.routes.map(r =>
                       r.name === 'Messages'
                         ? { ...r, state: { ...r.state, routes: [r.state.routes[0]], index: 0 } }
