@@ -1,5 +1,5 @@
 import React, { useRef, useEffect, useCallback } from 'react';
-import { NavigationContainer, CommonActions } from '@react-navigation/native';
+import { NavigationContainer } from '@react-navigation/native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { createStackNavigator } from '@react-navigation/stack';
 import { View, ActivityIndicator } from 'react-native';
@@ -225,27 +225,9 @@ const MainNavigator = () => {
           component={MessagesStack}
           options={{ headerShown: false }}
           listeners={({ navigation }) => ({
-            tabPress: e => {
-              // Prevent default tab switch so ChatScreen doesn't flash.
-              // Reset the Messages stack AND switch tabs in one atomic dispatch.
-              e.preventDefault();
-              navigation.dispatch(state => {
-                const messagesIdx = state.routes.findIndex(r => r.name === 'Messages');
-                const messagesRoute = state.routes[messagesIdx];
-                const hasNestedScreens = messagesRoute?.state?.routes?.length > 1;
-                if (hasNestedScreens) {
-                  return CommonActions.reset({
-                    ...state,
-                    index: messagesIdx,
-                    routes: state.routes.map(r =>
-                      r.name === 'Messages'
-                        ? { ...r, state: { ...r.state, routes: [r.state.routes[0]], index: 0 } }
-                        : r
-                    ),
-                  });
-                }
-                return CommonActions.navigate('Messages');
-              });
+            tabPress: _e => {
+              // Navigate to the initial route of the Messages stack
+              navigation.navigate('Messages', { screen: 'MessagesList' });
             },
           })}
         />
