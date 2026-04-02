@@ -1090,6 +1090,20 @@ const ChatScreen = ({ route, navigation }) => {
 
   const WrapperComponent = Platform.OS === 'ios' ? SafeAreaView : View;
 
+  // When the screen loses focus (e.g. user switches tabs without going back),
+  // render a lightweight placeholder instead of the full chat UI. The inverted
+  // FlatList, KeyboardAvoidingView, and bottom sheets create native views that
+  // interfere with scroll performance on other tabs even when React rendering
+  // is frozen. State is preserved in hooks — the full UI re-renders instantly
+  // when the screen regains focus.
+  if (!isFocused) {
+    return (
+      <WrapperComponent style={styles.wrapper}>
+        <View style={styles.container} />
+      </WrapperComponent>
+    );
+  }
+
   return (
     <>
       <StatusBar backgroundColor={theme.colors.primary} barStyle="light-content" />
@@ -1101,7 +1115,6 @@ const ChatScreen = ({ route, navigation }) => {
           style={styles.container}
           behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
           keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : StatusBar.currentHeight}
-          enabled={isFocused}
         >
           {/* Header */}
           <ChatHeader
