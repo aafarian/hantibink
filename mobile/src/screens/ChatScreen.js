@@ -16,7 +16,7 @@ import {
 } from 'react-native';
 import * as Haptics from 'expo-haptics';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
-import { useIsFocused } from '@react-navigation/native';
+import { useIsFocused, useFocusEffect } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../contexts/AuthContext';
 import { useToast } from '../contexts/ToastContext';
@@ -212,27 +212,34 @@ const ChatScreen = ({ route, navigation }) => {
     };
   }, []);
 
-  // Load messages on mount
+  // One-time setup on mount (analytics, notifications)
   useEffect(() => {
     loadMessages();
-    const unsubscribeListeners = joinChatRoom();
-    // Clear any pending notification for this conversation
     clearNotificationForMatch(match.matchId);
-    // Track chat opened in analytics
     trackChatOpened('matches_list');
-    // Don't mark as read on mount - wait until we have messages
-
-    return () => {
-      unsubscribeListeners?.();
-      leaveChatRoom();
-      // Clear typing timeout on unmount
-      if (otherUserTypingTimeoutRef.current) {
-        clearTimeout(otherUserTypingTimeoutRef.current);
-        otherUserTypingTimeoutRef.current = null;
-      }
-    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [match.matchId]);
+
+  // Socket listeners — subscribe on focus, unsubscribe on blur/unmount.
+  // This prevents background state updates from causing scroll jitter on other tabs.
+  useFocusEffect(
+    useCallback(() => {
+      const unsubscribeListeners = joinChatRoom();
+      // Refresh messages when returning to this screen
+      loadMessages();
+
+      return () => {
+        unsubscribeListeners?.();
+        leaveChatRoom();
+        if (otherUserTypingTimeoutRef.current) {
+          clearTimeout(otherUserTypingTimeoutRef.current);
+          otherUserTypingTimeoutRef.current = null;
+        }
+        setOtherUserTyping(false);
+      };
+      // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [match.matchId])
+  );
 
   // Initialize online status from match data
   useEffect(() => {
@@ -245,33 +252,36 @@ const ChatScreen = ({ route, navigation }) => {
     }
   }, [match.otherUser?.lastActive]);
 
-  // Track keyboard state and handle Android back button
-  useEffect(() => {
-    const keyboardDidShowListener = Keyboard.addListener('keyboardDidShow', () => {
-      setKeyboardVisible(true);
-    });
+  // Track keyboard state and handle Android back button — only when focused
+  // to prevent background re-renders when typing on other screens
+  useFocusEffect(
+    useCallback(() => {
+      const keyboardDidShowListener = Keyboard.addListener('keyboardDidShow', () => {
+        setKeyboardVisible(true);
+      });
 
-    const keyboardDidHideListener = Keyboard.addListener('keyboardDidHide', () => {
-      setKeyboardVisible(false);
-    });
+      const keyboardDidHideListener = Keyboard.addListener('keyboardDidHide', () => {
+        setKeyboardVisible(false);
+      });
 
-    // Handle Android back button for reaction picker
-    const backHandler = BackHandler.addEventListener('hardwareBackPress', () => {
-      if (showReactionPicker !== null) {
-        Logger.info('Back button pressed, closing reaction picker');
-        setShowReactionPicker(null);
-        setLongPressMessage(null);
-        return true; // Prevent default back behavior
-      }
-      return false; // Let default back behavior happen
-    });
+      const backHandler = BackHandler.addEventListener('hardwareBackPress', () => {
+        if (showReactionPicker !== null) {
+          Logger.info('Back button pressed, closing reaction picker');
+          setShowReactionPicker(null);
+          setLongPressMessage(null);
+          return true;
+        }
+        return false;
+      });
 
-    return () => {
-      keyboardDidShowListener.remove();
-      keyboardDidHideListener.remove();
-      backHandler.remove();
-    };
-  }, [showReactionPicker]);
+      return () => {
+        keyboardDidShowListener.remove();
+        keyboardDidHideListener.remove();
+        backHandler.remove();
+        setKeyboardVisible(false);
+      };
+    }, [showReactionPicker])
+  );
 
   // Note: Send button animation is now handled by AnimatedSendButton component
 
