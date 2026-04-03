@@ -9,11 +9,11 @@ import * as SplashScreen from 'expo-splash-screen';
 import Constants from 'expo-constants';
 import {
   useFonts,
-  Outfit_400Regular,
-  Outfit_500Medium,
-  Outfit_600SemiBold,
-  Outfit_700Bold,
-} from '@expo-google-fonts/outfit';
+  DMSans_400Regular,
+  DMSans_500Medium,
+  DMSans_600SemiBold,
+  DMSans_700Bold,
+} from '@expo-google-fonts/dm-sans';
 import ErrorBoundary from './src/components/ErrorBoundary';
 import { AuthProvider } from './src/contexts/AuthContext';
 import { ToastProvider } from './src/contexts/ToastContext';
@@ -40,10 +40,10 @@ if (SENTRY_DSN && !__DEV__) {
 
 function App() {
   const [fontsLoaded] = useFonts({
-    Outfit_400Regular,
-    Outfit_500Medium,
-    Outfit_600SemiBold,
-    Outfit_700Bold,
+    DMSans_400Regular,
+    DMSans_500Medium,
+    DMSans_600SemiBold,
+    DMSans_700Bold,
   });
 
   // Initialize analytics on app start
