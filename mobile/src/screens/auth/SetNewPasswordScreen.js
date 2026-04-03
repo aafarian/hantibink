@@ -27,7 +27,7 @@ const SetNewPasswordScreen = ({ navigation, route }) => {
 
   // Password strength validation
   const getPasswordStrength = pwd => {
-    if (!pwd) return { strength: 0, label: '', color: '#ccc' };
+    if (!pwd) return { strength: 0, label: '', color: theme.colors.border.medium };
 
     let strength = 0;
     if (pwd.length >= 6) strength++;
@@ -36,7 +36,7 @@ const SetNewPasswordScreen = ({ navigation, route }) => {
     if (/[0-9]/.test(pwd)) strength++;
     if (/[^A-Za-z0-9]/.test(pwd)) strength++;
 
-    if (strength <= 1) return { strength: 1, label: 'Weak', color: '#D32F2F' };
+    if (strength <= 1) return { strength: 1, label: 'Weak', color: theme.colors.status.error };
     if (strength <= 2) return { strength: 2, label: 'Fair', color: '#FF9800' };
     if (strength <= 3) return { strength: 3, label: 'Good', color: '#FFC107' };
     if (strength <= 4) return { strength: 4, label: 'Strong', color: '#4CAF50' };
@@ -90,7 +90,7 @@ const SetNewPasswordScreen = ({ navigation, route }) => {
     >
       <View style={styles.header}>
         <TouchableOpacity style={styles.backButton} onPress={() => navigation.goBack()}>
-          <Ionicons name="arrow-back" size={24} color="#333" />
+          <Ionicons name="arrow-back" size={24} color={theme.colors.text.primary} />
         </TouchableOpacity>
       </View>
 
@@ -121,7 +121,11 @@ const SetNewPasswordScreen = ({ navigation, route }) => {
             autoCorrect={false}
           />
           <TouchableOpacity onPress={() => setShowPassword(!showPassword)}>
-            <Ionicons name={showPassword ? 'eye-off' : 'eye'} size={22} color="#999" />
+            <Ionicons
+              name={showPassword ? 'eye-off' : 'eye'}
+              size={22}
+              color={theme.colors.text.muted}
+            />
           </TouchableOpacity>
         </View>
 
@@ -135,7 +139,9 @@ const SetNewPasswordScreen = ({ navigation, route }) => {
                     styles.strengthBar,
                     {
                       backgroundColor:
-                        level <= passwordStrength.strength ? passwordStrength.color : '#e0e0e0',
+                        level <= passwordStrength.strength
+                          ? passwordStrength.color
+                          : theme.colors.border.light,
                     },
                   ]}
                 />
@@ -164,7 +170,11 @@ const SetNewPasswordScreen = ({ navigation, route }) => {
             autoCorrect={false}
           />
           <TouchableOpacity onPress={() => setShowConfirmPassword(!showConfirmPassword)}>
-            <Ionicons name={showConfirmPassword ? 'eye-off' : 'eye'} size={22} color="#999" />
+            <Ionicons
+              name={showConfirmPassword ? 'eye-off' : 'eye'}
+              size={22}
+              color={theme.colors.text.muted}
+            />
           </TouchableOpacity>
         </View>
 
@@ -173,12 +183,21 @@ const SetNewPasswordScreen = ({ navigation, route }) => {
             <Ionicons
               name={password === confirmPassword ? 'checkmark-circle' : 'close-circle'}
               size={18}
-              color={password === confirmPassword ? '#4CAF50' : '#D32F2F'}
+              color={
+                password === confirmPassword
+                  ? theme.colors.status.success
+                  : theme.colors.status.error
+              }
             />
             <Text
               style={[
                 styles.matchText,
-                { color: password === confirmPassword ? '#4CAF50' : '#D32F2F' },
+                {
+                  color:
+                    password === confirmPassword
+                      ? theme.colors.status.success
+                      : theme.colors.status.error,
+                },
               ]}
             >
               {password === confirmPassword ? 'Passwords match' : 'Passwords do not match'}
@@ -195,7 +214,7 @@ const SetNewPasswordScreen = ({ navigation, route }) => {
           disabled={loading || !password || !confirmPassword}
         >
           {loading ? (
-            <ActivityIndicator color="#fff" />
+            <ActivityIndicator color={theme.colors.text.white} />
           ) : (
             <Text style={styles.resetButtonText}>Update Password</Text>
           )}
@@ -207,7 +226,7 @@ const SetNewPasswordScreen = ({ navigation, route }) => {
             <Ionicons
               name={password.length >= 6 ? 'checkmark-circle' : 'ellipse-outline'}
               size={16}
-              color={password.length >= 6 ? '#4CAF50' : '#999'}
+              color={password.length >= 6 ? '#4CAF50' : theme.colors.text.muted}
             />
             <Text style={styles.requirementText}>At least 6 characters</Text>
           </View>
@@ -215,7 +234,7 @@ const SetNewPasswordScreen = ({ navigation, route }) => {
             <Ionicons
               name={/[A-Z]/.test(password) ? 'checkmark-circle' : 'ellipse-outline'}
               size={16}
-              color={/[A-Z]/.test(password) ? '#4CAF50' : '#999'}
+              color={/[A-Z]/.test(password) ? '#4CAF50' : theme.colors.text.muted}
             />
             <Text style={styles.requirementText}>One uppercase letter (recommended)</Text>
           </View>
@@ -223,7 +242,7 @@ const SetNewPasswordScreen = ({ navigation, route }) => {
             <Ionicons
               name={/[0-9]/.test(password) ? 'checkmark-circle' : 'ellipse-outline'}
               size={16}
-              color={/[0-9]/.test(password) ? '#4CAF50' : '#999'}
+              color={/[0-9]/.test(password) ? '#4CAF50' : theme.colors.text.muted}
             />
             <Text style={styles.requirementText}>One number (recommended)</Text>
           </View>
@@ -236,7 +255,7 @@ const SetNewPasswordScreen = ({ navigation, route }) => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f8f9fa',
+    backgroundColor: theme.colors.background.secondary,
   },
   header: {
     padding: 20,
@@ -246,7 +265,7 @@ const styles = StyleSheet.create({
     width: 40,
     height: 40,
     borderRadius: 20,
-    backgroundColor: '#fff',
+    backgroundColor: theme.colors.background.primary,
     justifyContent: 'center',
     alignItems: 'center',
     shadowColor: '#000',
@@ -267,13 +286,13 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 28,
     fontWeight: 'bold',
-    color: '#333',
+    color: theme.colors.text.primary,
     textAlign: 'center',
     marginBottom: 10,
   },
   subtitle: {
     fontSize: 16,
-    color: '#666',
+    color: theme.colors.text.secondary,
     textAlign: 'center',
     lineHeight: 24,
     marginBottom: 30,
@@ -281,13 +300,13 @@ const styles = StyleSheet.create({
   inputContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#fff',
+    backgroundColor: theme.colors.background.primary,
     borderRadius: 12,
     marginBottom: 12,
     paddingHorizontal: 16,
     paddingVertical: 12,
     borderWidth: 1,
-    borderColor: '#e0e0e0',
+    borderColor: theme.colors.border.light,
   },
   inputIcon: {
     marginRight: 12,
@@ -295,7 +314,7 @@ const styles = StyleSheet.create({
   input: {
     flex: 1,
     fontSize: 16,
-    color: '#333',
+    color: theme.colors.text.primary,
   },
   strengthContainer: {
     flexDirection: 'row',
@@ -341,21 +360,21 @@ const styles = StyleSheet.create({
     opacity: 0.6,
   },
   resetButtonText: {
-    color: '#fff',
+    color: theme.colors.text.white,
     fontSize: 16,
     fontWeight: 'bold',
   },
   requirements: {
-    backgroundColor: '#fff',
+    backgroundColor: theme.colors.background.primary,
     borderRadius: 12,
     padding: 16,
     borderWidth: 1,
-    borderColor: '#e0e0e0',
+    borderColor: theme.colors.border.light,
   },
   requirementsTitle: {
     fontSize: 14,
     fontWeight: '600',
-    color: '#333',
+    color: theme.colors.text.primary,
     marginBottom: 12,
   },
   requirementItem: {
@@ -366,7 +385,7 @@ const styles = StyleSheet.create({
   },
   requirementText: {
     fontSize: 13,
-    color: '#666',
+    color: theme.colors.text.secondary,
   },
 });
 

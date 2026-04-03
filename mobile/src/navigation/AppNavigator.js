@@ -57,7 +57,7 @@ const PeopleStack = () => {
           headerStyle: {
             backgroundColor: theme.colors.primary,
           },
-          headerTintColor: '#fff',
+          headerTintColor: theme.colors.text.white,
           headerTitleStyle: {
             fontWeight: 'bold',
           },
@@ -85,7 +85,7 @@ const ProfileStack = () => {
           headerStyle: {
             backgroundColor: theme.colors.primary,
           },
-          headerTintColor: '#fff',
+          headerTintColor: theme.colors.text.white,
           headerTitleStyle: {
             fontWeight: 'bold',
           },
@@ -142,7 +142,7 @@ const MessagesStack = () => {
           headerStyle: {
             backgroundColor: theme.colors.primary,
           },
-          headerTintColor: '#fff',
+          headerTintColor: theme.colors.text.white,
           headerTitleStyle: {
             fontWeight: 'bold',
           },
@@ -193,7 +193,7 @@ const MainNavigator = () => {
   return (
     <>
       <UpdateBanner />
-      <Tab.Navigator tabBar={renderTabBar}>
+      <Tab.Navigator tabBar={renderTabBar} screenOptions={{ freezeOnBlur: true }}>
         <Tab.Screen
           name="Profile"
           component={ProfileStack}
@@ -209,23 +209,13 @@ const MainNavigator = () => {
             headerStyle: {
               backgroundColor: theme.colors.primary,
             },
-            headerTintColor: '#fff',
+            headerTintColor: theme.colors.text.white,
             headerTitleStyle: {
               fontWeight: 'bold',
             },
           }}
         />
-        <Tab.Screen
-          name="Messages"
-          component={MessagesStack}
-          options={{ headerShown: false }}
-          listeners={({ navigation }) => ({
-            tabPress: _e => {
-              // Navigate to the initial route of the Messages stack
-              navigation.navigate('Messages', { screen: 'MessagesList' });
-            },
-          })}
-        />
+        <Tab.Screen name="Messages" component={MessagesStack} options={{ headerShown: false }} />
       </Tab.Navigator>
 
       {/* Profile Setup Modal - Shows on app open if profile incomplete */}
@@ -373,7 +363,12 @@ const AppNavigator = () => {
   if (loading) {
     return (
       <View
-        style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#fff' }}
+        style={{
+          flex: 1,
+          justifyContent: 'center',
+          alignItems: 'center',
+          backgroundColor: theme.colors.background.primary,
+        }}
       >
         <ActivityIndicator size="large" color={theme.colors.primary} />
       </View>

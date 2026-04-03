@@ -22,7 +22,7 @@ export const LoadingSpinner = ({ size = 'small', color = theme.colors.primary, s
 export const LoadingOverlay = ({
   visible,
   message = 'Loading...',
-  backgroundColor = theme.colors.background.overlay,
+  backgroundColor = theme.colors.overlay.medium,
 }) => {
   if (!visible) return null;
 

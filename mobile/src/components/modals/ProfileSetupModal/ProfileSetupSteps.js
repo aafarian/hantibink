@@ -344,12 +344,12 @@ const styles = StyleSheet.create({
   },
   locationLoadingText: {
     fontSize: 16,
-    color: '#666',
+    color: theme.colors.text.secondary,
     marginTop: 15,
   },
   locationAutoProgressText: {
     fontSize: 14,
-    color: '#999',
+    color: theme.colors.text.muted,
     marginTop: 15,
     textAlign: 'center',
     fontStyle: 'italic',

@@ -139,7 +139,7 @@ const VerifyResetCodeScreen = ({ navigation, route }) => {
     >
       <View style={styles.header}>
         <TouchableOpacity style={styles.backButton} onPress={() => navigation.goBack()}>
-          <Ionicons name="arrow-back" size={24} color="#333" />
+          <Ionicons name="arrow-back" size={24} color={theme.colors.text.primary} />
         </TouchableOpacity>
       </View>
 
@@ -191,7 +191,7 @@ const VerifyResetCodeScreen = ({ navigation, route }) => {
           disabled={loading || timeLeft <= 0}
         >
           {loading ? (
-            <ActivityIndicator color="#fff" />
+            <ActivityIndicator color={theme.colors.text.white} />
           ) : (
             <Text style={styles.verifyButtonText}>Verify Code</Text>
           )}
@@ -219,7 +219,7 @@ const VerifyResetCodeScreen = ({ navigation, route }) => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f8f9fa',
+    backgroundColor: theme.colors.background.secondary,
   },
   header: {
     padding: 20,
@@ -229,7 +229,7 @@ const styles = StyleSheet.create({
     width: 40,
     height: 40,
     borderRadius: 20,
-    backgroundColor: '#fff',
+    backgroundColor: theme.colors.background.primary,
     justifyContent: 'center',
     alignItems: 'center',
     shadowColor: '#000',
@@ -250,20 +250,20 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 28,
     fontWeight: 'bold',
-    color: '#333',
+    color: theme.colors.text.primary,
     textAlign: 'center',
     marginBottom: 10,
   },
   subtitle: {
     fontSize: 16,
-    color: '#666',
+    color: theme.colors.text.secondary,
     textAlign: 'center',
     lineHeight: 24,
     marginBottom: 30,
   },
   emailText: {
     fontWeight: '600',
-    color: '#333',
+    color: theme.colors.text.primary,
   },
   codeContainer: {
     flexDirection: 'row',
@@ -276,19 +276,19 @@ const styles = StyleSheet.create({
     height: 56,
     borderRadius: 12,
     borderWidth: 2,
-    borderColor: '#e0e0e0',
-    backgroundColor: '#fff',
+    borderColor: theme.colors.border.light,
+    backgroundColor: theme.colors.background.primary,
     fontSize: 24,
     fontWeight: 'bold',
     textAlign: 'center',
-    color: '#333',
+    color: theme.colors.text.primary,
   },
   codeInputFilled: {
     borderColor: theme.colors.primary,
   },
   codeInputExpired: {
-    borderColor: '#ccc',
-    backgroundColor: '#f0f0f0',
+    borderColor: theme.colors.border.medium,
+    backgroundColor: theme.colors.background.tertiary,
   },
   timerContainer: {
     alignItems: 'center',
@@ -296,7 +296,7 @@ const styles = StyleSheet.create({
   },
   timerText: {
     fontSize: 14,
-    color: '#666',
+    color: theme.colors.text.secondary,
   },
   timerValue: {
     fontWeight: '600',
@@ -304,7 +304,7 @@ const styles = StyleSheet.create({
   },
   expiredText: {
     fontSize: 14,
-    color: '#D32F2F',
+    color: theme.colors.status.error,
     fontWeight: '500',
   },
   verifyButton: {
@@ -318,7 +318,7 @@ const styles = StyleSheet.create({
     opacity: 0.6,
   },
   verifyButtonText: {
-    color: '#fff',
+    color: theme.colors.text.white,
     fontSize: 16,
     fontWeight: 'bold',
   },
@@ -331,7 +331,7 @@ const styles = StyleSheet.create({
   },
   resendText: {
     fontSize: 14,
-    color: '#666',
+    color: theme.colors.text.secondary,
   },
   resendLink: {
     fontSize: 14,

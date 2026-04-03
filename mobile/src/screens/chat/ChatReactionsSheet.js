@@ -154,7 +154,7 @@ const ChatReactionsSheet = ({
                       <Text style={styles.reactionEmoji}>{reaction.emoji}</Text>
                       {reaction.isMe && (
                         <View style={styles.removeBadge}>
-                          <Ionicons name="close" size={10} color="#fff" />
+                          <Ionicons name="close" size={10} color={theme.colors.text.white} />
                         </View>
                       )}
                     </TouchableOpacity>
@@ -187,7 +187,7 @@ const ChatReactionsSheet = ({
 
 const styles = StyleSheet.create({
   sheetBackground: {
-    backgroundColor: '#fff',
+    backgroundColor: theme.colors.background.primary,
     borderTopLeftRadius: 20,
     borderTopRightRadius: 20,
   },
@@ -209,14 +209,14 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 18,
     fontWeight: '600',
-    color: '#333',
+    color: theme.colors.text.primary,
     marginBottom: 12,
   },
   tabs: {
     flexDirection: 'row',
     marginBottom: 12,
     borderBottomWidth: 1,
-    borderBottomColor: '#f0f0f0',
+    borderBottomColor: theme.colors.background.tertiary,
   },
   tab: {
     paddingVertical: 8,
@@ -230,7 +230,7 @@ const styles = StyleSheet.create({
   },
   tabText: {
     fontSize: 14,
-    color: '#666',
+    color: theme.colors.text.secondary,
     fontWeight: '500',
   },
   tabTextActive: {
@@ -247,7 +247,7 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     paddingVertical: 12,
     borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: '#f0f0f0',
+    borderBottomColor: theme.colors.background.tertiary,
   },
   reactionLeft: {
     flexDirection: 'row',
@@ -261,11 +261,11 @@ const styles = StyleSheet.create({
   },
   reactionName: {
     fontSize: 16,
-    color: '#333',
+    color: theme.colors.text.primary,
   },
   noReactionsText: {
     fontSize: 14,
-    color: '#999',
+    color: theme.colors.text.muted,
     textAlign: 'center',
   },
   reactionEmoji: {
@@ -279,7 +279,7 @@ const styles = StyleSheet.create({
     position: 'absolute',
     top: -4,
     right: -4,
-    backgroundColor: '#999',
+    backgroundColor: theme.colors.text.muted,
     borderRadius: 8,
     width: 16,
     height: 16,
@@ -291,7 +291,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingVertical: 16,
     borderTopWidth: StyleSheet.hairlineWidth,
-    borderTopColor: '#f0f0f0',
+    borderTopColor: theme.colors.background.tertiary,
   },
   addReactionText: {
     fontSize: 16,

@@ -318,7 +318,7 @@ const PeopleScreen = ({ navigation }) => {
     if (currentIndex >= profiles.length) {
       return (
         <View style={styles.noMoreCards}>
-          <Ionicons name="heart-outline" size={80} color="#ccc" />
+          <Ionicons name="heart-outline" size={80} color={theme.colors.border.medium} />
           <Text style={styles.noMoreCardsText}>No more profiles to show</Text>
           <TouchableOpacity style={styles.resetButton} onPress={resetCards}>
             <Text style={styles.resetButtonText}>Load More</Text>
@@ -413,7 +413,7 @@ const PeopleScreen = ({ navigation }) => {
   if (!userProfile?.photos || userProfile.photos.length === 0) {
     return (
       <View style={styles.noPhotosContainer}>
-        <Ionicons name="camera-outline" size={80} color="#ccc" />
+        <Ionicons name="camera-outline" size={80} color={theme.colors.border.medium} />
         <Text style={styles.noPhotosTitle}>Add photos to start swiping!</Text>
         <Text style={styles.noPhotosSubtitle}>
           You need at least one photo to be visible to others and start discovering matches.
@@ -542,14 +542,14 @@ const PeopleScreen = ({ navigation }) => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f8f9fa',
+    backgroundColor: theme.colors.background.secondary,
   },
   filterButton: {
     position: 'absolute',
     top: 60,
     right: 20,
     zIndex: 1000,
-    backgroundColor: '#fff',
+    backgroundColor: theme.colors.background.primary,
     borderRadius: 20,
     padding: 10,
     shadowColor: '#000',
@@ -575,7 +575,7 @@ const styles = StyleSheet.create({
   card: {
     width: width - 40,
     flex: 1, // Take up all available space in cardContainer
-    backgroundColor: '#fff',
+    backgroundColor: theme.colors.background.primary,
     borderRadius: 20,
     shadowColor: '#000',
     shadowOffset: {
@@ -603,22 +603,22 @@ const styles = StyleSheet.create({
     padding: 20,
   },
   cardInfo: {
-    color: '#fff',
+    color: theme.colors.text.white,
   },
   cardName: {
     fontSize: 24,
     fontWeight: 'bold',
-    color: '#fff',
+    color: theme.colors.text.white,
     marginBottom: 5,
   },
   cardLocation: {
     fontSize: 16,
-    color: '#fff',
+    color: theme.colors.text.white,
     marginBottom: 10,
   },
   cardBio: {
     fontSize: 14,
-    color: '#fff',
+    color: theme.colors.text.white,
     marginBottom: 15,
     lineHeight: 20,
   },
@@ -627,7 +627,7 @@ const styles = StyleSheet.create({
     flexWrap: 'wrap',
   },
   interestTag: {
-    backgroundColor: 'rgba(255,255,255,0.2)',
+    backgroundColor: theme.colors.overlay.light,
     paddingHorizontal: 10,
     paddingVertical: 5,
     borderRadius: 15,
@@ -635,7 +635,7 @@ const styles = StyleSheet.create({
     marginBottom: 5,
   },
   interestText: {
-    color: '#fff',
+    color: theme.colors.text.white,
     fontSize: 12,
   },
   likeIndicator: {
@@ -678,7 +678,7 @@ const styles = StyleSheet.create({
     width: 60,
     height: 60,
     borderRadius: 30,
-    backgroundColor: '#fff',
+    backgroundColor: theme.colors.background.primary,
     justifyContent: 'center',
     alignItems: 'center',
     shadowColor: '#000',
@@ -700,7 +700,7 @@ const styles = StyleSheet.create({
   },
   noMoreCardsText: {
     fontSize: 18,
-    color: '#666',
+    color: theme.colors.text.secondary,
     marginTop: 20,
     marginBottom: 30,
   },
@@ -711,7 +711,7 @@ const styles = StyleSheet.create({
     borderRadius: 25,
   },
   resetButtonText: {
-    color: '#fff',
+    color: theme.colors.text.white,
     fontSize: 16,
     fontWeight: 'bold',
   },
@@ -733,7 +733,7 @@ const styles = StyleSheet.create({
     elevation: 5,
   },
   testButtonText: {
-    color: '#fff',
+    color: theme.colors.text.white,
     fontSize: 12,
   },
   // No photos styles
@@ -742,18 +742,18 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     padding: 40,
-    backgroundColor: '#f8f9fa',
+    backgroundColor: theme.colors.background.secondary,
   },
   noPhotosTitle: {
     fontSize: 24,
     fontWeight: 'bold',
-    color: '#333',
+    color: theme.colors.text.primary,
     marginTop: 20,
     textAlign: 'center',
   },
   noPhotosSubtitle: {
     fontSize: 16,
-    color: '#666',
+    color: theme.colors.text.secondary,
     marginTop: 12,
     marginBottom: 30,
     textAlign: 'center',
@@ -766,7 +766,7 @@ const styles = StyleSheet.create({
     borderRadius: 25,
   },
   addPhotosButtonText: {
-    color: '#fff',
+    color: theme.colors.text.white,
     fontSize: 16,
     fontWeight: 'bold',
   },

@@ -236,7 +236,7 @@ const ProfileEditScreen = ({ navigation }) => {
         {/* Header */}
         <View style={styles.header}>
           <TouchableOpacity onPress={() => navigation.goBack()} style={styles.headerLeft}>
-            <Ionicons name="arrow-back" size={24} color="#fff" />
+            <Ionicons name="arrow-back" size={24} color={theme.colors.text.white} />
           </TouchableOpacity>
           <Text style={styles.headerTitle}>Edit Profile</Text>
           <View style={styles.headerRight}>
@@ -252,7 +252,7 @@ const ProfileEditScreen = ({ navigation }) => {
                     style={styles.headerSaveButton}
                   >
                     {saving ? (
-                      <ActivityIndicator size="small" color="#fff" />
+                      <ActivityIndicator size="small" color={theme.colors.text.white} />
                     ) : (
                       <Text style={styles.headerSaveText}>Save</Text>
                     )}
@@ -292,7 +292,7 @@ const ProfileEditScreen = ({ navigation }) => {
               {hasChanges && (
                 <TouchableOpacity style={styles.saveButton} onPress={saveProfile} disabled={saving}>
                   {saving ? (
-                    <ActivityIndicator size="small" color="#fff" />
+                    <ActivityIndicator size="small" color={theme.colors.text.white} />
                   ) : (
                     <Text style={styles.saveButtonText}>Save Changes</Text>
                   )}
@@ -309,11 +309,11 @@ const ProfileEditScreen = ({ navigation }) => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f8f9fa',
+    backgroundColor: theme.colors.background.secondary,
   },
   safeArea: {
     flex: 1,
-    backgroundColor: '#f8f9fa',
+    backgroundColor: theme.colors.background.secondary,
   },
   statusBarBackground: {
     position: 'absolute',
@@ -338,7 +338,7 @@ const styles = StyleSheet.create({
   headerTitle: {
     fontSize: 18,
     fontWeight: 'bold',
-    color: '#fff',
+    color: theme.colors.text.white,
     flex: 1,
   },
   headerRight: {
@@ -358,11 +358,11 @@ const styles = StyleSheet.create({
   },
   headerDiscardText: {
     fontSize: 13,
-    color: '#fff',
+    color: theme.colors.text.white,
     fontWeight: '500',
   },
   headerSaveButton: {
-    backgroundColor: '#fff',
+    backgroundColor: theme.colors.background.primary,
     paddingHorizontal: 12,
     paddingVertical: 6,
     borderRadius: 15,
@@ -379,9 +379,9 @@ const styles = StyleSheet.create({
     gap: 12,
     paddingHorizontal: 20,
     paddingVertical: 20,
-    backgroundColor: '#fff',
+    backgroundColor: theme.colors.background.primary,
     borderTopWidth: 1,
-    borderTopColor: '#f0f0f0',
+    borderTopColor: theme.colors.background.tertiary,
   },
   discardButton: {
     flex: 1,
@@ -393,7 +393,7 @@ const styles = StyleSheet.create({
   },
   discardButtonText: {
     fontSize: 16,
-    color: '#666',
+    color: theme.colors.text.secondary,
     fontWeight: '600',
   },
   saveButton: {
@@ -405,7 +405,7 @@ const styles = StyleSheet.create({
   },
   saveButtonText: {
     fontSize: 16,
-    color: '#fff',
+    color: theme.colors.text.white,
     fontWeight: '600',
   },
   singleButtonContainer: {

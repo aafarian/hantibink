@@ -113,7 +113,7 @@ const ProfileDetailsScreen = ({ navigation, route }) => {
       {/* Header */}
       <View style={styles.header}>
         <TouchableOpacity onPress={() => navigation.goBack()}>
-          <Ionicons name="arrow-back" size={24} color="#333" />
+          <Ionicons name="arrow-back" size={24} color={theme.colors.text.primary} />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Profile Details</Text>
         <View style={styles.headerRight}>
@@ -140,7 +140,7 @@ const ProfileDetailsScreen = ({ navigation, route }) => {
           disabled={loading}
         >
           {loading ? (
-            <ActivityIndicator size="small" color="#fff" />
+            <ActivityIndicator size="small" color={theme.colors.text.white} />
           ) : (
             <Text style={styles.createButtonText}>
               {isOnboarding ? 'Complete Profile' : 'Create Account'}
@@ -155,7 +155,7 @@ const ProfileDetailsScreen = ({ navigation, route }) => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f8f9fa',
+    backgroundColor: theme.colors.background.secondary,
   },
   header: {
     flexDirection: 'row',
@@ -164,30 +164,30 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     paddingVertical: 15,
     borderBottomWidth: 1,
-    borderBottomColor: '#f0f0f0',
-    backgroundColor: '#fff',
+    borderBottomColor: theme.colors.background.tertiary,
+    backgroundColor: theme.colors.background.primary,
   },
   headerTitle: {
     fontSize: 18,
     fontWeight: 'bold',
-    color: '#333',
+    color: theme.colors.text.primary,
   },
   headerRight: {
     alignItems: 'flex-end',
   },
   stepText: {
     fontSize: 12,
-    color: '#666',
+    color: theme.colors.text.secondary,
   },
   form: {
     flex: 1,
   },
   buttonContainer: {
-    backgroundColor: '#fff',
+    backgroundColor: theme.colors.background.primary,
     paddingHorizontal: 20,
     paddingVertical: 15,
     borderTopWidth: 1,
-    borderTopColor: '#f0f0f0',
+    borderTopColor: theme.colors.background.tertiary,
   },
   createButton: {
     backgroundColor: theme.colors.primary,
@@ -204,7 +204,7 @@ const styles = StyleSheet.create({
     opacity: 0.6,
   },
   createButtonText: {
-    color: '#fff',
+    color: theme.colors.text.white,
     fontSize: 16,
     fontWeight: '600',
   },

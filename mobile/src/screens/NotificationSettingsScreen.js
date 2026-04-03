@@ -81,7 +81,7 @@ const NotificationSettingsScreen = ({ navigation }) => {
         value={settings[key]}
         onValueChange={value => updateSetting(key, value)}
         trackColor={{ false: '#E5E5EA', true: theme.colors.primary }}
-        thumbColor={settings[key] ? '#fff' : '#f4f3f4'}
+        thumbColor={settings[key] ? theme.colors.text.white : '#f4f3f4'}
       />
     </View>
   );
@@ -91,7 +91,7 @@ const NotificationSettingsScreen = ({ navigation }) => {
       <ScreenWrapper>
         <View style={styles.header}>
           <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
-            <MaterialIcons name="arrow-back" size={24} color="#fff" />
+            <MaterialIcons name="arrow-back" size={24} color={theme.colors.text.white} />
           </TouchableOpacity>
           <Text style={styles.headerTitle}>Notifications</Text>
           <View style={{ width: 40 }} />
@@ -108,7 +108,7 @@ const NotificationSettingsScreen = ({ navigation }) => {
       <ScreenWrapper>
         <View style={styles.header}>
           <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
-            <MaterialIcons name="arrow-back" size={24} color="#fff" />
+            <MaterialIcons name="arrow-back" size={24} color={theme.colors.text.white} />
           </TouchableOpacity>
           <Text style={styles.headerTitle}>Notifications</Text>
           <View style={{ width: 40 }} />
@@ -122,7 +122,7 @@ const NotificationSettingsScreen = ({ navigation }) => {
     <ScreenWrapper>
       <View style={styles.header}>
         <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
-          <MaterialIcons name="arrow-back" size={24} color="#fff" />
+          <MaterialIcons name="arrow-back" size={24} color={theme.colors.text.white} />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Notifications</Text>
         <View style={{ width: 40 }} />
@@ -150,7 +150,7 @@ const NotificationSettingsScreen = ({ navigation }) => {
         </View>
 
         <View style={styles.infoSection}>
-          <Ionicons name="information-circle-outline" size={20} color="#999" />
+          <Ionicons name="information-circle-outline" size={20} color={theme.colors.text.muted} />
           <Text style={styles.infoText}>
             You can also manage notifications in your device settings
           </Text>
@@ -175,7 +175,7 @@ const styles = StyleSheet.create({
   headerTitle: {
     fontSize: 18,
     fontWeight: '600',
-    color: '#fff',
+    color: theme.colors.text.white,
   },
   loadingContainer: {
     flex: 1,
@@ -189,17 +189,17 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     paddingVertical: 20,
     borderBottomWidth: 1,
-    borderBottomColor: '#f0f0f0',
+    borderBottomColor: theme.colors.background.tertiary,
   },
   sectionTitle: {
     fontSize: 18,
     fontWeight: '600',
-    color: '#333',
+    color: theme.colors.text.primary,
     marginBottom: 8,
   },
   sectionDescription: {
     fontSize: 14,
-    color: '#666',
+    color: theme.colors.text.secondary,
   },
   settingsContainer: {
     paddingHorizontal: 20,
@@ -209,7 +209,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingVertical: 16,
     borderBottomWidth: 1,
-    borderBottomColor: '#f0f0f0',
+    borderBottomColor: theme.colors.background.tertiary,
   },
   settingIcon: {
     width: 40,
@@ -227,11 +227,11 @@ const styles = StyleSheet.create({
   settingLabel: {
     fontSize: 16,
     fontWeight: '500',
-    color: '#333',
+    color: theme.colors.text.primary,
   },
   settingDescription: {
     fontSize: 13,
-    color: '#666',
+    color: theme.colors.text.secondary,
     marginTop: 2,
   },
   infoSection: {
@@ -243,7 +243,7 @@ const styles = StyleSheet.create({
   },
   infoText: {
     fontSize: 13,
-    color: '#999',
+    color: theme.colors.text.muted,
     marginLeft: 8,
     flex: 1,
   },

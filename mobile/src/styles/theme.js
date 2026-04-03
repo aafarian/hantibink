@@ -1,20 +1,33 @@
 export const theme = {
   colors: {
-    primary: '#D32F2F', // Armenian red
-    secondary: '#1565C0', // Armenian blue
-    accent: '#F57C00', // Armenian orange
-    premium: '#FFD700', // Gold for premium features
+    // Armenian tricolor — premium shades
+    primary: '#C0392B', // Warm crimson (Armenian red)
+    primaryLight: '#E74C3C', // Lighter red for hover states, soft accents
+    primaryTint: '#FDEDEC', // Blush background tint
+    secondary: '#1A3A8A', // Deep royal blue (Armenian blue)
+    secondaryLight: '#2D62C4', // Links, secondary buttons
+    secondaryTint: '#E8EEF8', // Info backgrounds
+    accent: '#D97706', // Golden amber (Armenian apricot/orange)
+    accentLight: '#FBBF24', // Badges, highlights — amber-400
+    accentTint: '#FEF3C7', // Premium/special backgrounds
+    premium: '#F59E0B', // Rich amber gold for premium features
     text: {
-      primary: '#333',
-      secondary: '#666',
-      muted: '#999',
+      primary: '#1E293B', // Slate-800
+      secondary: '#64748B', // Slate-500
+      muted: '#94A3B8', // Slate-400
       white: '#fff',
+      shadow: 'rgba(0, 0, 0, 0.5)', // Text shadow on photos
     },
     background: {
-      primary: '#fff',
-      secondary: '#f8f9fa',
-      tertiary: '#f0f0f0',
-      overlay: 'rgba(0, 0, 0, 0.5)',
+      primary: '#FFFFFF', // Pure white to avoid scroll strobe with off-white
+      secondary: '#F9FAFB', // Gray-50, neutral
+      tertiary: '#F3F4F6', // Gray-100, neutral
+    },
+    overlay: {
+      light: 'rgba(255, 255, 255, 0.2)',
+      medium: 'rgba(0, 0, 0, 0.5)',
+      heavy: 'rgba(0, 0, 0, 0.7)',
+      glass: 'rgba(255, 255, 255, 0.15)',
     },
     status: {
       success: '#4CAF50',
@@ -23,8 +36,9 @@ export const theme = {
       info: '#2196F3',
     },
     border: {
-      light: '#e0e0e0', // Same as gray[300] - intentionally duplicated for semantic clarity
-      medium: '#ccc',
+      light: '#E5E7EB', // Gray-200, neutral
+      medium: '#D1D5DB', // Gray-300, neutral
+      primary: 'rgba(192, 57, 43, 0.15)', // Primary red tint for borders
     },
     gray: {
       50: '#fafafa',

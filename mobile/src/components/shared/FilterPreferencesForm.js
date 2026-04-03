@@ -274,7 +274,7 @@ const FilterPreferencesForm = ({
       <ScreenWrapper>
         <View style={styles.header}>
           <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
-            <MaterialIcons name="arrow-back" size={24} color="#fff" />
+            <MaterialIcons name="arrow-back" size={24} color={theme.colors.text.white} />
           </TouchableOpacity>
           <Text style={styles.headerTitle}>{headerTitle}</Text>
           <View style={{ width: showReset ? 50 : 40 }} />
@@ -291,7 +291,7 @@ const FilterPreferencesForm = ({
       <ScreenWrapper>
         <View style={styles.header}>
           <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
-            <MaterialIcons name="arrow-back" size={24} color="#fff" />
+            <MaterialIcons name="arrow-back" size={24} color={theme.colors.text.white} />
           </TouchableOpacity>
           <Text style={styles.headerTitle}>{headerTitle}</Text>
           <View style={{ width: showReset ? 50 : 40 }} />
@@ -305,7 +305,7 @@ const FilterPreferencesForm = ({
     <ScreenWrapper>
       <View style={styles.header}>
         <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
-          <MaterialIcons name="arrow-back" size={24} color="#fff" />
+          <MaterialIcons name="arrow-back" size={24} color={theme.colors.text.white} />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>{headerTitle}</Text>
         {showReset ? (
@@ -502,7 +502,7 @@ const FilterPreferencesForm = ({
           disabled={saving}
         >
           {saving ? (
-            <ActivityIndicator color="#fff" />
+            <ActivityIndicator color={theme.colors.text.white} />
           ) : (
             <Text style={styles.actionButtonText}>{buttonText}</Text>
           )}

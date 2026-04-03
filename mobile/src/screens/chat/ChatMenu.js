@@ -1,6 +1,7 @@
 import React from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Pressable } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { theme } from '../../styles/theme';
 
 /**
  * ChatMenu - Dropdown menu overlay for chat actions
@@ -15,13 +16,18 @@ const ChatMenu = ({ visible, onClose, onAction, isMuted }) => {
   if (!visible) return null;
 
   const menuItems = [
-    { id: 'search', icon: 'search', label: 'Search in conversation', color: '#333' },
-    { id: 'viewProfile', icon: 'person', label: 'View profile', color: '#333' },
+    {
+      id: 'search',
+      icon: 'search',
+      label: 'Search in conversation',
+      color: theme.colors.text.primary,
+    },
+    { id: 'viewProfile', icon: 'person', label: 'View profile', color: theme.colors.text.primary },
     {
       id: 'mute',
       icon: isMuted ? 'notifications' : 'notifications-off',
       label: isMuted ? 'Unmute notifications' : 'Mute notifications',
-      color: '#333',
+      color: theme.colors.text.primary,
     },
     { id: 'block', icon: 'ban', label: 'Block user', color: '#FF9800' },
     { id: 'unmatch', icon: 'heart-dislike', label: 'Unmatch', color: '#F44336' },
@@ -70,7 +76,7 @@ const styles = StyleSheet.create({
     position: 'absolute',
     top: 60,
     right: 16,
-    backgroundColor: '#fff',
+    backgroundColor: theme.colors.background.primary,
     borderRadius: 12,
     paddingVertical: 8,
     minWidth: 220,
@@ -86,7 +92,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 12,
     borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: '#f0f0f0',
+    borderBottomColor: theme.colors.background.tertiary,
   },
   menuItemLast: {
     borderBottomWidth: 0,

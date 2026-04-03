@@ -344,7 +344,7 @@ const FullscreenSwipeableCard = ({
           >
             <Image source={{ uri: section.data }} style={styles.sectionPhoto} resizeMode="cover" />
             <View style={styles.photoExpandHint}>
-              <Ionicons name="expand-outline" size={20} color="#fff" />
+              <Ionicons name="expand-outline" size={20} color={theme.colors.text.white} />
             </View>
           </Pressable>
         );
@@ -469,7 +469,10 @@ const FullscreenSwipeableCard = ({
           />
 
           {/* Gradient overlay at bottom of hero */}
-          <LinearGradient colors={['transparent', 'rgba(0,0,0,0.7)']} style={styles.heroGradient} />
+          <LinearGradient
+            colors={['transparent', theme.colors.overlay.heavy]}
+            style={styles.heroGradient}
+          />
 
           {/* Name overlay on hero */}
           <View style={styles.heroInfo}>
@@ -480,7 +483,7 @@ const FullscreenSwipeableCard = ({
             <View style={styles.heroDetails}>
               {profile.distance !== null && profile.distance !== undefined && (
                 <View style={styles.heroDetailItem}>
-                  <Ionicons name="location" size={14} color="#fff" />
+                  <Ionicons name="location" size={14} color={theme.colors.text.white} />
                   <Text style={styles.heroDetailText}>
                     {formatDistanceAway(profile.distance, 'miles')}
                   </Text>
@@ -488,7 +491,7 @@ const FullscreenSwipeableCard = ({
               )}
               {profile.profession && (
                 <View style={styles.heroDetailItem}>
-                  <Ionicons name="briefcase" size={14} color="#fff" />
+                  <Ionicons name="briefcase" size={14} color={theme.colors.text.white} />
                   <Text style={styles.heroDetailText}>{profile.profession}</Text>
                 </View>
               )}
@@ -557,7 +560,7 @@ const styles = StyleSheet.create({
     fontSize: 32,
     fontWeight: theme.typography.weights.bold,
     color: theme.colors.text.white,
-    textShadowColor: 'rgba(0,0,0,0.5)',
+    textShadowColor: theme.colors.text.shadow,
     textShadowOffset: { width: 0, height: 1 },
     textShadowRadius: 4,
   },
@@ -576,7 +579,7 @@ const styles = StyleSheet.create({
   heroDetailText: {
     fontSize: theme.typography.sizes.md,
     color: theme.colors.text.white,
-    textShadowColor: 'rgba(0,0,0,0.5)',
+    textShadowColor: theme.colors.text.shadow,
     textShadowOffset: { width: 0, height: 1 },
     textShadowRadius: 3,
   },
@@ -594,7 +597,7 @@ const styles = StyleSheet.create({
     position: 'absolute',
     bottom: theme.spacing.md,
     right: theme.spacing.md,
-    backgroundColor: 'rgba(0,0,0,0.5)',
+    backgroundColor: theme.colors.overlay.medium,
     borderRadius: theme.borderRadius.xxl,
     padding: theme.spacing.sm,
   },

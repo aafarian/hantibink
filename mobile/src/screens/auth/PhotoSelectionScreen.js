@@ -179,7 +179,7 @@ const PhotoSelectionScreen = ({ navigation, route }) => {
       <ScrollView contentContainerStyle={styles.scrollContent}>
         <View style={styles.header}>
           <TouchableOpacity style={styles.backButton} onPress={() => navigation.goBack()}>
-            <MaterialIcons name="arrow-back" size={24} color="#333" />
+            <MaterialIcons name="arrow-back" size={24} color={theme.colors.text.primary} />
           </TouchableOpacity>
           <Text style={styles.title}>Step 2: Add Photos</Text>
           <View style={styles.placeholder} />
@@ -205,7 +205,7 @@ const PhotoSelectionScreen = ({ navigation, route }) => {
                 <MaterialIcons
                   name="add-photo-alternate"
                   size={24}
-                  color={remainingSlots <= 0 ? '#999' : theme.colors.secondary}
+                  color={remainingSlots <= 0 ? theme.colors.text.muted : theme.colors.secondary}
                 />
                 <Text style={[styles.addButtonText, remainingSlots <= 0 && styles.disabledText]}>
                   {photos.length === 0
@@ -226,7 +226,7 @@ const PhotoSelectionScreen = ({ navigation, route }) => {
                     style={styles.removeButton}
                     onPress={() => removePhoto(photo.id)}
                   >
-                    <MaterialIcons name="close" size={20} color="#fff" />
+                    <MaterialIcons name="close" size={20} color={theme.colors.text.white} />
                   </TouchableOpacity>
                   {/* Cropped indicator */}
                   <View style={styles.croppedBadge}>
@@ -271,7 +271,7 @@ const PhotoSelectionScreen = ({ navigation, route }) => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#fff',
+    backgroundColor: theme.colors.background.primary,
   },
   scrollContent: {
     flexGrow: 1,
@@ -291,7 +291,7 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 18,
     fontWeight: 'bold',
-    color: '#333',
+    color: theme.colors.text.primary,
   },
   placeholder: {
     width: 40,
@@ -302,13 +302,13 @@ const styles = StyleSheet.create({
   },
   subtitle: {
     fontSize: 16,
-    color: '#333',
+    color: theme.colors.text.primary,
     marginBottom: 5,
     fontWeight: '500',
   },
   requirement: {
     fontSize: 14,
-    color: '#666',
+    color: theme.colors.text.secondary,
     marginBottom: 30,
   },
   addButton: {
@@ -335,7 +335,7 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   disabledText: {
-    color: '#999',
+    color: theme.colors.text.muted,
   },
   photoGrid: {
     flexDirection: 'row',
@@ -383,12 +383,12 @@ const styles = StyleSheet.create({
   instructionsTitle: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#333',
+    color: theme.colors.text.primary,
     marginBottom: 10,
   },
   instructionText: {
     fontSize: 14,
-    color: '#666',
+    color: theme.colors.text.secondary,
     marginBottom: 5,
     lineHeight: 20,
   },
@@ -407,7 +407,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#E8E8E8',
   },
   continueButtonText: {
-    color: '#fff',
+    color: theme.colors.text.white,
     fontSize: 16,
     fontWeight: 'bold',
   },

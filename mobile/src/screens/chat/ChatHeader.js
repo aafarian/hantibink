@@ -4,6 +4,7 @@ import ReanimatedAnimated from 'react-native-reanimated';
 import { Ionicons } from '@expo/vector-icons';
 import { getUserProfilePhoto, getUserDisplayName } from '../../utils/profileHelpers';
 import { formatLastSeen } from '../../utils/timeHelpers';
+import { theme } from '../../styles/theme';
 import {
   createSharedTag,
   SharedTagPrefixes,
@@ -43,7 +44,7 @@ const ChatHeader = ({
   return (
     <View style={styles.header}>
       <TouchableOpacity onPress={onBack} style={styles.backButton}>
-        <Ionicons name="arrow-back" size={24} color="#333" />
+        <Ionicons name="arrow-back" size={24} color={theme.colors.text.primary} />
       </TouchableOpacity>
 
       <TouchableOpacity style={styles.headerProfile} onPress={onProfilePress}>
@@ -91,7 +92,7 @@ const ChatHeader = ({
       </TouchableOpacity>
 
       <TouchableOpacity style={styles.menuButton} onPress={onMenuPress}>
-        <Ionicons name="ellipsis-vertical" size={20} color="#333" />
+        <Ionicons name="ellipsis-vertical" size={20} color={theme.colors.text.primary} />
       </TouchableOpacity>
     </View>
   );
@@ -104,8 +105,8 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 12,
     borderBottomWidth: 1,
-    borderBottomColor: '#f0f0f0',
-    backgroundColor: '#fff',
+    borderBottomColor: theme.colors.background.tertiary,
+    backgroundColor: theme.colors.background.primary,
   },
   backButton: {
     marginRight: 12,
@@ -127,7 +128,7 @@ const styles = StyleSheet.create({
   headerName: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#333',
+    color: theme.colors.text.primary,
   },
   statusRow: {
     flexDirection: 'row',
@@ -157,7 +158,7 @@ const styles = StyleSheet.create({
   },
   statusText: {
     fontSize: 13,
-    color: '#666',
+    color: theme.colors.text.secondary,
   },
   menuButton: {
     padding: 8,

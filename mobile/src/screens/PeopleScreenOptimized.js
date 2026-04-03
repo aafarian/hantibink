@@ -598,7 +598,12 @@ const PeopleScreenOptimized = ({ navigation }) => {
             style={styles.completeProfileButton}
             onPress={() => setShowSetupModal(true)}
           >
-            <Ionicons name="sparkles" size={20} color="#fff" style={{ marginRight: 8 }} />
+            <Ionicons
+              name="sparkles"
+              size={20}
+              color={theme.colors.text.white}
+              style={{ marginRight: 8 }}
+            />
             <Text style={styles.completeProfileButtonText}>Complete Profile</Text>
           </TouchableOpacity>
         </View>
@@ -625,7 +630,7 @@ const PeopleScreenOptimized = ({ navigation }) => {
     return (
       <SafeAreaView style={styles.container}>
         <View style={styles.noPhotosContainer}>
-          <Ionicons name="camera-outline" size={80} color="#ccc" />
+          <Ionicons name="camera-outline" size={80} color={theme.colors.border.medium} />
           <Text style={styles.noPhotosTitle}>Add photos to start swiping!</Text>
           <Text style={styles.noPhotosSubtitle}>
             You need at least one photo to be visible to others and start discovering matches.
@@ -680,7 +685,7 @@ const PeopleScreenOptimized = ({ navigation }) => {
           })
         }
       >
-        <Ionicons name="options-outline" size={24} color="#666" />
+        <Ionicons name="options-outline" size={24} color={theme.colors.text.secondary} />
       </TouchableOpacity>
 
       {/* Fullscreen Card Stack */}
@@ -810,7 +815,7 @@ const PeopleScreenOptimized = ({ navigation }) => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f8f9fa',
+    backgroundColor: theme.colors.background.secondary,
   },
   filterButton: {
     position: 'absolute',
@@ -888,7 +893,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     paddingHorizontal: 40,
-    backgroundColor: '#fff',
+    backgroundColor: theme.colors.background.primary,
   },
   incompleteIconContainer: {
     width: 120,
@@ -902,12 +907,12 @@ const styles = StyleSheet.create({
   incompleteTitle: {
     fontSize: 28,
     fontWeight: 'bold',
-    color: '#333',
+    color: theme.colors.text.primary,
     marginBottom: 12,
   },
   incompleteSubtitle: {
     fontSize: 16,
-    color: '#666',
+    color: theme.colors.text.secondary,
     textAlign: 'center',
     lineHeight: 24,
     marginBottom: 32,
@@ -926,7 +931,7 @@ const styles = StyleSheet.create({
     elevation: 5,
   },
   completeProfileButtonText: {
-    color: '#fff',
+    color: theme.colors.text.white,
     fontSize: 18,
     fontWeight: '600',
   },
@@ -938,7 +943,7 @@ const styles = StyleSheet.create({
   },
   noPhotosSubtitle: {
     fontSize: 16,
-    color: '#666',
+    color: theme.colors.text.secondary,
     textAlign: 'center',
     marginBottom: 30,
   },
@@ -949,7 +954,7 @@ const styles = StyleSheet.create({
     borderRadius: 25,
   },
   addPhotosButtonText: {
-    color: '#fff',
+    color: theme.colors.text.white,
     fontSize: 16,
     fontWeight: '600',
   },

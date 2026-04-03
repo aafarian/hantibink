@@ -216,7 +216,7 @@ const LoginScreen = ({ navigation }) => {
 
   return (
     <SafeAreaView style={styles.safeArea} edges={['top']}>
-      <StatusBar backgroundColor="#f8f9fa" barStyle="dark-content" />
+      <StatusBar backgroundColor={theme.colors.background.secondary} barStyle="dark-content" />
       <KeyboardAwareScrollView
         ref={scrollViewRef}
         style={styles.container}
@@ -301,7 +301,11 @@ const LoginScreen = ({ navigation }) => {
                 style={styles.passwordToggle}
                 onPress={() => setShowPassword(!showPassword)}
               >
-                <Ionicons name={showPassword ? 'eye-off' : 'eye'} size={20} color="#666" />
+                <Ionicons
+                  name={showPassword ? 'eye-off' : 'eye'}
+                  size={20}
+                  color={theme.colors.text.secondary}
+                />
               </TouchableOpacity>
             </View>
             {fieldErrors.password && <Text style={styles.errorText}>{fieldErrors.password}</Text>}
@@ -318,7 +322,7 @@ const LoginScreen = ({ navigation }) => {
               disabled={loading}
             >
               {loading ? (
-                <ActivityIndicator size="small" color="#fff" />
+                <ActivityIndicator size="small" color={theme.colors.text.white} />
               ) : (
                 <Text style={styles.loginButtonText}>Sign In</Text>
               )}
@@ -336,7 +340,7 @@ const LoginScreen = ({ navigation }) => {
             onPress={handleGoogleSignIn}
             disabled={loading}
           >
-            <Ionicons name="logo-google" size={20} color="#666" />
+            <Ionicons name="logo-google" size={20} color={theme.colors.text.secondary} />
             <Text style={styles.googleButtonText}>Continue with Google</Text>
           </TouchableOpacity>
         </View>
@@ -358,7 +362,7 @@ const LoginScreen = ({ navigation }) => {
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: '#f8f9fa',
+    backgroundColor: theme.colors.background.secondary,
   },
   container: {
     flex: 1,
@@ -377,12 +381,12 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 32,
     fontWeight: 'bold',
-    color: '#333',
+    color: theme.colors.text.primary,
     marginBottom: 10,
   },
   subtitle: {
     fontSize: 16,
-    color: '#666',
+    color: theme.colors.text.secondary,
     textAlign: 'center',
   },
   form: {
@@ -391,12 +395,12 @@ const styles = StyleSheet.create({
   inputContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#fff',
+    backgroundColor: theme.colors.background.primary,
     borderRadius: 12,
     paddingHorizontal: 16,
     paddingVertical: 12,
     borderWidth: 1,
-    borderColor: '#e0e0e0',
+    borderColor: theme.colors.border.light,
   },
   inputIcon: {
     marginRight: 12,
@@ -404,7 +408,7 @@ const styles = StyleSheet.create({
   input: {
     flex: 1,
     fontSize: 16,
-    color: '#333',
+    color: theme.colors.text.primary,
   },
   passwordToggle: {
     padding: 4,
@@ -428,7 +432,7 @@ const styles = StyleSheet.create({
     opacity: 0.6,
   },
   loginButtonText: {
-    color: '#fff',
+    color: theme.colors.text.white,
     fontSize: 16,
     fontWeight: 'bold',
   },
@@ -440,22 +444,22 @@ const styles = StyleSheet.create({
   dividerLine: {
     flex: 1,
     height: 1,
-    backgroundColor: '#e0e0e0',
+    backgroundColor: theme.colors.border.light,
   },
   dividerText: {
     marginHorizontal: 16,
-    color: '#666',
+    color: theme.colors.text.secondary,
     fontSize: 14,
   },
   googleButton: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#fff',
+    backgroundColor: theme.colors.background.primary,
     borderRadius: 12,
     paddingVertical: 16,
     borderWidth: 1,
-    borderColor: '#e0e0e0',
+    borderColor: theme.colors.border.light,
   },
   googleButtonDisabled: {
     opacity: 0.6,
@@ -463,7 +467,7 @@ const styles = StyleSheet.create({
   googleButtonText: {
     marginLeft: 12,
     fontSize: 16,
-    color: '#333',
+    color: theme.colors.text.primary,
   },
   footer: {
     flexDirection: 'row',
@@ -471,7 +475,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   footerText: {
-    color: '#666',
+    color: theme.colors.text.secondary,
     fontSize: 14,
   },
   footerLink: {
@@ -511,7 +515,7 @@ const styles = StyleSheet.create({
   },
   errorMessage: {
     flex: 1,
-    color: '#D32F2F',
+    color: theme.colors.status.error,
     fontSize: 14,
     lineHeight: 18,
   },

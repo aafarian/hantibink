@@ -16,7 +16,7 @@ import {
 } from 'react-native';
 import * as Haptics from 'expo-haptics';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
-import { useIsFocused } from '@react-navigation/native';
+import { useIsFocused, useFocusEffect } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../contexts/AuthContext';
 import { useToast } from '../contexts/ToastContext';
@@ -115,10 +115,10 @@ const ChatScreen = ({ route, navigation }) => {
   const shockwaveScale = useRef(new Animated.Value(1)).current;
   const shockwaveOpacity = useRef(new Animated.Value(0.6)).current;
 
-  // Shockwave animation for online dot
+  // Shockwave animation for online dot — only run when screen is focused
   useEffect(() => {
     let shockwaveAnimation;
-    if (onlineStatus && isPremium) {
+    if (onlineStatus && isPremium && isFocused) {
       shockwaveAnimation = Animated.loop(
         Animated.parallel([
           Animated.sequence([
@@ -157,7 +157,7 @@ const ChatScreen = ({ route, navigation }) => {
         shockwaveAnimation.stop();
       }
     };
-  }, [onlineStatus, isPremium, shockwaveScale, shockwaveOpacity]);
+  }, [onlineStatus, isPremium, isFocused, shockwaveScale, shockwaveOpacity]);
 
   // Keep focus ref in sync for callbacks
   useEffect(() => {
@@ -212,26 +212,34 @@ const ChatScreen = ({ route, navigation }) => {
     };
   }, []);
 
-  // Load messages on mount
+  // One-time setup on mount (analytics, notifications)
   useEffect(() => {
     loadMessages();
-    joinChatRoom();
-    // Clear any pending notification for this conversation
     clearNotificationForMatch(match.matchId);
-    // Track chat opened in analytics
     trackChatOpened('matches_list');
-    // Don't mark as read on mount - wait until we have messages
-
-    return () => {
-      leaveChatRoom();
-      // Clear typing timeout on unmount
-      if (otherUserTypingTimeoutRef.current) {
-        clearTimeout(otherUserTypingTimeoutRef.current);
-        otherUserTypingTimeoutRef.current = null;
-      }
-    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [match.matchId]);
+
+  // Socket listeners — subscribe on focus, unsubscribe on blur/unmount.
+  // This prevents background state updates from causing scroll jitter on other tabs.
+  useFocusEffect(
+    useCallback(() => {
+      const unsubscribeListeners = joinChatRoom();
+      // Refresh messages when returning to this screen
+      loadMessages();
+
+      return () => {
+        unsubscribeListeners?.();
+        leaveChatRoom();
+        if (otherUserTypingTimeoutRef.current) {
+          clearTimeout(otherUserTypingTimeoutRef.current);
+          otherUserTypingTimeoutRef.current = null;
+        }
+        setOtherUserTyping(false);
+      };
+      // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [match.matchId])
+  );
 
   // Initialize online status from match data
   useEffect(() => {
@@ -244,33 +252,36 @@ const ChatScreen = ({ route, navigation }) => {
     }
   }, [match.otherUser?.lastActive]);
 
-  // Track keyboard state and handle Android back button
-  useEffect(() => {
-    const keyboardDidShowListener = Keyboard.addListener('keyboardDidShow', () => {
-      setKeyboardVisible(true);
-    });
+  // Track keyboard state and handle Android back button — only when focused
+  // to prevent background re-renders when typing on other screens
+  useFocusEffect(
+    useCallback(() => {
+      const keyboardDidShowListener = Keyboard.addListener('keyboardDidShow', () => {
+        setKeyboardVisible(true);
+      });
 
-    const keyboardDidHideListener = Keyboard.addListener('keyboardDidHide', () => {
-      setKeyboardVisible(false);
-    });
+      const keyboardDidHideListener = Keyboard.addListener('keyboardDidHide', () => {
+        setKeyboardVisible(false);
+      });
 
-    // Handle Android back button for reaction picker
-    const backHandler = BackHandler.addEventListener('hardwareBackPress', () => {
-      if (showReactionPicker !== null) {
-        Logger.info('Back button pressed, closing reaction picker');
-        setShowReactionPicker(null);
-        setLongPressMessage(null);
-        return true; // Prevent default back behavior
-      }
-      return false; // Let default back behavior happen
-    });
+      const backHandler = BackHandler.addEventListener('hardwareBackPress', () => {
+        if (showReactionPicker !== null) {
+          Logger.info('Back button pressed, closing reaction picker');
+          setShowReactionPicker(null);
+          setLongPressMessage(null);
+          return true;
+        }
+        return false;
+      });
 
-    return () => {
-      keyboardDidShowListener.remove();
-      keyboardDidHideListener.remove();
-      backHandler.remove();
-    };
-  }, [showReactionPicker]);
+      return () => {
+        keyboardDidShowListener.remove();
+        keyboardDidHideListener.remove();
+        backHandler.remove();
+        setKeyboardVisible(false);
+      };
+    }, [showReactionPicker])
+  );
 
   // Note: Send button animation is now handled by AnimatedSendButton component
 
@@ -332,16 +343,24 @@ const ChatScreen = ({ route, navigation }) => {
         handleNewMessage(data);
       } else if (event === 'message-reaction' && data.matchId === match.matchId) {
         handleMessageReaction(data);
-      } else if (event === 'user-typing' && data.matchId === match.matchId) {
+      } else if (
+        event === 'user-typing' &&
+        data.matchId === match.matchId &&
+        isFocusedRef.current
+      ) {
         handleUserTyping(data);
-      } else if (event === 'messages-read' && data.matchId === match.matchId) {
+      } else if (
+        event === 'messages-read' &&
+        data.matchId === match.matchId &&
+        isFocusedRef.current
+      ) {
         handleMessagesRead(data);
       }
     });
 
-    // Check online status
+    // Check online status — skip state updates when screen is not focused
     const unsubscribeOnline = SocketService.onUserStatus((userId, isOnline, timestamp) => {
-      if (userId === match.otherUser.id) {
+      if (userId === match.otherUser.id && isFocusedRef.current) {
         setOnlineStatus(isOnline);
         if (!isOnline && timestamp) {
           setLastSeen(new Date(timestamp));
@@ -1082,7 +1101,6 @@ const ChatScreen = ({ route, navigation }) => {
           style={styles.container}
           behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
           keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : StatusBar.currentHeight}
-          enabled={true}
         >
           {/* Header */}
           <ChatHeader
@@ -1120,6 +1138,13 @@ const ChatScreen = ({ route, navigation }) => {
                 <Text style={styles.retryButtonText}>Retry</Text>
               </TouchableOpacity>
             </View>
+          ) : !isFocused ? (
+            // When the screen is in the background (user switched tabs), render a
+            // lightweight placeholder instead of the inverted FlatList. The scaleY:-1
+            // transform on inverted FlatLists causes GPU compositor interference with
+            // scroll views on other tabs. Messages stay in state — the FlatList
+            // re-renders instantly when the user returns.
+            <View style={styles.chatContainer} />
           ) : (
             <>
               <FlatList
@@ -1168,7 +1193,7 @@ const ChatScreen = ({ route, navigation }) => {
                 maxToRenderPerBatch={10}
                 windowSize={7}
                 updateCellsBatchingPeriod={50}
-                removeClippedSubviews={false}
+                removeClippedSubviews={Platform.OS === 'android'}
               />
 
               {/* Scroll to bottom FAB - hidden when profile sheet or reactions panel is open */}
@@ -1256,18 +1281,18 @@ const ChatScreen = ({ route, navigation }) => {
             backdrop: '#00000080',
             knob: theme.colors.primary,
             category: {
-              icon: '#666',
+              icon: theme.colors.text.secondary,
               iconActive: theme.colors.primary,
-              container: '#fff',
+              container: theme.colors.background.primary,
               containerActive: 'rgba(211, 47, 47, 0.15)',
             },
             search: {
               background: '#f5f5f5',
-              placeholder: '#999',
-              text: '#333',
+              placeholder: theme.colors.text.muted,
+              text: theme.colors.text.primary,
             },
-            header: '#999',
-            skinTonesContainer: '#fff',
+            header: theme.colors.text.muted,
+            skinTonesContainer: theme.colors.background.primary,
           }}
           enableSearchBar={true}
           enableRecentlyUsed={true}
@@ -1325,11 +1350,11 @@ const ChatScreen = ({ route, navigation }) => {
 const styles = StyleSheet.create({
   wrapper: {
     flex: 1,
-    backgroundColor: '#fff', // White background
+    backgroundColor: theme.colors.background.primary, // White background
   },
   container: {
     flex: 1,
-    backgroundColor: '#fff', // White background for chat content
+    backgroundColor: theme.colors.background.primary, // White background for chat content
   },
   chatContainer: {
     flex: 1,

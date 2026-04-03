@@ -123,7 +123,7 @@ const OAuthCompleteScreen = ({ route }) => {
           <View style={styles.dateSection}>
             <Text style={styles.label}>Date of Birth</Text>
             <TouchableOpacity style={styles.dateButton} onPress={() => setShowDatePicker(true)}>
-              <Ionicons name="calendar" size={20} color="#666" />
+              <Ionicons name="calendar" size={20} color={theme.colors.text.secondary} />
               <Text style={styles.dateText}>{formatDate(birthDate)}</Text>
               <Text style={styles.ageText}>Age: {calculateAge(birthDate)}</Text>
             </TouchableOpacity>
@@ -146,7 +146,7 @@ const OAuthCompleteScreen = ({ route }) => {
             disabled={loading || calculateAge(birthDate) < 18}
           >
             {loading ? (
-              <ActivityIndicator size="small" color="#fff" />
+              <ActivityIndicator size="small" color={theme.colors.text.white} />
             ) : (
               <Text style={styles.continueButtonText}>Continue</Text>
             )}
@@ -164,7 +164,7 @@ const OAuthCompleteScreen = ({ route }) => {
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: '#f8f9fa',
+    backgroundColor: theme.colors.background.secondary,
   },
   container: {
     flex: 1,
@@ -182,12 +182,12 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 28,
     fontWeight: 'bold',
-    color: '#333',
+    color: theme.colors.text.primary,
     marginBottom: 10,
   },
   subtitle: {
     fontSize: 16,
-    color: '#666',
+    color: theme.colors.text.secondary,
     textAlign: 'center',
     paddingHorizontal: 20,
   },
@@ -206,7 +206,7 @@ const styles = StyleSheet.create({
     flex: 1,
     marginLeft: 12,
     fontSize: 14,
-    color: '#666',
+    color: theme.colors.text.secondary,
     lineHeight: 20,
   },
   dateSection: {
@@ -215,28 +215,28 @@ const styles = StyleSheet.create({
   label: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#333',
+    color: theme.colors.text.primary,
     marginBottom: 12,
   },
   dateButton: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#fff',
+    backgroundColor: theme.colors.background.primary,
     borderRadius: 12,
     paddingVertical: 16,
     paddingHorizontal: 16,
     borderWidth: 1,
-    borderColor: '#e0e0e0',
+    borderColor: theme.colors.border.light,
   },
   dateText: {
     flex: 1,
     marginLeft: 12,
     fontSize: 16,
-    color: '#333',
+    color: theme.colors.text.primary,
   },
   ageText: {
     fontSize: 14,
-    color: '#666',
+    color: theme.colors.text.secondary,
   },
   continueButton: {
     backgroundColor: theme.colors.primary,
@@ -249,7 +249,7 @@ const styles = StyleSheet.create({
     opacity: 0.6,
   },
   continueButtonText: {
-    color: '#fff',
+    color: theme.colors.text.white,
     fontSize: 16,
     fontWeight: 'bold',
   },

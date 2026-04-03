@@ -1172,7 +1172,7 @@ const ProfileSetupModal = ({ visible, onClose, onComplete, userProfile }) => {
 const styles = StyleSheet.create({
   modalOverlay: {
     flex: 1,
-    backgroundColor: theme.colors.background.overlay,
+    backgroundColor: theme.colors.overlay.medium,
     justifyContent: 'flex-end',
   },
   backdrop: {

@@ -498,9 +498,18 @@ const ProfileBottomSheet = forwardRef(
                     onPress={button.onPress}
                   >
                     {button.icon && (
-                      <Ionicons name={button.icon} size={20} color={button.color || '#fff'} />
+                      <Ionicons
+                        name={button.icon}
+                        size={20}
+                        color={button.color || theme.colors.text.white}
+                      />
                     )}
-                    <Text style={[styles.actionButtonText, { color: button.textColor || '#fff' }]}>
+                    <Text
+                      style={[
+                        styles.actionButtonText,
+                        { color: button.textColor || theme.colors.text.white },
+                      ]}
+                    >
                       {button.label}
                     </Text>
                   </TouchableOpacity>
