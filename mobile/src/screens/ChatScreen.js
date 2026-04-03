@@ -1092,7 +1092,6 @@ const ChatScreen = ({ route, navigation }) => {
 
   return (
     <>
-      <StatusBar backgroundColor={theme.colors.background.primary} barStyle="dark-content" />
       {Platform.OS === 'android' && (
         <View
           style={{

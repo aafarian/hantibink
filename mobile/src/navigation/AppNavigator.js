@@ -61,7 +61,7 @@ const PeopleStack = () => {
             elevation: 0,
             shadowOpacity: 0,
           },
-          headerTintColor: theme.colors.primary,
+          headerTintColor: theme.colors.text.primary,
           headerTitleStyle: {
             fontWeight: 'bold',
             fontFamily: theme.typography.fontFamily.bold,
@@ -95,7 +95,7 @@ const ProfileStack = () => {
             elevation: 0,
             shadowOpacity: 0,
           },
-          headerTintColor: theme.colors.primary,
+          headerTintColor: theme.colors.text.primary,
           headerTitleStyle: {
             fontWeight: 'bold',
             fontFamily: theme.typography.fontFamily.bold,
@@ -158,7 +158,7 @@ const MessagesStack = () => {
             elevation: 0,
             shadowOpacity: 0,
           },
-          headerTintColor: theme.colors.primary,
+          headerTintColor: theme.colors.text.primary,
           headerTitleStyle: {
             fontWeight: 'bold',
             fontFamily: theme.typography.fontFamily.bold,
@@ -231,7 +231,7 @@ const MainNavigator = () => {
               elevation: 0,
               shadowOpacity: 0,
             },
-            headerTintColor: theme.colors.primary,
+            headerTintColor: theme.colors.text.primary,
             headerTitleStyle: {
               fontWeight: 'bold',
               fontFamily: theme.typography.fontFamily.bold,
