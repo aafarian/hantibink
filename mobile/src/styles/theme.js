@@ -63,10 +63,10 @@ export const theme = {
   },
   typography: {
     fontFamily: {
-      regular: 'NunitoSans_400Regular',
-      medium: 'NunitoSans_500Medium',
-      semibold: 'NunitoSans_600SemiBold',
-      bold: 'NunitoSans_700Bold',
+      regular: 'Outfit_400Regular',
+      medium: 'Outfit_500Medium',
+      semibold: 'Outfit_600SemiBold',
+      bold: 'Outfit_700Bold',
     },
     sizes: {
       xs: 10,
