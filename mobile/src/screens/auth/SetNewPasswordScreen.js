@@ -285,6 +285,7 @@ const styles = StyleSheet.create({
   },
   title: {
     fontSize: 28,
+    fontFamily: theme.typography.fontFamily.bold,
     fontWeight: 'bold',
     color: theme.colors.text.primary,
     textAlign: 'center',
@@ -292,6 +293,7 @@ const styles = StyleSheet.create({
   },
   subtitle: {
     fontSize: 16,
+    fontFamily: theme.typography.fontFamily.regular,
     color: theme.colors.text.secondary,
     textAlign: 'center',
     lineHeight: 24,
@@ -314,6 +316,7 @@ const styles = StyleSheet.create({
   input: {
     flex: 1,
     fontSize: 16,
+    fontFamily: theme.typography.fontFamily.regular,
     color: theme.colors.text.primary,
   },
   strengthContainer: {
@@ -334,6 +337,7 @@ const styles = StyleSheet.create({
   },
   strengthLabel: {
     fontSize: 12,
+    fontFamily: theme.typography.fontFamily.semibold,
     fontWeight: '600',
     width: 80,
     textAlign: 'right',
@@ -346,6 +350,7 @@ const styles = StyleSheet.create({
   },
   matchText: {
     fontSize: 13,
+    fontFamily: theme.typography.fontFamily.medium,
     fontWeight: '500',
   },
   resetButton: {
@@ -362,6 +367,7 @@ const styles = StyleSheet.create({
   resetButtonText: {
     color: theme.colors.text.white,
     fontSize: 16,
+    fontFamily: theme.typography.fontFamily.bold,
     fontWeight: 'bold',
   },
   requirements: {
@@ -373,6 +379,7 @@ const styles = StyleSheet.create({
   },
   requirementsTitle: {
     fontSize: 14,
+    fontFamily: theme.typography.fontFamily.semibold,
     fontWeight: '600',
     color: theme.colors.text.primary,
     marginBottom: 12,
@@ -385,6 +392,7 @@ const styles = StyleSheet.create({
   },
   requirementText: {
     fontSize: 13,
+    fontFamily: theme.typography.fontFamily.regular,
     color: theme.colors.text.secondary,
   },
 });

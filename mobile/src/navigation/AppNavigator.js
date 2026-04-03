@@ -60,6 +60,7 @@ const PeopleStack = () => {
           headerTintColor: theme.colors.text.white,
           headerTitleStyle: {
             fontWeight: 'bold',
+            fontFamily: theme.typography.fontFamily.bold,
           },
         }}
       />
@@ -88,6 +89,7 @@ const ProfileStack = () => {
           headerTintColor: theme.colors.text.white,
           headerTitleStyle: {
             fontWeight: 'bold',
+            fontFamily: theme.typography.fontFamily.bold,
           },
         }}
       />
@@ -145,6 +147,7 @@ const MessagesStack = () => {
           headerTintColor: theme.colors.text.white,
           headerTitleStyle: {
             fontWeight: 'bold',
+            fontFamily: theme.typography.fontFamily.bold,
           },
         }}
       />
@@ -212,6 +215,7 @@ const MainNavigator = () => {
             headerTintColor: theme.colors.text.white,
             headerTitleStyle: {
               fontWeight: 'bold',
+              fontFamily: theme.typography.fontFamily.bold,
             },
           }}
         />

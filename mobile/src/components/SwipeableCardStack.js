@@ -364,17 +364,20 @@ const styles = StyleSheet.create({
   noMoreText: {
     fontSize: theme.typography.sizes.xxl,
     fontWeight: theme.typography.weights.bold,
+    fontFamily: theme.typography.fontFamily.bold,
     color: theme.colors.text.primary,
     marginTop: theme.spacing.xl,
   },
   noMoreSubtext: {
     fontSize: theme.typography.sizes.lg,
+    fontFamily: theme.typography.fontFamily.regular,
     color: theme.colors.gray[600],
     marginTop: theme.spacing.sm,
     textAlign: 'center',
   },
   loadingText: {
     fontSize: theme.typography.sizes.xl,
+    fontFamily: theme.typography.fontFamily.regular,
     color: theme.colors.gray[600],
     marginTop: theme.spacing.xl,
   },

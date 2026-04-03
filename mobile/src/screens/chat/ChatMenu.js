@@ -101,6 +101,7 @@ const styles = StyleSheet.create({
     fontSize: 15,
     marginLeft: 12,
     fontWeight: '400',
+    fontFamily: theme.typography.fontFamily.regular,
   },
 });
 

@@ -72,12 +72,14 @@ const styles = StyleSheet.create({
   replyPreviewName: {
     fontSize: 13,
     fontWeight: '600',
+    fontFamily: theme.typography.fontFamily.semibold,
     color: theme.colors.primary,
     marginBottom: 2,
   },
   replyPreviewMessage: {
     fontSize: 14,
     color: theme.colors.text.secondary,
+    fontFamily: theme.typography.fontFamily.regular,
   },
   replyPreviewClose: {
     padding: 4,

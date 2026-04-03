@@ -244,6 +244,7 @@ const styles = {
   name: {
     fontSize: theme.typography.sizes.lg,
     fontWeight: theme.typography.weights.bold,
+    fontFamily: theme.typography.fontFamily.bold,
     color: theme.colors.text.primary,
   },
   onlineContainer: {
@@ -269,11 +270,13 @@ const styles = {
   },
   location: {
     fontSize: theme.typography.sizes.md,
+    fontFamily: theme.typography.fontFamily.regular,
     color: theme.colors.text.secondary,
     marginBottom: theme.spacing.xs,
   },
   bio: {
     fontSize: theme.typography.sizes.sm,
+    fontFamily: theme.typography.fontFamily.regular,
     color: theme.colors.text.muted,
   },
   messageButton: {
@@ -290,6 +293,7 @@ const styles = {
     fontSize: theme.typography.sizes.sm,
     marginLeft: theme.spacing.xs,
     fontWeight: theme.typography.weights.medium,
+    fontFamily: theme.typography.fontFamily.medium,
   },
   unreadBadge: {
     backgroundColor: theme.colors.primary,
@@ -304,14 +308,17 @@ const styles = {
     color: theme.colors.text.white,
     fontSize: 12,
     fontWeight: theme.typography.weights.bold,
+    fontFamily: theme.typography.fontFamily.bold,
   },
   lastMessage: {
     fontSize: theme.typography.sizes.md,
+    fontFamily: theme.typography.fontFamily.regular,
     color: theme.colors.text.secondary,
     marginBottom: theme.spacing.xs,
   },
   unreadLastMessage: {
     fontWeight: theme.typography.weights.semibold,
+    fontFamily: theme.typography.fontFamily.semibold,
     color: theme.colors.text.primary,
   },
   typingText: {
@@ -320,6 +327,7 @@ const styles = {
   },
   lastMessageTime: {
     fontSize: theme.typography.sizes.sm,
+    fontFamily: theme.typography.fontFamily.regular,
     color: theme.colors.text.muted,
   },
 };

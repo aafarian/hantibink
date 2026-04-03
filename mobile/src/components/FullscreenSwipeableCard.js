@@ -559,6 +559,7 @@ const styles = StyleSheet.create({
   heroName: {
     fontSize: 32,
     fontWeight: theme.typography.weights.bold,
+    fontFamily: theme.typography.fontFamily.bold,
     color: theme.colors.text.white,
     textShadowColor: theme.colors.text.shadow,
     textShadowOffset: { width: 0, height: 1 },
@@ -566,6 +567,7 @@ const styles = StyleSheet.create({
   },
   heroAge: {
     fontWeight: theme.typography.weights.regular,
+    fontFamily: theme.typography.fontFamily.regular,
   },
   heroDetails: {
     marginTop: theme.spacing.sm,
@@ -578,6 +580,7 @@ const styles = StyleSheet.create({
   },
   heroDetailText: {
     fontSize: theme.typography.sizes.md,
+    fontFamily: theme.typography.fontFamily.regular,
     color: theme.colors.text.white,
     textShadowColor: theme.colors.text.shadow,
     textShadowOffset: { width: 0, height: 1 },
@@ -622,6 +625,7 @@ const styles = StyleSheet.create({
   sectionTitle: {
     fontSize: theme.typography.sizes.sm,
     fontWeight: theme.typography.weights.semibold,
+    fontFamily: theme.typography.fontFamily.semibold,
     color: theme.colors.gray[500],
     textTransform: 'uppercase',
     letterSpacing: 0.5,
@@ -630,12 +634,14 @@ const styles = StyleSheet.create({
   // Bio
   bioText: {
     fontSize: theme.typography.sizes.lg,
+    fontFamily: theme.typography.fontFamily.regular,
     lineHeight: 24,
     color: theme.colors.text.primary,
   },
   // Placeholder text for empty fields
   placeholderText: {
     fontSize: 15,
+    fontFamily: theme.typography.fontFamily.regular,
     lineHeight: 22,
     color: theme.colors.gray[500],
     fontStyle: 'italic',
@@ -644,6 +650,7 @@ const styles = StyleSheet.create({
     color: theme.colors.gray[400],
     fontStyle: 'italic',
     fontWeight: theme.typography.weights.regular,
+    fontFamily: theme.typography.fontFamily.regular,
   },
   // Info fields (label + value pairs)
   infoFieldsContainer: {
@@ -659,6 +666,7 @@ const styles = StyleSheet.create({
   infoLabel: {
     fontSize: theme.typography.sizes.sm,
     fontWeight: theme.typography.weights.semibold,
+    fontFamily: theme.typography.fontFamily.semibold,
     color: theme.colors.gray[500],
     textTransform: 'uppercase',
     letterSpacing: 0.5,
@@ -675,6 +683,7 @@ const styles = StyleSheet.create({
     fontSize: theme.typography.sizes.lg,
     color: theme.colors.gray[900],
     fontWeight: theme.typography.weights.medium,
+    fontFamily: theme.typography.fontFamily.medium,
     flex: 1,
   },
   // Chips for multi-select (languages, interests)
@@ -693,6 +702,7 @@ const styles = StyleSheet.create({
     fontSize: theme.typography.sizes.md,
     color: theme.colors.text.primary,
     fontWeight: theme.typography.weights.medium,
+    fontFamily: theme.typography.fontFamily.medium,
   },
   bottomSpacer: {
     height: 200,
@@ -712,6 +722,7 @@ const styles = StyleSheet.create({
   likeText: {
     fontSize: 40,
     fontWeight: '900',
+    fontFamily: theme.typography.fontFamily.bold,
     color: theme.colors.status.success,
     letterSpacing: 2,
   },
@@ -729,6 +740,7 @@ const styles = StyleSheet.create({
   nopeText: {
     fontSize: 40,
     fontWeight: '900',
+    fontFamily: theme.typography.fontFamily.bold,
     color: theme.colors.status.error,
     letterSpacing: 2,
   },

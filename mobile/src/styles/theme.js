@@ -62,6 +62,12 @@ export const theme = {
     xxl: 64,
   },
   typography: {
+    fontFamily: {
+      regular: 'NunitoSans_400Regular',
+      medium: 'NunitoSans_500Medium',
+      semibold: 'NunitoSans_600SemiBold',
+      bold: 'NunitoSans_700Bold',
+    },
     sizes: {
       xs: 10,
       sm: 12,
@@ -71,6 +77,11 @@ export const theme = {
       xxl: 20,
       xxxl: 24,
       huge: 32,
+    },
+    lineHeights: {
+      tight: 1.2,
+      normal: 1.5,
+      relaxed: 1.75,
     },
     weights: {
       normal: '400',

@@ -310,6 +310,7 @@ const styles = StyleSheet.create({
     borderRadius: theme.borderRadius.xxl,
   },
   text: {
+    fontFamily: theme.typography.fontFamily.semibold,
     fontWeight: theme.typography.weights.semibold,
   },
 });

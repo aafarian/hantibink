@@ -338,6 +338,7 @@ const styles = StyleSheet.create({
   headerTitle: {
     fontSize: 18,
     fontWeight: 'bold',
+    fontFamily: theme.typography.fontFamily.bold,
     color: theme.colors.text.white,
     flex: 1,
   },
@@ -360,6 +361,7 @@ const styles = StyleSheet.create({
     fontSize: 13,
     color: theme.colors.text.white,
     fontWeight: '500',
+    fontFamily: theme.typography.fontFamily.medium,
   },
   headerSaveButton: {
     backgroundColor: theme.colors.background.primary,
@@ -373,6 +375,7 @@ const styles = StyleSheet.create({
     fontSize: 13,
     color: theme.colors.primary,
     fontWeight: '600',
+    fontFamily: theme.typography.fontFamily.semibold,
   },
   bottomButtonsContainer: {
     flexDirection: 'row',
@@ -395,6 +398,7 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: theme.colors.text.secondary,
     fontWeight: '600',
+    fontFamily: theme.typography.fontFamily.semibold,
   },
   saveButton: {
     flex: 1,
@@ -407,6 +411,7 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: theme.colors.text.white,
     fontWeight: '600',
+    fontFamily: theme.typography.fontFamily.semibold,
   },
   singleButtonContainer: {
     justifyContent: 'center',

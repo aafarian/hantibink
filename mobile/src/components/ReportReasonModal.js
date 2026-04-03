@@ -152,6 +152,7 @@ const styles = StyleSheet.create({
   title: {
     fontSize: theme.typography.sizes.xl,
     fontWeight: theme.typography.weights.semibold,
+    fontFamily: theme.typography.fontFamily.semibold,
     color: theme.colors.text.primary,
   },
   closeButton: {
@@ -159,6 +160,7 @@ const styles = StyleSheet.create({
   },
   subtitle: {
     fontSize: theme.typography.sizes.md,
+    fontFamily: theme.typography.fontFamily.regular,
     color: theme.colors.text.secondary,
     paddingHorizontal: theme.spacing.xl,
     paddingVertical: theme.spacing.lg,
@@ -194,10 +196,12 @@ const styles = StyleSheet.create({
   },
   reasonText: {
     fontSize: theme.typography.sizes.lg,
+    fontFamily: theme.typography.fontFamily.regular,
     color: theme.colors.text.primary,
   },
   reasonTextSelected: {
     fontWeight: theme.typography.weights.medium,
+    fontFamily: theme.typography.fontFamily.medium,
     color: theme.colors.primary,
   },
   descriptionContainer: {
@@ -207,6 +211,7 @@ const styles = StyleSheet.create({
   descriptionLabel: {
     fontSize: theme.typography.sizes.md,
     fontWeight: theme.typography.weights.medium,
+    fontFamily: theme.typography.fontFamily.medium,
     color: theme.colors.text.secondary,
     marginBottom: theme.spacing.sm,
   },
@@ -216,11 +221,13 @@ const styles = StyleSheet.create({
     borderRadius: theme.borderRadius.lg,
     padding: theme.spacing.md,
     fontSize: 15,
+    fontFamily: theme.typography.fontFamily.regular,
     color: theme.colors.text.primary,
     minHeight: 100,
   },
   charCount: {
     fontSize: theme.typography.sizes.sm,
+    fontFamily: theme.typography.fontFamily.regular,
     color: theme.colors.text.muted,
     textAlign: 'right',
     marginTop: theme.spacing.xs,
@@ -244,6 +251,7 @@ const styles = StyleSheet.create({
   submitButtonText: {
     fontSize: theme.typography.sizes.lg,
     fontWeight: theme.typography.weights.semibold,
+    fontFamily: theme.typography.fontFamily.semibold,
     color: theme.colors.text.white,
   },
 });

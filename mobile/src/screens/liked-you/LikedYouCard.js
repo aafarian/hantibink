@@ -174,11 +174,13 @@ const styles = StyleSheet.create({
     color: 'white',
     fontSize: 16,
     fontWeight: 'bold',
+    fontFamily: theme.typography.fontFamily.bold,
     marginBottom: 4,
   },
   cardLocation: {
     color: 'white',
     fontSize: 12,
+    fontFamily: theme.typography.fontFamily.regular,
   },
   superLikeBadge: {
     position: 'absolute',
@@ -203,6 +205,7 @@ const styles = StyleSheet.create({
     color: 'white',
     fontSize: 10,
     fontWeight: 'bold',
+    fontFamily: theme.typography.fontFamily.bold,
   },
   quickActions: {
     flexDirection: 'row',

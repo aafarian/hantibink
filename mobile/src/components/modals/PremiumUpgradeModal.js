@@ -173,11 +173,13 @@ const styles = StyleSheet.create({
   title: {
     fontSize: theme.typography.sizes.xxxl,
     fontWeight: theme.typography.weights.bold,
+    fontFamily: theme.typography.fontFamily.bold,
     color: theme.colors.text.primary,
     marginBottom: theme.spacing.xs,
   },
   subtitle: {
     fontSize: theme.typography.sizes.md,
+    fontFamily: theme.typography.fontFamily.regular,
     color: theme.colors.text.secondary,
   },
   featuresContainer: {
@@ -202,11 +204,13 @@ const styles = StyleSheet.create({
   featureTitle: {
     fontSize: theme.typography.sizes.lg,
     fontWeight: theme.typography.weights.semibold,
+    fontFamily: theme.typography.fontFamily.semibold,
     color: theme.colors.text.primary,
     marginBottom: 2,
   },
   featureDescription: {
     fontSize: theme.typography.sizes.sm,
+    fontFamily: theme.typography.fontFamily.regular,
     color: theme.colors.text.secondary,
   },
   upgradeButton: {
@@ -221,6 +225,7 @@ const styles = StyleSheet.create({
     color: theme.colors.text.white,
     fontSize: theme.typography.sizes.xl,
     fontWeight: theme.typography.weights.bold,
+    fontFamily: theme.typography.fontFamily.bold,
   },
   laterButton: {
     paddingVertical: theme.spacing.md,
@@ -229,6 +234,7 @@ const styles = StyleSheet.create({
   laterButtonText: {
     color: theme.colors.text.muted,
     fontSize: theme.typography.sizes.md,
+    fontFamily: theme.typography.fontFamily.regular,
   },
 });
 

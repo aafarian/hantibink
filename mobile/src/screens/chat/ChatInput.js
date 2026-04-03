@@ -100,6 +100,7 @@ const styles = StyleSheet.create({
   gifButtonText: {
     fontSize: 24,
     fontWeight: 'bold',
+    fontFamily: theme.typography.fontFamily.bold,
     color: theme.colors.text.secondary,
   },
   disabledText: {
@@ -114,6 +115,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#f5f5f5',
     borderRadius: 20,
     fontSize: 15,
+    fontFamily: theme.typography.fontFamily.regular,
   },
 });
 

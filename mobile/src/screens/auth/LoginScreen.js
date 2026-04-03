@@ -380,12 +380,14 @@ const styles = StyleSheet.create({
   },
   title: {
     fontSize: 32,
+    fontFamily: theme.typography.fontFamily.bold,
     fontWeight: 'bold',
     color: theme.colors.text.primary,
     marginBottom: 10,
   },
   subtitle: {
     fontSize: 16,
+    fontFamily: theme.typography.fontFamily.regular,
     color: theme.colors.text.secondary,
     textAlign: 'center',
   },
@@ -408,6 +410,7 @@ const styles = StyleSheet.create({
   input: {
     flex: 1,
     fontSize: 16,
+    fontFamily: theme.typography.fontFamily.regular,
     color: theme.colors.text.primary,
   },
   passwordToggle: {
@@ -420,6 +423,7 @@ const styles = StyleSheet.create({
   forgotPasswordText: {
     color: theme.colors.primary,
     fontSize: 14,
+    fontFamily: theme.typography.fontFamily.regular,
   },
   loginButton: {
     backgroundColor: theme.colors.primary,
@@ -434,6 +438,7 @@ const styles = StyleSheet.create({
   loginButtonText: {
     color: theme.colors.text.white,
     fontSize: 16,
+    fontFamily: theme.typography.fontFamily.bold,
     fontWeight: 'bold',
   },
   divider: {
@@ -450,6 +455,7 @@ const styles = StyleSheet.create({
     marginHorizontal: 16,
     color: theme.colors.text.secondary,
     fontSize: 14,
+    fontFamily: theme.typography.fontFamily.regular,
   },
   googleButton: {
     flexDirection: 'row',
@@ -467,6 +473,7 @@ const styles = StyleSheet.create({
   googleButtonText: {
     marginLeft: 12,
     fontSize: 16,
+    fontFamily: theme.typography.fontFamily.regular,
     color: theme.colors.text.primary,
   },
   footer: {
@@ -477,10 +484,12 @@ const styles = StyleSheet.create({
   footerText: {
     color: theme.colors.text.secondary,
     fontSize: 14,
+    fontFamily: theme.typography.fontFamily.regular,
   },
   footerLink: {
     color: theme.colors.primary,
     fontSize: 14,
+    fontFamily: theme.typography.fontFamily.bold,
     fontWeight: 'bold',
   },
   keyboardSpacer: {
@@ -496,6 +505,7 @@ const styles = StyleSheet.create({
   errorText: {
     color: theme.colors.primary,
     fontSize: 12,
+    fontFamily: theme.typography.fontFamily.regular,
     marginTop: 4,
     marginLeft: 4,
   },
@@ -517,6 +527,7 @@ const styles = StyleSheet.create({
     flex: 1,
     color: theme.colors.status.error,
     fontSize: 14,
+    fontFamily: theme.typography.fontFamily.regular,
     lineHeight: 18,
   },
 });

@@ -326,6 +326,7 @@ const styles = StyleSheet.create({
   cardName: {
     fontSize: 24,
     fontWeight: 'bold',
+    fontFamily: theme.typography.fontFamily.bold,
     color: theme.colors.text.white,
     marginBottom: 4,
   },
@@ -336,11 +337,13 @@ const styles = StyleSheet.create({
   },
   cardLocation: {
     fontSize: 14,
+    fontFamily: theme.typography.fontFamily.regular,
     color: theme.colors.text.white,
     marginLeft: 4,
   },
   cardBio: {
     fontSize: 14,
+    fontFamily: theme.typography.fontFamily.regular,
     color: 'rgba(255,255,255,0.9)',
     lineHeight: 20,
     marginBottom: 12,
@@ -354,6 +357,7 @@ const styles = StyleSheet.create({
   sectionLabel: {
     fontSize: 12,
     fontWeight: '600',
+    fontFamily: theme.typography.fontFamily.semibold,
     color: 'rgba(255,255,255,0.7)',
     marginBottom: 6,
     textTransform: 'uppercase',
@@ -370,6 +374,7 @@ const styles = StyleSheet.create({
   },
   infoText: {
     fontSize: 14,
+    fontFamily: theme.typography.fontFamily.regular,
     color: theme.colors.text.white,
     flex: 1,
   },
@@ -387,6 +392,7 @@ const styles = StyleSheet.create({
   tagText: {
     color: theme.colors.text.white,
     fontSize: 12,
+    fontFamily: theme.typography.fontFamily.regular,
   },
   interestsSection: {
     marginTop: 8,
@@ -402,6 +408,7 @@ const styles = StyleSheet.create({
   },
   noPhotoLocation: {
     fontSize: 14,
+    fontFamily: theme.typography.fontFamily.regular,
     color: 'rgba(255,255,255,0.7)',
     marginTop: 4,
   },

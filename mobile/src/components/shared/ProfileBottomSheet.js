@@ -552,6 +552,7 @@ const styles = StyleSheet.create({
   headerTitle: {
     fontSize: 18,
     fontWeight: '600',
+    fontFamily: theme.typography.fontFamily.semibold,
     color: theme.colors.text.primary,
   },
   closeButton: {
@@ -586,12 +587,14 @@ const styles = StyleSheet.create({
   nameText: {
     fontSize: 32,
     fontWeight: 'bold',
+    fontFamily: theme.typography.fontFamily.bold,
     color: theme.colors.text.primary,
     marginBottom: 8,
   },
   ageText: {
     fontSize: 28,
     fontWeight: 'normal',
+    fontFamily: theme.typography.fontFamily.regular,
     color: theme.colors.text.secondary,
   },
   locationRow: {
@@ -601,22 +604,26 @@ const styles = StyleSheet.create({
   },
   locationText: {
     fontSize: 16,
+    fontFamily: theme.typography.fontFamily.regular,
     color: theme.colors.text.secondary,
     marginLeft: 6,
   },
   sectionTitle: {
     fontSize: 20,
     fontWeight: '700',
+    fontFamily: theme.typography.fontFamily.bold,
     marginBottom: 12,
     color: theme.colors.text.primary,
   },
   bioText: {
     fontSize: 16,
+    fontFamily: theme.typography.fontFamily.regular,
     lineHeight: 24,
     color: theme.colors.text.secondary,
   },
   notProvidedText: {
     fontSize: 16,
+    fontFamily: theme.typography.fontFamily.regular,
     color: theme.colors.text.muted,
     fontStyle: 'italic',
   },
@@ -627,6 +634,7 @@ const styles = StyleSheet.create({
   },
   infoText: {
     fontSize: 16,
+    fontFamily: theme.typography.fontFamily.regular,
     color: theme.colors.text.secondary,
     marginLeft: 10,
     flex: 1,
@@ -641,6 +649,7 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: theme.colors.primary,
     fontWeight: '500',
+    fontFamily: theme.typography.fontFamily.medium,
   },
   actionSection: {
     paddingHorizontal: 20,
@@ -665,6 +674,7 @@ const styles = StyleSheet.create({
     marginLeft: 8,
     fontSize: 16,
     fontWeight: '600',
+    fontFamily: theme.typography.fontFamily.semibold,
     color: theme.colors.text.white,
   },
   bottomPadding: {

@@ -288,6 +288,7 @@ const styles = StyleSheet.create({
   label: {
     position: 'absolute',
     left: theme.spacing.lg,
+    fontFamily: theme.typography.fontFamily.regular,
     fontSize: theme.typography.sizes.md,
     color: theme.colors.text.muted,
     backgroundColor: theme.colors.background.primary,
@@ -298,6 +299,7 @@ const styles = StyleSheet.create({
   },
   input: {
     flex: 1,
+    fontFamily: theme.typography.fontFamily.regular,
     fontSize: theme.typography.sizes.md,
     color: theme.colors.text.primary,
     paddingVertical: theme.spacing.md,

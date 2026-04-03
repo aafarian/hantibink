@@ -76,6 +76,7 @@ const styles = StyleSheet.create({
     color: theme.colors.text.white,
     fontSize: theme.typography.sizes.md,
     fontWeight: theme.typography.weights.medium,
+    fontFamily: theme.typography.fontFamily.medium,
     flex: 1,
   },
   updateButton: {
@@ -89,6 +90,7 @@ const styles = StyleSheet.create({
     color: theme.colors.primary,
     fontSize: theme.typography.sizes.sm,
     fontWeight: theme.typography.weights.semibold,
+    fontFamily: theme.typography.fontFamily.semibold,
   },
   dismissButton: {
     padding: theme.spacing.xs,

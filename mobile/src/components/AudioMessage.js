@@ -436,6 +436,7 @@ const styles = StyleSheet.create({
   time: {
     fontSize: 12,
     fontWeight: '500',
+    fontFamily: theme.typography.fontFamily.medium,
     minWidth: 36,
     textAlign: 'right',
   },

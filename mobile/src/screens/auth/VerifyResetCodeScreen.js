@@ -249,6 +249,7 @@ const styles = StyleSheet.create({
   },
   title: {
     fontSize: 28,
+    fontFamily: theme.typography.fontFamily.bold,
     fontWeight: 'bold',
     color: theme.colors.text.primary,
     textAlign: 'center',
@@ -256,12 +257,14 @@ const styles = StyleSheet.create({
   },
   subtitle: {
     fontSize: 16,
+    fontFamily: theme.typography.fontFamily.regular,
     color: theme.colors.text.secondary,
     textAlign: 'center',
     lineHeight: 24,
     marginBottom: 30,
   },
   emailText: {
+    fontFamily: theme.typography.fontFamily.semibold,
     fontWeight: '600',
     color: theme.colors.text.primary,
   },
@@ -279,6 +282,7 @@ const styles = StyleSheet.create({
     borderColor: theme.colors.border.light,
     backgroundColor: theme.colors.background.primary,
     fontSize: 24,
+    fontFamily: theme.typography.fontFamily.bold,
     fontWeight: 'bold',
     textAlign: 'center',
     color: theme.colors.text.primary,
@@ -296,14 +300,17 @@ const styles = StyleSheet.create({
   },
   timerText: {
     fontSize: 14,
+    fontFamily: theme.typography.fontFamily.regular,
     color: theme.colors.text.secondary,
   },
   timerValue: {
+    fontFamily: theme.typography.fontFamily.semibold,
     fontWeight: '600',
     color: theme.colors.primary,
   },
   expiredText: {
     fontSize: 14,
+    fontFamily: theme.typography.fontFamily.medium,
     color: theme.colors.status.error,
     fontWeight: '500',
   },
@@ -320,6 +327,7 @@ const styles = StyleSheet.create({
   verifyButtonText: {
     color: theme.colors.text.white,
     fontSize: 16,
+    fontFamily: theme.typography.fontFamily.bold,
     fontWeight: 'bold',
   },
   resendContainer: {
@@ -331,10 +339,12 @@ const styles = StyleSheet.create({
   },
   resendText: {
     fontSize: 14,
+    fontFamily: theme.typography.fontFamily.regular,
     color: theme.colors.text.secondary,
   },
   resendLink: {
     fontSize: 14,
+    fontFamily: theme.typography.fontFamily.semibold,
     fontWeight: '600',
     color: theme.colors.primary,
   },
@@ -344,6 +354,7 @@ const styles = StyleSheet.create({
   backToLoginText: {
     color: theme.colors.primary,
     fontSize: 16,
+    fontFamily: theme.typography.fontFamily.bold,
     fontWeight: 'bold',
   },
 });

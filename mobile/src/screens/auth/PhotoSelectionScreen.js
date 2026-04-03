@@ -290,6 +290,7 @@ const styles = StyleSheet.create({
   },
   title: {
     fontSize: 18,
+    fontFamily: theme.typography.fontFamily.bold,
     fontWeight: 'bold',
     color: theme.colors.text.primary,
   },
@@ -302,12 +303,14 @@ const styles = StyleSheet.create({
   },
   subtitle: {
     fontSize: 16,
+    fontFamily: theme.typography.fontFamily.medium,
     color: theme.colors.text.primary,
     marginBottom: 5,
     fontWeight: '500',
   },
   requirement: {
     fontSize: 14,
+    fontFamily: theme.typography.fontFamily.regular,
     color: theme.colors.text.secondary,
     marginBottom: 30,
   },
@@ -331,6 +334,7 @@ const styles = StyleSheet.create({
   },
   addButtonText: {
     fontSize: 16,
+    fontFamily: theme.typography.fontFamily.semibold,
     color: theme.colors.secondary,
     fontWeight: '600',
   },
@@ -382,12 +386,14 @@ const styles = StyleSheet.create({
   },
   instructionsTitle: {
     fontSize: 16,
+    fontFamily: theme.typography.fontFamily.semibold,
     fontWeight: '600',
     color: theme.colors.text.primary,
     marginBottom: 10,
   },
   instructionText: {
     fontSize: 14,
+    fontFamily: theme.typography.fontFamily.regular,
     color: theme.colors.text.secondary,
     marginBottom: 5,
     lineHeight: 20,
@@ -409,6 +415,7 @@ const styles = StyleSheet.create({
   continueButtonText: {
     color: theme.colors.text.white,
     fontSize: 16,
+    fontFamily: theme.typography.fontFamily.bold,
     fontWeight: 'bold',
   },
 });

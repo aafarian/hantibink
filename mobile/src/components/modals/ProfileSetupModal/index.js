@@ -1072,10 +1072,12 @@ const styles = StyleSheet.create({
   headerTitle: {
     fontSize: 20,
     fontWeight: '700',
+    fontFamily: theme.typography.fontFamily.bold,
     color: theme.colors.text.primary,
   },
   headerSubtitle: {
     fontSize: 14,
+    fontFamily: theme.typography.fontFamily.regular,
     color: theme.colors.text.secondary,
     textAlign: 'center',
     paddingHorizontal: 20,
@@ -1116,6 +1118,7 @@ const styles = StyleSheet.create({
   loadingText: {
     marginTop: 15,
     fontSize: 16,
+    fontFamily: theme.typography.fontFamily.regular,
     color: theme.colors.text.secondary,
   },
   footer: {
@@ -1138,6 +1141,7 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: theme.colors.text.secondary,
     fontWeight: '500',
+    fontFamily: theme.typography.fontFamily.medium,
   },
   skipButton: {
     paddingHorizontal: 20,
@@ -1147,6 +1151,7 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: theme.colors.text.muted,
     fontWeight: '500',
+    fontFamily: theme.typography.fontFamily.medium,
   },
   nextButton: {
     backgroundColor: theme.colors.primary,
@@ -1172,6 +1177,7 @@ const styles = StyleSheet.create({
     color: '#FFF',
     fontSize: 17,
     fontWeight: '700',
+    fontFamily: theme.typography.fontFamily.bold,
   },
 });
 

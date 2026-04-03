@@ -115,6 +115,7 @@ const styles = StyleSheet.create({
   skipText: {
     color: theme.colors.text.secondary,
     fontSize: 16,
+    fontFamily: theme.typography.fontFamily.regular,
   },
   content: {
     flex: 1,
@@ -141,6 +142,7 @@ const styles = StyleSheet.create({
   },
   title: {
     fontSize: 28,
+    fontFamily: theme.typography.fontFamily.bold,
     fontWeight: 'bold',
     color: theme.colors.text.primary,
     textAlign: 'center',
@@ -148,12 +150,14 @@ const styles = StyleSheet.create({
   },
   subtitle: {
     fontSize: 18,
+    fontFamily: theme.typography.fontFamily.regular,
     color: theme.colors.primary,
     textAlign: 'center',
     marginBottom: 20,
   },
   description: {
     fontSize: 16,
+    fontFamily: theme.typography.fontFamily.regular,
     color: theme.colors.text.secondary,
     textAlign: 'center',
     lineHeight: 24,
@@ -187,6 +191,7 @@ const styles = StyleSheet.create({
   nextButtonText: {
     color: theme.colors.text.white,
     fontSize: 16,
+    fontFamily: theme.typography.fontFamily.bold,
     fontWeight: 'bold',
     marginRight: 10,
   },

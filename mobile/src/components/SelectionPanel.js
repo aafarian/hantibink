@@ -191,6 +191,7 @@ const styles = StyleSheet.create({
   title: {
     fontSize: theme.typography.sizes.xl,
     fontWeight: theme.typography.weights.semibold,
+    fontFamily: theme.typography.fontFamily.semibold,
     color: theme.colors.text.primary,
     flex: 1,
     textAlign: 'center',
@@ -217,12 +218,14 @@ const styles = StyleSheet.create({
   },
   optionText: {
     fontSize: theme.typography.sizes.lg,
+    fontFamily: theme.typography.fontFamily.regular,
     color: theme.colors.text.primary,
     flex: 1,
   },
   optionTextSelected: {
     color: theme.colors.primary,
     fontWeight: theme.typography.weights.semibold,
+    fontFamily: theme.typography.fontFamily.semibold,
   },
   checkbox: {
     width: 24,
@@ -250,6 +253,7 @@ const styles = StyleSheet.create({
     color: theme.colors.text.white,
     fontSize: theme.typography.sizes.lg,
     fontWeight: theme.typography.weights.semibold,
+    fontFamily: theme.typography.fontFamily.semibold,
   },
 });
 

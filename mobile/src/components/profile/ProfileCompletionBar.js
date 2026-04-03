@@ -135,9 +135,11 @@ const styles = StyleSheet.create({
   percentage: {
     fontSize: theme.typography.sizes.md,
     fontWeight: theme.typography.weights.semibold,
+    fontFamily: theme.typography.fontFamily.semibold,
   },
   subtitle: {
     fontSize: theme.typography.sizes.sm,
+    fontFamily: theme.typography.fontFamily.regular,
     color: theme.colors.gray[500],
     marginTop: theme.spacing.xs,
   },
@@ -173,16 +175,19 @@ const styles = StyleSheet.create({
   compactPercentage: {
     fontSize: theme.typography.sizes.lg,
     fontWeight: theme.typography.weights.bold,
+    fontFamily: theme.typography.fontFamily.bold,
     marginRight: theme.spacing.xs,
   },
   compactLabel: {
     fontSize: theme.typography.sizes.sm,
+    fontFamily: theme.typography.fontFamily.regular,
     color: theme.colors.gray[600],
     marginRight: theme.spacing.sm,
   },
   compactHint: {
     flex: 1,
     fontSize: theme.typography.sizes.sm,
+    fontFamily: theme.typography.fontFamily.regular,
     color: theme.colors.gray[500],
     textAlign: 'right',
   },

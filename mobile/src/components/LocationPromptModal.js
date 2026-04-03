@@ -200,6 +200,7 @@ const styles = StyleSheet.create({
   title: {
     fontSize: theme.typography.sizes.xxxl,
     fontWeight: theme.typography.weights.bold,
+    fontFamily: theme.typography.fontFamily.bold,
     color: theme.colors.text.primary,
     textAlign: 'center',
     marginTop: theme.spacing.xl,
@@ -207,6 +208,7 @@ const styles = StyleSheet.create({
   },
   subtitle: {
     fontSize: theme.typography.sizes.lg,
+    fontFamily: theme.typography.fontFamily.regular,
     color: theme.colors.text.secondary,
     textAlign: 'center',
     lineHeight: 22,
@@ -215,6 +217,7 @@ const styles = StyleSheet.create({
   statusText: {
     fontSize: theme.typography.sizes.xxl,
     fontWeight: theme.typography.weights.semibold,
+    fontFamily: theme.typography.fontFamily.semibold,
     color: theme.colors.text.primary,
     textAlign: 'center',
     marginTop: theme.spacing.lg,
@@ -224,6 +227,7 @@ const styles = StyleSheet.create({
     fontSize: theme.typography.sizes.xl,
     color: theme.colors.secondary,
     fontWeight: theme.typography.weights.medium,
+    fontFamily: theme.typography.fontFamily.medium,
     marginBottom: theme.spacing.sm,
   },
   footer: {
@@ -239,6 +243,7 @@ const styles = StyleSheet.create({
     color: theme.colors.text.white,
     fontSize: theme.typography.sizes.lg,
     fontWeight: theme.typography.weights.semibold,
+    fontFamily: theme.typography.fontFamily.semibold,
   },
   locationOptionsContainer: {
     marginTop: theme.spacing.lg,
@@ -247,6 +252,7 @@ const styles = StyleSheet.create({
   },
   optionsTitle: {
     fontSize: theme.typography.sizes.md,
+    fontFamily: theme.typography.fontFamily.regular,
     color: theme.colors.text.secondary,
     textAlign: 'center',
     marginBottom: theme.spacing.md,
@@ -270,6 +276,7 @@ const styles = StyleSheet.create({
     fontSize: theme.typography.sizes.lg,
     color: theme.colors.text.primary,
     fontWeight: theme.typography.weights.medium,
+    fontFamily: theme.typography.fontFamily.medium,
   },
   selectedLocationOptionText: {
     color: theme.colors.text.white,

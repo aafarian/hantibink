@@ -180,6 +180,7 @@ const styles = StyleSheet.create({
   sectionTitle: {
     fontSize: theme.typography.sizes.lg,
     fontWeight: theme.typography.weights.semibold,
+    fontFamily: theme.typography.fontFamily.semibold,
     color: theme.colors.text.primary,
     marginBottom: theme.spacing.lg,
   },
@@ -203,11 +204,13 @@ const styles = StyleSheet.create({
   },
   optionText: {
     fontSize: theme.typography.sizes.lg,
+    fontFamily: theme.typography.fontFamily.regular,
     color: theme.colors.gray[600],
   },
   optionTextActive: {
     color: theme.colors.text.white,
     fontWeight: theme.typography.weights.medium,
+    fontFamily: theme.typography.fontFamily.medium,
   },
   rangeHeader: {
     flexDirection: 'row',
@@ -226,15 +229,18 @@ const styles = StyleSheet.create({
   rangeValue: {
     fontSize: theme.typography.sizes.lg,
     fontWeight: theme.typography.weights.semibold,
+    fontFamily: theme.typography.fontFamily.semibold,
     color: theme.colors.primary,
   },
   rangeSeparator: {
     fontSize: theme.typography.sizes.md,
+    fontFamily: theme.typography.fontFamily.regular,
     color: theme.colors.gray[500],
     marginHorizontal: theme.spacing.xs,
   },
   rangeUnit: {
     fontSize: theme.typography.sizes.md,
+    fontFamily: theme.typography.fontFamily.regular,
     color: theme.colors.gray[600],
     marginLeft: theme.spacing.xs,
   },
@@ -250,6 +256,7 @@ const styles = StyleSheet.create({
   },
   sliderLabel: {
     fontSize: theme.typography.sizes.sm,
+    fontFamily: theme.typography.fontFamily.regular,
     color: theme.colors.gray[500],
   },
 });

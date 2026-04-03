@@ -82,6 +82,7 @@ const styles = StyleSheet.create({
   title: {
     fontSize: theme.typography.sizes.xl,
     fontWeight: theme.typography.weights.bold,
+    fontFamily: theme.typography.fontFamily.bold,
     marginBottom: theme.spacing.lg,
     color: theme.colors.text.primary,
   },
@@ -111,6 +112,7 @@ const styles = StyleSheet.create({
     color: theme.colors.text.white,
     fontSize: theme.typography.sizes.xs,
     fontWeight: theme.typography.weights.bold,
+    fontFamily: theme.typography.fontFamily.bold,
   },
   emptyContainer: {
     justifyContent: 'center',
@@ -123,6 +125,7 @@ const styles = StyleSheet.create({
   },
   emptyText: {
     fontSize: theme.typography.sizes.md,
+    fontFamily: theme.typography.fontFamily.regular,
     color: theme.colors.gray[500],
     marginTop: theme.spacing.sm,
     textAlign: 'center',
