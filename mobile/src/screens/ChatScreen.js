@@ -1092,9 +1092,14 @@ const ChatScreen = ({ route, navigation }) => {
 
   return (
     <>
-      <StatusBar backgroundColor={theme.colors.primary} barStyle="light-content" />
+      <StatusBar backgroundColor={theme.colors.background.primary} barStyle="dark-content" />
       {Platform.OS === 'android' && (
-        <View style={{ height: StatusBar.currentHeight, backgroundColor: theme.colors.primary }} />
+        <View
+          style={{
+            height: StatusBar.currentHeight,
+            backgroundColor: theme.colors.background.primary,
+          }}
+        />
       )}
       <WrapperComponent style={styles.wrapper}>
         <KeyboardAvoidingView

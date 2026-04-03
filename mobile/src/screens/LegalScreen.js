@@ -202,7 +202,7 @@ const LegalScreen = ({ route, navigation }) => {
     <SafeAreaView style={styles.container}>
       <View style={styles.header}>
         <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
-          <MaterialIcons name="arrow-back" size={24} color={theme.colors.text.white} />
+          <MaterialIcons name="arrow-back" size={24} color={theme.colors.text.primary} />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>{title}</Text>
         <View style={{ width: 40 }} />
@@ -230,7 +230,9 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     paddingHorizontal: 16,
     paddingVertical: 16,
-    backgroundColor: theme.colors.primary,
+    backgroundColor: theme.colors.background.primary,
+    borderBottomWidth: 1,
+    borderBottomColor: theme.colors.border.light,
   },
   backButton: {
     padding: 4,
@@ -239,7 +241,7 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: '600',
     fontFamily: theme.typography.fontFamily.semibold,
-    color: theme.colors.text.white,
+    color: theme.colors.text.primary,
   },
   content: {
     flex: 1,

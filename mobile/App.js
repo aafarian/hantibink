@@ -78,8 +78,8 @@ function App() {
                   <UnreadProvider>
                     <GestureHandlerRootView style={styles.container} onLayout={onLayoutRootView}>
                       <StatusBar
-                        style="light"
-                        backgroundColor={theme.colors.primary}
+                        style="dark"
+                        backgroundColor={theme.colors.background.primary}
                         translucent={true}
                       />
                       <PhotoViewerProvider>
