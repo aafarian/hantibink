@@ -21,14 +21,17 @@ export const commonStyles = StyleSheet.create({
 
   // Typography
   textPrimary: {
+    fontFamily: theme.typography.fontFamily.regular,
     color: theme.colors.text.primary,
     fontSize: theme.typography.sizes.md,
   },
   textSecondary: {
+    fontFamily: theme.typography.fontFamily.regular,
     color: theme.colors.text.secondary,
     fontSize: theme.typography.sizes.md,
   },
   textMuted: {
+    fontFamily: theme.typography.fontFamily.regular,
     color: theme.colors.text.muted,
     fontSize: theme.typography.sizes.sm,
   },
@@ -36,27 +39,35 @@ export const commonStyles = StyleSheet.create({
     color: theme.colors.text.white,
   },
   textBold: {
+    fontFamily: theme.typography.fontFamily.bold,
     fontWeight: theme.typography.weights.bold,
   },
   textMedium: {
+    fontFamily: theme.typography.fontFamily.medium,
     fontWeight: theme.typography.weights.medium,
   },
 
   // Headings
   h1: {
+    fontFamily: theme.typography.fontFamily.bold,
     fontSize: theme.typography.sizes.huge,
     fontWeight: theme.typography.weights.bold,
     color: theme.colors.text.primary,
+    lineHeight: theme.typography.sizes.huge * theme.typography.lineHeights.tight,
   },
   h2: {
+    fontFamily: theme.typography.fontFamily.bold,
     fontSize: theme.typography.sizes.xxxl,
     fontWeight: theme.typography.weights.bold,
     color: theme.colors.text.primary,
+    lineHeight: theme.typography.sizes.xxxl * theme.typography.lineHeights.tight,
   },
   h3: {
+    fontFamily: theme.typography.fontFamily.semibold,
     fontSize: theme.typography.sizes.xxl,
     fontWeight: theme.typography.weights.semibold,
     color: theme.colors.text.primary,
+    lineHeight: theme.typography.sizes.xxl * theme.typography.lineHeights.tight,
   },
 
   // Buttons
@@ -89,11 +100,13 @@ export const commonStyles = StyleSheet.create({
     justifyContent: 'center',
   },
   buttonText: {
+    fontFamily: theme.typography.fontFamily.semibold,
     color: theme.colors.text.white,
     fontSize: theme.typography.sizes.lg,
     fontWeight: theme.typography.weights.semibold,
   },
   buttonTextOutline: {
+    fontFamily: theme.typography.fontFamily.semibold,
     color: theme.colors.primary,
     fontSize: theme.typography.sizes.lg,
     fontWeight: theme.typography.weights.semibold,

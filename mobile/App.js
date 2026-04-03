@@ -1,11 +1,19 @@
 import { StatusBar } from 'expo-status-bar';
-import React, { useEffect } from 'react';
+import React, { useEffect, useCallback } from 'react';
 import { StyleSheet } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { Provider as PaperProvider } from 'react-native-paper';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import * as Sentry from '@sentry/react-native';
+import * as SplashScreen from 'expo-splash-screen';
 import Constants from 'expo-constants';
+import {
+  useFonts,
+  NunitoSans_400Regular,
+  NunitoSans_500Medium,
+  NunitoSans_600SemiBold,
+  NunitoSans_700Bold,
+} from '@expo-google-fonts/nunito-sans';
 import ErrorBoundary from './src/components/ErrorBoundary';
 import { AuthProvider } from './src/contexts/AuthContext';
 import { ToastProvider } from './src/contexts/ToastContext';
@@ -15,6 +23,9 @@ import { PhotoViewerProvider } from './src/contexts/PhotoViewerContext';
 import { UpdateProvider } from './src/contexts/UpdateContext';
 import AppNavigator from './src/navigation/AppNavigator';
 import { initAnalytics, trackAppOpened } from './src/utils/analytics';
+
+// Keep splash screen visible while fonts load
+SplashScreen.preventAutoHideAsync();
 
 // Initialize Sentry - only in production builds
 const SENTRY_DSN = Constants.expoConfig?.extra?.sentryDsn;
@@ -28,6 +39,13 @@ if (SENTRY_DSN && !__DEV__) {
 }
 
 function App() {
+  const [fontsLoaded] = useFonts({
+    NunitoSans_400Regular,
+    NunitoSans_500Medium,
+    NunitoSans_600SemiBold,
+    NunitoSans_700Bold,
+  });
+
   // Initialize analytics on app start
   useEffect(() => {
     const setupAnalytics = async () => {
@@ -36,6 +54,17 @@ function App() {
     };
     setupAnalytics();
   }, []);
+
+  // Hide splash screen once fonts are loaded
+  const onLayoutRootView = useCallback(async () => {
+    if (fontsLoaded) {
+      await SplashScreen.hideAsync();
+    }
+  }, [fontsLoaded]);
+
+  if (!fontsLoaded) {
+    return null;
+  }
 
   return (
     <ErrorBoundary>
@@ -46,8 +75,8 @@ function App() {
               <AuthProvider>
                 <FeatureFlagsProvider>
                   <UnreadProvider>
-                    <GestureHandlerRootView style={styles.container}>
-                      <StatusBar style="light" backgroundColor="#D32F2F" translucent={true} />
+                    <GestureHandlerRootView style={styles.container} onLayout={onLayoutRootView}>
+                      <StatusBar style="light" backgroundColor="#C0392B" translucent={true} />
                       <PhotoViewerProvider>
                         <AppNavigator />
                       </PhotoViewerProvider>
