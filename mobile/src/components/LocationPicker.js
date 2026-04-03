@@ -253,12 +253,14 @@ const styles = StyleSheet.create({
     flex: 1,
     marginLeft: theme.spacing.sm,
     fontSize: theme.typography.sizes.lg,
+    fontFamily: theme.typography.fontFamily.regular,
     color: theme.colors.text.primary,
   },
   locationButtonPlaceholder: {
     flex: 1,
     marginLeft: theme.spacing.sm,
     fontSize: theme.typography.sizes.lg,
+    fontFamily: theme.typography.fontFamily.regular,
     color: theme.colors.gray[500],
   },
 
@@ -276,6 +278,7 @@ const styles = StyleSheet.create({
   headerTitle: {
     fontSize: theme.typography.sizes.xl,
     fontWeight: theme.typography.weights.semibold,
+    fontFamily: theme.typography.fontFamily.semibold,
     textAlign: 'center',
   },
   content: {
@@ -296,11 +299,13 @@ const styles = StyleSheet.create({
   statusText: {
     fontSize: theme.typography.sizes.xl,
     fontWeight: theme.typography.weights.semibold,
+    fontFamily: theme.typography.fontFamily.semibold,
     marginTop: theme.spacing.lg,
     textAlign: 'center',
   },
   subtitle: {
     fontSize: theme.typography.sizes.md,
+    fontFamily: theme.typography.fontFamily.regular,
     color: theme.colors.gray[600],
     marginTop: theme.spacing.sm,
     textAlign: 'center',
@@ -309,6 +314,7 @@ const styles = StyleSheet.create({
   locationText: {
     fontSize: theme.typography.sizes.lg,
     fontWeight: theme.typography.weights.medium,
+    fontFamily: theme.typography.fontFamily.medium,
     marginTop: theme.spacing.sm,
     color: theme.colors.text.primary,
   },
@@ -321,6 +327,7 @@ const styles = StyleSheet.create({
   optionsTitle: {
     fontSize: theme.typography.sizes.lg,
     fontWeight: theme.typography.weights.medium,
+    fontFamily: theme.typography.fontFamily.medium,
     marginBottom: theme.spacing.sm,
     textAlign: 'center',
   },
@@ -335,12 +342,14 @@ const styles = StyleSheet.create({
   },
   locationOptionText: {
     fontSize: theme.typography.sizes.lg,
+    fontFamily: theme.typography.fontFamily.regular,
     textAlign: 'center',
     color: theme.colors.text.primary,
   },
   selectedLocationOptionText: {
     color: theme.colors.text.white,
     fontWeight: theme.typography.weights.medium,
+    fontFamily: theme.typography.fontFamily.medium,
   },
 
   // Buttons
@@ -359,6 +368,7 @@ const styles = StyleSheet.create({
     color: theme.colors.text.white,
     fontSize: theme.typography.sizes.lg,
     fontWeight: theme.typography.weights.semibold,
+    fontFamily: theme.typography.fontFamily.semibold,
   },
   secondaryButton: {
     flex: 1,
@@ -371,6 +381,7 @@ const styles = StyleSheet.create({
     color: theme.colors.text.primary,
     fontSize: theme.typography.sizes.lg,
     fontWeight: theme.typography.weights.medium,
+    fontFamily: theme.typography.fontFamily.medium,
   },
 });
 

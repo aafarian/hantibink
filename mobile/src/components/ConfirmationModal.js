@@ -67,12 +67,14 @@ const styles = StyleSheet.create({
   title: {
     fontSize: theme.typography.sizes.xl,
     fontWeight: theme.typography.weights.semibold,
+    fontFamily: theme.typography.fontFamily.semibold,
     color: theme.colors.text.primary,
     marginBottom: theme.spacing.md,
     textAlign: 'center',
   },
   message: {
     fontSize: 15,
+    fontFamily: theme.typography.fontFamily.regular,
     color: theme.colors.text.secondary,
     marginBottom: theme.spacing.xxl,
     textAlign: 'center',
@@ -94,6 +96,7 @@ const styles = StyleSheet.create({
   cancelButtonText: {
     fontSize: theme.typography.sizes.lg,
     fontWeight: theme.typography.weights.semibold,
+    fontFamily: theme.typography.fontFamily.semibold,
     color: theme.colors.text.secondary,
   },
   confirmButton: {
@@ -102,6 +105,7 @@ const styles = StyleSheet.create({
   confirmButtonText: {
     fontSize: theme.typography.sizes.lg,
     fontWeight: theme.typography.weights.semibold,
+    fontFamily: theme.typography.fontFamily.semibold,
     color: theme.colors.text.white,
   },
 });

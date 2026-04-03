@@ -267,6 +267,7 @@ const styles = StyleSheet.create({
   title: {
     fontSize: theme.typography.sizes.xl,
     fontWeight: theme.typography.weights.semibold,
+    fontFamily: theme.typography.fontFamily.semibold,
     color: theme.colors.text.primary,
   },
   headerSpacer: {
@@ -287,6 +288,7 @@ const styles = StyleSheet.create({
   searchInput: {
     flex: 1,
     fontSize: theme.typography.sizes.lg,
+    fontFamily: theme.typography.fontFamily.regular,
     paddingVertical: theme.spacing.md,
     color: theme.colors.text.primary,
   },
@@ -318,17 +320,20 @@ const styles = StyleSheet.create({
   loadingText: {
     marginTop: theme.spacing.md,
     fontSize: theme.typography.sizes.lg,
+    fontFamily: theme.typography.fontFamily.regular,
     color: theme.colors.text.secondary,
   },
   errorText: {
     marginTop: theme.spacing.md,
     fontSize: theme.typography.sizes.lg,
+    fontFamily: theme.typography.fontFamily.regular,
     color: theme.colors.text.secondary,
     textAlign: 'center',
   },
   emptyText: {
     marginTop: theme.spacing.md,
     fontSize: theme.typography.sizes.lg,
+    fontFamily: theme.typography.fontFamily.regular,
     color: theme.colors.text.secondary,
     textAlign: 'center',
   },
@@ -343,6 +348,7 @@ const styles = StyleSheet.create({
     color: theme.colors.text.white,
     fontSize: theme.typography.sizes.lg,
     fontWeight: theme.typography.weights.semibold,
+    fontFamily: theme.typography.fontFamily.semibold,
   },
   attribution: {
     position: 'absolute',
@@ -357,6 +363,7 @@ const styles = StyleSheet.create({
   },
   attributionText: {
     fontSize: theme.typography.sizes.sm,
+    fontFamily: theme.typography.fontFamily.regular,
     color: theme.colors.text.muted,
     marginRight: theme.spacing.xs,
   },

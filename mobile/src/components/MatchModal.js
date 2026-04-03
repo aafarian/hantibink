@@ -258,11 +258,13 @@ const styles = StyleSheet.create({
   title: {
     fontSize: theme.typography.sizes.xxxl,
     fontWeight: theme.typography.weights.bold,
+    fontFamily: theme.typography.fontFamily.bold,
     color: theme.colors.text.white,
     marginBottom: theme.spacing.xs,
   },
   subtitle: {
     fontSize: theme.typography.sizes.md,
+    fontFamily: theme.typography.fontFamily.regular,
     color: theme.colors.text.white,
     textAlign: 'center',
     opacity: 0.9,
@@ -289,6 +291,7 @@ const styles = StyleSheet.create({
     marginTop: theme.spacing.sm,
     fontSize: theme.typography.sizes.md,
     fontWeight: theme.typography.weights.semibold,
+    fontFamily: theme.typography.fontFamily.semibold,
     color: theme.colors.text.primary,
   },
   heartContainer: {
@@ -321,6 +324,7 @@ const styles = StyleSheet.create({
     color: theme.colors.text.white,
     fontSize: theme.typography.sizes.lg,
     fontWeight: theme.typography.weights.bold,
+    fontFamily: theme.typography.fontFamily.bold,
   },
   secondaryButton: {
     paddingVertical: theme.spacing.md,
@@ -331,6 +335,7 @@ const styles = StyleSheet.create({
     color: theme.colors.text.muted,
     fontSize: theme.typography.sizes.md,
     fontWeight: theme.typography.weights.medium,
+    fontFamily: theme.typography.fontFamily.medium,
   },
 });
 

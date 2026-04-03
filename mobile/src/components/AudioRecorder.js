@@ -539,12 +539,14 @@ const styles = StyleSheet.create({
   },
   slideText: {
     fontSize: theme.typography.sizes.xs,
+    fontFamily: theme.typography.fontFamily.regular,
     color: theme.colors.gray[500],
   },
   cancelText: {
     fontSize: theme.typography.sizes.md,
     color: theme.colors.status.error,
     fontWeight: theme.typography.weights.medium,
+    fontFamily: theme.typography.fontFamily.medium,
   },
   recordingIndicator: {
     flexDirection: 'row',
@@ -562,6 +564,7 @@ const styles = StyleSheet.create({
   durationText: {
     fontSize: theme.typography.sizes.md,
     fontWeight: theme.typography.weights.semibold,
+    fontFamily: theme.typography.fontFamily.semibold,
     color: theme.colors.text.primary,
     minWidth: 40,
   },

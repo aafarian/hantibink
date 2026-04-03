@@ -513,6 +513,7 @@ const styles = StyleSheet.create({
   title: {
     fontSize: theme.typography.sizes.xl,
     fontWeight: theme.typography.weights.bold,
+    fontFamily: theme.typography.fontFamily.bold,
     marginBottom: theme.spacing.lg,
     color: theme.colors.text.primary,
   },
@@ -548,6 +549,7 @@ const styles = StyleSheet.create({
     color: theme.colors.text.white,
     fontSize: theme.typography.sizes.xs,
     fontWeight: theme.typography.weights.bold,
+    fontFamily: theme.typography.fontFamily.bold,
   },
 
   draggableGridContainer: {
@@ -578,9 +580,11 @@ const styles = StyleSheet.create({
     marginLeft: theme.spacing.sm,
     textAlign: 'center',
     fontWeight: theme.typography.weights.semibold,
+    fontFamily: theme.typography.fontFamily.semibold,
   },
   dragHint: {
     fontSize: theme.typography.sizes.sm,
+    fontFamily: theme.typography.fontFamily.regular,
     color: theme.colors.gray[600],
     textAlign: 'center',
     marginTop: theme.spacing.sm,
@@ -625,11 +629,13 @@ const styles = StyleSheet.create({
   },
   noPhotosText: {
     fontSize: theme.typography.sizes.md,
+    fontFamily: theme.typography.fontFamily.regular,
     color: theme.colors.gray[500],
     marginTop: theme.spacing.sm,
   },
   noPhotosSubtext: {
     fontSize: theme.typography.sizes.sm,
+    fontFamily: theme.typography.fontFamily.regular,
     color: theme.colors.gray[300],
     textAlign: 'center',
   },

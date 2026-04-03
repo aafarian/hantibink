@@ -527,6 +527,7 @@ const styles = StyleSheet.create({
   sectionTitle: {
     fontSize: theme.typography.sizes.xl,
     fontWeight: theme.typography.weights.bold,
+    fontFamily: theme.typography.fontFamily.bold,
     marginBottom: theme.spacing.lg,
     color: theme.colors.text.primary,
   },
@@ -536,6 +537,7 @@ const styles = StyleSheet.create({
   label: {
     fontSize: theme.typography.sizes.lg,
     fontWeight: theme.typography.weights.semibold,
+    fontFamily: theme.typography.fontFamily.semibold,
     marginBottom: theme.spacing.sm,
     color: theme.colors.text.primary,
   },
@@ -545,6 +547,7 @@ const styles = StyleSheet.create({
   counter: {
     fontSize: theme.typography.sizes.sm,
     fontWeight: theme.typography.weights.regular,
+    fontFamily: theme.typography.fontFamily.regular,
     color: theme.colors.gray[600],
   },
   textInput: {
@@ -554,6 +557,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: theme.spacing.md,
     paddingVertical: theme.spacing.md,
     fontSize: theme.typography.sizes.lg,
+    fontFamily: theme.typography.fontFamily.regular,
     backgroundColor: theme.colors.background.primary,
   },
   textArea: {
@@ -585,6 +589,7 @@ const styles = StyleSheet.create({
   },
   selectedTagText: {
     fontSize: theme.typography.sizes.md,
+    fontFamily: theme.typography.fontFamily.regular,
     color: theme.colors.gray[600],
     marginRight: theme.spacing.xs,
   },
@@ -604,6 +609,7 @@ const styles = StyleSheet.create({
   },
   selectorText: {
     fontSize: theme.typography.sizes.lg,
+    fontFamily: theme.typography.fontFamily.regular,
     color: theme.colors.text.primary,
   },
   bubblesContainer: {
@@ -626,6 +632,7 @@ const styles = StyleSheet.create({
   },
   bubbleText: {
     fontSize: theme.typography.sizes.md,
+    fontFamily: theme.typography.fontFamily.regular,
     color: theme.colors.text.primary,
   },
   bubbleTextSelected: {
@@ -657,6 +664,7 @@ const styles = StyleSheet.create({
     fontSize: theme.typography.sizes.xs,
     color: theme.colors.status.success,
     fontWeight: theme.typography.weights.semibold,
+    fontFamily: theme.typography.fontFamily.semibold,
   },
   textInputChanged: {
     borderColor: theme.colors.status.success,
@@ -674,6 +682,7 @@ const styles = StyleSheet.create({
   selectorTextChanged: {
     color: theme.colors.status.success,
     fontWeight: theme.typography.weights.medium,
+    fontFamily: theme.typography.fontFamily.medium,
   },
   bubbleChangedSelected: {
     backgroundColor: theme.colors.status.success,
@@ -692,6 +701,7 @@ const styles = StyleSheet.create({
   errorText: {
     color: theme.colors.status.error,
     fontSize: theme.typography.sizes.sm,
+    fontFamily: theme.typography.fontFamily.regular,
     marginTop: theme.spacing.xs,
     marginLeft: 2,
   },

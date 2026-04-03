@@ -581,6 +581,7 @@ const styles = StyleSheet.create({
     color: theme.colors.text.white,
     fontSize: 12,
     fontWeight: '600',
+    fontFamily: theme.typography.fontFamily.semibold,
   },
   emptyPhotoContainer: {
     width: 200,
@@ -598,12 +599,14 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: theme.colors.text.muted,
     marginTop: 10,
+    fontFamily: theme.typography.fontFamily.regular,
   },
   sectionTitle: {
     fontSize: 18,
     fontWeight: 'bold',
     marginBottom: 15,
     color: theme.colors.text.primary,
+    fontFamily: theme.typography.fontFamily.bold,
   },
   infoSection: {
     padding: 20,
@@ -618,11 +621,13 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     marginBottom: 10,
     color: theme.colors.text.primary,
+    fontFamily: theme.typography.fontFamily.bold,
   },
   bioText: {
     fontSize: 14,
     color: theme.colors.text.secondary,
     lineHeight: 20,
+    fontFamily: theme.typography.fontFamily.regular,
   },
   interestsSection: {
     marginTop: 20,
@@ -632,6 +637,7 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     marginBottom: 10,
     color: theme.colors.text.primary,
+    fontFamily: theme.typography.fontFamily.bold,
   },
   interestsContainer: {
     flexDirection: 'row',
@@ -651,6 +657,7 @@ const styles = StyleSheet.create({
     color: theme.colors.primary,
     fontSize: 13,
     fontWeight: '500',
+    fontFamily: theme.typography.fontFamily.medium,
   },
   languagesSection: {
     marginTop: 20,
@@ -661,6 +668,7 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     marginBottom: 10,
     color: theme.colors.text.primary,
+    fontFamily: theme.typography.fontFamily.bold,
   },
   languagesContainer: {
     flexDirection: 'row',
@@ -684,6 +692,7 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: theme.colors.text.secondary,
     marginLeft: 4,
+    fontFamily: theme.typography.fontFamily.regular,
   },
   settingsSection: {
     padding: 20,
@@ -702,6 +711,7 @@ const styles = StyleSheet.create({
     fontSize: 16,
     marginLeft: 15,
     color: theme.colors.text.primary,
+    fontFamily: theme.typography.fontFamily.regular,
   },
   // Guidance styles
   guidanceContainer: {
@@ -723,11 +733,13 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: theme.colors.primary,
     marginBottom: 4,
+    fontFamily: theme.typography.fontFamily.semibold,
   },
   guidanceSubtitle: {
     fontSize: 14,
     color: 'rgba(211, 47, 47, 0.7)',
     lineHeight: 20,
+    fontFamily: theme.typography.fontFamily.regular,
   },
   guidanceButton: {
     backgroundColor: theme.colors.primary,
@@ -740,6 +752,7 @@ const styles = StyleSheet.create({
     color: theme.colors.text.white,
     fontSize: 14,
     fontWeight: '600',
+    fontFamily: theme.typography.fontFamily.semibold,
   },
   // Looking For section styles
   lookingForSection: {
@@ -767,6 +780,7 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '600',
     color: theme.colors.primary,
+    fontFamily: theme.typography.fontFamily.semibold,
   },
 
   // Modern Info Section styles
@@ -789,6 +803,7 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: theme.colors.primary,
     fontWeight: '600',
+    fontFamily: theme.typography.fontFamily.semibold,
   },
   infoGrid: {
     marginBottom: 10,
@@ -819,11 +834,13 @@ const styles = StyleSheet.create({
     letterSpacing: 0.5,
     marginBottom: 2,
     fontWeight: '600',
+    fontFamily: theme.typography.fontFamily.semibold,
   },
   infoValue: {
     fontSize: 15,
     color: theme.colors.text.primary,
     fontWeight: '500',
+    fontFamily: theme.typography.fontFamily.medium,
   },
 
   // Lifestyle List styles
@@ -856,11 +873,13 @@ const styles = StyleSheet.create({
     letterSpacing: 0.5,
     marginBottom: 2,
     fontWeight: '600',
+    fontFamily: theme.typography.fontFamily.semibold,
   },
   lifestyleText: {
     fontSize: 15,
     color: theme.colors.text.primary,
     fontWeight: '400',
+    fontFamily: theme.typography.fontFamily.regular,
   },
   toggleSwitch: {
     width: 50,
@@ -903,10 +922,12 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '600',
     color: theme.colors.accent,
+    fontFamily: theme.typography.fontFamily.semibold,
   },
   devInfoSubtext: {
     fontSize: 12,
     color: theme.colors.text.secondary,
+    fontFamily: theme.typography.fontFamily.regular,
   },
   buildInfoSection: {
     marginTop: 24,
@@ -923,6 +944,7 @@ const styles = StyleSheet.create({
     marginBottom: 12,
     textTransform: 'uppercase',
     letterSpacing: 0.5,
+    fontFamily: theme.typography.fontFamily.semibold,
   },
   buildInfoRow: {
     flexDirection: 'row',
@@ -932,6 +954,7 @@ const styles = StyleSheet.create({
   buildInfoLabel: {
     fontSize: 13,
     color: theme.colors.text.secondary,
+    fontFamily: theme.typography.fontFamily.regular,
   },
   buildInfoValue: {
     fontSize: 13,
@@ -953,6 +976,7 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: theme.colors.text.muted,
     fontStyle: 'italic',
+    fontFamily: theme.typography.fontFamily.regular,
   },
 });
 

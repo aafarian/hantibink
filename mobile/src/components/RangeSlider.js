@@ -165,6 +165,7 @@ const styles = StyleSheet.create({
   label: {
     fontSize: theme.typography.sizes.lg,
     fontWeight: theme.typography.weights.semibold,
+    fontFamily: theme.typography.fontFamily.semibold,
     color: theme.colors.text.primary,
     marginBottom: theme.spacing.lg,
   },
@@ -184,6 +185,7 @@ const styles = StyleSheet.create({
   },
   valueLabel: {
     fontSize: theme.typography.sizes.xs,
+    fontFamily: theme.typography.fontFamily.regular,
     color: theme.colors.gray[500],
     marginBottom: theme.spacing.xs,
     textTransform: 'uppercase',
@@ -192,6 +194,7 @@ const styles = StyleSheet.create({
   value: {
     fontSize: theme.typography.sizes.xxl,
     fontWeight: theme.typography.weights.bold,
+    fontFamily: theme.typography.fontFamily.bold,
     color: theme.colors.primary,
   },
   rangeDash: {
@@ -253,6 +256,7 @@ const styles = StyleSheet.create({
   },
   limitLabel: {
     fontSize: theme.typography.sizes.xs,
+    fontFamily: theme.typography.fontFamily.regular,
     color: theme.colors.gray[500],
   },
 });

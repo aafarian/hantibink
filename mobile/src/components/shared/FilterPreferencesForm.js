@@ -561,6 +561,7 @@ const styles = StyleSheet.create({
   headerTitle: {
     fontSize: theme.typography.sizes.xl,
     fontWeight: theme.typography.weights.semibold,
+    fontFamily: theme.typography.fontFamily.semibold,
     color: theme.colors.text.white,
   },
   resetButton: {
@@ -570,6 +571,7 @@ const styles = StyleSheet.create({
     fontSize: theme.typography.sizes.lg,
     color: theme.colors.text.white,
     fontWeight: theme.typography.weights.medium,
+    fontFamily: theme.typography.fontFamily.medium,
   },
   loadingContainer: {
     flex: 1,
@@ -588,6 +590,7 @@ const styles = StyleSheet.create({
   sectionTitle: {
     fontSize: theme.typography.sizes.md,
     fontWeight: theme.typography.weights.semibold,
+    fontFamily: theme.typography.fontFamily.semibold,
     color: theme.colors.gray[600],
     textTransform: 'uppercase',
     letterSpacing: 0.5,
@@ -607,9 +610,11 @@ const styles = StyleSheet.create({
     fontSize: theme.typography.sizes.lg,
     color: theme.colors.text.primary,
     fontWeight: theme.typography.weights.medium,
+    fontFamily: theme.typography.fontFamily.medium,
   },
   toggleDescription: {
     fontSize: theme.typography.sizes.sm,
+    fontFamily: theme.typography.fontFamily.regular,
     color: theme.colors.gray[600],
     marginTop: 2,
   },
@@ -638,6 +643,7 @@ const styles = StyleSheet.create({
     fontSize: 15,
     color: theme.colors.gray[600],
     fontWeight: theme.typography.weights.medium,
+    fontFamily: theme.typography.fontFamily.medium,
   },
   genderOptionTextActive: {
     color: theme.colors.text.white,
@@ -654,6 +660,7 @@ const styles = StyleSheet.create({
   rangeLabel: {
     fontSize: theme.typography.sizes.lg,
     fontWeight: theme.typography.weights.semibold,
+    fontFamily: theme.typography.fontFamily.semibold,
     color: theme.colors.text.primary,
   },
   rangeValues: {
@@ -667,15 +674,18 @@ const styles = StyleSheet.create({
   rangeValue: {
     fontSize: theme.typography.sizes.lg,
     fontWeight: theme.typography.weights.semibold,
+    fontFamily: theme.typography.fontFamily.semibold,
     color: theme.colors.primary,
   },
   rangeSeparator: {
     fontSize: theme.typography.sizes.md,
+    fontFamily: theme.typography.fontFamily.regular,
     color: theme.colors.gray[500],
     marginHorizontal: theme.spacing.xs,
   },
   rangeUnit: {
     fontSize: theme.typography.sizes.md,
+    fontFamily: theme.typography.fontFamily.regular,
     color: theme.colors.gray[600],
     marginLeft: theme.spacing.xs,
   },
@@ -692,10 +702,12 @@ const styles = StyleSheet.create({
   },
   sliderMinLabel: {
     fontSize: theme.typography.sizes.sm,
+    fontFamily: theme.typography.fontFamily.regular,
     color: theme.colors.gray[500],
   },
   sliderMaxLabel: {
     fontSize: theme.typography.sizes.sm,
+    fontFamily: theme.typography.fontFamily.regular,
     color: theme.colors.gray[500],
   },
   multiSelectContainer: {
@@ -705,6 +717,7 @@ const styles = StyleSheet.create({
     fontSize: theme.typography.sizes.lg,
     color: theme.colors.text.primary,
     fontWeight: theme.typography.weights.medium,
+    fontFamily: theme.typography.fontFamily.medium,
     marginBottom: theme.spacing.md,
   },
   optionsContainer: {
@@ -727,11 +740,13 @@ const styles = StyleSheet.create({
   },
   optionText: {
     fontSize: theme.typography.sizes.md,
+    fontFamily: theme.typography.fontFamily.regular,
     color: theme.colors.gray[600],
   },
   optionTextActive: {
     color: theme.colors.text.white,
     fontWeight: theme.typography.weights.medium,
+    fontFamily: theme.typography.fontFamily.medium,
   },
   footer: {
     position: 'absolute',
@@ -757,6 +772,7 @@ const styles = StyleSheet.create({
   actionButtonText: {
     fontSize: theme.typography.sizes.lg,
     fontWeight: theme.typography.weights.semibold,
+    fontFamily: theme.typography.fontFamily.semibold,
     color: theme.colors.text.white,
   },
 });

@@ -113,6 +113,7 @@ const styles = StyleSheet.create({
   tagText: {
     color: theme.colors.text.white,
     fontSize: 12,
+    fontFamily: theme.typography.fontFamily.regular,
   },
 });
 

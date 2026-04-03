@@ -1,5 +1,6 @@
 import React, { useEffect, memo } from 'react';
 import { Text, StyleSheet } from 'react-native';
+import { theme } from '../../styles/theme';
 import Animated, {
   useAnimatedStyle,
   useSharedValue,
@@ -77,9 +78,11 @@ const styles = StyleSheet.create({
   },
   emoji: {
     fontSize: 16,
+    fontFamily: theme.typography.fontFamily.regular,
   },
   superscript: {
     fontSize: 10,
+    fontFamily: theme.typography.fontFamily.regular,
     lineHeight: 14,
   },
 });
