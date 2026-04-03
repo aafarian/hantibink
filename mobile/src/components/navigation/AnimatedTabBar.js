@@ -256,9 +256,11 @@ const styles = StyleSheet.create({
     color: 'white',
     fontSize: 12,
     fontWeight: 'bold',
+    fontFamily: theme.typography.fontFamily.bold,
   },
   label: {
     fontSize: 10,
+    fontFamily: theme.typography.fontFamily.regular,
     marginTop: 2,
   },
 });

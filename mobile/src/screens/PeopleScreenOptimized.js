@@ -907,11 +907,13 @@ const styles = StyleSheet.create({
   incompleteTitle: {
     fontSize: 28,
     fontWeight: 'bold',
+    fontFamily: theme.typography.fontFamily.bold,
     color: theme.colors.text.primary,
     marginBottom: 12,
   },
   incompleteSubtitle: {
     fontSize: 16,
+    fontFamily: theme.typography.fontFamily.regular,
     color: theme.colors.text.secondary,
     textAlign: 'center',
     lineHeight: 24,
@@ -934,15 +936,18 @@ const styles = StyleSheet.create({
     color: theme.colors.text.white,
     fontSize: 18,
     fontWeight: '600',
+    fontFamily: theme.typography.fontFamily.semibold,
   },
   noPhotosTitle: {
     fontSize: 20,
     fontWeight: 'bold',
+    fontFamily: theme.typography.fontFamily.bold,
     marginTop: 20,
     marginBottom: 10,
   },
   noPhotosSubtitle: {
     fontSize: 16,
+    fontFamily: theme.typography.fontFamily.regular,
     color: theme.colors.text.secondary,
     textAlign: 'center',
     marginBottom: 30,
@@ -957,6 +962,7 @@ const styles = StyleSheet.create({
     color: theme.colors.text.white,
     fontSize: 16,
     fontWeight: '600',
+    fontFamily: theme.typography.fontFamily.semibold,
   },
 });
 

@@ -125,18 +125,21 @@ const styles = StyleSheet.create({
   modalName: {
     fontSize: 24,
     fontWeight: 'bold',
+    fontFamily: theme.typography.fontFamily.bold,
     color: theme.colors.text.primary,
     marginBottom: 5,
   },
   modalLocation: {
     fontSize: 16,
     color: theme.colors.text.secondary,
+    fontFamily: theme.typography.fontFamily.regular,
     marginBottom: 15,
   },
   modalBio: {
     fontSize: 16,
     color: theme.colors.text.primary,
     lineHeight: 24,
+    fontFamily: theme.typography.fontFamily.regular,
   },
   superLikeInfo: {
     flexDirection: 'row',
@@ -150,6 +153,7 @@ const styles = StyleSheet.create({
     marginLeft: 8,
     color: theme.colors.premium,
     fontWeight: 'bold',
+    fontFamily: theme.typography.fontFamily.bold,
   },
   modalActions: {
     flexDirection: 'row',
@@ -170,6 +174,7 @@ const styles = StyleSheet.create({
   passButtonText: {
     color: theme.colors.primary,
     fontWeight: 'bold',
+    fontFamily: theme.typography.fontFamily.bold,
     marginLeft: 8,
   },
   likeButton: {
@@ -178,6 +183,7 @@ const styles = StyleSheet.create({
   likeButtonText: {
     color: 'white',
     fontWeight: 'bold',
+    fontFamily: theme.typography.fontFamily.bold,
     marginLeft: 8,
   },
 });

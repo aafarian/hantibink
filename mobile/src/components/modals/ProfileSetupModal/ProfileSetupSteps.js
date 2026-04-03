@@ -211,12 +211,14 @@ const styles = StyleSheet.create({
   stepTitle: {
     fontSize: 32,
     fontWeight: '800',
+    fontFamily: theme.typography.fontFamily.bold,
     marginBottom: 8,
     textAlign: 'center',
     color: '#1A1A1A',
   },
   helperText: {
     fontSize: 15,
+    fontFamily: theme.typography.fontFamily.regular,
     color: '#777',
     textAlign: 'center',
     marginTop: 8,
@@ -237,6 +239,7 @@ const styles = StyleSheet.create({
   datePickerButtonText: {
     fontSize: 17,
     fontWeight: '600',
+    fontFamily: theme.typography.fontFamily.semibold,
     color: '#444',
   },
   datePickerContainer: {
@@ -269,11 +272,13 @@ const styles = StyleSheet.create({
   optionText: {
     fontSize: 17,
     fontWeight: '600',
+    fontFamily: theme.typography.fontFamily.semibold,
     color: '#444',
   },
   optionTextSelected: {
     color: theme.colors.primary,
     fontWeight: '700',
+    fontFamily: theme.typography.fontFamily.bold,
   },
   photosGrid: {
     flexDirection: 'row',
@@ -334,6 +339,7 @@ const styles = StyleSheet.create({
   locationText: {
     fontSize: 17,
     fontWeight: '600',
+    fontFamily: theme.typography.fontFamily.semibold,
     color: theme.colors.primary,
   },
   locationLoadingContainer: {
@@ -344,11 +350,13 @@ const styles = StyleSheet.create({
   },
   locationLoadingText: {
     fontSize: 16,
+    fontFamily: theme.typography.fontFamily.regular,
     color: theme.colors.text.secondary,
     marginTop: 15,
   },
   locationAutoProgressText: {
     fontSize: 14,
+    fontFamily: theme.typography.fontFamily.regular,
     color: theme.colors.text.muted,
     marginTop: 15,
     textAlign: 'center',

@@ -169,6 +169,7 @@ const styles = StyleSheet.create({
   },
   headerTitle: {
     fontSize: 18,
+    fontFamily: theme.typography.fontFamily.bold,
     fontWeight: 'bold',
     color: theme.colors.text.primary,
   },
@@ -177,6 +178,7 @@ const styles = StyleSheet.create({
   },
   stepText: {
     fontSize: 12,
+    fontFamily: theme.typography.fontFamily.regular,
     color: theme.colors.text.secondary,
   },
   form: {
@@ -206,6 +208,7 @@ const styles = StyleSheet.create({
   createButtonText: {
     color: theme.colors.text.white,
     fontSize: 16,
+    fontFamily: theme.typography.fontFamily.semibold,
     fontWeight: '600',
   },
 });

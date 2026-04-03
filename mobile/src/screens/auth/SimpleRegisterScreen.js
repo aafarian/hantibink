@@ -488,6 +488,7 @@ const styles = StyleSheet.create({
   },
   title: {
     fontSize: 24,
+    fontFamily: theme.typography.fontFamily.bold,
     fontWeight: 'bold',
     color: theme.colors.text.primary,
   },
@@ -502,6 +503,7 @@ const styles = StyleSheet.create({
   },
   label: {
     fontSize: 16,
+    fontFamily: theme.typography.fontFamily.semibold,
     fontWeight: '600',
     color: theme.colors.text.primary,
     marginBottom: 8,
@@ -512,6 +514,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 16,
     fontSize: 16,
+    fontFamily: theme.typography.fontFamily.regular,
     borderWidth: 1,
     borderColor: theme.colors.border.light,
   },
@@ -528,6 +531,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 16,
     fontSize: 16,
+    fontFamily: theme.typography.fontFamily.regular,
   },
   eyeButton: {
     padding: 16,
@@ -551,6 +555,7 @@ const styles = StyleSheet.create({
   registerButtonText: {
     color: theme.colors.text.white,
     fontSize: 18,
+    fontFamily: theme.typography.fontFamily.bold,
     fontWeight: 'bold',
   },
   footer: {
@@ -562,10 +567,12 @@ const styles = StyleSheet.create({
   footerText: {
     color: theme.colors.text.secondary,
     fontSize: 14,
+    fontFamily: theme.typography.fontFamily.regular,
   },
   footerLink: {
     color: theme.colors.primary,
     fontSize: 14,
+    fontFamily: theme.typography.fontFamily.bold,
     fontWeight: 'bold',
   },
   inputError: {
@@ -575,12 +582,14 @@ const styles = StyleSheet.create({
   errorText: {
     color: theme.colors.primary,
     fontSize: 12,
+    fontFamily: theme.typography.fontFamily.regular,
     marginTop: 4,
     marginLeft: 4,
   },
   helperText: {
     color: theme.colors.text.secondary,
     fontSize: 11,
+    fontFamily: theme.typography.fontFamily.regular,
     marginTop: 4,
     marginLeft: 4,
     fontStyle: 'italic',
@@ -591,12 +600,14 @@ const styles = StyleSheet.create({
   },
   legalText: {
     fontSize: 13,
+    fontFamily: theme.typography.fontFamily.regular,
     color: theme.colors.text.secondary,
     textAlign: 'center',
     lineHeight: 20,
   },
   legalLink: {
     color: theme.colors.primary,
+    fontFamily: theme.typography.fontFamily.medium,
     fontWeight: '500',
   },
 });

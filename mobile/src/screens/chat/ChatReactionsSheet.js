@@ -209,6 +209,7 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 18,
     fontWeight: '600',
+    fontFamily: theme.typography.fontFamily.semibold,
     color: theme.colors.text.primary,
     marginBottom: 12,
   },
@@ -232,6 +233,7 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: theme.colors.text.secondary,
     fontWeight: '500',
+    fontFamily: theme.typography.fontFamily.medium,
   },
   tabTextActive: {
     color: theme.colors.primary,
@@ -262,14 +264,17 @@ const styles = StyleSheet.create({
   reactionName: {
     fontSize: 16,
     color: theme.colors.text.primary,
+    fontFamily: theme.typography.fontFamily.regular,
   },
   noReactionsText: {
     fontSize: 14,
     color: theme.colors.text.muted,
     textAlign: 'center',
+    fontFamily: theme.typography.fontFamily.regular,
   },
   reactionEmoji: {
     fontSize: 24,
+    fontFamily: theme.typography.fontFamily.regular,
   },
   emojiContainer: {
     position: 'relative',
@@ -298,6 +303,7 @@ const styles = StyleSheet.create({
     color: theme.colors.primary,
     marginLeft: 12,
     fontWeight: '500',
+    fontFamily: theme.typography.fontFamily.medium,
   },
 });
 

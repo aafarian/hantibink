@@ -128,6 +128,7 @@ const styles = StyleSheet.create({
   headerName: {
     fontSize: 16,
     fontWeight: '600',
+    fontFamily: theme.typography.fontFamily.semibold,
     color: theme.colors.text.primary,
   },
   statusRow: {
@@ -159,6 +160,7 @@ const styles = StyleSheet.create({
   statusText: {
     fontSize: 13,
     color: theme.colors.text.secondary,
+    fontFamily: theme.typography.fontFamily.regular,
   },
   menuButton: {
     padding: 8,

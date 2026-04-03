@@ -763,6 +763,7 @@ const styles = StyleSheet.create({
   },
   headerSubtitle: {
     fontSize: 15,
+    fontFamily: theme.typography.fontFamily.regular,
     color: theme.colors.text.secondary,
   },
   likeCountBadge: {
@@ -777,6 +778,7 @@ const styles = StyleSheet.create({
   likeCountText: {
     color: 'white',
     fontWeight: '600',
+    fontFamily: theme.typography.fontFamily.semibold,
     fontSize: 14,
   },
   upgradeButton: {
@@ -792,6 +794,7 @@ const styles = StyleSheet.create({
   upgradeButtonText: {
     color: 'white',
     fontWeight: '600',
+    fontFamily: theme.typography.fontFamily.semibold,
     fontSize: 15,
   },
   premiumBadge: {
@@ -806,6 +809,7 @@ const styles = StyleSheet.create({
   premiumText: {
     color: theme.colors.premium,
     fontWeight: '600',
+    fontFamily: theme.typography.fontFamily.semibold,
     fontSize: 12,
   },
   gridContainer: {
@@ -824,11 +828,13 @@ const styles = StyleSheet.create({
   emptyTitle: {
     fontSize: 22,
     fontWeight: 'bold',
+    fontFamily: theme.typography.fontFamily.bold,
     color: theme.colors.text.primary,
     marginBottom: 10,
   },
   emptySubtitle: {
     fontSize: 15,
+    fontFamily: theme.typography.fontFamily.regular,
     color: theme.colors.text.secondary,
     textAlign: 'center',
     marginBottom: 20,
@@ -846,6 +852,7 @@ const styles = StyleSheet.create({
   tipTitle: {
     fontSize: 16,
     fontWeight: '700',
+    fontFamily: theme.typography.fontFamily.bold,
     color: theme.colors.text.primary,
     marginBottom: 16,
   },
@@ -857,6 +864,7 @@ const styles = StyleSheet.create({
   },
   tipText: {
     fontSize: 14,
+    fontFamily: theme.typography.fontFamily.regular,
     color: '#555',
     flex: 1,
   },
@@ -897,6 +905,7 @@ const styles = StyleSheet.create({
     color: theme.colors.text.white,
     fontSize: 16,
     fontWeight: '600',
+    fontFamily: theme.typography.fontFamily.semibold,
   },
   footerLoader: {
     paddingVertical: 20,
@@ -906,6 +915,7 @@ const styles = StyleSheet.create({
   loadingMoreText: {
     marginTop: 8,
     fontSize: 14,
+    fontFamily: theme.typography.fontFamily.regular,
     color: theme.colors.text.secondary,
   },
 });

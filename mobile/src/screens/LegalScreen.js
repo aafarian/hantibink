@@ -238,6 +238,7 @@ const styles = StyleSheet.create({
   headerTitle: {
     fontSize: 18,
     fontWeight: '600',
+    fontFamily: theme.typography.fontFamily.semibold,
     color: theme.colors.text.white,
   },
   content: {
@@ -246,6 +247,7 @@ const styles = StyleSheet.create({
   },
   lastUpdated: {
     fontSize: 13,
+    fontFamily: theme.typography.fontFamily.regular,
     color: '#888',
     marginBottom: 24,
     fontStyle: 'italic',
@@ -253,18 +255,21 @@ const styles = StyleSheet.create({
   sectionTitle: {
     fontSize: 17,
     fontWeight: '600',
+    fontFamily: theme.typography.fontFamily.semibold,
     color: theme.colors.text.primary,
     marginTop: 20,
     marginBottom: 10,
   },
   paragraph: {
     fontSize: 15,
+    fontFamily: theme.typography.fontFamily.regular,
     color: '#555',
     lineHeight: 22,
     marginBottom: 10,
   },
   bulletPoint: {
     fontSize: 15,
+    fontFamily: theme.typography.fontFamily.regular,
     color: '#555',
     lineHeight: 24,
     marginLeft: 16,

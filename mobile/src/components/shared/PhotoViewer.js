@@ -487,6 +487,7 @@ const styles = StyleSheet.create({
     color: theme.colors.text.primary,
     fontSize: 18,
     fontWeight: '600',
+    fontFamily: theme.typography.fontFamily.semibold,
   },
   photoContainer: {
     height: 400,
@@ -568,6 +569,7 @@ const styles = StyleSheet.create({
     marginLeft: 8,
     fontSize: 14,
     fontWeight: '600',
+    fontFamily: theme.typography.fontFamily.semibold,
     color: theme.colors.text.primary,
   },
   customContent: {
@@ -583,6 +585,7 @@ const styles = StyleSheet.create({
   noPhotoText: {
     color: theme.colors.text.white,
     fontSize: 16,
+    fontFamily: theme.typography.fontFamily.regular,
   },
 });
 

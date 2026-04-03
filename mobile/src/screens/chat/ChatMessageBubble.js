@@ -411,10 +411,12 @@ const styles = StyleSheet.create({
     lineHeight: 22,
     letterSpacing: 0.2,
     fontWeight: '400',
+    fontFamily: theme.typography.fontFamily.regular,
   },
   ownMessageText: {
     color: theme.colors.text.white,
     fontWeight: '400',
+    fontFamily: theme.typography.fontFamily.regular,
   },
   gifMessage: {
     width: 200,
@@ -467,6 +469,7 @@ const styles = StyleSheet.create({
   quotedReplyName: {
     fontSize: 12,
     fontWeight: '600',
+    fontFamily: theme.typography.fontFamily.semibold,
     marginBottom: 2,
   },
   quotingSelfName: {
@@ -477,6 +480,7 @@ const styles = StyleSheet.create({
   },
   quotedReplyText: {
     fontSize: 13,
+    fontFamily: theme.typography.fontFamily.regular,
   },
   quotingSelfText: {
     color: theme.colors.text.secondary,
@@ -510,16 +514,19 @@ const styles = StyleSheet.create({
   },
   reactionEmoji: {
     fontSize: 16,
+    fontFamily: theme.typography.fontFamily.regular,
   },
   reactionSuperscript: {
     fontSize: 10,
     lineHeight: 14,
+    fontFamily: theme.typography.fontFamily.regular,
   },
   reactionOverflow: {
     fontSize: 12,
     color: theme.colors.text.secondary,
     marginLeft: 2,
     fontWeight: '500',
+    fontFamily: theme.typography.fontFamily.medium,
   },
   messageStatus: {
     flexDirection: 'row',
@@ -535,6 +542,7 @@ const styles = StyleSheet.create({
     fontSize: 11,
     color: theme.colors.text.muted,
     fontWeight: '400',
+    fontFamily: theme.typography.fontFamily.regular,
   },
   readIcon: {
     marginLeft: 4,

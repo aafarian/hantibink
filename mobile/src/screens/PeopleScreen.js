@@ -608,16 +608,19 @@ const styles = StyleSheet.create({
   cardName: {
     fontSize: 24,
     fontWeight: 'bold',
+    fontFamily: theme.typography.fontFamily.bold,
     color: theme.colors.text.white,
     marginBottom: 5,
   },
   cardLocation: {
     fontSize: 16,
+    fontFamily: theme.typography.fontFamily.regular,
     color: theme.colors.text.white,
     marginBottom: 10,
   },
   cardBio: {
     fontSize: 14,
+    fontFamily: theme.typography.fontFamily.regular,
     color: theme.colors.text.white,
     marginBottom: 15,
     lineHeight: 20,
@@ -637,6 +640,7 @@ const styles = StyleSheet.create({
   interestText: {
     color: theme.colors.text.white,
     fontSize: 12,
+    fontFamily: theme.typography.fontFamily.regular,
   },
   likeIndicator: {
     position: 'absolute',
@@ -647,6 +651,7 @@ const styles = StyleSheet.create({
   likeText: {
     fontSize: 32,
     fontWeight: 'bold',
+    fontFamily: theme.typography.fontFamily.bold,
     color: theme.colors.secondary,
     borderWidth: 4,
     borderColor: theme.colors.secondary,
@@ -661,6 +666,7 @@ const styles = StyleSheet.create({
   dislikeText: {
     fontSize: 32,
     fontWeight: 'bold',
+    fontFamily: theme.typography.fontFamily.bold,
     color: theme.colors.primary,
     borderWidth: 4,
     borderColor: theme.colors.primary,
@@ -700,6 +706,7 @@ const styles = StyleSheet.create({
   },
   noMoreCardsText: {
     fontSize: 18,
+    fontFamily: theme.typography.fontFamily.regular,
     color: theme.colors.text.secondary,
     marginTop: 20,
     marginBottom: 30,
@@ -714,6 +721,7 @@ const styles = StyleSheet.create({
     color: theme.colors.text.white,
     fontSize: 16,
     fontWeight: 'bold',
+    fontFamily: theme.typography.fontFamily.bold,
   },
   testButton: {
     position: 'absolute',
@@ -735,6 +743,7 @@ const styles = StyleSheet.create({
   testButtonText: {
     color: theme.colors.text.white,
     fontSize: 12,
+    fontFamily: theme.typography.fontFamily.regular,
   },
   // No photos styles
   noPhotosContainer: {
@@ -747,12 +756,14 @@ const styles = StyleSheet.create({
   noPhotosTitle: {
     fontSize: 24,
     fontWeight: 'bold',
+    fontFamily: theme.typography.fontFamily.bold,
     color: theme.colors.text.primary,
     marginTop: 20,
     textAlign: 'center',
   },
   noPhotosSubtitle: {
     fontSize: 16,
+    fontFamily: theme.typography.fontFamily.regular,
     color: theme.colors.text.secondary,
     marginTop: 12,
     marginBottom: 30,
@@ -769,6 +780,7 @@ const styles = StyleSheet.create({
     color: theme.colors.text.white,
     fontSize: 16,
     fontWeight: 'bold',
+    fontFamily: theme.typography.fontFamily.bold,
   },
 });
 

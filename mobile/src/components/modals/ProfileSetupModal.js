@@ -1208,10 +1208,12 @@ const styles = StyleSheet.create({
   headerTitle: {
     fontSize: theme.typography.sizes.xxl,
     fontWeight: theme.typography.weights.bold,
+    fontFamily: theme.typography.fontFamily.bold,
     color: theme.colors.text.primary,
   },
   headerSubtitle: {
     fontSize: theme.typography.sizes.md,
+    fontFamily: theme.typography.fontFamily.regular,
     color: theme.colors.text.secondary,
     textAlign: 'center',
     paddingHorizontal: theme.spacing.xl,
@@ -1252,6 +1254,7 @@ const styles = StyleSheet.create({
   loadingText: {
     marginTop: 15,
     fontSize: theme.typography.sizes.lg,
+    fontFamily: theme.typography.fontFamily.regular,
     color: theme.colors.text.secondary,
   },
   stepContent: {
@@ -1260,12 +1263,14 @@ const styles = StyleSheet.create({
   stepTitle: {
     fontSize: theme.typography.sizes.huge,
     fontWeight: '800',
+    fontFamily: theme.typography.fontFamily.bold,
     marginBottom: theme.spacing.sm,
     textAlign: 'center',
     color: theme.colors.gray[900],
   },
   helperText: {
     fontSize: 15,
+    fontFamily: theme.typography.fontFamily.regular,
     color: theme.colors.gray[600],
     textAlign: 'center',
     marginTop: theme.spacing.sm,
@@ -1286,6 +1291,7 @@ const styles = StyleSheet.create({
   datePickerButtonText: {
     fontSize: 17,
     fontWeight: theme.typography.weights.semibold,
+    fontFamily: theme.typography.fontFamily.semibold,
     color: theme.colors.gray[700],
   },
   datePickerContainer: {
@@ -1318,11 +1324,13 @@ const styles = StyleSheet.create({
   optionText: {
     fontSize: 17,
     fontWeight: theme.typography.weights.semibold,
+    fontFamily: theme.typography.fontFamily.semibold,
     color: theme.colors.gray[700],
   },
   optionTextSelected: {
     color: theme.colors.primary,
     fontWeight: theme.typography.weights.bold,
+    fontFamily: theme.typography.fontFamily.bold,
   },
   photosGrid: {
     flexDirection: 'row',
@@ -1376,6 +1384,7 @@ const styles = StyleSheet.create({
   locationText: {
     fontSize: 17,
     fontWeight: theme.typography.weights.semibold,
+    fontFamily: theme.typography.fontFamily.semibold,
     color: theme.colors.primary,
   },
   locationLoadingContainer: {
@@ -1386,11 +1395,13 @@ const styles = StyleSheet.create({
   },
   locationLoadingText: {
     fontSize: theme.typography.sizes.lg,
+    fontFamily: theme.typography.fontFamily.regular,
     color: theme.colors.text.secondary,
     marginTop: 15,
   },
   locationAutoProgressText: {
     fontSize: theme.typography.sizes.md,
+    fontFamily: theme.typography.fontFamily.regular,
     color: theme.colors.text.muted,
     marginTop: 15,
     textAlign: 'center',
@@ -1416,6 +1427,7 @@ const styles = StyleSheet.create({
     fontSize: theme.typography.sizes.lg,
     color: theme.colors.text.secondary,
     fontWeight: theme.typography.weights.medium,
+    fontFamily: theme.typography.fontFamily.medium,
   },
   skipButton: {
     paddingHorizontal: theme.spacing.xl,
@@ -1425,6 +1437,7 @@ const styles = StyleSheet.create({
     fontSize: theme.typography.sizes.lg,
     color: theme.colors.text.muted,
     fontWeight: theme.typography.weights.medium,
+    fontFamily: theme.typography.fontFamily.medium,
   },
   nextButton: {
     backgroundColor: theme.colors.primary,
@@ -1450,6 +1463,7 @@ const styles = StyleSheet.create({
     color: theme.colors.text.white,
     fontSize: 17,
     fontWeight: theme.typography.weights.bold,
+    fontFamily: theme.typography.fontFamily.bold,
   },
 });
 

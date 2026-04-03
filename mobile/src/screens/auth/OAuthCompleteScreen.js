@@ -181,12 +181,14 @@ const styles = StyleSheet.create({
   },
   title: {
     fontSize: 28,
+    fontFamily: theme.typography.fontFamily.bold,
     fontWeight: 'bold',
     color: theme.colors.text.primary,
     marginBottom: 10,
   },
   subtitle: {
     fontSize: 16,
+    fontFamily: theme.typography.fontFamily.regular,
     color: theme.colors.text.secondary,
     textAlign: 'center',
     paddingHorizontal: 20,
@@ -206,6 +208,7 @@ const styles = StyleSheet.create({
     flex: 1,
     marginLeft: 12,
     fontSize: 14,
+    fontFamily: theme.typography.fontFamily.regular,
     color: theme.colors.text.secondary,
     lineHeight: 20,
   },
@@ -214,6 +217,7 @@ const styles = StyleSheet.create({
   },
   label: {
     fontSize: 16,
+    fontFamily: theme.typography.fontFamily.semibold,
     fontWeight: '600',
     color: theme.colors.text.primary,
     marginBottom: 12,
@@ -232,10 +236,12 @@ const styles = StyleSheet.create({
     flex: 1,
     marginLeft: 12,
     fontSize: 16,
+    fontFamily: theme.typography.fontFamily.regular,
     color: theme.colors.text.primary,
   },
   ageText: {
     fontSize: 14,
+    fontFamily: theme.typography.fontFamily.regular,
     color: theme.colors.text.secondary,
   },
   continueButton: {
@@ -251,11 +257,13 @@ const styles = StyleSheet.create({
   continueButtonText: {
     color: theme.colors.text.white,
     fontSize: 16,
+    fontFamily: theme.typography.fontFamily.bold,
     fontWeight: 'bold',
   },
   errorText: {
     color: theme.colors.primary,
     fontSize: 14,
+    fontFamily: theme.typography.fontFamily.regular,
     textAlign: 'center',
     marginTop: 12,
   },

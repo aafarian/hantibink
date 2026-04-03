@@ -269,6 +269,7 @@ const styles = StyleSheet.create({
   headerTitle: {
     fontSize: 18,
     fontWeight: '600',
+    fontFamily: theme.typography.fontFamily.semibold,
     color: theme.colors.text.white,
   },
   content: {
@@ -285,11 +286,13 @@ const styles = StyleSheet.create({
   sectionTitle: {
     fontSize: 16,
     fontWeight: '600',
+    fontFamily: theme.typography.fontFamily.semibold,
     color: theme.colors.text.primary,
     marginBottom: 4,
   },
   sectionDescription: {
     fontSize: 13,
+    fontFamily: theme.typography.fontFamily.regular,
     color: theme.colors.text.secondary,
   },
   dangerSection: {
@@ -323,11 +326,13 @@ const styles = StyleSheet.create({
   },
   accountInfoLabel: {
     fontSize: 13,
+    fontFamily: theme.typography.fontFamily.regular,
     color: theme.colors.text.secondary,
   },
   accountInfoValue: {
     fontSize: 16,
     fontWeight: '500',
+    fontFamily: theme.typography.fontFamily.medium,
     color: theme.colors.text.primary,
     marginTop: 2,
   },
@@ -360,6 +365,7 @@ const styles = StyleSheet.create({
   settingLabel: {
     fontSize: 16,
     fontWeight: '500',
+    fontFamily: theme.typography.fontFamily.medium,
     color: theme.colors.text.primary,
   },
   destructiveLabel: {
@@ -367,6 +373,7 @@ const styles = StyleSheet.create({
   },
   settingDescription: {
     fontSize: 13,
+    fontFamily: theme.typography.fontFamily.regular,
     color: theme.colors.text.secondary,
     marginTop: 2,
   },
@@ -379,6 +386,7 @@ const styles = StyleSheet.create({
   },
   infoText: {
     fontSize: 13,
+    fontFamily: theme.typography.fontFamily.regular,
     color: theme.colors.text.muted,
     marginLeft: 8,
     flex: 1,
