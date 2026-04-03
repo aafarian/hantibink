@@ -22,6 +22,7 @@ import { FeatureFlagsProvider } from './src/contexts/FeatureFlagsContext';
 import { PhotoViewerProvider } from './src/contexts/PhotoViewerContext';
 import { UpdateProvider } from './src/contexts/UpdateContext';
 import AppNavigator from './src/navigation/AppNavigator';
+import { theme } from './src/styles/theme';
 import { initAnalytics, trackAppOpened } from './src/utils/analytics';
 
 // Keep splash screen visible while fonts load
@@ -39,7 +40,7 @@ if (SENTRY_DSN && !__DEV__) {
 }
 
 function App() {
-  const [fontsLoaded] = useFonts({
+  const [fontsLoaded, fontError] = useFonts({
     NunitoSans_400Regular,
     NunitoSans_500Medium,
     NunitoSans_600SemiBold,
@@ -55,14 +56,14 @@ function App() {
     setupAnalytics();
   }, []);
 
-  // Hide splash screen once fonts are loaded
+  // Hide splash screen once fonts are loaded or on error
   const onLayoutRootView = useCallback(async () => {
-    if (fontsLoaded) {
+    if (fontsLoaded || fontError) {
       await SplashScreen.hideAsync();
     }
-  }, [fontsLoaded]);
+  }, [fontsLoaded, fontError]);
 
-  if (!fontsLoaded) {
+  if (!fontsLoaded && !fontError) {
     return null;
   }
 
@@ -76,7 +77,11 @@ function App() {
                 <FeatureFlagsProvider>
                   <UnreadProvider>
                     <GestureHandlerRootView style={styles.container} onLayout={onLayoutRootView}>
-                      <StatusBar style="light" backgroundColor="#C0392B" translucent={true} />
+                      <StatusBar
+                        style="light"
+                        backgroundColor={theme.colors.primary}
+                        translucent={true}
+                      />
                       <PhotoViewerProvider>
                         <AppNavigator />
                       </PhotoViewerProvider>
