@@ -236,7 +236,7 @@ const ProfileEditScreen = ({ navigation }) => {
         {/* Header */}
         <View style={styles.header}>
           <TouchableOpacity onPress={() => navigation.goBack()} style={styles.headerLeft}>
-            <Ionicons name="arrow-back" size={24} color={theme.colors.text.white} />
+            <Ionicons name="arrow-back" size={24} color={theme.colors.text.primary} />
           </TouchableOpacity>
           <Text style={styles.headerTitle}>Edit Profile</Text>
           <View style={styles.headerRight}>
@@ -321,7 +321,7 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     height: 50, // Generous height to cover status bar area
-    backgroundColor: theme.colors.primary,
+    backgroundColor: theme.colors.background.primary,
     zIndex: -1, // Behind other content
   },
   header: {
@@ -330,7 +330,9 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     paddingHorizontal: 20,
     paddingVertical: 15,
-    backgroundColor: theme.colors.primary,
+    backgroundColor: theme.colors.background.primary,
+    borderBottomWidth: 1,
+    borderBottomColor: theme.colors.border.light,
   },
   headerLeft: {
     marginRight: 16,
@@ -339,7 +341,7 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: 'bold',
     fontFamily: theme.typography.fontFamily.bold,
-    color: theme.colors.text.white,
+    color: theme.colors.text.primary,
     flex: 1,
   },
   headerRight: {
@@ -355,11 +357,11 @@ const styles = StyleSheet.create({
     paddingVertical: 6,
     borderRadius: 15,
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.5)',
+    borderColor: theme.colors.border.light,
   },
   headerDiscardText: {
     fontSize: 13,
-    color: theme.colors.text.white,
+    color: theme.colors.text.secondary,
     fontWeight: '500',
     fontFamily: theme.typography.fontFamily.medium,
   },

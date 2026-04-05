@@ -274,7 +274,7 @@ const FilterPreferencesForm = ({
       <ScreenWrapper>
         <View style={styles.header}>
           <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
-            <MaterialIcons name="arrow-back" size={24} color={theme.colors.text.white} />
+            <MaterialIcons name="arrow-back" size={24} color={theme.colors.text.primary} />
           </TouchableOpacity>
           <Text style={styles.headerTitle}>{headerTitle}</Text>
           <View style={{ width: showReset ? 50 : 40 }} />
@@ -291,7 +291,7 @@ const FilterPreferencesForm = ({
       <ScreenWrapper>
         <View style={styles.header}>
           <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
-            <MaterialIcons name="arrow-back" size={24} color={theme.colors.text.white} />
+            <MaterialIcons name="arrow-back" size={24} color={theme.colors.text.primary} />
           </TouchableOpacity>
           <Text style={styles.headerTitle}>{headerTitle}</Text>
           <View style={{ width: showReset ? 50 : 40 }} />
@@ -305,7 +305,7 @@ const FilterPreferencesForm = ({
     <ScreenWrapper>
       <View style={styles.header}>
         <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
-          <MaterialIcons name="arrow-back" size={24} color={theme.colors.text.white} />
+          <MaterialIcons name="arrow-back" size={24} color={theme.colors.text.primary} />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>{headerTitle}</Text>
         {showReset ? (
@@ -553,7 +553,9 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     paddingHorizontal: theme.spacing.lg,
     paddingVertical: theme.spacing.lg,
-    backgroundColor: theme.colors.primary,
+    backgroundColor: theme.colors.background.primary,
+    borderBottomWidth: 1,
+    borderBottomColor: theme.colors.border.light,
   },
   backButton: {
     padding: theme.spacing.xs,
@@ -562,14 +564,14 @@ const styles = StyleSheet.create({
     fontSize: theme.typography.sizes.xl,
     fontWeight: theme.typography.weights.semibold,
     fontFamily: theme.typography.fontFamily.semibold,
-    color: theme.colors.text.white,
+    color: theme.colors.text.primary,
   },
   resetButton: {
     padding: theme.spacing.xs,
   },
   resetText: {
     fontSize: theme.typography.sizes.lg,
-    color: theme.colors.text.white,
+    color: theme.colors.primary,
     fontWeight: theme.typography.weights.medium,
     fontFamily: theme.typography.fontFamily.medium,
   },
