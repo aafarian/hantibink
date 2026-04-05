@@ -1,7 +1,16 @@
 import React, { useState, useMemo, useCallback } from 'react';
-import { View, Text, StyleSheet, Image, TouchableOpacity, ScrollView } from 'react-native';
+import {
+  View,
+  Text,
+  StyleSheet,
+  Image,
+  TouchableOpacity,
+  ScrollView,
+  Platform,
+} from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
+import { BlurView } from 'expo-blur';
 import { theme } from '../../styles/theme';
 
 /**
@@ -171,99 +180,110 @@ const ProfileCard = ({
           </View>
         )}
 
-        {/* Gradient overlay */}
+        {/* Gradient overlay — softened to preserve photo visibility */}
         <LinearGradient
-          colors={['transparent', theme.colors.overlay.heavy]}
+          colors={['transparent', 'rgba(0,0,0,0.15)', 'rgba(0,0,0,0.55)']}
+          locations={[0, 0.3, 1]}
           style={styles.gradient}
         >
-          <ScrollView
-            style={styles.infoScroll}
-            showsVerticalScrollIndicator={false}
-            bounces={false}
-            nestedScrollEnabled={true}
+          {/* Frosted glass info panel */}
+          <BlurView
+            intensity={Platform.OS === 'ios' ? 30 : 0}
+            tint="dark"
+            style={styles.blurContainer}
           >
-            {/* Name and Age */}
-            <Text style={styles.cardName}>
-              {profile.name}
-              {age && <Text>, {age}</Text>}
-            </Text>
+            <View style={styles.blurFallback}>
+              <ScrollView
+                style={styles.infoScroll}
+                showsVerticalScrollIndicator={false}
+                bounces={false}
+                nestedScrollEnabled={true}
+              >
+                {/* Name and Age */}
+                <Text style={styles.cardName}>
+                  {profile.name}
+                  {age && <Text>, {age}</Text>}
+                </Text>
 
-            {/* Location */}
-            {profile.location && (
-              <View style={styles.locationRow}>
-                <Ionicons name="location-outline" size={14} color={theme.colors.text.white} />
-                <Text style={styles.cardLocation}>{profile.location}</Text>
-              </View>
-            )}
-
-            {/* Bio */}
-            {profile.bio && (
-              <Text style={styles.cardBio} numberOfLines={showFullDetails ? undefined : 3}>
-                {profile.bio}
-              </Text>
-            )}
-
-            {/* Extended details - shown when showFullDetails is true */}
-            {showFullDetails && (
-              <View style={styles.detailsSection}>
-                {/* Work & Education */}
-                {(profile.profession || profile.education) && (
-                  <View style={styles.detailGroup}>
-                    {renderInfoRow('briefcase-outline', profile.profession)}
-                    {renderInfoRow('school-outline', profile.education)}
+                {/* Location */}
+                {profile.location && (
+                  <View style={styles.locationRow}>
+                    <Ionicons name="location-outline" size={14} color={theme.colors.text.white} />
+                    <Text style={styles.cardLocation}>{profile.location}</Text>
                   </View>
                 )}
 
-                {/* Basic Info */}
-                {(profile.height || profile.religion) && (
-                  <View style={styles.detailGroup}>
-                    {renderInfoRow('resize-outline', profile.height)}
-                    {renderInfoRow('sparkles-outline', profile.religion)}
+                {/* Bio */}
+                {profile.bio && (
+                  <Text style={styles.cardBio} numberOfLines={showFullDetails ? undefined : 3}>
+                    {profile.bio}
+                  </Text>
+                )}
+
+                {/* Extended details - shown when showFullDetails is true */}
+                {showFullDetails && (
+                  <View style={styles.detailsSection}>
+                    {/* Work & Education */}
+                    {(profile.profession || profile.education) && (
+                      <View style={styles.detailGroup}>
+                        {renderInfoRow('briefcase-outline', profile.profession)}
+                        {renderInfoRow('school-outline', profile.education)}
+                      </View>
+                    )}
+
+                    {/* Basic Info */}
+                    {(profile.height || profile.religion) && (
+                      <View style={styles.detailGroup}>
+                        {renderInfoRow('resize-outline', profile.height)}
+                        {renderInfoRow('sparkles-outline', profile.religion)}
+                      </View>
+                    )}
+
+                    {/* Lifestyle */}
+                    {(profile.smoking || profile.drinking) && (
+                      <View style={styles.detailGroup}>
+                        {profile.smoking &&
+                          renderInfoRow('ban-outline', `Smoking: ${profile.smoking}`)}
+                        {profile.drinking &&
+                          renderInfoRow('wine-outline', `Drinking: ${profile.drinking}`)}
+                      </View>
+                    )}
+
+                    {/* Travel & Pets */}
+                    {(profile.travel || profile.pets) && (
+                      <View style={styles.detailGroup}>
+                        {renderInfoRow('airplane-outline', profile.travel)}
+                        {renderInfoRow('paw-outline', profile.pets)}
+                      </View>
+                    )}
+
+                    {/* Looking For */}
+                    {relationshipTypes.length > 0 && (
+                      <View style={styles.detailGroup}>
+                        <Text style={styles.sectionLabel}>Looking for</Text>
+                        {renderTags(relationshipTypes, 4)}
+                      </View>
+                    )}
+
+                    {/* Languages */}
+                    {languages.length > 0 && (
+                      <View style={styles.detailGroup}>
+                        <Text style={styles.sectionLabel}>Languages</Text>
+                        {renderTags(languages, 4)}
+                      </View>
+                    )}
                   </View>
                 )}
 
-                {/* Lifestyle */}
-                {(profile.smoking || profile.drinking) && (
-                  <View style={styles.detailGroup}>
-                    {profile.smoking && renderInfoRow('ban-outline', `Smoking: ${profile.smoking}`)}
-                    {profile.drinking &&
-                      renderInfoRow('wine-outline', `Drinking: ${profile.drinking}`)}
+                {/* Interests - always shown */}
+                {interests.length > 0 && (
+                  <View style={styles.interestsSection}>
+                    {renderTags(interests, showFullDetails ? 10 : 6)}
                   </View>
                 )}
-
-                {/* Travel & Pets */}
-                {(profile.travel || profile.pets) && (
-                  <View style={styles.detailGroup}>
-                    {renderInfoRow('airplane-outline', profile.travel)}
-                    {renderInfoRow('paw-outline', profile.pets)}
-                  </View>
-                )}
-
-                {/* Looking For */}
-                {relationshipTypes.length > 0 && (
-                  <View style={styles.detailGroup}>
-                    <Text style={styles.sectionLabel}>Looking for</Text>
-                    {renderTags(relationshipTypes, 4)}
-                  </View>
-                )}
-
-                {/* Languages */}
-                {languages.length > 0 && (
-                  <View style={styles.detailGroup}>
-                    <Text style={styles.sectionLabel}>Languages</Text>
-                    {renderTags(languages, 4)}
-                  </View>
-                )}
-              </View>
-            )}
-
-            {/* Interests - always shown */}
-            {interests.length > 0 && (
-              <View style={styles.interestsSection}>
-                {renderTags(interests, showFullDetails ? 10 : 6)}
-              </View>
-            )}
-          </ScrollView>
+              </ScrollView>
+            </View>
+          </BlurView>
         </LinearGradient>
       </TouchableOpacity>
 
@@ -300,28 +320,38 @@ const styles = StyleSheet.create({
     gap: 4,
   },
   photoIndicator: {
-    width: 6,
-    height: 6,
-    borderRadius: 3,
+    width: 8,
+    height: 8,
+    borderRadius: 4,
     backgroundColor: 'rgba(255,255,255,0.4)',
   },
   photoIndicatorActive: {
     backgroundColor: theme.colors.text.white,
-    width: 20,
+    width: 24,
+    borderRadius: 4,
   },
   gradient: {
     position: 'absolute',
     bottom: 0,
     left: 0,
     right: 0,
-    paddingTop: 60,
+    paddingTop: 80,
     borderBottomLeftRadius: 20,
     borderBottomRightRadius: 20,
   },
+  blurContainer: {
+    borderRadius: 16,
+    overflow: 'hidden',
+    marginHorizontal: 8,
+    marginBottom: 8,
+  },
+  blurFallback: {
+    backgroundColor: Platform.OS === 'android' ? 'rgba(0,0,0,0.35)' : 'transparent',
+  },
   infoScroll: {
     maxHeight: 280,
-    paddingHorizontal: 20,
-    paddingBottom: 20,
+    paddingHorizontal: 16,
+    paddingVertical: 14,
   },
   cardName: {
     fontSize: 24,
@@ -384,10 +414,12 @@ const styles = StyleSheet.create({
     gap: 6,
   },
   tag: {
-    backgroundColor: theme.colors.overlay.light,
+    backgroundColor: 'rgba(255,255,255,0.15)',
     paddingHorizontal: 10,
     paddingVertical: 5,
     borderRadius: 15,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.3)',
   },
   tagText: {
     color: theme.colors.text.white,
