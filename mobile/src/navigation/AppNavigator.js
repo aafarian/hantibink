@@ -55,17 +55,12 @@ const PeopleStack = () => {
         options={{
           title: 'Discover',
           headerStyle: {
-            backgroundColor: theme.colors.background.primary,
-            borderBottomWidth: 1,
-            borderBottomColor: theme.colors.border.light,
-            elevation: 0,
-            shadowOpacity: 0,
+            backgroundColor: theme.colors.primary,
           },
-          headerTintColor: theme.colors.text.primary,
+          headerTintColor: theme.colors.text.white,
           headerTitleStyle: {
             fontWeight: 'bold',
             fontFamily: theme.typography.fontFamily.bold,
-            color: theme.colors.text.primary,
           },
         }}
       />
@@ -89,17 +84,12 @@ const ProfileStack = () => {
         options={{
           title: 'My Profile',
           headerStyle: {
-            backgroundColor: theme.colors.background.primary,
-            borderBottomWidth: 1,
-            borderBottomColor: theme.colors.border.light,
-            elevation: 0,
-            shadowOpacity: 0,
+            backgroundColor: theme.colors.primary,
           },
-          headerTintColor: theme.colors.text.primary,
+          headerTintColor: theme.colors.text.white,
           headerTitleStyle: {
             fontWeight: 'bold',
             fontFamily: theme.typography.fontFamily.bold,
-            color: theme.colors.text.primary,
           },
         }}
       />
@@ -152,17 +142,12 @@ const MessagesStack = () => {
           headerShown: true,
           title: 'Messages',
           headerStyle: {
-            backgroundColor: theme.colors.background.primary,
-            borderBottomWidth: 1,
-            borderBottomColor: theme.colors.border.light,
-            elevation: 0,
-            shadowOpacity: 0,
+            backgroundColor: theme.colors.primary,
           },
-          headerTintColor: theme.colors.text.primary,
+          headerTintColor: theme.colors.text.white,
           headerTitleStyle: {
             fontWeight: 'bold',
             fontFamily: theme.typography.fontFamily.bold,
-            color: theme.colors.text.primary,
           },
         }}
       />
@@ -225,17 +210,12 @@ const MainNavigator = () => {
             headerShown: true,
             title: 'Liked You',
             headerStyle: {
-              backgroundColor: theme.colors.background.primary,
-              borderBottomWidth: 1,
-              borderBottomColor: theme.colors.border.light,
-              elevation: 0,
-              shadowOpacity: 0,
+              backgroundColor: theme.colors.primary,
             },
-            headerTintColor: theme.colors.text.primary,
+            headerTintColor: theme.colors.text.white,
             headerTitleStyle: {
               fontWeight: 'bold',
               fontFamily: theme.typography.fontFamily.bold,
-              color: theme.colors.text.primary,
             },
           }}
         />
