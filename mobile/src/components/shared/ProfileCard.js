@@ -13,6 +13,14 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { BlurView } from 'expo-blur';
 import { theme } from '../../styles/theme';
 
+// Card-specific colors not suitable for global theme tokens
+const CARD_COLORS = {
+  gradientMid: 'rgba(0,0,0,0.15)',
+  gradientEnd: 'rgba(0,0,0,0.55)',
+  androidBlurFallback: 'rgba(0,0,0,0.35)',
+  tagBorder: 'rgba(255,255,255,0.3)',
+};
+
 /**
  * Extract photo URL from photo object or string (pure utility function)
  */
@@ -182,7 +190,7 @@ const ProfileCard = ({
 
         {/* Gradient overlay — softened to preserve photo visibility */}
         <LinearGradient
-          colors={['transparent', 'rgba(0,0,0,0.15)', 'rgba(0,0,0,0.55)']}
+          colors={['transparent', CARD_COLORS.gradientMid, CARD_COLORS.gradientEnd]}
           locations={[0, 0.3, 1]}
           style={styles.gradient}
         >
@@ -346,7 +354,7 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   blurFallback: {
-    backgroundColor: Platform.OS === 'android' ? 'rgba(0,0,0,0.35)' : 'transparent',
+    backgroundColor: Platform.OS === 'android' ? CARD_COLORS.androidBlurFallback : 'transparent',
   },
   infoScroll: {
     maxHeight: 280,
@@ -414,12 +422,12 @@ const styles = StyleSheet.create({
     gap: 6,
   },
   tag: {
-    backgroundColor: 'rgba(255,255,255,0.15)',
+    backgroundColor: theme.colors.overlay.glass,
     paddingHorizontal: 10,
     paddingVertical: 5,
     borderRadius: 15,
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.3)',
+    borderColor: CARD_COLORS.tagBorder,
   },
   tagText: {
     color: theme.colors.text.white,
