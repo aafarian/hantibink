@@ -9,6 +9,7 @@ import Animated, {
 } from 'react-native-reanimated';
 import { Pressable } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { BlurView } from 'expo-blur';
 import * as Haptics from 'expo-haptics';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -136,6 +137,7 @@ const AnimatedTabButton = ({ route, isFocused, options, onPress, onLongPress, ba
       <Text style={[styles.label, { color: iconColor }]} numberOfLines={1}>
         {label}
       </Text>
+      {isFocused && <View style={styles.activeDot} />}
     </AnimatedPressable>
   );
 };
@@ -168,69 +170,85 @@ const AnimatedTabButton = ({ route, isFocused, options, onPress, onLongPress, ba
 const AnimatedTabBar = ({ state, descriptors, navigation, unreadCount = 0 }) => {
   const insets = useSafeAreaInsets();
 
-  // Memoize tab bar style with safe area padding
-  const tabBarStyle = useMemo(
+  // Memoize outer container style with safe area padding
+  const containerStyle = useMemo(
     () => [
-      styles.tabBar,
+      styles.tabBarContainer,
       {
-        paddingBottom: Platform.OS === 'android' ? insets.bottom : 5,
-        height: Platform.OS === 'android' ? 60 + insets.bottom : 60,
+        paddingBottom: Math.max(insets.bottom, 8),
       },
     ],
     [insets.bottom]
   );
 
   return (
-    <View style={tabBarStyle}>
-      {state.routes.map((route, index) => {
-        const { options } = descriptors[route.key];
-        const isFocused = state.index === index;
+    <View style={containerStyle}>
+      <BlurView intensity={Platform.OS === 'ios' ? 80 : 0} tint="light" style={styles.tabBarBlur}>
+        <View style={styles.tabBarInner}>
+          {state.routes.map((route, index) => {
+            const { options } = descriptors[route.key];
+            const isFocused = state.index === index;
 
-        // Determine badge count (only for Messages tab)
-        const badgeCount = route.name === 'Messages' ? unreadCount : 0;
+            // Determine badge count (only for Messages tab)
+            const badgeCount = route.name === 'Messages' ? unreadCount : 0;
 
-        const onPress = () => {
-          const event = navigation.emit({
-            type: 'tabPress',
-            target: route.key,
-            canPreventDefault: true,
-          });
+            const onPress = () => {
+              const event = navigation.emit({
+                type: 'tabPress',
+                target: route.key,
+                canPreventDefault: true,
+              });
 
-          if (!isFocused && !event.defaultPrevented) {
-            navigation.navigate(route.name, route.params);
-          }
-        };
+              if (!isFocused && !event.defaultPrevented) {
+                navigation.navigate(route.name, route.params);
+              }
+            };
 
-        const onLongPress = () => {
-          navigation.emit({
-            type: 'tabLongPress',
-            target: route.key,
-          });
-        };
+            const onLongPress = () => {
+              navigation.emit({
+                type: 'tabLongPress',
+                target: route.key,
+              });
+            };
 
-        return (
-          <AnimatedTabButton
-            key={route.key}
-            route={route}
-            isFocused={isFocused}
-            options={options}
-            onPress={onPress}
-            onLongPress={onLongPress}
-            badgeCount={badgeCount}
-          />
-        );
-      })}
+            return (
+              <AnimatedTabButton
+                key={route.key}
+                route={route}
+                isFocused={isFocused}
+                options={options}
+                onPress={onPress}
+                onLongPress={onLongPress}
+                badgeCount={badgeCount}
+              />
+            );
+          })}
+        </View>
+      </BlurView>
     </View>
   );
 };
 
 const styles = StyleSheet.create({
-  tabBar: {
+  tabBarContainer: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    paddingHorizontal: 16,
+    alignItems: 'center',
+  },
+  tabBarBlur: {
+    borderRadius: 28,
+    overflow: 'hidden',
+    width: '100%',
+    ...theme.shadows.medium,
+    backgroundColor: Platform.OS === 'android' ? 'rgba(255,255,255,0.92)' : 'transparent',
+  },
+  tabBarInner: {
     flexDirection: 'row',
-    backgroundColor: theme.colors.background.primary,
-    borderTopWidth: 1,
-    borderTopColor: theme.colors.border.light,
-    paddingTop: 5,
+    paddingTop: 8,
+    paddingBottom: 8,
   },
   tabButton: {
     flex: 1,
@@ -262,6 +280,13 @@ const styles = StyleSheet.create({
     fontSize: 10,
     fontFamily: theme.typography.fontFamily.regular,
     marginTop: 2,
+  },
+  activeDot: {
+    width: 5,
+    height: 5,
+    borderRadius: 2.5,
+    backgroundColor: theme.colors.primary,
+    marginTop: 3,
   },
 });
 
