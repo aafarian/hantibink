@@ -17,6 +17,33 @@ const prisma = getPrismaClient();
 
 const router = express.Router();
 
+// Fields a user is allowed to set on their own profile via PUT /profile.
+// Server-managed flags (isPremium, isVerified, role, counters, timestamps, etc.)
+// are intentionally excluded to prevent mass-assignment attacks.
+const ALLOWED_PROFILE_FIELDS = new Set([
+  // Basic identity
+  'name', 'bio', 'birthDate',
+  // Demographics
+  'gender', 'interestedIn',
+  // Personal details
+  'education', 'profession', 'height', 'relationshipType',
+  'religion', 'smoking', 'drinking', 'travel', 'pets',
+  // Location
+  'location', 'latitude', 'longitude', 'locationEnabled',
+  // Onboarding state (client signals completion of its own steps)
+  'hasCompletedOnboarding', 'onboardingStage',
+  // Discovery preferences
+  'minAge', 'maxAge', 'maxDistance',
+  // Collections (service handles photos/interests specially)
+  'interests', 'languages', 'photos',
+  // Photo references
+  'mainPhotoUrl', 'mainPhotoId',
+  // Notification preferences
+  'notifyMessages', 'notifyMatches', 'notifyLikes',
+  // Push token (device-registered)
+  'pushToken',
+]);
+
 /**
  * @route   GET /api/users
  * @desc    Get available user endpoints
@@ -79,7 +106,22 @@ router.get('/profile', authenticateJWT, profileValidation.getProfile, async (req
  */
 router.put('/profile', authenticateJWT, profileValidation.updateProfile, async (req, res) => {
   try {
-    const updatedProfile = await updateUserProfile(req.user.id, req.body);
+    const sanitized = {};
+    const rejected = [];
+    for (const [key, value] of Object.entries(req.body)) {
+      if (ALLOWED_PROFILE_FIELDS.has(key)) {
+        sanitized[key] = value;
+      } else {
+        rejected.push(key);
+      }
+    }
+    if (rejected.length) {
+      logger.warn(
+        `Profile update for user ${req.user.id} ignored disallowed fields: ${rejected.join(', ')}`
+      );
+    }
+
+    const updatedProfile = await updateUserProfile(req.user.id, sanitized);
     
     res.json({
       success: true,

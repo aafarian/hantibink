@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useState, useMemo } from 'react';
 import { useAuth } from './AuthContext';
 import Logger from '../utils/logger';
+import { shouldShowDeveloperOptions } from '../utils/buildConfig';
 
 const FeatureFlagsContext = createContext();
 
@@ -51,10 +52,12 @@ export const FeatureFlagsProvider = ({ children }) => {
     [isPremiumUser]
   );
 
-  // 🧪 Development helper - Remove in production
+  // Tester helper — available in dev AND preview builds (gated identically to
+  // the Developer Settings UI in ProfileScreen). Pure client-side override,
+  // never mutates server state.
   const togglePremiumForTesting = useMemo(
     () =>
-      __DEV__
+      shouldShowDeveloperOptions()
         ? () => {
             const currentValue = isPremiumUser;
             const newValue = !currentValue;
