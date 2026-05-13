@@ -12,6 +12,7 @@ import { Ionicons } from '@expo/vector-icons';
 import * as Application from 'expo-application';
 import * as Updates from 'expo-updates';
 import { useAuth } from '../contexts/AuthContext';
+import { useFeatureFlags } from '../contexts/FeatureFlagsContext';
 import Logger from '../utils/logger';
 import { useToast } from '../contexts/ToastContext';
 import { LoadingScreen } from '../components/LoadingScreen';
@@ -25,11 +26,11 @@ import { theme } from '../styles/theme';
 // Removed Firebase dependencies - now using API-based AuthContext
 
 const ProfileScreen = ({ navigation }) => {
-  const { user, userProfile: authUserProfile, refreshUserProfile, updateUserProfile } = useAuth();
-  const { showSuccess, showError } = useToast();
+  const { user, userProfile: authUserProfile, refreshUserProfile } = useAuth();
+  const { isPremium, togglePremiumForTesting } = useFeatureFlags();
+  const { showSuccess } = useToast();
   const [userProfile, setUserProfile] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [devPremium, setDevPremium] = useState(false);
   const [showSetupModal, setShowSetupModal] = useState(false);
 
   // Check if user is missing required fields for matching
@@ -50,7 +51,6 @@ const ProfileScreen = ({ navigation }) => {
         'photos'
       );
       setUserProfile(authUserProfile);
-      setDevPremium(authUserProfile.isPremium || false);
       setLoading(false);
     } else {
       setLoading(false);
@@ -81,21 +81,12 @@ const ProfileScreen = ({ navigation }) => {
 
   // Profile editing is now handled by ProfileEditScreen
 
-  const handleTogglePremium = async () => {
-    try {
-      const newPremiumStatus = !devPremium;
-      setDevPremium(newPremiumStatus);
-
-      // Update the profile in the API
-      await updateUserProfile({ isPremium: newPremiumStatus });
-
-      showSuccess(`Premium ${newPremiumStatus ? 'enabled' : 'disabled'} (dev mode)`);
-    } catch (error) {
-      Logger.error('Failed to toggle premium:', error);
-      showError('Failed to update premium status');
-      // Revert the change
-      setDevPremium(!devPremium);
+  const handleTogglePremium = () => {
+    if (!togglePremiumForTesting) {
+      return;
     }
+    togglePremiumForTesting();
+    showSuccess(`Premium ${!isPremium ? 'enabled' : 'disabled'} (dev mode)`);
   };
 
   // Photo management is now handled by ProfileEditScreen
@@ -448,13 +439,13 @@ const ProfileScreen = ({ navigation }) => {
 
             <TouchableOpacity style={styles.settingItem} onPress={handleTogglePremium}>
               <Ionicons
-                name={devPremium ? 'star' : 'star-outline'}
+                name={isPremium ? 'star' : 'star-outline'}
                 size={20}
                 color={theme.colors.accent}
               />
               <Text style={styles.settingText}>Premium Status</Text>
-              <View style={[styles.toggleSwitch, devPremium && styles.toggleSwitchActive]}>
-                <View style={[styles.toggleThumb, devPremium && styles.toggleThumbActive]} />
+              <View style={[styles.toggleSwitch, isPremium && styles.toggleSwitchActive]}>
+                <View style={[styles.toggleThumb, isPremium && styles.toggleThumbActive]} />
               </View>
             </TouchableOpacity>
 
@@ -466,7 +457,7 @@ const ProfileScreen = ({ navigation }) => {
                 </Text>
               </View>
               <Text style={styles.devInfoSubtext}>
-                Premium features {devPremium ? 'enabled' : 'disabled'}
+                Premium features {isPremium ? 'enabled' : 'disabled'}
               </Text>
             </View>
           </View>

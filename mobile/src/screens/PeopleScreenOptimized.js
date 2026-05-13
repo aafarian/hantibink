@@ -6,6 +6,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect } from '@react-navigation/native';
 import ImageViewing from 'react-native-image-viewing';
 import { useAuth } from '../contexts/AuthContext';
+import { useIsPremium } from '../contexts/FeatureFlagsContext';
 import { useToast } from '../contexts/ToastContext';
 import { useTabNavigation } from '../hooks/useTabNavigation';
 import ApiDataService from '../services/ApiDataService';
@@ -32,6 +33,7 @@ const BATCH_SIZE = 10; // Load 10 profiles at a time
 
 const PeopleScreenOptimized = ({ navigation }) => {
   const { user, userProfile, refreshUserProfile } = useAuth();
+  const isPremium = useIsPremium();
   const { showError, showSuccess } = useToast();
   const insets = useSafeAreaInsets();
   const [showSetupModal, setShowSetupModal] = useState(false);
@@ -734,7 +736,7 @@ const PeopleScreenOptimized = ({ navigation }) => {
           <TouchableOpacity
             style={[styles.actionButton, styles.undoButton]}
             onPress={async () => {
-              if (!userProfile?.isPremium) {
+              if (!isPremium) {
                 setShowUpgradeModal(true);
               } else {
                 const result = await cardStackRef.current?.undo?.();
@@ -759,7 +761,7 @@ const PeopleScreenOptimized = ({ navigation }) => {
           <TouchableOpacity
             style={[styles.actionButton, styles.superLikeButton]}
             onPress={() => {
-              if (!userProfile?.isPremium) {
+              if (!isPremium) {
                 setShowUpgradeModal(true);
               } else {
                 cardStackRef.current?.swipeSuperLike();
