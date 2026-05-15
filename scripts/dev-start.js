@@ -16,7 +16,7 @@ const path = require('path');
 const qrcode = require('qrcode-terminal');
 const { getLocalIP } = require('./get-local-ip');
 
-const API_PORT = process.env.API_PORT || 3000;
+const API_PORT = process.env.API_PORT || 4242;
 const ROOT_DIR = path.join(__dirname, '..');
 const MOBILE_DIR = path.join(ROOT_DIR, 'mobile');
 
