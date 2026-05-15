@@ -2,14 +2,13 @@ import React, { useState, useRef, useCallback, useEffect } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, ActivityIndicator, Image } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
-import { uploadImageToFirebase, processMultipleImagesWithCrop } from '../../utils/imageUpload';
+import { uploadImageToFirebase } from '../../utils/imageUpload';
 import ApiDataService from '../../services/ApiDataService';
 import Logger from '../../utils/logger';
 import { usePhotoViewer } from '../../contexts/PhotoViewerContext';
 import { DraggableGrid } from 'react-native-draggable-grid';
 import { theme } from '../../styles/theme';
-
-const ASPECT_RATIO = 0.8; // 4:5 portrait ratio
+import PhotoCropCarousel from '../photos/PhotoCropCarousel';
 
 // Debounce delay for API calls after drag ends (short - just to batch rapid drags)
 const REORDER_DEBOUNCE_MS = 300;
@@ -37,6 +36,10 @@ const PhotoManager = ({
   // LOCAL PHOTOS STATE - This is the source of truth for ordering
   // Only syncs from props on mount or when photos are added/deleted
   const [localPhotos, setLocalPhotos] = useState([]);
+
+  // Carousel state — populated when the picker returns, cleared on completion/cancel
+  const [carouselUris, setCarouselUris] = useState([]);
+  const [carouselVisible, setCarouselVisible] = useState(false);
 
   const { openPhotoViewer } = usePhotoViewer();
 
@@ -92,7 +95,7 @@ const PhotoManager = ({
     return !newOrder.every((id, index) => id === currentOrder[index]);
   }, []);
 
-  // Add new photo(s) - supports multi-select
+  // Stage 1: pick photos → launch the crop carousel
   const addPhoto = async () => {
     try {
       const remainingSlots = maxPhotos - localPhotos.length;
@@ -109,62 +112,74 @@ const PhotoManager = ({
 
       Logger.info(`📸 Opening image picker (multi-select, limit: ${remainingSlots})`);
 
-      // Multi-select picker
+      // Multi-select picker with no native crop — the carousel handles cropping
+      // so the UX is identical across iOS/Android and across registration/edit flows.
       const result = await ImagePicker.launchImageLibraryAsync({
         mediaTypes: ImagePicker.MediaTypeOptions.Images,
         allowsMultipleSelection: true,
         selectionLimit: remainingSlots,
-        quality: 0.8,
+        quality: 0.9, // High quality input; carousel re-compresses at 0.8 after crop
       });
 
-      if (!result.canceled && result.assets && result.assets.length > 0) {
-        setLoading(true);
-        const photoCount = result.assets.length;
-        Logger.info(`📸 Selected ${photoCount} photos, processing...`);
+      if (result.canceled || !result.assets || result.assets.length === 0) {
+        return;
+      }
 
-        // Auto-crop all selected images to 4:5 portrait ratio
-        const croppedImages = await processMultipleImagesWithCrop(result.assets, ASPECT_RATIO);
+      Logger.info(`📸 Selected ${result.assets.length} photos, opening crop carousel`);
+      setCarouselUris(result.assets.map(asset => asset.uri));
+      setCarouselVisible(true);
+    } catch (error) {
+      Logger.error('❌ Error opening photo picker:', error);
+      onError?.('Failed to open photo picker');
+    }
+  };
 
-        const tempUserId = userId || `temp_${Date.now()}`;
+  // Stage 2: carousel committed → upload all non-skipped photos
+  const handleCarouselComplete = async cropResults => {
+    setCarouselVisible(false);
+    setCarouselUris([]);
 
-        // Upload all photos to Firebase in parallel for speed
-        Logger.info(`⬆️ Uploading ${photoCount} photos to Firebase in parallel...`);
-        const uploadPromises = croppedImages.map(img => uploadImageToFirebase(img.uri, tempUserId));
-        const uploadResults = await Promise.allSettled(uploadPromises);
+    const usable = cropResults.filter(r => !r.skipped);
+    if (usable.length === 0) {
+      Logger.info('📸 Carousel completed with no usable photos (all skipped)');
+      return;
+    }
 
-        // Filter successful uploads
-        const uploadedUrls = uploadResults
-          .map((uploadResult, index) => ({ uploadResult, index }))
-          .filter(({ uploadResult }) => uploadResult.status === 'fulfilled')
-          .map(({ uploadResult, index }) => ({ url: uploadResult.value, index }));
+    setLoading(true);
+    try {
+      const tempUserId = userId || `temp_${Date.now()}`;
 
-        Logger.info(`✅ ${uploadedUrls.length}/${photoCount} photos uploaded to Firebase`);
+      // Upload all in parallel. The unique-filename fix in imageUpload.js means
+      // parallel uploads in the same millisecond no longer collide.
+      Logger.info(`⬆️ Uploading ${usable.length} cropped photos to Firebase in parallel`);
+      const uploadResults = await Promise.allSettled(
+        usable.map(r => uploadImageToFirebase(r.uri, tempUserId))
+      );
+      const uploadedUrls = uploadResults
+        .filter(res => res.status === 'fulfilled')
+        .map(res => res.value);
 
-        // Add to API or local state
+      Logger.info(`✅ ${uploadedUrls.length}/${usable.length} photos uploaded`);
+
+      if (uploadedUrls.length === 0) {
+        onError?.('Failed to upload photos');
+        return;
+      }
+
+      if (mode === 'edit') {
+        // Add each to API sequentially. Capture starting count up front so the
+        // isMain flag is computed against the state before this batch.
+        const startingPhotoCount = localPhotos.length;
         let addedCount = 0;
-        for (const { url, index } of uploadedUrls) {
+        for (let i = 0; i < uploadedUrls.length; i++) {
           try {
-            if (mode === 'edit') {
-              const isMain = localPhotos.length === 0 && index === 0;
-              await ApiDataService.addUserPhoto(url, isMain);
-              addedCount++;
-            } else {
-              const newPhoto = {
-                id: `${Date.now()}-${index}`,
-                key: `${Date.now()}-${index}`,
-                url: url,
-                isMain: localPhotos.length === 0 && index === 0,
-                order: localPhotos.length + index,
-              };
-              setLocalPhotos(prev => [...prev, newPhoto]);
-              onPhotosChange?.([...localPhotos, newPhoto]);
-              addedCount++;
-            }
+            const isMain = startingPhotoCount === 0 && i === 0;
+            await ApiDataService.addUserPhoto(uploadedUrls[i], isMain);
+            addedCount++;
           } catch (apiError) {
-            Logger.error(`❌ Failed to add photo ${index + 1} to API:`, apiError);
+            Logger.error(`❌ Failed to add photo ${i + 1} to API:`, apiError);
           }
         }
-
         if (addedCount > 0) {
           onSuccess?.(
             addedCount === 1
@@ -172,13 +187,40 @@ const PhotoManager = ({
               : `${addedCount} photos added successfully!`
           );
         }
+      } else {
+        // Registration mode — build the new photos and update state atomically.
+        // Computing `updated` once before passing to both setLocalPhotos and
+        // onPhotosChange avoids the prior closure bug where onPhotosChange was
+        // called with stale `localPhotos` each iteration of a loop.
+        const baseIndex = localPhotos.length;
+        const timestamp = Date.now();
+        const newPhotos = uploadedUrls.map((url, i) => ({
+          id: `${timestamp}-${i}`,
+          key: `${timestamp}-${i}`,
+          url,
+          isMain: baseIndex + i === 0,
+          order: baseIndex + i,
+        }));
+        const updated = [...localPhotos, ...newPhotos];
+        setLocalPhotos(updated);
+        onPhotosChange?.(updated);
+        onSuccess?.(
+          newPhotos.length === 1
+            ? 'Photo added successfully!'
+            : `${newPhotos.length} photos added successfully!`
+        );
       }
     } catch (error) {
-      Logger.error('❌ Error adding photos:', error);
-      onError?.('Failed to add photos');
+      Logger.error('❌ Error processing cropped photos:', error);
+      onError?.('Failed to process photos');
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleCarouselCancel = () => {
+    setCarouselVisible(false);
+    setCarouselUris([]);
   };
 
   // Delete photo
@@ -502,6 +544,12 @@ const PhotoManager = ({
           )}
         </TouchableOpacity>
       )}
+      <PhotoCropCarousel
+        visible={carouselVisible}
+        imageUris={carouselUris}
+        onComplete={handleCarouselComplete}
+        onCancel={handleCarouselCancel}
+      />
     </View>
   );
 };
