@@ -196,10 +196,7 @@ const MainNavigator = () => {
   return (
     <>
       <UpdateBanner />
-      <Tab.Navigator
-        tabBar={renderTabBar}
-        screenOptions={{ freezeOnBlur: true, tabBarStyle: { position: 'absolute' } }}
-      >
+      <Tab.Navigator tabBar={renderTabBar} screenOptions={{ freezeOnBlur: true }}>
         <Tab.Screen
           name="Profile"
           component={ProfileStack}

@@ -14,9 +14,13 @@ export const uploadImageToFirebase = async (imageUri, userId, folder = 'profile-
   try {
     Logger.info(`Starting image upload for user ${userId}`);
 
-    // Create a unique filename with timestamp
-    const timestamp = Date.now();
-    const filename = `${userId}_${timestamp}.jpg`;
+    // Unique filename. Timestamp alone is NOT enough — parallel uploads
+    // started in the same millisecond (common when callers use Promise.all
+    // over .map) would otherwise collide on the same Storage path, with
+    // later uploads overwriting earlier ones and getDownloadURL returning
+    // duplicate URLs. The random suffix gives ~40 bits of entropy per pair.
+    const uniqueId = `${Date.now()}_${Math.random().toString(36).slice(2, 10)}`;
+    const filename = `${userId}_${uniqueId}.jpg`;
     const storagePath = `${folder}/${filename}`;
 
     // Create a reference to the file location
