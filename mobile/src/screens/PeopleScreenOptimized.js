@@ -215,6 +215,26 @@ const PeopleScreenOptimized = ({ navigation }) => {
     }, [profiles.length, loading, hasInitialized])
   );
 
+  // Show the "It's a match!" modal, but only once per matchId. Dedup is
+  // necessary because the new-match WebSocket event can replay on socket
+  // reconnect (typical on app foreground/background) and re-trigger this
+  // handler for a match the user has already seen.
+  // Declared BEFORE the useEffects/useCallbacks that reference it in their
+  // dep arrays — otherwise the dep-array evaluation hits the const in its
+  // temporal dead zone on every render and throws.
+  const triggerMatchModal = useCallback(matchInfo => {
+    const { matchId } = matchInfo;
+    if (matchId && seenMatchIds.current.has(matchId)) {
+      Logger.debug(`🎉 Suppressing duplicate match modal for matchId=${matchId}`);
+      return;
+    }
+    if (matchId) {
+      seenMatchIds.current.add(matchId);
+    }
+    setMatchedUser(matchInfo);
+    setShowMatchModal(true);
+  }, []);
+
   // Listen for real-time match events
   useEffect(() => {
     if (!user?.uid) return;
@@ -552,23 +572,6 @@ const PeopleScreenOptimized = ({ navigation }) => {
     setPhotoViewerImages(images);
     setPhotoViewerIndex(index);
     setPhotoViewerVisible(true);
-  }, []);
-
-  // Show the "It's a match!" modal, but only once per matchId. Dedup is
-  // necessary because the new-match WebSocket event can replay on socket
-  // reconnect (typical on app foreground/background) and re-trigger this
-  // handler for a match the user has already seen.
-  const triggerMatchModal = useCallback(matchInfo => {
-    const { matchId } = matchInfo;
-    if (matchId && seenMatchIds.current.has(matchId)) {
-      Logger.debug(`🎉 Suppressing duplicate match modal for matchId=${matchId}`);
-      return;
-    }
-    if (matchId) {
-      seenMatchIds.current.add(matchId);
-    }
-    setMatchedUser(matchInfo);
-    setShowMatchModal(true);
   }, []);
 
   // Handle match modal actions
