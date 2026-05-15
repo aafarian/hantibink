@@ -4,7 +4,6 @@ import {
   Dimensions,
   Image,
   Modal,
-  Platform,
   Pressable,
   StyleSheet,
   Text,
@@ -14,6 +13,7 @@ import * as ImageManipulator from 'expo-image-manipulator';
 import { Ionicons } from '@expo/vector-icons';
 import Animated, { useAnimatedStyle, useSharedValue, withTiming } from 'react-native-reanimated';
 import { Gesture, GestureDetector, GestureHandlerRootView } from 'react-native-gesture-handler';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Logger from '../../utils/logger';
 import { theme } from '../../styles/theme';
 
@@ -50,6 +50,7 @@ const MAX_SCALE = 4;
  * @param {() => void} props.onCancel      User dismissed without committing
  */
 const PhotoCropCarousel = ({ visible, imageUris, onComplete, onCancel }) => {
+  const insets = useSafeAreaInsets();
   const [currentIndex, setCurrentIndex] = useState(0);
   const [imageInfos, setImageInfos] = useState([]); // [{ width, height, fitScale }]
   const [transforms, setTransforms] = useState([]); // [{ tx, ty, scale }] saved per photo
@@ -322,8 +323,9 @@ const PhotoCropCarousel = ({ visible, imageUris, onComplete, onCancel }) => {
       onRequestClose={onCancel}
     >
       <GestureHandlerRootView style={styles.root}>
-        {/* Header */}
-        <View style={styles.header}>
+        {/* Header — paddingTop respects the device's top safe area
+            (notch / status bar) */}
+        <View style={[styles.header, { paddingTop: Math.max(insets.top + 12, 24) }]}>
           <Pressable
             onPress={onCancel}
             hitSlop={12}
@@ -379,8 +381,10 @@ const PhotoCropCarousel = ({ visible, imageUris, onComplete, onCancel }) => {
           )}
         </View>
 
-        {/* Footer */}
-        <View style={styles.footer}>
+        {/* Footer — paddingBottom clears the Android on-screen nav bar
+            and iOS home indicator (insets.bottom), with a sensible minimum
+            for devices that report 0 */}
+        <View style={[styles.footer, { paddingBottom: Math.max(insets.bottom + 12, 16) }]}>
           <View style={styles.footerRow}>
             <Pressable
               style={styles.secondaryButton}
@@ -449,7 +453,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     paddingHorizontal: 16,
-    paddingTop: Platform.OS === 'ios' ? 56 : 24,
+    // paddingTop is set inline via safe-area insets so the close button and
+    // title clear the notch / status bar on every device.
     paddingBottom: 12,
     backgroundColor: theme.colors.background.primary,
     borderBottomWidth: 1,
@@ -524,7 +529,8 @@ const styles = StyleSheet.create({
   footer: {
     paddingHorizontal: 16,
     paddingTop: 12,
-    paddingBottom: Platform.OS === 'ios' ? 32 : 16,
+    // paddingBottom is set inline via safe-area insets so the buttons clear
+    // the Android on-screen nav bar / iOS home indicator on every device.
     backgroundColor: theme.colors.background.primary,
     borderTopWidth: 1,
     borderTopColor: theme.colors.border.light,
