@@ -758,7 +758,9 @@ const styles = StyleSheet.create({
     backgroundColor: theme.colors.background.primary,
     paddingHorizontal: theme.spacing.xl,
     paddingVertical: theme.spacing.lg,
-    paddingBottom: 34,
+    // Footer sits above the tab bar (which already accounts for the iOS home
+    // indicator and Android nav buttons), so just a small visual gap here.
+    paddingBottom: theme.spacing.md,
     borderTopWidth: 1,
     borderTopColor: theme.colors.gray[200],
   },
