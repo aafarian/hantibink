@@ -85,6 +85,35 @@ const DEFAULT_ADVANCED_FILTERS = {
   heightMax: null,
 };
 
+// Allowlist of keys that legitimately belong in the "advanced filters"
+// bucket. Used by `pickAdvancedFilters` below to sanitize objects that
+// arrived from outside (parent-passed `initialFilters`, AsyncStorage)
+// before mixing them into `advancedFilters` state.
+const ADVANCED_FILTER_KEYS = Object.keys(DEFAULT_ADVANCED_FILTERS);
+
+/**
+ * Return a shallow copy of `obj` containing only the keys that belong to
+ * `advancedFilters`. Prevents `core` keys (minAge, maxAge, maxDistance,
+ * interestedIn) from leaking into advanced state and then being mistakenly
+ * spread back over fresh core values at save time.
+ *
+ * Exported because the discovery screen's filter-loading path needs the
+ * same sanitization when it reads `@HantibinkAdvancedFilters` from
+ * AsyncStorage.
+ */
+export const pickAdvancedFilters = obj => {
+  if (!obj || typeof obj !== 'object') {
+    return {};
+  }
+  const result = {};
+  for (const key of ADVANCED_FILTER_KEYS) {
+    if (obj[key] !== undefined) {
+      result[key] = obj[key];
+    }
+  }
+  return result;
+};
+
 const FilterPreferencesForm = ({
   navigation,
   headerTitle = 'Filters',
@@ -107,10 +136,13 @@ const FilterPreferencesForm = ({
     maxDistance: initialFilters.maxDistance || 50,
   });
 
-  // Advanced filters (stored in AsyncStorage only)
+  // Advanced filters (stored in AsyncStorage only). `initialFilters` is the
+  // parent's combined-shape object and contains both core and advanced keys —
+  // sanitize so only advanced keys end up here, otherwise stale core values
+  // leak in and later override fresh corePreferences at save time.
   const [advancedFilters, setAdvancedFilters] = useState({
     ...DEFAULT_ADVANCED_FILTERS,
-    ...initialFilters,
+    ...pickAdvancedFilters(initialFilters),
   });
 
   const loadPreferences = useCallback(async () => {
@@ -130,11 +162,13 @@ const FilterPreferencesForm = ({
         });
       }
 
-      // Load advanced filters from AsyncStorage
+      // Load advanced filters from AsyncStorage. Sanitize too — stored data
+      // from older sessions can carry leaked core keys, and we don't want them
+      // poisoning advancedFilters state.
       const savedFilters = await AsyncStorage.getItem('@HantibinkAdvancedFilters');
       if (savedFilters) {
         const parsed = JSON.parse(savedFilters);
-        setAdvancedFilters(prev => ({ ...prev, ...parsed }));
+        setAdvancedFilters(prev => ({ ...prev, ...pickAdvancedFilters(parsed) }));
       }
     } catch (err) {
       Logger.error('Failed to load preferences:', err);
@@ -192,11 +226,20 @@ const FilterPreferencesForm = ({
         return;
       }
 
-      // Save advanced filters to AsyncStorage
-      await AsyncStorage.setItem('@HantibinkAdvancedFilters', JSON.stringify(advancedFilters));
+      // Save advanced filters to AsyncStorage. Sanitize at the write boundary
+      // too so any pre-existing leaked core keys get scrubbed out on the very
+      // next save, even for users whose storage was corrupted by an older
+      // build.
+      await AsyncStorage.setItem(
+        '@HantibinkAdvancedFilters',
+        JSON.stringify(pickAdvancedFilters(advancedFilters))
+      );
 
-      // Combine all filters for the callback
-      const allFilters = { ...corePreferences, ...advancedFilters };
+      // Combine all filters for the callback. corePreferences spreads last
+      // as defense in depth — advancedFilters is sanitized everywhere it's
+      // ingested, but a stale leak from an outside caller should not be able
+      // to defeat fresh core values.
+      const allFilters = { ...advancedFilters, ...corePreferences };
 
       Logger.info('Saving filters:', allFilters);
 
@@ -758,7 +801,11 @@ const styles = StyleSheet.create({
     backgroundColor: theme.colors.background.primary,
     paddingHorizontal: theme.spacing.xl,
     paddingVertical: theme.spacing.lg,
-    paddingBottom: 34,
+    // The footer renders inside the tab area, above the tab bar in normal
+    // layout flow. A small visual gap reads better here than padding sized
+    // for an iOS home indicator (which is the responsibility of whatever
+    // renders at the actual bottom of the screen, not this footer).
+    paddingBottom: theme.spacing.md,
     borderTopWidth: 1,
     borderTopColor: theme.colors.gray[200],
   },

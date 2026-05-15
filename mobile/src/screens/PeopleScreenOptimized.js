@@ -18,6 +18,7 @@ import { LoadingScreen } from '../components/LoadingScreen';
 import { ErrorScreen, EmptyState } from '../components/ErrorScreen';
 import ProfileSetupModal from '../components/modals/ProfileSetupModal';
 import PremiumUpgradeModal from '../components/modals/PremiumUpgradeModal';
+import { pickAdvancedFilters } from '../components/shared/FilterPreferencesForm';
 import Logger from '../utils/logger';
 import { getUserProfilePhoto } from '../utils/profileHelpers';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -101,11 +102,14 @@ const PeopleScreenOptimized = ({ navigation }) => {
           Logger.info('📱 Loaded core preferences from API');
         }
 
-        // Load advanced filters from AsyncStorage
+        // Load advanced filters from AsyncStorage. Sanitize via
+        // pickAdvancedFilters so any leaked core keys from older session
+        // builds (minAge, maxAge, maxDistance) get dropped before they
+        // override the fresh values we just fetched from the API.
         const savedFilters = await AsyncStorage.getItem('@HantibinkAdvancedFilters');
         let advancedFilters = {};
         if (savedFilters) {
-          advancedFilters = JSON.parse(savedFilters);
+          advancedFilters = pickAdvancedFilters(JSON.parse(savedFilters));
           Logger.info('📱 Loaded advanced filters from storage');
         }
 
