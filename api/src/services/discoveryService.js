@@ -523,17 +523,19 @@ const getUsersForDiscovery = async (currentUserId, options = {}) => {
       for (const user of filteredUsers) {
         let passesFilters = true;
         
-        // Strict age filter
-        if (defaultFilters.strictAge && defaultFilters.ageRange && user.age) {
+        // Strict age filter — fail-closed when age is missing. Users without
+        // birthDate slipped through the previous `&& user.age` short-circuit.
+        if (defaultFilters.strictAge && defaultFilters.ageRange) {
           const { min, max } = defaultFilters.ageRange;
-          if (user.age < min || user.age > max) {
+          if (user.age == null || user.age < min || user.age > max) {
             passesFilters = false;
           }
         }
-        
-        // Strict distance filter
-        if (defaultFilters.strictDistance && defaultFilters.maxDistance && user.distance) {
-          if (user.distance > defaultFilters.maxDistance) {
+
+        // Strict distance filter — fail-closed when distance is missing
+        // (e.g., either user lacks lat/long).
+        if (defaultFilters.strictDistance && defaultFilters.maxDistance) {
+          if (user.distance == null || user.distance > defaultFilters.maxDistance) {
             passesFilters = false;
           }
         }
