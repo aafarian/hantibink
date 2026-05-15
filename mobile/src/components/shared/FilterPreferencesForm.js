@@ -195,8 +195,13 @@ const FilterPreferencesForm = ({
       // Save advanced filters to AsyncStorage
       await AsyncStorage.setItem('@HantibinkAdvancedFilters', JSON.stringify(advancedFilters));
 
-      // Combine all filters for the callback
-      const allFilters = { ...corePreferences, ...advancedFilters };
+      // Combine all filters for the callback. corePreferences MUST spread last
+      // so its fresh values win over any stale core-prefs that leaked into
+      // advancedFilters via the initial-state `{ ...DEFAULT_ADVANCED_FILTERS,
+      // ...initialFilters }` spread. Without this order, a freshly-moved
+      // age-range slider was sending stale 18-99 over the wire while the
+      // local corePreferences correctly held the new range.
+      const allFilters = { ...advancedFilters, ...corePreferences };
 
       Logger.info('Saving filters:', allFilters);
 
