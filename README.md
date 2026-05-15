@@ -15,7 +15,7 @@ hantibink/
 | Layer        | Dev              | Production          |
 | ------------ | ---------------- | ------------------- |
 | **Mobile**   | Expo Dev Client  | EAS Build (APK/IPA) |
-| **API**      | localhost:3000   | Google Cloud Run    |
+| **API**      | localhost:4242   | Google Cloud Run    |
 | **Database** | Local PostgreSQL | Supabase            |
 | **Storage**  | Firebase Storage | Firebase Storage    |
 
@@ -75,7 +75,7 @@ npm run dev
 This will:
 
 - Auto-detect your local IP
-- Start API on port 3000
+- Start API on port 4242
 - Start Expo Metro bundler
 - Show QR code to connect your phone
 
@@ -198,7 +198,7 @@ DATABASE_URL="<supabase-url>" npx prisma migrate deploy
 
 | Environment     | Database                            | API            | Mobile Build Profile |
 | --------------- | ----------------------------------- | -------------- | -------------------- |
-| **Development** | Local PostgreSQL (`hantibink_dev`)  | localhost:3000 | `development`        |
+| **Development** | Local PostgreSQL (`hantibink_dev`)  | localhost:4242 | `development`        |
 | **Test**        | Local PostgreSQL (`hantibink_test`) | -              | -                    |
 | **Production**  | Supabase                            | Cloud Run      | `production`         |
 

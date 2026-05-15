@@ -5,10 +5,10 @@ services:
   api:
     build: ./api
     ports:
-      - "3000:3000"
+      - "4242:4242"
     environment:
       - NODE_ENV=production
-      - PORT=3000
+      - PORT=4242
       - HOST=0.0.0.0
       - DATABASE_URL=postgresql://hantibink_user:hantibink_password@postgres:5432/hantibink_prod?schema=public
       - REDIS_URL=redis://redis:6379
