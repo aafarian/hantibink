@@ -1150,6 +1150,21 @@ const ChatScreen = ({ route, navigation }) => {
             // scroll views on other tabs. Messages stay in state — the FlatList
             // re-renders instantly when the user returns.
             <View style={styles.chatContainer} />
+          ) : messages.length === 0 ? (
+            // Render empty state outside the inverted FlatList — RN's ListEmptyComponent
+            // is inconsistently flipped across versions, which can leave the placeholder
+            // text upside down. Sibling rendering sidesteps the inversion entirely.
+            <View style={[styles.chatContainer, styles.emptyStateContainer]}>
+              <Ionicons
+                name="chatbubble-ellipses-outline"
+                size={48}
+                color={theme.colors.text.muted}
+              />
+              <Text style={styles.emptyStateTitle}>Start the conversation!</Text>
+              <Text style={styles.emptyStateSubtitle}>
+                Say hi to {getUserDisplayName(match.otherUser)}
+              </Text>
+            </View>
           ) : (
             <>
               <FlatList
@@ -1161,19 +1176,6 @@ const ChatScreen = ({ route, navigation }) => {
                 }
                 contentContainerStyle={styles.messagesList}
                 ListHeaderComponent={renderTypingIndicator}
-                ListEmptyComponent={
-                  <View style={styles.emptyStateContainer}>
-                    <Ionicons
-                      name="chatbubble-ellipses-outline"
-                      size={48}
-                      color={theme.colors.text.muted}
-                    />
-                    <Text style={styles.emptyStateTitle}>Start the conversation!</Text>
-                    <Text style={styles.emptyStateSubtitle}>
-                      Say hi to {getUserDisplayName(match.otherUser)}
-                    </Text>
-                  </View>
-                }
                 inverted={true}
                 keyboardShouldPersistTaps="handled"
                 keyboardDismissMode="interactive"
@@ -1398,8 +1400,6 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     paddingVertical: theme.spacing.huge,
-    // Inverted list renders from bottom, so this keeps the empty state visually centered
-    transform: [{ scaleY: -1 }],
   },
   emptyStateTitle: {
     marginTop: theme.spacing.md,

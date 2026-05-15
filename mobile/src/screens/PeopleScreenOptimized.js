@@ -57,6 +57,10 @@ const PeopleScreenOptimized = ({ navigation }) => {
 
   // Track processed profiles to avoid duplicates
   const processedIds = useRef(new Set());
+  // Match IDs we've already shown the "It's a match!" modal for. Prevents the
+  // modal from re-firing if a socket reconnect replays the new-match event,
+  // or if a swipe handler runs twice for the same match.
+  const seenMatchIds = useRef(new Set());
   const cardStackRef = useRef(null);
 
   // Filters state - load from storage or use defaults
@@ -227,18 +231,17 @@ const PeopleScreenOptimized = ({ navigation }) => {
           setProfiles(prev => prev.filter(p => p.id !== data.matchedUser.id));
         }
 
-        setMatchedUser({
+        triggerMatchModal({
           id: data.matchedUser.id,
           name: data.matchedUser.name,
           photo: data.matchedUser.mainPhoto || null,
           matchId: data.matchId, // Include matchId from WebSocket event
         });
-        setShowMatchModal(true);
       }
     });
 
     return () => unsubscribe();
-  }, [user?.uid]);
+  }, [user?.uid, triggerMatchModal]);
 
   // Load initial batch of profiles
   const loadInitialProfiles = async (customFilters = null) => {
@@ -425,13 +428,12 @@ const PeopleScreenOptimized = ({ navigation }) => {
             trackMatchCreated();
 
             // Show match modal with match details
-            setMatchedUser({
+            triggerMatchModal({
               id: profile.id,
               name: profile.name,
               photo: getUserProfilePhoto(profile),
               matchId: result.match?.id, // Include the match ID for navigation
             });
-            setShowMatchModal(true);
             // Don't show toast - the modal is enough notification
           } else {
             Logger.info(`💌 Like sent to ${profile.name} - waiting for them to like back`);
@@ -462,7 +464,7 @@ const PeopleScreenOptimized = ({ navigation }) => {
         showError('Failed to save like. Please try again.');
       }
     },
-    [showError]
+    [showError, triggerMatchModal]
   );
 
   // Handle super like (premium feature)
@@ -484,13 +486,12 @@ const PeopleScreenOptimized = ({ navigation }) => {
             trackMatchCreated();
 
             // Show match modal
-            setMatchedUser({
+            triggerMatchModal({
               id: profile.id,
               name: profile.name,
               photo: getUserProfilePhoto(profile),
               matchId: result.match?.id,
             });
-            setShowMatchModal(true);
           } else {
             Logger.info(`💫 Super Like sent to ${profile.name}`);
             showSuccess('Super Like sent!');
@@ -512,7 +513,7 @@ const PeopleScreenOptimized = ({ navigation }) => {
         showError('Failed to send Super Like. Please try again.');
       }
     },
-    [showError, showSuccess]
+    [showError, showSuccess, triggerMatchModal]
   );
 
   // Handle undo (premium feature)
@@ -551,6 +552,23 @@ const PeopleScreenOptimized = ({ navigation }) => {
     setPhotoViewerImages(images);
     setPhotoViewerIndex(index);
     setPhotoViewerVisible(true);
+  }, []);
+
+  // Show the "It's a match!" modal, but only once per matchId. Dedup is
+  // necessary because the new-match WebSocket event can replay on socket
+  // reconnect (typical on app foreground/background) and re-trigger this
+  // handler for a match the user has already seen.
+  const triggerMatchModal = useCallback(matchInfo => {
+    const { matchId } = matchInfo;
+    if (matchId && seenMatchIds.current.has(matchId)) {
+      Logger.debug(`🎉 Suppressing duplicate match modal for matchId=${matchId}`);
+      return;
+    }
+    if (matchId) {
+      seenMatchIds.current.add(matchId);
+    }
+    setMatchedUser(matchInfo);
+    setShowMatchModal(true);
   }, []);
 
   // Handle match modal actions
