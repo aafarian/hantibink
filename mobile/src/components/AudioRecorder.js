@@ -13,16 +13,18 @@ const WAVE_BAR_COUNT = 40; // Number of wave bars for live display
 const WAVEFORM_BAR_COUNT = 40; // Number of bars for saved waveform (matches AudioMessage)
 const METERING_INTERVAL = 50; // Update every 50ms for smooth animation
 
-// Downsample waveform data to a fixed number of bars
-const downsampleWaveform = (data, targetBars) => {
+// Resample waveform data to a fixed number of bars. The time axis must be
+// preserved in BOTH directions: with fewer samples than bars, each sample
+// is stretched across its share of the display — appending copies of the
+// last value (the old behavior) squeezed the real audio into the left of
+// the waveform and drew a false flatline over the rest of the message.
+export const downsampleWaveform = (data, targetBars) => {
   if (data.length === 0) return Array(targetBars).fill(0.1);
   if (data.length <= targetBars) {
-    // Pad with last value if not enough data
-    const padded = [...data];
-    while (padded.length < targetBars) {
-      padded.push(data[data.length - 1] || 0.1);
-    }
-    return padded;
+    return Array.from({ length: targetBars }, (_, i) => {
+      const index = Math.min(data.length - 1, Math.floor((i * data.length) / targetBars));
+      return data[index];
+    });
   }
 
   const result = [];
@@ -174,27 +176,31 @@ const AudioRecorder = ({
         playsInSilentModeIOS: true,
       });
 
-      const recording = new Audio.Recording();
-      await recording.prepareToRecordAsync({
-        ...Audio.RecordingOptionsPresets.HIGH_QUALITY,
-        isMeteringEnabled: true,
-      });
-
-      // Set up metering callback with fast update interval
-      recording.setOnRecordingStatusUpdate(updateAudioLevel);
-      recording.setProgressUpdateInterval(METERING_INTERVAL);
-
-      await recording.startAsync();
-
-      recordingRef.current = recording;
-      startTimeRef.current = Date.now();
-      waveformDataRef.current = []; // Reset waveform data
-      setIsRecording(true);
-      setRecordingDuration(0);
+      // Reset buffers BEFORE the recording exists — the status callback is
+      // live from creation and must not race the reset
+      waveformDataRef.current = [];
       setAudioLevels(Array(WAVE_BAR_COUNT).fill(0.02));
       audioLevelsRef.current = Array(WAVE_BAR_COUNT).fill(0.02);
       // Reset wave animations to prevent visual artifacts from previous recording
       waveAnims.forEach(anim => anim.setValue(0.02));
+
+      // createAsync registers the status callback AND the update interval
+      // atomically with recording start. Wiring them onto the Recording
+      // object afterwards left expo-av on its default ~500ms cadence, so a
+      // short voice note produced only a couple dozen metering samples.
+      const { recording } = await Audio.Recording.createAsync(
+        {
+          ...Audio.RecordingOptionsPresets.HIGH_QUALITY,
+          isMeteringEnabled: true,
+        },
+        updateAudioLevel,
+        METERING_INTERVAL
+      );
+
+      recordingRef.current = recording;
+      startTimeRef.current = Date.now();
+      setIsRecording(true);
+      setRecordingDuration(0);
 
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
 
