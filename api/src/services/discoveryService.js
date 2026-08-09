@@ -377,8 +377,8 @@ const getUsersForDiscovery = async (currentUserId, options = {}) => {
         // Also include users interested in all genders (stored as array of 3)
         { 
           AND: [
-            { interestedIn: { hasSome: ['MALE'] } },
-            { interestedIn: { hasSome: ['FEMALE'] } },
+            { interestedIn: { hasSome: ['MAN'] } },
+            { interestedIn: { hasSome: ['WOMAN'] } },
             { interestedIn: { hasSome: ['OTHER'] } }
           ]
         }

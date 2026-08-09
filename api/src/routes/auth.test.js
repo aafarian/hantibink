@@ -172,4 +172,119 @@ describe('Auth Routes', () => {
       expect(response.body.success).toBe(false);
     });
   });
+
+  describe('Password reset flow (forgot -> verify-code -> reset)', () => {
+    it('completes end-to-end and the new password works', async () => {
+      const user = await userFactory.create(global.prisma, {
+        email: 'resetme@example.com',
+      });
+
+      // Step 1: request a reset (grab the code from _internal, which the
+      // route consumes to send the email)
+      const { requestPasswordReset } = await import('../services/authService.js');
+      const requestResult = await requestPasswordReset(user.email);
+      const resetCode = requestResult._internal.resetCode;
+      expect(resetCode).toBeDefined();
+
+      // Step 2: verify the code — this used to 500 (generateToken undefined)
+      // AFTER burning the one-time code
+      const verifyResponse = await request(app)
+        .post('/auth/verify-reset-code')
+        .send({ email: user.email, code: resetCode });
+
+      expect(verifyResponse.status).toBe(200);
+      expect(verifyResponse.body.success).toBe(true);
+      const resetToken = verifyResponse.body.resetToken;
+      expect(resetToken).toBeDefined();
+
+      // Step 3: set the new password with the reset token
+      const resetResponse = await request(app)
+        .post('/auth/reset-password')
+        .send({ token: resetToken, newPassword: 'NewPass123!' });
+
+      expect(resetResponse.status).toBe(200);
+      expect(resetResponse.body.success).toBe(true);
+
+      // The new password logs in
+      const loginResponse = await request(app)
+        .post('/auth/login')
+        .send({ email: user.email, password: 'NewPass123!' });
+      expect(loginResponse.status).toBe(200);
+    });
+
+    it('rejects an access token as a reset token', async () => {
+      const { accessToken } = (
+        await userFactory.createWithAuth(global.prisma)
+      );
+
+      const response = await request(app)
+        .post('/auth/reset-password')
+        .send({ token: accessToken, newPassword: 'NewPass123!' });
+
+      expect(response.body.success).toBe(false);
+    });
+
+    it('rejects a reset token as an API access token', async () => {
+      const user = await userFactory.create(global.prisma);
+      const { generatePasswordResetToken } = await import('../utils/jwt.js');
+      const resetToken = generatePasswordResetToken(user.id);
+
+      const { authenticateJWT } = await import('../middleware/auth.js');
+      const req = {
+        headers: { authorization: `Bearer ${resetToken}` },
+      };
+      const res = {
+        statusCode: null,
+        body: null,
+        status(code) {
+          this.statusCode = code;
+          return this;
+        },
+        json(payload) {
+          this.body = payload;
+          return this;
+        },
+      };
+      let nextCalled = false;
+
+      await authenticateJWT(req, res, () => {
+        nextCalled = true;
+      });
+
+      expect(nextCalled).toBe(false);
+      expect(res.statusCode).toBe(401);
+    });
+  });
+
+  describe('GET /auth/oauth/check-user', () => {
+    it('reports hasPassword correctly and omits private fields (regression)', async () => {
+      // checkUserExists used to select without password, so hasPassword was
+      // always false — breaking the mobile sign-in-method picker.
+      const withPassword = await userFactory.create(global.prisma, {
+        email: 'haspass@example.com',
+      });
+      await global.prisma.user.create({
+        data: {
+          email: 'oauthonly@example.com',
+          name: 'OAuth Only',
+          password: null,
+        },
+      });
+
+      const withPassResponse = await request(app)
+        .get('/auth/oauth/check-user')
+        .query({ email: withPassword.email });
+      expect(withPassResponse.status).toBe(200);
+      expect(withPassResponse.body.data.exists).toBe(true);
+      expect(withPassResponse.body.data.hasPassword).toBe(true);
+      expect(withPassResponse.body.data).not.toHaveProperty('registrationMethod');
+
+      const oauthOnlyResponse = await request(app)
+        .get('/auth/oauth/check-user')
+        .query({ email: 'oauthonly@example.com' });
+      expect(oauthOnlyResponse.status).toBe(200);
+      expect(oauthOnlyResponse.body.data.exists).toBe(true);
+      expect(oauthOnlyResponse.body.data.hasPassword).toBe(false);
+    });
+  });
 });

@@ -67,8 +67,8 @@ async function seedDatabase() {
           password: '$2a$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', // "password" hashed
           name: 'Ani',
           birthDate: new Date('1999-01-15'),
-          gender: 'FEMALE',
-          interestedIn: ['MALE'],
+          gender: 'WOMAN',
+          interestedIn: ['MAN'],
           bio: 'Love hiking and Armenian coffee ☕',
           location: 'Yerevan, Armenia',
           latitude: 40.1792,
@@ -81,8 +81,8 @@ async function seedDatabase() {
           password: '$2a$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', // "password" hashed
           name: 'Saro',
           birthDate: new Date('1996-05-20'),
-          gender: 'MALE',
-          interestedIn: ['FEMALE'],
+          gender: 'MAN',
+          interestedIn: ['WOMAN'],
           bio: 'Software developer by day, musician by night 🎸',
           location: 'Yerevan, Armenia',
           latitude: 40.1792,
