@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeEach, beforeAll, afterAll } from 'vitest';
 import request from 'supertest';
 import express from 'express';
-import { userFactory, matchFactory } from '../../test-setup/helpers/factories.js';
+import { userFactory } from '../../test-setup/helpers/factories.js';
 import { createMockSocketIO } from '../../test-setup/helpers/test-utils.js';
 import adminRouter from './admin.js';
 import { errorHandler } from '../middleware/errorHandler.js';
