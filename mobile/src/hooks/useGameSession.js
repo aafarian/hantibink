@@ -49,10 +49,25 @@ const useGameSession = matchId => {
     if (!matchId) {
       return;
     }
+    // track() replaces lastRef.current wholesale, so object identity tells
+    // us whether ANY snapshot landed while this request was in flight
+    const before = lastRef.current;
     try {
       const active = await GamesApiService.getActiveSession(matchId);
-      track(active?.id, active?.version, active?.createdAt);
-      setSession(active);
+      if (active) {
+        // Same gate as sockets/REST snapshots: a delayed refresh for an
+        // older session must not replace a newer game
+        if (isStale(active.id, active.version, active.createdAt)) {
+          return;
+        }
+        track(active.id, active.version, active.createdAt);
+        setSession(active);
+      } else if (lastRef.current === before) {
+        // "No active game" is only trustworthy if nothing newer arrived
+        // during the fetch. Keep lastRef as-is: it still holds the newest
+        // ordering info we know, which keeps rejecting stale snapshots.
+        setSession(null);
+      }
     } catch (error) {
       Logger.warn('Game session refresh failed:', error);
     }
