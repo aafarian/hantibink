@@ -13,16 +13,20 @@ let cachedUserId = null;
  */
 const useAdminCheck = () => {
   const { user } = useAuth();
-  const [isAdmin, setIsAdmin] = useState(cachedUserId === user?.id ? !!cachedResult : false);
+  // AuthContext exposes the API user id as `uid` on every sign-in path;
+  // `.id` only exists on some of them (Google sign-in builds the user
+  // object without it, which used to skip the check entirely)
+  const userId = user?.uid || user?.id;
+  const [isAdmin, setIsAdmin] = useState(cachedUserId === userId ? !!cachedResult : false);
 
   useEffect(() => {
     let cancelled = false;
     const check = async () => {
-      if (!user?.id) {
+      if (!userId) {
         setIsAdmin(false);
         return;
       }
-      if (cachedUserId === user.id && cachedResult !== null) {
+      if (cachedUserId === userId && cachedResult !== null) {
         setIsAdmin(cachedResult);
         return;
       }
@@ -30,7 +34,7 @@ const useAdminCheck = () => {
       // A transient failure (API restarting, offline) returns null — never
       // cache it, or the Admin row stays hidden for the whole session
       if (result !== null) {
-        cachedUserId = user.id;
+        cachedUserId = userId;
         cachedResult = result;
       }
       if (!cancelled) {
@@ -41,7 +45,7 @@ const useAdminCheck = () => {
     return () => {
       cancelled = true;
     };
-  }, [user?.id]);
+  }, [userId]);
 
   return isAdmin;
 };
