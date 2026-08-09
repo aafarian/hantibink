@@ -507,7 +507,7 @@ const BODIES = {
  * Interactive card rendered in the thread for the ACTIVE session's start
  * message. Ended sessions render their summary from message metadata.
  */
-export const GameMessageCard = ({ metadata, session, myId, onMove, onDecline }) => {
+export const GameMessageCard = ({ metadata, session, myId, onMove, onDecline, onDismiss }) => {
   const meta = GAME_META[metadata.gameType] || {};
 
   // Summary card (game over)
@@ -528,6 +528,16 @@ export const GameMessageCard = ({ metadata, session, myId, onMove, onDecline }) 
   const isLive = session && session.id === metadata.sessionId && session.status === 'ACTIVE';
   const Body = BODIES[metadata.gameType];
 
+  // This or That is the one game the creator hasn't committed anything to
+  // at create time — until they make their first pick they can withdraw it
+  // with an X. The other games commit content at create; Decline stays
+  // opponent-only everywhere.
+  const creatorCanDismiss =
+    isLive &&
+    session.createdBy === myId &&
+    metadata.gameType === 'THIS_OR_THAT' &&
+    !(session.view?.rounds || []).some(round => round.myPick || round.revealed);
+
   return (
     <View style={styles.card}>
       <View style={styles.cardHeader}>
@@ -536,6 +546,15 @@ export const GameMessageCard = ({ metadata, session, myId, onMove, onDecline }) 
         {isLive && session.createdBy !== myId && (
           <TouchableOpacity onPress={onDecline} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
             <Text style={styles.declineText}>Decline</Text>
+          </TouchableOpacity>
+        )}
+        {creatorCanDismiss && (
+          <TouchableOpacity
+            onPress={onDismiss}
+            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+            accessibilityLabel="Dismiss game"
+          >
+            <Ionicons name="close" size={18} color={theme.colors.text.muted} />
           </TouchableOpacity>
         )}
       </View>

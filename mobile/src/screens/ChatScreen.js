@@ -1028,6 +1028,7 @@ const ChatScreen = ({ route, navigation }) => {
               myId={user.uid}
               onMove={handleGameMove}
               onDecline={handleGameDecline}
+              onDismiss={handleEndActiveGame}
             />
           );
         }
@@ -1070,6 +1071,7 @@ const ChatScreen = ({ route, navigation }) => {
       gameSession,
       handleGameMove,
       handleGameDecline,
+      handleEndActiveGame,
     ]
   );
 
