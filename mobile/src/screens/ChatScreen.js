@@ -195,9 +195,12 @@ const ChatScreen = ({ route, navigation }) => {
       const ended = await GamesApiService.decline(match.matchId, gameSession?.id);
       applyGameSnapshot(ended);
     } catch (error) {
-      showError('Could not decline');
+      showError(error.message || 'Could not decline');
+      // The server may have rejected because a competing outcome landed
+      // first — resync so the card shows the real state
+      refreshGameSession();
     }
-  }, [match.matchId, gameSession?.id, showError, applyGameSnapshot]);
+  }, [match.matchId, gameSession?.id, showError, applyGameSnapshot, refreshGameSession]);
 
   // From the picker's "finish or end first" state: the creator forfeits
   // their own game, the opponent declines it
@@ -210,7 +213,8 @@ const ChatScreen = ({ route, navigation }) => {
         : await GamesApiService.decline(match.matchId, gameSession?.id);
       applyGameSnapshot(ended);
     } catch (error) {
-      showError('Could not end the game');
+      showError(error.message || 'Could not end the game');
+      refreshGameSession();
     }
   }, [
     match.matchId,
@@ -219,6 +223,7 @@ const ChatScreen = ({ route, navigation }) => {
     user.uid,
     showError,
     applyGameSnapshot,
+    refreshGameSession,
   ]);
 
   // Refs

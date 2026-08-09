@@ -40,11 +40,13 @@ const GamesApiService = {
   },
 
   async decline(matchId, sessionId) {
-    return unwrap(await apiClient.post(`/games/${matchId}/sessions/${sessionId}/decline`));
+    const response = await apiClient.post(`/games/${matchId}/sessions/${sessionId}/decline`);
+    return throwIfGated(response);
   },
 
   async forfeit(matchId, sessionId) {
-    return unwrap(await apiClient.post(`/games/${matchId}/sessions/${sessionId}/forfeit`));
+    const response = await apiClient.post(`/games/${matchId}/sessions/${sessionId}/forfeit`);
+    return throwIfGated(response);
   },
 };
 
