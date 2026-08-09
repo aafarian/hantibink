@@ -111,11 +111,15 @@ const canStartGame = async (userId, match, gameType) => {
 /** Lazy expiry: any read/move path first retires overdue sessions. */
 const expireIfOverdue = async (session) => {
   if (session.status === 'ACTIVE' && session.expiresAt < new Date()) {
-    const expired = await prisma.gameSession.update({
-      where: { id: session.id },
-      data: { status: 'EXPIRED' },
+    // Same optimistic lock as moves and terminal writes: if a concurrent
+    // request completed/declined/forfeited (or moved) since we loaded this
+    // snapshot, the expiry write loses and the fresh row wins — a stale
+    // expiry must never overwrite a terminal state
+    await prisma.gameSession.updateMany({
+      where: { id: session.id, status: 'ACTIVE', version: session.version },
+      data: { status: 'EXPIRED', version: session.version + 1 },
     });
-    return expired;
+    return prisma.gameSession.findUnique({ where: { id: session.id } });
   }
   return session;
 };
