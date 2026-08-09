@@ -246,7 +246,23 @@ const messageValidation = {
       .isIn(['TEXT', 'IMAGE', 'VIDEO', 'AUDIO', 'LOCATION', 'STICKER', 'GIF']).withMessage('Invalid message type'),
     body('mediaUrl')
       .optional({ values: 'falsy' })
-      .isURL().withMessage('Invalid media URL'),
+      .isURL({ protocols: ['https'], require_protocol: true }).withMessage('Invalid media URL'),
+    body('metadata')
+      .optional({ values: 'falsy' })
+      .custom((value) => {
+        if (typeof value !== 'string') {
+          throw new Error('Metadata must be a string');
+        }
+        if (value.length > 2048) {
+          throw new Error('Metadata too large');
+        }
+        try {
+          JSON.parse(value);
+        } catch {
+          throw new Error('Metadata must be valid JSON');
+        }
+        return true;
+      }),
     body('replyToId')
       .optional({ values: 'falsy' })
       .isString().withMessage('Reply ID must be a string')
@@ -462,6 +478,112 @@ const matchValidation = {
   ],
 };
 
+/**
+ * User settings validation rules
+ */
+const userValidation = {
+  addPhoto: [
+    body('photoUrl')
+      .notEmpty().withMessage('Photo URL is required')
+      .isURL({ protocols: ['https'], require_protocol: true }).withMessage('Photo URL must be a valid https URL')
+      .isLength({ max: 2048 }).withMessage('Photo URL too long'),
+    body('isMain')
+      .optional()
+      .isBoolean({ strict: true }).withMessage('isMain must be a boolean'),
+    handleValidationErrors,
+  ],
+
+  preferences: [
+    body('interestedIn')
+      .optional()
+      .isArray().withMessage('Interested in must be an array')
+      .custom((value) => {
+        const valid = ['MAN', 'WOMAN', 'OTHER'];
+        if (!value.every((g) => valid.includes(g))) {
+          throw new Error('Invalid gender preference');
+        }
+        return true;
+      }),
+    body('ageRange.min')
+      .optional()
+      .isInt({ min: 18, max: 99 }).withMessage('Minimum age must be between 18 and 99'),
+    body('ageRange.max')
+      .optional()
+      .isInt({ min: 18, max: 99 }).withMessage('Maximum age must be between 18 and 99'),
+    body('ageRange')
+      .optional()
+      .custom((value) => {
+        if (
+          value &&
+          value.min !== undefined &&
+          value.max !== undefined &&
+          Number(value.min) > Number(value.max)
+        ) {
+          throw new Error('Minimum age cannot exceed maximum age');
+        }
+        return true;
+      }),
+    body('distance')
+      .optional()
+      .isInt({ min: 1, max: 500 }).withMessage('Distance must be between 1 and 500 km'),
+    handleValidationErrors,
+  ],
+
+  notificationSettings: [
+    body('messages')
+      .optional()
+      .isBoolean({ strict: true }).withMessage('messages must be a boolean'),
+    body('matches')
+      .optional()
+      .isBoolean({ strict: true }).withMessage('matches must be a boolean'),
+    body('likes')
+      .optional()
+      .isBoolean({ strict: true }).withMessage('likes must be a boolean'),
+    handleValidationErrors,
+  ],
+};
+
+/**
+ * Moderation validation rules
+ */
+const moderationValidation = {
+  matchIdParam: [
+    param('matchId')
+      .notEmpty().withMessage('Match ID is required')
+      .matches(ID_REGEX).withMessage('Invalid match ID format'),
+    handleValidationErrors,
+  ],
+
+  userIdParam: [
+    param('userId')
+      .notEmpty().withMessage('User ID is required')
+      .matches(ID_REGEX).withMessage('Invalid user ID format'),
+    handleValidationErrors,
+  ],
+
+  report: [
+    body('reportedId')
+      .notEmpty().withMessage('reportedId is required')
+      .matches(ID_REGEX).withMessage('Invalid user ID format'),
+    body('reason')
+      .notEmpty().withMessage('reason is required')
+      .isIn([
+        'INAPPROPRIATE_PHOTOS',
+        'HARASSMENT',
+        'SPAM',
+        'FAKE_PROFILE',
+        'UNDERAGE',
+        'OTHER',
+      ]).withMessage('Invalid report reason'),
+    body('description')
+      .optional({ values: 'falsy' })
+      .isString().withMessage('Description must be a string')
+      .isLength({ max: 1000 }).withMessage('Description must be at most 1000 characters')
+      .trim(),
+    handleValidationErrors,
+  ],
+};
+
 module.exports = {
   handleValidationErrors,
   authValidation,
@@ -470,4 +592,6 @@ module.exports = {
   messageValidation,
   profileValidation,
   matchValidation,
+  userValidation,
+  moderationValidation,
 };

@@ -316,7 +316,7 @@ const checkUserExists = async (email) => {
       select: {
         id: true,
         email: true,
-        registrationMethod: true,
+        password: true, // needed for hasPassword — never returned raw
         oauthAccounts: {
           select: {
             provider: true,
@@ -324,17 +324,18 @@ const checkUserExists = async (email) => {
         },
       },
     });
-    
+
     if (!user) {
       return {
         exists: false,
       };
     }
-    
+
+    // Deliberately minimal: this is a public endpoint, so it exposes only
+    // what the sign-in-method picker needs.
     return {
       exists: true,
       hasPassword: !!user.password,
-      registrationMethod: user.registrationMethod,
       oauthProviders: user.oauthAccounts.map(acc => acc.provider),
     };
   } catch (error) {

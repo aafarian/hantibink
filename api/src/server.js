@@ -105,16 +105,25 @@ app.use(
 );
 
 // CORS configuration
+if (NODE_ENV === 'production' && !process.env.CORS_ORIGIN) {
+  logger.error(
+    '❌ CORS_ORIGIN is not set in production — browser origins will all be rejected',
+  );
+}
+
 const corsOptions = {
   origin(origin, callback) {
-    // Allow requests with no origin (mobile apps, Postman, etc.)
+    // Allow requests with no origin (native mobile apps send none)
     if (!origin) {
       return callback(null, true);
     }
 
+    // Dev fallback origins only apply outside production
     const allowedOrigins = process.env.CORS_ORIGIN
       ? process.env.CORS_ORIGIN.split(',').map((o) => o.trim())
-      : ['http://localhost:19006', 'exp://192.168.1.100:19000'];
+      : NODE_ENV === 'production'
+        ? []
+        : ['http://localhost:19006', 'exp://192.168.1.100:19000'];
 
     if (allowedOrigins.includes(origin)) {
       callback(null, true);
@@ -174,9 +183,10 @@ if (process.env.ENABLE_RATE_LIMITING !== 'false') {
 // Compression
 app.use(compression());
 
-// Body parsing
-app.use(express.json({ limit: '10mb' }));
-app.use(express.urlencoded({ extended: true, limit: '10mb' }));
+// Body parsing — this is a JSON API (photos are uploaded to Firebase Storage
+// client-side and sent here as URLs), so 1mb is generous.
+app.use(express.json({ limit: '1mb' }));
+app.use(express.urlencoded({ extended: true, limit: '1mb' }));
 
 // Request logging
 if (process.env.ENABLE_REQUEST_LOGGING !== 'false') {

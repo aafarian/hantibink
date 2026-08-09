@@ -2,6 +2,7 @@ const express = require('express');
 const logger = require('../utils/logger');
 const { authenticateJWT } = require('../middleware/auth');
 const { messageValidation } = require('../middleware/validation');
+const { writeBurstLimiter } = require('../middleware/rateLimiters');
 const {
   getMessages,
   sendMessage,
@@ -85,7 +86,7 @@ router.get('/:matchId', authenticateJWT, messageValidation.getMessages, async (r
  * @desc    Send a message in a match
  * @access  Private
  */
-router.post('/:matchId', authenticateJWT, messageValidation.sendMessage, async (req, res) => {
+router.post('/:matchId', authenticateJWT, writeBurstLimiter, messageValidation.sendMessage, async (req, res) => {
   try {
     const { matchId } = req.params;
     const { content, messageType = 'TEXT', mediaUrl = null, metadata = null, replyToId = null } = req.body;
@@ -198,7 +199,7 @@ router.delete('/:messageId', authenticateJWT, async (req, res) => {
  * @desc    Add or toggle a reaction on a message
  * @access  Private
  */
-router.post('/:matchId/:messageId/reaction', authenticateJWT, messageValidation.addReaction, async (req, res) => {
+router.post('/:matchId/:messageId/reaction', authenticateJWT, writeBurstLimiter, messageValidation.addReaction, async (req, res) => {
   try {
     const { messageId } = req.params;
     const { emoji } = req.body;
@@ -237,7 +238,7 @@ router.post('/:matchId/:messageId/reaction', authenticateJWT, messageValidation.
  * @desc    Remove a reaction from a message
  * @access  Private
  */
-router.delete('/:matchId/:messageId/reaction', authenticateJWT, messageValidation.removeReaction, async (req, res) => {
+router.delete('/:matchId/:messageId/reaction', authenticateJWT, writeBurstLimiter, messageValidation.removeReaction, async (req, res) => {
   try {
     const { messageId } = req.params;
     const { emoji } = req.body;

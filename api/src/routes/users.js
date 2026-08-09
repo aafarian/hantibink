@@ -1,7 +1,7 @@
 const express = require('express');
 const logger = require('../utils/logger');
 const { authenticateJWT } = require('../middleware/auth');
-const { profileValidation } = require('../middleware/validation');
+const { profileValidation, userValidation } = require('../middleware/validation');
 const { getPrismaClient } = require('../config/database');
 // Removed caching from profile endpoint as it changes frequently
 const {
@@ -258,7 +258,7 @@ router.post('/profile/complete-setup', authenticateJWT, profileValidation.comple
  * @desc    Add profile photo
  * @access  Private
  */
-router.post('/photos', authenticateJWT, async (req, res) => {
+router.post('/photos', authenticateJWT, userValidation.addPhoto, async (req, res) => {
   try {
     const { photoUrl, isMain } = req.body;
 
@@ -422,7 +422,7 @@ router.get('/preferences', authenticateJWT, async (req, res) => {
  * @desc    Update user preferences
  * @access  Private
  */
-router.put('/preferences', authenticateJWT, async (req, res) => {
+router.put('/preferences', authenticateJWT, userValidation.preferences, async (req, res) => {
   try {
     const { interestedIn, ageRange, distance } = req.body;
 
@@ -519,7 +519,7 @@ router.get('/notification-settings', authenticateJWT, async (req, res) => {
  * @desc    Update user notification settings
  * @access  Private
  */
-router.put('/notification-settings', authenticateJWT, async (req, res) => {
+router.put('/notification-settings', authenticateJWT, userValidation.notificationSettings, async (req, res) => {
   try {
     const { messages, matches, likes } = req.body;
 
@@ -645,9 +645,9 @@ router.post('/push-token', authenticateJWT, async (req, res) => {
 /**
  * @route   POST /api/users/push-token/clear
  * @desc    Clear push token from all users (used during logout)
- * @access  Public (token is device-specific, safe to clear by value)
+ * @access  Private (clears by token value across accounts on this device)
  */
-router.post('/push-token/clear', async (req, res) => {
+router.post('/push-token/clear', authenticateJWT, async (req, res) => {
   try {
     const { pushToken } = req.body;
 

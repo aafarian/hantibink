@@ -108,15 +108,10 @@ const blockUser = async (blockerId, blockedId, _matchId = null) => {
       },
     });
 
-    // Remove any pending likes/actions between users
-    await tx.userAction.deleteMany({
-      where: {
-        OR: [
-          { senderId: blockerId, receiverId: blockedId },
-          { senderId: blockedId, receiverId: blockerId },
-        ],
-      },
-    });
+    // Action history between the pair is deliberately KEPT: discovery
+    // excludes already-acted-on users, so deleting these rows used to make
+    // blocked users reappear in each other's decks. Block enforcement itself
+    // lives in the BlockedUser table checks (isUserBlocked/getBlockedUserIds).
 
     return blocked;
   });

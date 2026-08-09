@@ -335,9 +335,19 @@ const getUsersForDiscovery = async (currentUserId, options = {}) => {
       match.user1Id === currentUserId ? match.user2Id : match.user1Id
     );
 
+    // Blocked users (either direction) are never discoverable to each other
+    const { getBlockedUserIds } = require('./moderationService');
+    const blockedUserIds = await getBlockedUserIds(currentUserId);
+
     // Combine with explicitly excluded IDs
     const allExcludedIds = [
-      ...new Set([...processedUserIds, ...matchedUserIds, ...excludeIds, currentUserId]),
+      ...new Set([
+        ...processedUserIds,
+        ...matchedUserIds,
+        ...excludeIds,
+        ...blockedUserIds,
+        currentUserId,
+      ]),
     ];
 
     logger.info(
@@ -436,9 +446,31 @@ const getUsersForDiscovery = async (currentUserId, options = {}) => {
         defaultFilters
       );
 
-      // Remove sensitive data
-      // eslint-disable-next-line no-unused-vars
-      const { password, email, ...userWithoutSensitive } = user;
+      // Remove sensitive data — everything a stranger must never see
+      /* eslint-disable no-unused-vars */
+      const {
+        password,
+        email,
+        firebaseUid,
+        pushToken,
+        emailVerificationToken,
+        emailVerificationExpiry,
+        passwordResetToken,
+        passwordResetExpiry,
+        passwordResetAttempts,
+        passwordResetLastRequest,
+        latitude,
+        longitude,
+        notifyMessages,
+        notifyMatches,
+        notifyLikes,
+        dailyLikesUsed,
+        dailyLikesResetAt,
+        dailySuperLikesUsed,
+        dailySuperLikesResetAt,
+        ...userWithoutSensitive
+      } = user;
+      /* eslint-enable no-unused-vars */
 
       // Get main photo URL - prioritize mainPhotoUrl field, then first photo with isMain
       const mainPhotoUrl = user.mainPhotoUrl ||

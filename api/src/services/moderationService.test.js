@@ -98,7 +98,7 @@ describe('Moderation Service', () => {
       expect(new Date(updatedMatch.unmatchedAt) >= beforeBlock).toBe(true);
     });
 
-    it('should delete all UserActions between users', async () => {
+    it('should keep UserActions between users (so blocked users never re-enter discovery)', async () => {
       const user1 = await userFactory.create(global.prisma);
       const user2 = await userFactory.create(global.prisma);
 
@@ -108,6 +108,8 @@ describe('Moderation Service', () => {
 
       await blockUser(user1.id, user2.id);
 
+      // Deleting these rows used to resurface blocked users in each other's
+      // discovery decks (discovery excludes already-acted-on users).
       const actions = await global.prisma.userAction.findMany({
         where: {
           OR: [
@@ -117,7 +119,7 @@ describe('Moderation Service', () => {
         },
       });
 
-      expect(actions.length).toBe(0);
+      expect(actions.length).toBe(2);
     });
 
     it('should work when no existing matches', async () => {
