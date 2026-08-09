@@ -420,7 +420,7 @@ const getUserActions = async (userId, options = {}) => {
 /**
  * Undo last action (premium feature)
  */
-const undoLastAction = async (userId) => {
+const undoLastAction = async (userId, io = null) => {
   try {
     // Check if user can undo (premium feature)
     const undoCheck = await canUndo(userId);
@@ -450,6 +450,7 @@ const undoLastAction = async (userId) => {
     }
 
     // Use transaction to ensure all operations succeed or fail together
+    let deactivatedMatchId = null;
     await prisma.$transaction(async (tx) => {
       // If it was a LIKE that created a match, we need to deactivate the match
       if (lastAction.action === 'LIKE') {
@@ -480,6 +481,7 @@ const undoLastAction = async (userId) => {
               where: { id: match.id },
               data: { isActive: false },
             });
+            deactivatedMatchId = match.id;
 
             // Decrement match counts for both users
             await tx.user.updateMany({
@@ -503,6 +505,12 @@ const undoLastAction = async (userId) => {
         where: { id: lastAction.id },
       });
     });
+
+    // Same revocation as block/unmatch: an undone mutual match must not
+    // leave either participant with live presence access to its room
+    if (deactivatedMatchId) {
+      io?.evictMatchRoom?.(deactivatedMatchId);
+    }
 
     logger.info(`Action undone: ${lastAction.id} (${lastAction.action})`);
 
