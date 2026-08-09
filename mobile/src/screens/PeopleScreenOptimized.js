@@ -934,7 +934,7 @@ const styles = StyleSheet.create({
   incompleteTitle: {
     fontSize: 28,
     fontWeight: 'bold',
-    fontFamily: theme.typography.fontFamily.bold,
+    fontFamily: theme.typography.fontFamily.display,
     color: theme.colors.text.primary,
     marginBottom: 12,
   },
@@ -968,7 +968,7 @@ const styles = StyleSheet.create({
   noPhotosTitle: {
     fontSize: 20,
     fontWeight: 'bold',
-    fontFamily: theme.typography.fontFamily.bold,
+    fontFamily: theme.typography.fontFamily.heading,
     marginTop: 20,
     marginBottom: 10,
   },

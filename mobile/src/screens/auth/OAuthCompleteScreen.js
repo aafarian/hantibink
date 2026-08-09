@@ -181,7 +181,7 @@ const styles = StyleSheet.create({
   },
   title: {
     fontSize: 28,
-    fontFamily: theme.typography.fontFamily.bold,
+    fontFamily: theme.typography.fontFamily.display,
     fontWeight: 'bold',
     color: theme.colors.text.primary,
     marginBottom: 10,

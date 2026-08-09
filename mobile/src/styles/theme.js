@@ -62,11 +62,22 @@ export const theme = {
     xxl: 64,
   },
   typography: {
+    // Typeface system: Outfit (display/headings) + DM Sans (body).
+    // Use the SEMANTIC roles in new code; the legacy weight-named aliases
+    // exist so the 70+ existing call sites migrated without a sweep.
     fontFamily: {
-      regular: 'NunitoSans_400Regular',
-      medium: 'NunitoSans_500Medium',
-      semibold: 'NunitoSans_600SemiBold',
-      bold: 'NunitoSans_700Bold',
+      // Semantic roles
+      display: 'Outfit_700Bold', // hero text, celebrations, screen titles
+      heading: 'Outfit_600SemiBold', // section titles, card names, modal titles
+      headingLight: 'Outfit_500Medium', // sub-headings
+      body: 'DMSans_400Regular',
+      bodyMedium: 'DMSans_500Medium',
+      label: 'DMSans_600SemiBold', // buttons, badges, form labels
+      // Legacy aliases (weight-named) — resolve to DM Sans
+      regular: 'DMSans_400Regular',
+      medium: 'DMSans_500Medium',
+      semibold: 'DMSans_600SemiBold',
+      bold: 'DMSans_700Bold',
     },
     sizes: {
       xs: 10,
