@@ -370,6 +370,68 @@ describe('Games Routes', () => {
     expect(active.body.data).toBeNull();
   });
 
+  it('games setting: both members must be opted in; disabling ends active games', async () => {
+    const { auth1, auth2, match } = await setupPair();
+
+    // Both enabled by default
+    const before = await request(app)
+      .get(`/games/${match.id}/availability`)
+      .set('Authorization', auth1.authHeader);
+    expect(before.body.data.enabled).toBe(true);
+
+    // Start a game, then the opponent opts out
+    const created = await request(app)
+      .post(`/games/${match.id}/sessions`)
+      .set('Authorization', auth1.authHeader)
+      .send({ gameType: 'THIS_OR_THAT' });
+    expect(created.status).toBe(201);
+
+    io.clearEmitCalls();
+    const disable = await request(app)
+      .put('/games/settings')
+      .set('Authorization', auth2.authHeader)
+      .send({ enabled: false });
+    expect(disable.status).toBe(200);
+    expect(disable.body.data.gamesEnabled).toBe(false);
+
+    // The active game ended (silently — no summary chat message) and
+    // both players were notified live
+    const session = await global.prisma.gameSession.findUnique({
+      where: { id: created.body.data.id },
+    });
+    expect(session.status).toBe('FORFEITED');
+    const summaries = await global.prisma.message.count({
+      where: { matchId: match.id, metadata: { contains: 'game-summary' } },
+    });
+    expect(summaries).toBe(0);
+    expect(io.findEmit('game-updated', `user:${auth1.user.id}`)).toBeDefined();
+
+    // Chat availability now false, and creating is server-blocked
+    const after = await request(app)
+      .get(`/games/${match.id}/availability`)
+      .set('Authorization', auth1.authHeader);
+    expect(after.body.data.enabled).toBe(false);
+    const blocked = await request(app)
+      .post(`/games/${match.id}/sessions`)
+      .set('Authorization', auth1.authHeader)
+      .send({ gameType: 'THIS_OR_THAT' });
+    expect(blocked.status).toBe(403);
+
+    // Re-enabling restores availability; the old game stays ended
+    await request(app)
+      .put('/games/settings')
+      .set('Authorization', auth2.authHeader)
+      .send({ enabled: true });
+    const restored = await request(app)
+      .get(`/games/${match.id}/availability`)
+      .set('Authorization', auth1.authHeader);
+    expect(restored.body.data.enabled).toBe(true);
+    const stillEnded = await global.prisma.gameSession.findUnique({
+      where: { id: created.body.data.id },
+    });
+    expect(stillEnded.status).toBe('FORFEITED');
+  });
+
   it('gating: flag off blocks all games; deep-game daily cap with either-premium bypass', async () => {
     const { auth1, auth2, match } = await setupPair();
 

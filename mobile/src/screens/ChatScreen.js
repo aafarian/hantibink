@@ -45,6 +45,7 @@ import ChatMenu from './chat/ChatMenu';
 import ChatHeader from './chat/ChatHeader';
 import ChatInput from './chat/ChatInput';
 import ChatReactionsSheet from './chat/ChatReactionsSheet';
+import ChatSearchModal from './chat/ChatSearchModal';
 import ChatMessageBubble from './chat/ChatMessageBubble';
 import AnimatedTypingIndicator from '../components/chat/AnimatedTypingIndicator';
 import AnimatedMessageBubble from '../components/chat/AnimatedMessageBubble';
@@ -60,6 +61,7 @@ import {
   ActiveGameBar,
   ActiveGamePanel,
   GameMessageCard,
+  GameRecapModal,
 } from '../components/games/GameComponents';
 
 const ChatScreen = ({ route, navigation }) => {
@@ -112,11 +114,30 @@ const ChatScreen = ({ route, navigation }) => {
   const [riddleOffers, setRiddleOffers] = useState(null);
   const [gamePanelExpanded, setGamePanelExpanded] = useState(true);
   const [showEndGameConfirm, setShowEndGameConfirm] = useState(false);
+  const [gamesAvailable, setGamesAvailable] = useState(true);
+  const [recapSession, setRecapSession] = useState(null);
+  const [showChatSearch, setShowChatSearch] = useState(false);
   const {
     session: gameSession,
     refresh: refreshGameSession,
     applySnapshot: applyGameSnapshot,
   } = useGameSession(match.matchId);
+
+  // Games entry point renders only when BOTH members have games enabled
+  // (server-enforced too — this just hides the icon)
+  useEffect(() => {
+    let cancelled = false;
+    GamesApiService.getAvailability(match.matchId)
+      .then(availability => {
+        if (!cancelled && availability) {
+          setGamesAvailable(!!availability.enabled);
+        }
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, [match.matchId]);
 
   // A freshly active game opens the docked panel; collapsing it is
   // remembered until the next game starts
@@ -232,6 +253,32 @@ const ChatScreen = ({ route, navigation }) => {
     setShowGamePicker(false);
     setShowEndGameConfirm(true);
   }, []);
+
+  // Tap a game card (live or long over) → recap modal. The live session
+  // is used directly so the modal updates in real time; old games are
+  // fetched by the sessionId stored in the message metadata.
+  const handleOpenGameDetails = useCallback(
+    async metadata => {
+      if (!metadata?.sessionId) {
+        return;
+      }
+      if (gameSession?.id === metadata.sessionId) {
+        setRecapSession(gameSession);
+        return;
+      }
+      try {
+        const past = await GamesApiService.getSession(match.matchId, metadata.sessionId);
+        if (past) {
+          setRecapSession(past);
+        } else {
+          showError('Could not load this game');
+        }
+      } catch (error) {
+        showError('Could not load this game');
+      }
+    },
+    [match.matchId, gameSession, showError]
+  );
 
   const confirmEndGame = useCallback(() => {
     setShowEndGameConfirm(false);
@@ -1046,9 +1093,7 @@ const ChatScreen = ({ route, navigation }) => {
               metadata={gameMetadata}
               session={gameSession}
               myId={user.uid}
-              onMove={handleGameMove}
-              onEnd={requestEndGame}
-              onDismiss={handleEndActiveGame}
+              onOpenDetails={handleOpenGameDetails}
             />
           );
         }
@@ -1089,9 +1134,7 @@ const ChatScreen = ({ route, navigation }) => {
       scrollToMessage,
       openPhotoViewer,
       gameSession,
-      handleGameMove,
-      requestEndGame,
-      handleEndActiveGame,
+      handleOpenGameDetails,
     ]
   );
 
@@ -1124,35 +1167,32 @@ const ChatScreen = ({ route, navigation }) => {
   }, []);
 
   // Menu action handlers
-  const handleMenuAction = useCallback(
-    action => {
-      setShowMenu(false);
-      switch (action) {
-        case 'viewProfile':
-          setIsProfileSheetOpen(true);
-          profileSheetRef.current?.open();
-          break;
-        case 'search':
-          showInfo('Coming soon!');
-          break;
-        case 'mute':
-          setShowMuteConfirm(true);
-          break;
-        case 'block':
-          setShowBlockConfirm(true);
-          break;
-        case 'unmatch':
-          setShowUnmatchConfirm(true);
-          break;
-        case 'report':
-          setShowReportModal(true);
-          break;
-        default:
-          break;
-      }
-    },
-    [showInfo]
-  );
+  const handleMenuAction = useCallback(action => {
+    setShowMenu(false);
+    switch (action) {
+      case 'viewProfile':
+        setIsProfileSheetOpen(true);
+        profileSheetRef.current?.open();
+        break;
+      case 'search':
+        setShowChatSearch(true);
+        break;
+      case 'mute':
+        setShowMuteConfirm(true);
+        break;
+      case 'block':
+        setShowBlockConfirm(true);
+        break;
+      case 'unmatch':
+        setShowUnmatchConfirm(true);
+        break;
+      case 'report':
+        setShowReportModal(true);
+        break;
+      default:
+        break;
+    }
+  }, []);
 
   // Load mute status on mount
   useEffect(() => {
@@ -1423,6 +1463,7 @@ const ChatScreen = ({ route, navigation }) => {
               myId={user.uid}
               onMove={handleGameMove}
               onEnd={requestEndGame}
+              onDismiss={handleEndActiveGame}
             />
           )}
           <ChatInput
@@ -1430,7 +1471,7 @@ const ChatScreen = ({ route, navigation }) => {
             onTextChange={handleTypingChange}
             onSend={sendMessage}
             onGifPress={() => setShowGifPicker(true)}
-            onGamesPress={() => setShowGamePicker(true)}
+            onGamesPress={gamesAvailable ? () => setShowGamePicker(true) : undefined}
             isRecording={isRecording}
             onRecordingStart={() => setIsRecording(true)}
             onRecordingComplete={(uri, duration, waveform) => {
@@ -1581,6 +1622,29 @@ const ChatScreen = ({ route, navigation }) => {
           confirmText="I'm done"
           onConfirm={confirmEndGame}
           onCancel={() => setShowEndGameConfirm(false)}
+        />
+
+        {/* Game recap — live sessions stay live inside the modal */}
+        <GameRecapModal
+          visible={!!recapSession}
+          session={recapSession && gameSession?.id === recapSession.id ? gameSession : recapSession}
+          myId={user.uid}
+          onClose={() => setRecapSession(null)}
+        />
+
+        {/* Conversation search */}
+        <ChatSearchModal
+          visible={showChatSearch}
+          matchId={match.matchId}
+          onClose={() => setShowChatSearch(false)}
+          onJumpToMessage={message => {
+            setShowChatSearch(false);
+            if (reversedMessages.some(m => m.id === message.id)) {
+              scrollToMessage(message.id);
+            } else {
+              showInfo('That message is further up the conversation');
+            }
+          }}
         />
 
         {/* Report Modal */}

@@ -436,9 +436,47 @@ const deleteMessage = async (messageId, userId) => {
   }
 };
 
+/**
+ * Search a conversation by text and/or message type (voice notes, games).
+ * Newest first, capped — results carry enough to render a preview row.
+ */
+const searchMessages = async (matchId, userId, { q = '', type = null, limit = 50 } = {}) => {
+  const match = await prisma.match.findUnique({ where: { id: matchId } });
+  if (!match) {
+    throw new Error('Match not found');
+  }
+  if (match.user1Id !== userId && match.user2Id !== userId) {
+    throw new Error('Unauthorized access to match');
+  }
+
+  const query = String(q || '').trim();
+  const where = {
+    matchId,
+    ...(type ? { messageType: type } : {}),
+    ...(query ? { content: { contains: query, mode: 'insensitive' } } : {}),
+  };
+
+  const messages = await prisma.message.findMany({
+    where,
+    select: {
+      id: true,
+      content: true,
+      messageType: true,
+      metadata: true,
+      senderId: true,
+      createdAt: true,
+    },
+    orderBy: { createdAt: 'desc' },
+    take: Math.min(Number(limit) || 50, 50),
+  });
+
+  return messages;
+};
+
 module.exports = {
   getMessages,
   sendMessage,
   markMessagesAsRead,
   deleteMessage,
+  searchMessages,
 };

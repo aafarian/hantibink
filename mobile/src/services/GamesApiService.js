@@ -22,6 +22,23 @@ const GamesApiService = {
     return throwIfGated(response);
   },
 
+  async getSession(matchId, sessionId) {
+    return unwrap(await apiClient.get(`/games/${matchId}/sessions/${sessionId}`));
+  },
+
+  async getAvailability(matchId) {
+    return unwrap(await apiClient.get(`/games/${matchId}/availability`));
+  },
+
+  async getSettings() {
+    return unwrap(await apiClient.get('/games/settings'));
+  },
+
+  async setGamesEnabled(enabled) {
+    const response = await apiClient.put('/games/settings', { enabled });
+    return throwIfGated(response);
+  },
+
   async createSession(matchId, gameType, payload = null) {
     const response = await apiClient.post(`/games/${matchId}/sessions`, {
       gameType,

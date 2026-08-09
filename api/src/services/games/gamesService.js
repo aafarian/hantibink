@@ -77,15 +77,22 @@ const canStartGame = async (userId, match, gameType) => {
   if (!gamesEnabled) {
     return { allowed: false, error: 'GAMES_DISABLED', message: 'Games are not available right now' };
   }
+
+  // Games are opt-in per user and require BOTH members opted in — the
+  // client hides the icon, but the server is the authority
+  const members = await prisma.user.findMany({
+    where: { id: { in: [match.user1Id, match.user2Id] } },
+    select: { id: true, isPremium: true, gamesEnabled: true },
+  });
+  if (members.length < 2 || members.some((member) => !member.gamesEnabled)) {
+    return { allowed: false, error: 'GAMES_DISABLED', message: 'Games are turned off for this chat' };
+  }
+
   if (!gatingEnabled || !DEEP_GAMES.includes(gameType)) {
     return { allowed: true };
   }
 
-  const [user1, user2] = await Promise.all([
-    prisma.user.findUnique({ where: { id: match.user1Id }, select: { isPremium: true } }),
-    prisma.user.findUnique({ where: { id: match.user2Id }, select: { isPremium: true } }),
-  ]);
-  if (user1?.isPremium || user2?.isPremium) {
+  if (members.some((member) => member.isPremium)) {
     return { allowed: true };
   }
 
@@ -154,6 +161,73 @@ const redactedSession = (session, viewerId) => ({
   createdAt: session.createdAt,
   view: getEngine(session.gameType).viewFor(session.state, viewerId),
 });
+
+/**
+ * Whether the games entry point should render in this chat: global flag
+ * on, and BOTH members opted in.
+ */
+const getGamesAvailability = async (matchId, userId) => {
+  const match = await assertMembership(matchId, userId);
+  const { gamesEnabled } = await getGameFlags();
+  if (!gamesEnabled) {
+    return { enabled: false };
+  }
+  const members = await prisma.user.findMany({
+    where: { id: { in: [match.user1Id, match.user2Id] } },
+    select: { gamesEnabled: true },
+  });
+  return { enabled: members.length === 2 && members.every((member) => member.gamesEnabled) };
+};
+
+const getGamesSettings = async (userId) => {
+  const user = await prisma.user.findUnique({
+    where: { id: userId },
+    select: { gamesEnabled: true },
+  });
+  if (!user) {
+    throw new AppError('User not found', 404);
+  }
+  return { gamesEnabled: user.gamesEnabled };
+};
+
+/**
+ * Opting out ends every game the user is currently in — silently (no
+ * chat message), version-safely, with both players notified live. Their
+ * past game cards stay in the chats; they just can't be played.
+ */
+const endAllActiveGamesForUser = async (userId, io = null) => {
+  const sessions = await prisma.gameSession.findMany({
+    where: {
+      status: 'ACTIVE',
+      match: { OR: [{ user1Id: userId }, { user2Id: userId }] },
+    },
+  });
+
+  for (const session of sessions) {
+    const updated = await prisma.gameSession.updateMany({
+      where: { id: session.id, status: 'ACTIVE', version: session.version },
+      data: { status: 'FORFEITED', completedAt: new Date(), version: session.version + 1 },
+    });
+    if (updated.count > 0) {
+      const fresh = await prisma.gameSession.findUnique({ where: { id: session.id } });
+      emitGameUpdate(io, fresh, 'forfeited', userId);
+    }
+  }
+  return { ended: sessions.length };
+};
+
+const setGamesEnabled = async (userId, enabled, io = null) => {
+  await prisma.user.update({
+    where: { id: userId },
+    data: { gamesEnabled: enabled },
+    select: { id: true },
+  });
+  if (!enabled) {
+    await endAllActiveGamesForUser(userId, io);
+  }
+  logger.info(`🎮 Games ${enabled ? 'enabled' : 'disabled'} for user ${userId}`);
+  return { gamesEnabled: enabled };
+};
 
 /**
  * Creator-side prompt offers for games with server content (roulette
@@ -354,6 +428,10 @@ const endSession = async (matchId, sessionId, userId, status, io = null) => {
 };
 
 module.exports = {
+  getGamesAvailability,
+  getGamesSettings,
+  setGamesEnabled,
+  endAllActiveGamesForUser,
   getGameOffers,
   createSession,
   getActiveSession,

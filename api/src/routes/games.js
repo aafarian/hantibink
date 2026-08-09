@@ -12,6 +12,45 @@ const ID = (name) => param(name).notEmpty().isString().isLength({ max: 64 });
 const io = (req) => req.app.get('io');
 
 /**
+ * @route   GET|PUT /api/games/settings
+ * @desc    Per-user games opt-in. Turning it off ends all of the user's
+ *          active games (silently) — past game cards stay in their chats.
+ */
+router.get(
+  '/settings',
+  authenticateJWT,
+  catchAsync(async (req, res) => {
+    const data = await games.getGamesSettings(req.user.id);
+    res.json({ success: true, data });
+  }),
+);
+
+router.put(
+  '/settings',
+  authenticateJWT,
+  [body('enabled').isBoolean({ strict: true }), handleValidationErrors],
+  catchAsync(async (req, res) => {
+    const data = await games.setGamesEnabled(req.user.id, req.body.enabled, io(req));
+    res.json({ success: true, message: 'Games setting updated', data });
+  }),
+);
+
+/**
+ * @route   GET /api/games/:matchId/availability
+ * @desc    Whether games can be played in this chat (global flag on and
+ *          BOTH members opted in) — gates the chat input icon.
+ */
+router.get(
+  '/:matchId/availability',
+  authenticateJWT,
+  [ID('matchId'), handleValidationErrors],
+  catchAsync(async (req, res) => {
+    const data = await games.getGamesAvailability(req.params.matchId, req.user.id);
+    res.json({ success: true, data });
+  }),
+);
+
+/**
  * @route   GET /api/games/:matchId/offers?gameType=…
  * @desc    Creator-side prompt offers (roulette question, riddle choices)
  *          rendered in the pre-commit composer. Nothing is persisted.

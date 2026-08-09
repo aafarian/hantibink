@@ -313,25 +313,44 @@ export const ActiveGameBar = ({ session, myId, onPress, expanded = false }) => {
   );
 };
 
+// This or That is the one game the creator hasn't committed anything to
+// at create time — until they make their first pick they can withdraw it
+// instantly with an X instead of the confirm-gated "I'm done"
+const canDismissInstantly = (session, myId) =>
+  session.createdBy === myId &&
+  session.gameType === 'THIS_OR_THAT' &&
+  !(session.view?.rounds || []).some(round => round.myPick || round.revealed);
+
 /**
- * The live game, docked above the chat input so play never requires
- * scrolling back to the start card. The bar above toggles it; the
- * in-thread card remains as the anchor and stays interactive.
+ * The ONLY live play surface, docked above the chat input so play never
+ * requires scrolling. The bar above toggles it; the in-thread card is a
+ * compact marker that opens the recap modal.
  */
-export const ActiveGamePanel = ({ session, myId, onMove, onEnd }) => {
+export const ActiveGamePanel = ({ session, myId, onMove, onEnd, onDismiss }) => {
   if (!session || session.status !== 'ACTIVE') {
     return null;
   }
   const meta = GAME_META[session.gameType] || {};
   const Body = BODIES[session.gameType];
+  const instantDismiss = canDismissInstantly(session, myId);
   return (
     <View style={styles.panel}>
       <View style={styles.cardHeader}>
         <Ionicons name={meta.icon || 'game-controller'} size={16} color={theme.colors.primary} />
         <Text style={styles.cardTitle}>{meta.label}</Text>
-        <TouchableOpacity onPress={onEnd} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
-          <Text style={styles.declineText}>I'm done</Text>
-        </TouchableOpacity>
+        {instantDismiss ? (
+          <TouchableOpacity
+            onPress={onDismiss}
+            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+            accessibilityLabel="Dismiss game"
+          >
+            <Ionicons name="close" size={18} color={theme.colors.text.muted} />
+          </TouchableOpacity>
+        ) : (
+          <TouchableOpacity onPress={onEnd} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+            <Text style={styles.declineText}>I'm done</Text>
+          </TouchableOpacity>
+        )}
       </View>
       <ScrollView style={styles.panelBody} keyboardShouldPersistTaps="handled">
         {Body ? <Body view={session.view} myId={myId} canAct onMove={onMove} /> : null}
@@ -415,7 +434,7 @@ const ThisOrThatBody = ({ view, myId, canAct, onMove }) => {
   );
 };
 
-const TwoTruthsBody = ({ view, myId, onMove }) => {
+const TwoTruthsBody = ({ view, myId, canAct = true, onMove }) => {
   const isAuthor = view.players?.creatorId === myId;
   const done = view.phase === 'done';
   return (
@@ -434,7 +453,7 @@ const TwoTruthsBody = ({ view, myId, onMove }) => {
               isLie && styles.statementLie,
               wasGuess && styles.statementGuess,
             ]}
-            disabled={isAuthor || done}
+            disabled={isAuthor || done || !canAct}
             onPress={() => onMove({ type: 'guess', index, clientMoveId: makeMoveId() })}
           >
             <Text style={styles.statementText}>{statement}</Text>
@@ -447,7 +466,7 @@ const TwoTruthsBody = ({ view, myId, onMove }) => {
   );
 };
 
-const RouletteBody = ({ view, myId, onMove }) => {
+const RouletteBody = ({ view, myId, canAct = true, onMove }) => {
   const [draft, setDraft] = useState('');
   const answered = !!(view.answers && view.answers[myId]);
   return (
@@ -461,11 +480,21 @@ const RouletteBody = ({ view, myId, onMove }) => {
           </View>
         ))
       ) : answered ? (
-        <Text style={styles.cardHint}>
-          {view.opponentAnswered
-            ? 'Revealing…'
-            : 'Answered! Waiting for theirs — the reveal is simultaneous'}
-        </Text>
+        <View>
+          <View style={styles.answerBubble}>
+            <Text style={styles.answerAuthor}>You</Text>
+            <Text style={styles.answerText}>{view.answers[myId]}</Text>
+          </View>
+          <Text style={styles.cardHint}>
+            {view.opponentAnswered
+              ? 'Revealing…'
+              : canAct
+                ? 'Waiting for theirs — the reveal is simultaneous'
+                : 'The game ended before they answered'}
+          </Text>
+        </View>
+      ) : !canAct ? (
+        <Text style={styles.cardHint}>The game ended before both answers were in</Text>
       ) : (
         <>
           <TextInput
@@ -492,7 +521,7 @@ const RouletteBody = ({ view, myId, onMove }) => {
   );
 };
 
-const EmojiRiddleBody = ({ view, myId, onMove }) => {
+const EmojiRiddleBody = ({ view, myId, canAct = true, onMove }) => {
   const [draft, setDraft] = useState('');
   const isCreator = view.players?.creatorId === myId;
   const done = view.phase === 'done';
@@ -506,7 +535,9 @@ const EmojiRiddleBody = ({ view, myId, onMove }) => {
         </Text>
       ) : isCreator ? (
         <Text style={styles.cardHint}>
-          They have {attemptsLeft} {attemptsLeft === 1 ? 'guess' : 'guesses'} left…
+          {canAct
+            ? `They have ${attemptsLeft} ${attemptsLeft === 1 ? 'guess' : 'guesses'} left…`
+            : 'The game ended before they cracked it'}
         </Text>
       ) : (
         <>
@@ -516,24 +547,30 @@ const EmojiRiddleBody = ({ view, myId, onMove }) => {
               ✗ {attempt.text}
             </Text>
           ))}
-          <TextInput
-            style={styles.answerInput}
-            placeholder={`Your guess (${attemptsLeft} left)`}
-            placeholderTextColor={theme.colors.text.muted}
-            value={draft}
-            onChangeText={setDraft}
-            maxLength={100}
-          />
-          <TouchableOpacity
-            style={[styles.primaryButton, !draft.trim() && styles.primaryButtonDisabled]}
-            disabled={!draft.trim()}
-            onPress={() => {
-              onMove({ type: 'guess', text: draft.trim(), clientMoveId: makeMoveId() });
-              setDraft('');
-            }}
-          >
-            <Text style={styles.primaryButtonText}>Guess</Text>
-          </TouchableOpacity>
+          {canAct ? (
+            <>
+              <TextInput
+                style={styles.answerInput}
+                placeholder={`Your guess (${attemptsLeft} left)`}
+                placeholderTextColor={theme.colors.text.muted}
+                value={draft}
+                onChangeText={setDraft}
+                maxLength={100}
+              />
+              <TouchableOpacity
+                style={[styles.primaryButton, !draft.trim() && styles.primaryButtonDisabled]}
+                disabled={!draft.trim()}
+                onPress={() => {
+                  onMove({ type: 'guess', text: draft.trim(), clientMoveId: makeMoveId() });
+                  setDraft('');
+                }}
+              >
+                <Text style={styles.primaryButtonText}>Guess</Text>
+              </TouchableOpacity>
+            </>
+          ) : (
+            <Text style={styles.cardHint}>The game ended unsolved</Text>
+          )}
         </>
       )}
     </View>
@@ -560,67 +597,147 @@ const ENDED_LABELS = {
   EXPIRED: 'Game expired',
 };
 
-export const GameMessageCard = ({ metadata, session, myId, onMove, onEnd, onDismiss }) => {
+/**
+ * Full per-round This or That review: every question asked so far with
+ * each player's answer spelled out — richer than the in-panel history.
+ */
+const ThisOrThatRecap = ({ view, myId }) => {
+  const rounds = view.rounds || [];
+  const played = rounds.slice(0, Math.min((view.currentRound ?? 0) + 1, rounds.length));
+  if (played.length === 0) {
+    return <Text style={styles.cardHint}>No rounds played yet</Text>;
+  }
+  return (
+    <View>
+      {played.map((round, index) => {
+        const optionText = pick => (pick === 'A' ? round.a : pick === 'B' ? round.b : null);
+        const myPickText = optionText(round.myPick);
+        const theirPick = round.picks
+          ? Object.entries(round.picks).find(([userId]) => userId !== myId)?.[1]
+          : null;
+        const theirPickText = optionText(theirPick);
+        return (
+          <View key={round.promptId} style={styles.recapRound}>
+            <View style={styles.recapRoundHeader}>
+              <Text style={styles.recapRoundLabel}>Round {index + 1}</Text>
+              {round.revealed && (
+                <Ionicons
+                  name={round.isMatch ? 'heart' : 'close-circle'}
+                  size={14}
+                  color={round.isMatch ? theme.colors.primary : theme.colors.text.muted}
+                />
+              )}
+            </View>
+            <Text style={styles.recapPrompt}>
+              {round.a} or {round.b}?
+            </Text>
+            {round.revealed ? (
+              <>
+                <Text style={styles.recapAnswer}>You: {myPickText}</Text>
+                <Text style={styles.recapAnswer}>Them: {theirPickText}</Text>
+              </>
+            ) : myPickText ? (
+              <Text style={styles.recapPending}>You picked {myPickText} — waiting for them</Text>
+            ) : (
+              <Text style={styles.recapPending}>Not answered yet</Text>
+            )}
+          </View>
+        );
+      })}
+    </View>
+  );
+};
+
+/**
+ * Read-only review of any game, live or long over: what's been asked,
+ * answered, and revealed so far — identical for both players. Opened by
+ * tapping a game card in the thread.
+ */
+export const GameRecapModal = ({ visible, session, myId, onClose }) => {
+  if (!session) {
+    return null;
+  }
+  const meta = GAME_META[session.gameType] || {};
+  const Body = BODIES[session.gameType];
+  const statusLine =
+    session.status === 'ACTIVE'
+      ? turnLabel(session, myId)
+      : ENDED_LABELS[session.status] || 'Game over';
+  return (
+    <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
+      <View style={styles.pickerContainer}>
+        <Pressable style={styles.backdrop} onPress={onClose} />
+        <View style={styles.pickerContent}>
+          <View style={styles.composerHeader}>
+            <View style={styles.recapTitleRow}>
+              <Ionicons
+                name={meta.icon || 'game-controller'}
+                size={18}
+                color={theme.colors.primary}
+              />
+              <Text style={styles.recapTitle}>{meta.label}</Text>
+            </View>
+            <TouchableOpacity
+              onPress={onClose}
+              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+              accessibilityLabel="Close"
+            >
+              <Ionicons name="close" size={22} color={theme.colors.text.muted} />
+            </TouchableOpacity>
+          </View>
+          <Text style={styles.pickerSubtitle}>{statusLine}</Text>
+          <ScrollView style={styles.recapBody} keyboardShouldPersistTaps="handled">
+            {session.gameType === 'THIS_OR_THAT' ? (
+              <ThisOrThatRecap view={session.view} myId={myId} />
+            ) : Body ? (
+              <Body view={session.view} myId={myId} canAct={false} onMove={() => {}} />
+            ) : null}
+          </ScrollView>
+        </View>
+      </View>
+    </Modal>
+  );
+};
+
+export const GameMessageCard = ({ metadata, session, myId, onOpenDetails }) => {
   const meta = GAME_META[metadata.gameType] || {};
 
-  // Summary card (game over)
+  // Summary card (game over) — tap for the full recap
   if (metadata.kind === 'game-summary') {
     return (
-      <View style={styles.card}>
+      <Pressable style={styles.card} onPress={() => onOpenDetails?.(metadata)}>
         <View style={styles.cardHeader}>
           <Ionicons name={meta.icon || 'game-controller'} size={16} color={theme.colors.primary} />
           <Text style={styles.cardTitle}>{meta.label}</Text>
         </View>
         <Text style={styles.summaryTitle}>{metadata.summary?.title}</Text>
         <Text style={styles.summaryLine}>{metadata.summary?.line}</Text>
-      </View>
+      </Pressable>
     );
   }
 
-  // Start card: live if this is still the active session, else a stub
+  // Compact marker in the thread — the docked panel is the play surface,
+  // so the card never duplicates the live game. Tapping it opens the
+  // recap modal, during play and after the game is over alike.
   const isLive = session && session.id === metadata.sessionId && session.status === 'ACTIVE';
-  const Body = BODIES[metadata.gameType];
-
-  // This or That is the one game the creator hasn't committed anything to
-  // at create time — until they make their first pick they can withdraw it
-  // with an X. The other games commit content at create; Decline stays
-  // opponent-only everywhere.
-  const creatorCanDismiss =
-    isLive &&
-    session.createdBy === myId &&
-    metadata.gameType === 'THIS_OR_THAT' &&
-    !(session.view?.rounds || []).some(round => round.myPick || round.revealed);
+  const statusLine = isLive
+    ? turnLabel(session, myId)
+    : session && session.id === metadata.sessionId
+      ? ENDED_LABELS[session.status] || 'This game has ended'
+      : 'This game has ended';
 
   return (
-    <View style={styles.card}>
+    <Pressable style={styles.card} onPress={() => onOpenDetails?.(metadata)}>
       <View style={styles.cardHeader}>
         <Ionicons name={meta.icon || 'game-controller'} size={16} color={theme.colors.primary} />
         <Text style={styles.cardTitle}>{meta.label}</Text>
-        {isLive && !creatorCanDismiss && (
-          <TouchableOpacity onPress={onEnd} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
-            <Text style={styles.declineText}>I'm done</Text>
-          </TouchableOpacity>
-        )}
-        {creatorCanDismiss && (
-          <TouchableOpacity
-            onPress={onDismiss}
-            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-            accessibilityLabel="Dismiss game"
-          >
-            <Ionicons name="close" size={18} color={theme.colors.text.muted} />
-          </TouchableOpacity>
-        )}
+        {isLive && <View style={styles.liveDot} />}
       </View>
-      {isLive && Body ? (
-        <Body view={session.view} myId={myId} canAct onMove={onMove} />
-      ) : (
-        <Text style={styles.cardHint}>
-          {session && session.id === metadata.sessionId
-            ? ENDED_LABELS[session.status] || 'This game has ended'
-            : 'This game has ended'}
-        </Text>
-      )}
-    </View>
+      <Text style={styles.cardHint}>{statusLine}</Text>
+      <Text style={styles.recapLink}>
+        {isLive ? 'Tap for details — play below' : 'Tap to see what happened'}
+      </Text>
+    </Pressable>
   );
 };
 
@@ -905,6 +1022,67 @@ const styles = StyleSheet.create({
     fontFamily: theme.typography.fontFamily.regular,
     color: theme.colors.text.muted,
     marginBottom: 2,
+  },
+  recapTitleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: theme.spacing.sm,
+  },
+  recapTitle: {
+    fontSize: theme.typography.sizes.lg,
+    fontFamily: theme.typography.fontFamily.bold,
+    color: theme.colors.text.primary,
+  },
+  recapBody: {
+    maxHeight: 420,
+  },
+  recapLink: {
+    marginTop: theme.spacing.xs,
+    fontSize: theme.typography.sizes.xs,
+    fontFamily: theme.typography.fontFamily.semibold,
+    color: theme.colors.primary,
+  },
+  liveDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: theme.colors.status.success,
+  },
+  recapRound: {
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: theme.colors.border.light,
+    paddingVertical: theme.spacing.md,
+  },
+  recapRoundHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  recapRoundLabel: {
+    fontSize: theme.typography.sizes.xs,
+    fontFamily: theme.typography.fontFamily.bold,
+    color: theme.colors.text.muted,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+  },
+  recapPrompt: {
+    fontSize: theme.typography.sizes.md,
+    fontFamily: theme.typography.fontFamily.semibold,
+    color: theme.colors.text.primary,
+    marginTop: 2,
+  },
+  recapAnswer: {
+    fontSize: theme.typography.sizes.sm,
+    fontFamily: theme.typography.fontFamily.regular,
+    color: theme.colors.text.secondary,
+    marginTop: 2,
+  },
+  recapPending: {
+    fontSize: theme.typography.sizes.sm,
+    fontFamily: theme.typography.fontFamily.regular,
+    color: theme.colors.text.muted,
+    marginTop: 2,
+    fontStyle: 'italic',
   },
   summaryTitle: {
     fontSize: theme.typography.sizes.lg,

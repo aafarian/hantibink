@@ -682,6 +682,32 @@ class ApiDataService {
   }
 
   /**
+   * Search a conversation by text and/or message type
+   * @param {string} matchId - The match ID
+   * @param {{q?: string, type?: string}} filters - Word query and/or type (AUDIO, GAME, …)
+   */
+  static async searchMessages(matchId, { q = '', type = null } = {}) {
+    try {
+      const queryParams = new URLSearchParams();
+      if (q) {
+        queryParams.set('q', q);
+      }
+      if (type) {
+        queryParams.set('type', type);
+      }
+      const response = await apiClient.get(`/messages/${matchId}/search?${queryParams}`);
+      if (response.success) {
+        return response.data || [];
+      }
+      Logger.error('❌ Failed to search messages:', response.message);
+      return [];
+    } catch (error) {
+      Logger.error('❌ Error searching messages:', error);
+      return [];
+    }
+  }
+
+  /**
    * Send a message
    * @param {string} matchId - The match ID
    * @param {string|object} contentOrOptions - Message content string OR options object
