@@ -153,11 +153,14 @@ const limiter = rateLimit({
   standardHeaders: true, // Return rate limit info in the `RateLimit-*` headers
   legacyHeaders: false, // Disable the `X-RateLimit-*` headers
   skip: (req) => {
-    // Skip rate limiting for health checks
-    const skipPaths = ['/health', '/api/health'];
-    
-    // Use exact matching or startsWith for security
-    if (skipPaths.some(path => req.path === path)) {
+    // Skip rate limiting for health checks (including subpaths like
+    // /health/app-version, which every app launch calls)
+    if (
+      req.path === '/health' ||
+      req.path.startsWith('/health/') ||
+      req.path === '/api/health' ||
+      req.path.startsWith('/api/health/')
+    ) {
       return true;
     }
     

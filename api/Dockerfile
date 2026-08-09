@@ -1,6 +1,6 @@
 # Production Dockerfile optimized for Google Cloud Run
 # Build Prisma on native platform to avoid QEMU issues
-FROM --platform=$BUILDPLATFORM node:18-slim AS prisma-builder
+FROM --platform=$BUILDPLATFORM node:20-slim AS prisma-builder
 
 WORKDIR /app
 
@@ -15,7 +15,7 @@ COPY prisma ./prisma
 RUN npx prisma generate
 
 # Main builder stage
-FROM node:18-slim AS builder
+FROM node:20-slim AS builder
 
 # Install OpenSSL (required for Prisma)
 RUN apt-get update -y && \
@@ -28,7 +28,7 @@ WORKDIR /app
 COPY . .
 
 # Production stage
-FROM node:18-slim
+FROM node:20-slim
 
 # Install OpenSSL for runtime
 RUN apt-get update -y && \

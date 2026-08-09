@@ -4,7 +4,7 @@
 
 const express = require('express');
 const router = express.Router();
-const { checkDatabaseHealth } = require('../config/database');
+const { checkDatabaseHealth, getPrismaClient } = require('../config/database');
 
 // Basic health check
 router.get('/', (req, res) => {
@@ -106,29 +106,46 @@ router.get('/metrics', (req, res) => {
 
 /**
  * App version check endpoint
- * Returns minimum required app version for force update functionality
+ * Returns minimum required app version for force update functionality.
+ *
+ * Source of truth is the AppConfig row `app_version` (writable from the
+ * admin dashboard, no redeploy needed), with env vars as fallback and safe
+ * defaults last. Cached in-process for 60s.
  */
-router.get('/app-version', (req, res) => {
-  // These can be moved to environment variables or database for dynamic control
-  const versionConfig = {
-    // Minimum version required to use the app (force update if below this)
-    minVersion: process.env.MIN_APP_VERSION || '1.0.0',
-    // Latest available version (for "update available" prompts)
-    latestVersion: process.env.LATEST_APP_VERSION || '1.0.0',
-    // Whether to force update (can be used as kill switch)
-    forceUpdate: process.env.FORCE_APP_UPDATE === 'true',
-    // Optional message to show users
-    updateMessage: process.env.APP_UPDATE_MESSAGE || null,
-    // Store URLs for convenience
-    storeUrls: {
-      ios: 'https://apps.apple.com/app/hantibink/id000000000', // Replace with real ID
-      android: 'https://play.google.com/store/apps/details?id=com.antoafarian.hantibink',
-    },
-  };
+const APP_VERSION_CACHE_TTL_MS = 60 * 1000;
+let appVersionCache = { value: null, fetchedAt: 0 };
+
+const defaultVersionConfig = () => ({
+  minVersion: process.env.MIN_APP_VERSION || '1.0.0',
+  latestVersion: process.env.LATEST_APP_VERSION || '1.0.0',
+  forceUpdate: process.env.FORCE_APP_UPDATE === 'true',
+  updateMessage: process.env.APP_UPDATE_MESSAGE || null,
+  storeUrls: {
+    ios: 'https://apps.apple.com/app/hantibink/id000000000', // Replace once the App Store listing exists
+    android: 'https://play.google.com/store/apps/details?id=com.antoafarian.hantibink',
+  },
+});
+
+router.get('/app-version', async (req, res) => {
+  const now = Date.now();
+  if (!appVersionCache.value || now - appVersionCache.fetchedAt > APP_VERSION_CACHE_TTL_MS) {
+    let config = defaultVersionConfig();
+    try {
+      const prisma = getPrismaClient();
+      const row = await prisma.appConfig.findUnique({ where: { key: 'app_version' } });
+      if (row?.value && typeof row.value === 'object') {
+        // DB values win over env/defaults, field by field
+        config = { ...config, ...row.value };
+      }
+    } catch (error) {
+      // Fail open on defaults — a config read must never break the app boot
+    }
+    appVersionCache = { value: config, fetchedAt: now };
+  }
 
   res.status(200).json({
     success: true,
-    data: versionConfig,
+    data: appVersionCache.value,
   });
 });
 

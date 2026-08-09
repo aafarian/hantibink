@@ -31,7 +31,7 @@ jobs:
       - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '18'
+          node-version: '20'
           cache: 'npm'
           cache-dependency-path: package-lock.json
 
@@ -78,35 +78,8 @@ jobs:
       - name: Build Docker image
         working-directory: ./api
         run: |
-          # Create optimized Dockerfile
-          cat > Dockerfile.ci << 'EOF'
-          FROM node:18-slim
-
-          RUN apt-get update -y && apt-get install -y openssl && rm -rf /var/lib/apt/lists/*
-
-          WORKDIR /app
-
-          # Copy package.json and prisma schema
-          COPY package.json ./
-          COPY prisma ./prisma/
-
-          # Install production dependencies
-          RUN npm install --omit=dev
-
-          # Generate Prisma client with current schema
-          RUN npx prisma generate
-
-          # Copy the rest of the application
-          COPY . .
-
-          EXPOSE 8080
-
-          # Start the server directly
-          CMD ["npm", "start"]
-          EOF
-
-          # Build without cache to ensure fresh Prisma client
-          docker build --platform linux/amd64 --no-cache -f Dockerfile.ci -t gcr.io/$PROJECT_ID/$SERVICE_NAME:$GITHUB_SHA .
+          # Build with the checked-in Dockerfile (single source of truth)
+          docker build --platform linux/amd64 --no-cache -t gcr.io/$PROJECT_ID/$SERVICE_NAME:$GITHUB_SHA .
           docker tag gcr.io/$PROJECT_ID/$SERVICE_NAME:$GITHUB_SHA gcr.io/$PROJECT_ID/$SERVICE_NAME:latest
 
       - name: Push Docker image to GCR
@@ -121,9 +94,10 @@ jobs:
             --platform managed \
             --region $REGION \
             --allow-unauthenticated \
-            --set-env-vars="NODE_ENV=production,HOST=0.0.0.0,FIREBASE_PROJECT_ID=hantibink,DATABASE_URL=${{ secrets.SUPABASE_DATABASE_URL }},DIRECT_URL=${{ secrets.SUPABASE_DIRECT_URL }},JWT_SECRET=${{ secrets.JWT_SECRET }},GOOGLE_CLIENT_ID=${{ secrets.GOOGLE_CLIENT_ID }},GOOGLE_CLIENT_SECRET=${{ secrets.GOOGLE_CLIENT_SECRET }},ADMIN_EMAIL=${{ secrets.ADMIN_EMAIL }}" \
+            --set-env-vars="NODE_ENV=production,HOST=0.0.0.0,FIREBASE_PROJECT_ID=hantibink,DATABASE_URL=${{ secrets.SUPABASE_DATABASE_URL }},DIRECT_URL=${{ secrets.SUPABASE_DIRECT_URL }},JWT_SECRET=${{ secrets.JWT_SECRET }},GOOGLE_CLIENT_ID=${{ secrets.GOOGLE_CLIENT_ID }},GOOGLE_CLIENT_SECRET=${{ secrets.GOOGLE_CLIENT_SECRET }},ADMIN_EMAILS=${{ secrets.ADMIN_EMAILS }},CORS_ORIGIN=${{ secrets.CORS_ORIGIN }},SENTRY_DSN=${{ secrets.SENTRY_DSN }},RESEND_API_KEY=${{ secrets.RESEND_API_KEY }},FROM_EMAIL=${{ secrets.FROM_EMAIL }},APP_URL=${{ secrets.APP_URL }},FIREBASE_SERVICE_ACCOUNT_KEY_BASE64=${{ secrets.FIREBASE_SERVICE_ACCOUNT_KEY_BASE64 }}" \
+            --session-affinity \
             --min-instances=0 \
-            --max-instances=10 \
+            --max-instances=2 \
             --memory=512Mi
 
       - name: Get Service URL
