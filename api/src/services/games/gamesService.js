@@ -121,6 +121,24 @@ const canStartGame = async (userId, match, gameType) => {
   return { allowed: true };
 };
 
+/**
+ * The cheap, re-checkable core of the games gate: both members opted in
+ * and no per-match mute. Called again AFTER a session insert to close the
+ * race where a disable/mute lands between the gate and the insert — its
+ * cleanup scan can run before the new row exists.
+ */
+const pairHasGamesOn = async (match) => {
+  const members = await prisma.user.findMany({
+    where: { id: { in: [match.user1Id, match.user2Id] } },
+    select: { id: true, gamesEnabled: true },
+  });
+  if (members.length < 2 || members.some((member) => !member.gamesEnabled)) {
+    return false;
+  }
+  const mutes = await prisma.gameMute.count({ where: { matchId: match.id } });
+  return mutes === 0;
+};
+
 /** Lazy expiry: any read/move path first retires overdue sessions. */
 const expireIfOverdue = async (session) => {
   if (session.status === 'ACTIVE' && session.expiresAt < new Date()) {
@@ -334,6 +352,21 @@ const createSession = async (matchId, userId, gameType, payload, io = null) => {
     if (error.code === 'P2002') {
       throw new AppError('A game is already in progress in this chat', 409);
     }
+    throw error;
+  }
+
+  // Re-check opt-in now that the row is visible: a concurrent disable or
+  // mute whose cleanup ran before this insert existed would otherwise
+  // leave a playable game behind. Either its cleanup sees our row and
+  // forfeits it, or we see its write here and retract — nothing escapes
+  // both. Retract before any chat card or emit, so the game never existed
+  // as far as either player can tell.
+  if (!(await pairHasGamesOn(match))) {
+    await prisma.gameSession.deleteMany({
+      where: { id: session.id, status: 'ACTIVE' },
+    });
+    const error = new AppError('Games are turned off for this chat', 403);
+    error.code = 'GAMES_DISABLED';
     throw error;
   }
 
