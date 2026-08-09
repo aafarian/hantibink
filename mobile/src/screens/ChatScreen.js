@@ -114,7 +114,12 @@ const ChatScreen = ({ route, navigation }) => {
   const [riddleOffers, setRiddleOffers] = useState(null);
   const [gamePanelExpanded, setGamePanelExpanded] = useState(true);
   const [showEndGameConfirm, setShowEndGameConfirm] = useState(false);
-  const [gamesAvailable, setGamesAvailable] = useState(true);
+  const [gamesInfo, setGamesInfo] = useState({
+    enabled: true,
+    myGlobalEnabled: true,
+    mutedByMe: false,
+  });
+  const [showDisableGamesConfirm, setShowDisableGamesConfirm] = useState(false);
   const [recapSession, setRecapSession] = useState(null);
   const [showChatSearch, setShowChatSearch] = useState(false);
   const {
@@ -123,21 +128,70 @@ const ChatScreen = ({ route, navigation }) => {
     applySnapshot: applyGameSnapshot,
   } = useGameSession(match.matchId);
 
-  // Games entry point renders only when BOTH members have games enabled
-  // (server-enforced too — this just hides the icon)
-  useEffect(() => {
-    let cancelled = false;
-    GamesApiService.getAvailability(match.matchId)
-      .then(availability => {
-        if (!cancelled && availability) {
-          setGamesAvailable(!!availability.enabled);
-        }
-      })
-      .catch(() => {});
-    return () => {
-      cancelled = true;
-    };
+  // Games entry point renders only when BOTH members allow games and
+  // neither has muted them for this chat (server-enforced too)
+  const refreshGamesInfo = useCallback(async () => {
+    try {
+      const availability = await GamesApiService.getAvailability(match.matchId);
+      if (availability) {
+        setGamesInfo(availability);
+      }
+    } catch (error) {
+      Logger.warn('Games availability check failed:', error);
+    }
   }, [match.matchId]);
+
+  useEffect(() => {
+    refreshGamesInfo();
+  }, [refreshGamesInfo]);
+
+  // Per-chat games mute (either direction) from the chat menu
+  const handleToggleChatGames = useCallback(async () => {
+    try {
+      await GamesApiService.setMatchGamesMuted(match.matchId, !gamesInfo.mutedByMe);
+      showSuccess(
+        gamesInfo.mutedByMe ? 'Games allowed in this chat' : 'Games turned off in this chat'
+      );
+    } catch (error) {
+      showError('Could not update the games setting');
+    }
+    refreshGamesInfo();
+    refreshGameSession();
+  }, [
+    match.matchId,
+    gamesInfo.mutedByMe,
+    showSuccess,
+    showError,
+    refreshGamesInfo,
+    refreshGameSession,
+  ]);
+
+  // Account-wide toggle, synced with the Account Settings switch
+  const handleToggleAllGames = useCallback(async () => {
+    if (gamesInfo.myGlobalEnabled) {
+      setShowDisableGamesConfirm(true);
+      return;
+    }
+    try {
+      await GamesApiService.setGamesEnabled(true);
+      showSuccess('In-chat games enabled');
+    } catch (error) {
+      showError('Could not update the games setting');
+    }
+    refreshGamesInfo();
+  }, [gamesInfo.myGlobalEnabled, showSuccess, showError, refreshGamesInfo]);
+
+  const confirmDisableAllGames = useCallback(async () => {
+    setShowDisableGamesConfirm(false);
+    try {
+      await GamesApiService.setGamesEnabled(false);
+      showSuccess('In-chat games turned off');
+    } catch (error) {
+      showError('Could not update the games setting');
+    }
+    refreshGamesInfo();
+    refreshGameSession();
+  }, [showSuccess, showError, refreshGamesInfo, refreshGameSession]);
 
   // A freshly active game opens the docked panel; collapsing it is
   // remembered until the next game starts
@@ -1159,32 +1213,41 @@ const ChatScreen = ({ route, navigation }) => {
   }, []);
 
   // Menu action handlers
-  const handleMenuAction = useCallback(action => {
-    setShowMenu(false);
-    switch (action) {
-      case 'viewProfile':
-        setIsProfileSheetOpen(true);
-        profileSheetRef.current?.open();
-        break;
-      case 'search':
-        setShowChatSearch(true);
-        break;
-      case 'mute':
-        setShowMuteConfirm(true);
-        break;
-      case 'block':
-        setShowBlockConfirm(true);
-        break;
-      case 'unmatch':
-        setShowUnmatchConfirm(true);
-        break;
-      case 'report':
-        setShowReportModal(true);
-        break;
-      default:
-        break;
-    }
-  }, []);
+  const handleMenuAction = useCallback(
+    action => {
+      setShowMenu(false);
+      switch (action) {
+        case 'viewProfile':
+          setIsProfileSheetOpen(true);
+          profileSheetRef.current?.open();
+          break;
+        case 'search':
+          setShowChatSearch(true);
+          break;
+        case 'toggleChatGames':
+          handleToggleChatGames();
+          break;
+        case 'toggleAllGames':
+          handleToggleAllGames();
+          break;
+        case 'mute':
+          setShowMuteConfirm(true);
+          break;
+        case 'block':
+          setShowBlockConfirm(true);
+          break;
+        case 'unmatch':
+          setShowUnmatchConfirm(true);
+          break;
+        case 'report':
+          setShowReportModal(true);
+          break;
+        default:
+          break;
+      }
+    },
+    [handleToggleChatGames, handleToggleAllGames]
+  );
 
   // Load mute status on mount
   useEffect(() => {
@@ -1464,7 +1527,7 @@ const ChatScreen = ({ route, navigation }) => {
             onTextChange={handleTypingChange}
             onSend={sendMessage}
             onGifPress={() => setShowGifPicker(true)}
-            onGamesPress={gamesAvailable ? () => setShowGamePicker(true) : undefined}
+            onGamesPress={gamesInfo.enabled ? () => setShowGamePicker(true) : undefined}
             isRecording={isRecording}
             onRecordingStart={() => setIsRecording(true)}
             onRecordingComplete={(uri, duration, waveform) => {
@@ -1530,6 +1593,7 @@ const ChatScreen = ({ route, navigation }) => {
           onClose={() => setShowMenu(false)}
           onAction={handleMenuAction}
           isMuted={isMuted}
+          gamesInfo={gamesInfo}
         />
 
         {/* Reactions detail bottom sheet */}
@@ -1615,6 +1679,16 @@ const ChatScreen = ({ route, navigation }) => {
           confirmText="I'm done"
           onConfirm={confirmEndGame}
           onCancel={() => setShowEndGameConfirm(false)}
+        />
+
+        {/* Turning games off account-wide ends every game they're in */}
+        <ConfirmationModal
+          visible={showDisableGamesConfirm}
+          title="Turn off games in all chats?"
+          message="Any games you have going will end for both players. Your past games stay in your chats."
+          confirmText="Turn off"
+          onConfirm={confirmDisableAllGames}
+          onCancel={() => setShowDisableGamesConfirm(false)}
         />
 
         {/* Game recap — live sessions stay live inside the modal */}

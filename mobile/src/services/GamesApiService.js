@@ -30,6 +30,11 @@ const GamesApiService = {
     return unwrap(await apiClient.get(`/games/${matchId}/availability`));
   },
 
+  async setMatchGamesMuted(matchId, muted) {
+    const response = await apiClient.put(`/games/${matchId}/mute`, { muted });
+    return throwIfGated(response);
+  },
+
   async getSettings() {
     return unwrap(await apiClient.get('/games/settings'));
   },

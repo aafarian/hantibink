@@ -88,6 +88,12 @@ const canStartGame = async (userId, match, gameType) => {
     return { allowed: false, error: 'GAMES_DISABLED', message: 'Games are turned off for this chat' };
   }
 
+  // Either member can mute games with this specific person
+  const mutes = await prisma.gameMute.count({ where: { matchId: match.id } });
+  if (mutes > 0) {
+    return { allowed: false, error: 'GAMES_DISABLED', message: 'Games are turned off for this chat' };
+  }
+
   if (!gatingEnabled || !DEEP_GAMES.includes(gameType)) {
     return { allowed: true };
   }
@@ -169,14 +175,22 @@ const redactedSession = (session, viewerId) => ({
 const getGamesAvailability = async (matchId, userId) => {
   const match = await assertMembership(matchId, userId);
   const { gamesEnabled } = await getGameFlags();
-  if (!gamesEnabled) {
-    return { enabled: false };
-  }
-  const members = await prisma.user.findMany({
-    where: { id: { in: [match.user1Id, match.user2Id] } },
-    select: { gamesEnabled: true },
-  });
-  return { enabled: members.length === 2 && members.every((member) => member.gamesEnabled) };
+  const [members, mutes] = await Promise.all([
+    prisma.user.findMany({
+      where: { id: { in: [match.user1Id, match.user2Id] } },
+      select: { id: true, gamesEnabled: true },
+    }),
+    prisma.gameMute.findMany({ where: { matchId }, select: { userId: true } }),
+  ]);
+  return {
+    enabled:
+      gamesEnabled &&
+      members.length === 2 &&
+      members.every((member) => member.gamesEnabled) &&
+      mutes.length === 0,
+    myGlobalEnabled: members.find((member) => member.id === userId)?.gamesEnabled ?? true,
+    mutedByMe: mutes.some((mute) => mute.userId === userId),
+  };
 };
 
 const getGamesSettings = async (userId) => {
@@ -195,12 +209,31 @@ const getGamesSettings = async (userId) => {
  * chat message), version-safely, with both players notified live. Their
  * past game cards stay in the chats; they just can't be played.
  */
-const endAllActiveGamesForUser = async (userId, io = null) => {
+const endAllActiveGamesForUser = async (userId, io = null) =>
+  endActiveSessions({ match: { OR: [{ user1Id: userId }, { user2Id: userId }] } }, userId, io);
+
+/**
+ * Mute or unmute games with this specific person. Muting also ends any
+ * game currently running in the match.
+ */
+const setMatchGamesMuted = async (matchId, userId, muted, io = null) => {
+  await assertMembership(matchId, userId);
+  if (muted) {
+    await prisma.gameMute.upsert({
+      where: { userId_matchId: { userId, matchId } },
+      update: {},
+      create: { userId, matchId },
+    });
+    await endActiveSessions({ matchId }, userId, io);
+  } else {
+    await prisma.gameMute.deleteMany({ where: { userId, matchId } });
+  }
+  return { mutedByMe: muted };
+};
+
+const endActiveSessions = async (where, userId, io = null) => {
   const sessions = await prisma.gameSession.findMany({
-    where: {
-      status: 'ACTIVE',
-      match: { OR: [{ user1Id: userId }, { user2Id: userId }] },
-    },
+    where: { status: 'ACTIVE', ...where },
   });
 
   for (const session of sessions) {
@@ -488,6 +521,7 @@ module.exports = {
   getGamesAvailability,
   getGamesSettings,
   setGamesEnabled,
+  setMatchGamesMuted,
   endAllActiveGamesForUser,
   getGameOffers,
   createSession,

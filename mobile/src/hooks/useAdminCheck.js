@@ -27,10 +27,14 @@ const useAdminCheck = () => {
         return;
       }
       const result = await AdminApiService.checkAccess();
-      cachedUserId = user.id;
-      cachedResult = result;
+      // A transient failure (API restarting, offline) returns null — never
+      // cache it, or the Admin row stays hidden for the whole session
+      if (result !== null) {
+        cachedUserId = user.id;
+        cachedResult = result;
+      }
       if (!cancelled) {
-        setIsAdmin(result);
+        setIsAdmin(!!result);
       }
     };
     check();

@@ -403,6 +403,46 @@ describe('Games Routes', () => {
     expect(active.body.data).toBeNull();
   });
 
+  it('per-chat mute blocks games for both and ends the active one', async () => {
+    const { auth1, auth2, match } = await setupPair();
+    const created = await request(app)
+      .post(`/games/${match.id}/sessions`)
+      .set('Authorization', auth1.authHeader)
+      .send({ gameType: 'THIS_OR_THAT' });
+
+    const mute = await request(app)
+      .put(`/games/${match.id}/mute`)
+      .set('Authorization', auth2.authHeader)
+      .send({ muted: true });
+    expect(mute.status).toBe(200);
+
+    const session = await global.prisma.gameSession.findUnique({
+      where: { id: created.body.data.id },
+    });
+    expect(session.status).toBe('FORFEITED');
+
+    const availability = await request(app)
+      .get(`/games/${match.id}/availability`)
+      .set('Authorization', auth1.authHeader);
+    expect(availability.body.data.enabled).toBe(false);
+    expect(availability.body.data.mutedByMe).toBe(false);
+
+    const blocked = await request(app)
+      .post(`/games/${match.id}/sessions`)
+      .set('Authorization', auth1.authHeader)
+      .send({ gameType: 'THIS_OR_THAT' });
+    expect(blocked.status).toBe(403);
+
+    await request(app)
+      .put(`/games/${match.id}/mute`)
+      .set('Authorization', auth2.authHeader)
+      .send({ muted: false });
+    const restored = await request(app)
+      .get(`/games/${match.id}/availability`)
+      .set('Authorization', auth1.authHeader);
+    expect(restored.body.data.enabled).toBe(true);
+  });
+
   it('games setting: both members must be opted in; disabling ends active games', async () => {
     const { auth1, auth2, match } = await setupPair();
 

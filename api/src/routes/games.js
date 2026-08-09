@@ -51,6 +51,26 @@ router.get(
 );
 
 /**
+ * @route   PUT /api/games/:matchId/mute   {muted}
+ * @desc    Turn games off (or back on) with this specific person. Muting
+ *          ends any game currently running in the match.
+ */
+router.put(
+  '/:matchId/mute',
+  authenticateJWT,
+  [ID('matchId'), body('muted').isBoolean({ strict: true }), handleValidationErrors],
+  catchAsync(async (req, res) => {
+    const data = await games.setMatchGamesMuted(
+      req.params.matchId,
+      req.user.id,
+      req.body.muted,
+      io(req),
+    );
+    res.json({ success: true, message: 'Chat games setting updated', data });
+  }),
+);
+
+/**
  * @route   GET /api/games/:matchId/offers?gameType=…
  * @desc    Creator-side prompt offers (roulette question, riddle choices)
  *          rendered in the pre-commit composer. Nothing is persisted.
