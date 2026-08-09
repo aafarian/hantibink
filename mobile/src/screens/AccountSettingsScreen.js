@@ -266,7 +266,7 @@ const AccountSettingsScreen = ({ navigation }) => {
               onValueChange={handleGamesToggle}
               disabled={isGamesLoading}
               trackColor={{ false: theme.colors.border.light, true: `${theme.colors.primary}80` }}
-              thumbColor={gamesEnabled ? theme.colors.primary : '#f4f3f4'}
+              thumbColor={gamesEnabled ? theme.colors.primary : theme.colors.gray[100]}
             />
           </View>
         </View>
