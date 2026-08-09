@@ -62,13 +62,22 @@ router.post(
         return res.json(GENERIC_SUCCESS);
       }
 
-      await prisma.waitlist.create({
-        data: {
-          email,
-          name: name || null,
-          source: source || null,
-        },
-      });
+      try {
+        await prisma.waitlist.create({
+          data: {
+            email,
+            name: name || null,
+            source: source || null,
+          },
+        });
+      } catch (error) {
+        // Concurrent duplicate: both requests passed findUnique, the unique
+        // index rejected this insert. Stay idempotent like the existing path.
+        if (error.code === 'P2002') {
+          return res.json(GENERIC_SUCCESS);
+        }
+        throw error;
+      }
 
       logger.info(`📬 Waitlist signup: ${email}${source ? ` (source: ${source})` : ''}`);
 
