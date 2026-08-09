@@ -270,6 +270,23 @@ router.get(
 
 router.put(
   '/config/flags',
+  [
+    body().custom((flags) => {
+      if (!flags || typeof flags !== 'object' || Array.isArray(flags)) {
+        throw new Error('Flags must be an object of key -> boolean');
+      }
+      for (const [key, value] of Object.entries(flags)) {
+        if (key.length > 64) {
+          throw new Error('Flag keys must be 64 characters or fewer');
+        }
+        if (typeof value !== 'boolean') {
+          throw new Error(`Flag "${key}" must be a boolean`);
+        }
+      }
+      return true;
+    }),
+    handleValidationErrors,
+  ],
   catchAsync(async (req, res) => {
     const data = await admin.updateFlags(req.body, req.user.email);
     res.json({ success: true, message: 'Flags updated', data });
