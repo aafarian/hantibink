@@ -120,6 +120,9 @@ const styles = StyleSheet.create({
     marginHorizontal: theme.spacing.xxl,
     maxWidth: 360,
     width: '85%',
+    // Bounding the whole card (not just the notes list) keeps the dismiss
+    // button on-screen on small viewports with accessibility-scaled text
+    maxHeight: '85%',
     alignItems: 'center',
   },
   iconCircle: {
@@ -146,6 +149,9 @@ const styles = StyleSheet.create({
   },
   notes: {
     alignSelf: 'stretch',
+    // Shrinks first when the card hits its maxHeight, so the fixed chrome
+    // (icon, headline, button) always fits
+    flexShrink: 1,
     maxHeight: 280,
     marginBottom: theme.spacing.xl,
   },

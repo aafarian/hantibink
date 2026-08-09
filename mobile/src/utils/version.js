@@ -1,30 +1,32 @@
 /**
  * Tolerant dotted-numeric version comparison (not full semver).
  *
- * Handles ragged lengths ("1.0" vs "1.0.1"). Differing non-numeric
- * segments compare as equal — their ordering is unknowable, and treating
- * malformed server config as "newer" would raise a false soft-update
- * banner or a non-dismissible force-update modal. Fail open, never nag.
+ * Ordering is defined ONLY for well-formed dotted-numeric versions.
+ * Anything malformed anywhere ("2.x", "abc", "1.0.0-beta") compares as
+ * equal — a per-segment fallback would let "2.x" order above "1.0.0" on
+ * the leading digit alone and raise a false soft-update banner or a
+ * non-dismissible force-update modal. Fail open, never nag.
  */
 
+const VERSION_SHAPE = /^\d+(\.\d+)*$/;
+
 /**
- * @returns {number} -1 if a < b, 0 if equal, 1 if a > b
+ * @returns {number} -1 if a < b, 0 if equal or incomparable, 1 if a > b
  */
 export const compareVersions = (a, b) => {
-  const pa = String(a ?? '').split('.');
-  const pb = String(b ?? '').split('.');
+  const sa = String(a ?? '').trim();
+  const sb = String(b ?? '').trim();
+  if (!VERSION_SHAPE.test(sa) || !VERSION_SHAPE.test(sb)) {
+    return 0;
+  }
+  const pa = sa.split('.');
+  const pb = sb.split('.');
   const len = Math.max(pa.length, pb.length);
   for (let i = 0; i < len; i++) {
-    const sa = pa[i] ?? '0';
-    const sb = pb[i] ?? '0';
-    const na = Number(sa);
-    const nb = Number(sb);
-    if (Number.isFinite(na) && Number.isFinite(nb)) {
-      if (na !== nb) {
-        return na < nb ? -1 : 1;
-      }
-    } else if (sa !== sb) {
-      return 0;
+    const na = Number(pa[i] ?? '0');
+    const nb = Number(pb[i] ?? '0');
+    if (na !== nb) {
+      return na < nb ? -1 : 1;
     }
   }
   return 0;

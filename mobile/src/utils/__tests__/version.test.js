@@ -23,12 +23,19 @@ describe('compareVersions', () => {
     expect(compareVersions('1.0.0', '1.0.0-beta')).not.toBeNaN();
   });
 
-  it('treats malformed segments as equal (fail open)', () => {
+  it('treats malformed versions as incomparable (fail open)', () => {
     expect(compareVersions('1.0.0', 'not-a-version')).toBe(0);
     expect(compareVersions('abc', 'xyz')).toBe(0);
     expect(compareVersions('1.0.0', '1.0.x')).toBe(0);
-    // Identical malformed segments still let later numeric ones decide
-    expect(compareVersions('1.beta.2', '1.beta.3')).toBe(-1);
+    // A malformed SUFFIX must not order on the leading digits — "2.x"
+    // treated as newer than 1.0.0 would open the force-update modal
+    expect(compareVersions('1.0.0', '2.x')).toBe(0);
+    expect(compareVersions('1.beta.2', '1.beta.3')).toBe(0);
+  });
+
+  it('malformed server config never produces an update state', () => {
+    expect(updateState('1.0.0', { minVersion: '2.x' })).toBe('none');
+    expect(updateState('1.0.0', { latestVersion: 'not-a-version' })).toBe('none');
   });
 });
 
