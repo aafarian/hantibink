@@ -7,6 +7,7 @@ import { io } from 'socket.io-client';
 import { AppState } from 'react-native';
 import Logger from '../utils/logger';
 import environment from '../config/environment';
+import ApiClient from './ApiClient';
 
 class SocketService {
   constructor() {
@@ -21,6 +22,7 @@ class SocketService {
     this.heartbeatInterval = null;
     this.appStateSubscription = null;
     this.isAppActive = true;
+    this.isRefreshingToken = false;
   }
 
   /**
@@ -43,6 +45,9 @@ class SocketService {
       reconnection: true,
       reconnectionAttempts: 5,
       reconnectionDelay: 1000,
+      // Function form: every (re)connection attempt reads the current access
+      // token, so a token refreshed mid-session is picked up automatically.
+      auth: cb => cb({ token: ApiClient.token }),
     });
 
     this.setupEventListeners();
@@ -93,6 +98,23 @@ class SocketService {
 
     this.socket.on('connect_error', error => {
       Logger.error('🔌 WebSocket connection error:', error);
+
+      // The server rejects sockets with a missing/expired access token.
+      // Refresh it once; the function-form `auth` option sends the new token
+      // on the next automatic reconnection attempt.
+      if (error?.message === 'unauthorized' && !this.isRefreshingToken) {
+        this.isRefreshingToken = true;
+        ApiClient.refreshAccessToken()
+          .then(refreshed => {
+            Logger.info(`🔌 Socket auth refresh ${refreshed ? 'succeeded' : 'failed'}`);
+          })
+          .catch(refreshError => {
+            Logger.error('🔌 Socket auth refresh error:', refreshError);
+          })
+          .finally(() => {
+            this.isRefreshingToken = false;
+          });
+      }
     });
 
     // Real-time message events
