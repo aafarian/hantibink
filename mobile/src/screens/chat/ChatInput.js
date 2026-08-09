@@ -112,7 +112,7 @@ const styles = StyleSheet.create({
     maxHeight: 100,
     paddingHorizontal: 16,
     paddingVertical: 10,
-    backgroundColor: '#f5f5f5',
+    backgroundColor: theme.colors.gray[100],
     borderRadius: 20,
     fontSize: 15,
     fontFamily: theme.typography.fontFamily.regular,

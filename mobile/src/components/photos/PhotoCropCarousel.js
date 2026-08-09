@@ -420,7 +420,7 @@ const PhotoCropCarousel = ({ visible, imageUris, onComplete, onCancel }) => {
                 accessibilityLabel={`Use ${usableCount} photos`}
               >
                 {committing ? (
-                  <ActivityIndicator size="small" color="#fff" />
+                  <ActivityIndicator size="small" color={theme.colors.text.white} />
                 ) : (
                   <Text style={styles.primaryButtonText}>Use all ({usableCount})</Text>
                 )}
@@ -471,7 +471,7 @@ const styles = StyleSheet.create({
   },
   imageArea: {
     flex: 1,
-    backgroundColor: '#000',
+    backgroundColor: theme.colors.background.dark,
     justifyContent: 'center',
     alignItems: 'center',
     overflow: 'hidden',
@@ -495,7 +495,7 @@ const styles = StyleSheet.create({
     width: FRAME_WIDTH,
     height: FRAME_HEIGHT,
     borderWidth: 2,
-    borderColor: '#fff',
+    borderColor: theme.colors.text.white,
   },
   gridLine: {
     position: 'absolute',
@@ -521,7 +521,7 @@ const styles = StyleSheet.create({
     borderRadius: 4,
   },
   skippedBadgeText: {
-    color: '#fff',
+    color: theme.colors.text.white,
     fontWeight: '700',
     fontSize: 12,
     letterSpacing: 1,
@@ -574,7 +574,7 @@ const styles = StyleSheet.create({
     opacity: 0.5,
   },
   primaryButtonText: {
-    color: '#fff',
+    color: theme.colors.text.white,
     fontSize: 16,
     fontWeight: '600',
     fontFamily: theme.typography.fontFamily.semibold,

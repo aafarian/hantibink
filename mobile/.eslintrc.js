@@ -50,6 +50,17 @@ module.exports = {
     'no-shadow': 'warn',
     'no-catch-shadow': 'off', // This rule is deprecated
     'no-alert': 'warn', // Warn about alerts but don't error
+
+    // Design-system enforcement: no hardcoded hex colors outside theme.js.
+    // Use theme.colors tokens; add a token there if none fits.
+    'no-restricted-syntax': [
+      'error',
+      {
+        selector: 'Literal[value=/^#(?:[0-9a-fA-F]{3,4}|[0-9a-fA-F]{6}|[0-9a-fA-F]{8})$/]',
+        message:
+          'Hardcoded hex color. Use theme.colors tokens (src/styles/theme.js); add a token if none fits.',
+      },
+    ],
   },
 
   // File-specific overrides
@@ -67,6 +78,15 @@ module.exports = {
       },
       rules: {
         'no-unused-vars': 'warn', // Test files should still warn about unused vars
+        'no-restricted-syntax': 'off', // Tests may assert on literal color strings
+      },
+    },
+    {
+      // The token source itself and build-time config (which cannot import
+      // the theme) are exempt from the hex-color rule
+      files: ['src/styles/theme.js', 'app.config.js'],
+      rules: {
+        'no-restricted-syntax': 'off',
       },
     },
   ],

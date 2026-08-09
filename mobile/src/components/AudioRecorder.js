@@ -499,7 +499,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   trashButton: {
-    backgroundColor: '#FEE2E2', // Light error background - semantic color
+    backgroundColor: theme.colors.feedback.errorTint,
   },
   sendButton: {
     backgroundColor: theme.colors.status.error,

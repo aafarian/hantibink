@@ -865,7 +865,7 @@ const styles = StyleSheet.create({
     width: '100%',
     marginBottom: 20,
     borderWidth: 1,
-    borderColor: '#eee',
+    borderColor: theme.colors.gray[200],
   },
   tipTitle: {
     fontSize: 16,
@@ -883,7 +883,7 @@ const styles = StyleSheet.create({
   tipText: {
     fontSize: 14,
     fontFamily: theme.typography.fontFamily.regular,
-    color: '#555',
+    color: theme.colors.text.secondary,
     flex: 1,
   },
   premiumIconContainer: {

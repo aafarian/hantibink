@@ -1,3 +1,11 @@
+/**
+ * Design tokens for Hantibink.
+ *
+ * Every component color must flow through theme.colors.* — enforced by the
+ * no-restricted-syntax hex-literal lint rule (theme.js is the only exempt
+ * file). This keeps the palette swappable: dark mode later means a second
+ * palette object behind a useTheme provider, with zero component changes.
+ */
 export const theme = {
   colors: {
     // Armenian tricolor — premium shades
@@ -22,6 +30,7 @@ export const theme = {
       primary: '#FFFFFF', // Pure white to avoid scroll strobe with off-white
       secondary: '#F9FAFB', // Gray-50, neutral
       tertiary: '#F3F4F6', // Gray-100, neutral
+      dark: '#000000', // Photo viewers, media surfaces, transition underlay
     },
     overlay: {
       light: 'rgba(255, 255, 255, 0.2)',
@@ -31,10 +40,32 @@ export const theme = {
     },
     status: {
       success: '#4CAF50',
+      successDark: '#2E7D32', // strongest tier of success ramps
       error: '#F44336',
       warning: '#FF9800',
       info: '#2196F3',
     },
+    // Swipe action buttons (discovery deck)
+    action: {
+      nope: '#FF5252',
+      like: '#4CAF50',
+      superlike: '#00BCD4',
+      rewind: '#FFB300',
+    },
+    // Destructive actions (delete account, sign out, remove photo)
+    destructive: '#FF3B30',
+    destructiveTint: 'rgba(255, 59, 48, 0.08)',
+    // Form feedback backgrounds and borders
+    feedback: {
+      successTint: '#E8F5E9',
+      successBorder: '#C8E6C9',
+      errorTint: '#FFF5F5',
+      errorBorder: '#FFD1D1',
+    },
+    // Presence indicator (semantically distinct from status.success)
+    online: '#4CAF50',
+    // Shadow color for shadowColor styles
+    shadow: '#000',
     border: {
       light: '#E5E7EB', // Gray-200, neutral
       medium: '#D1D5DB', // Gray-300, neutral

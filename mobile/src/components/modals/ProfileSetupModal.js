@@ -1155,7 +1155,7 @@ const ProfileSetupModal = ({ visible, onClose, onComplete, userProfile }) => {
               disabled={loading || uploadingPhotos}
             >
               {loading || uploadingPhotos ? (
-                <ActivityIndicator color="#FFF" />
+                <ActivityIndicator color={theme.colors.text.white} />
               ) : (
                 <Text style={styles.nextButtonText}>
                   {currentStep === steps.length - 1 ? 'Finish Setup' : 'Next'}

@@ -174,7 +174,7 @@ const MatchModal = ({
 
           {/* Header with gradient */}
           <LinearGradient
-            colors={[theme.colors.primary, '#FF8E53']}
+            colors={[theme.colors.primary, theme.colors.primaryLight]}
             style={styles.header}
             start={{ x: 0, y: 0 }}
             end={{ x: 1, y: 0 }}

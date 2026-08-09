@@ -39,7 +39,7 @@ const PREMIUM_FEATURES = [
   },
   {
     icon: 'chatbubbles',
-    iconColor: theme.colors.info || '#3B82F6',
+    iconColor: theme.colors.status.info,
     title: 'Enhanced Messaging',
     description: 'Read receipts, typing indicators & online status',
   },

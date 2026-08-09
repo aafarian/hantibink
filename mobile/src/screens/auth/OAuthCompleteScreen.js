@@ -198,7 +198,7 @@ const styles = StyleSheet.create({
   },
   infoCard: {
     flexDirection: 'row',
-    backgroundColor: '#FFF5F5',
+    backgroundColor: theme.colors.feedback.errorTint,
     borderRadius: 12,
     padding: 16,
     marginBottom: 30,

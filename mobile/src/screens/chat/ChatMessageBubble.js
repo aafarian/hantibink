@@ -285,7 +285,7 @@ const ChatMessageBubble = ({
                       <Ionicons
                         name="checkmark-done"
                         size={14}
-                        color="#4CAF50"
+                        color={theme.colors.status.success}
                         style={styles.readIcon}
                       />
                     ) : (
@@ -307,7 +307,7 @@ const ChatMessageBubble = ({
                       <Ionicons
                         name="diamond-outline"
                         size={12}
-                        color="#FFB800"
+                        color={theme.colors.premium}
                         style={styles.premiumDiamond}
                       />
                     </View>
@@ -373,12 +373,12 @@ const styles = StyleSheet.create({
     elevation: 3,
   },
   otherMessageBubble: {
-    backgroundColor: '#F0F0F3',
+    backgroundColor: theme.colors.background.tertiary,
     borderTopRightRadius: 24,
     borderTopLeftRadius: 24,
     borderBottomRightRadius: 24,
     borderBottomLeftRadius: 8,
-    shadowColor: '#000',
+    shadowColor: theme.colors.shadow,
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.05,
     shadowRadius: 4,
@@ -393,7 +393,7 @@ const styles = StyleSheet.create({
   },
   highlightedMessage: {
     transform: [{ translateY: -2 }],
-    shadowColor: '#000',
+    shadowColor: theme.colors.shadow,
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
     shadowRadius: 4,
@@ -498,7 +498,7 @@ const styles = StyleSheet.create({
     marginTop: -8,
     borderWidth: 1,
     borderColor: 'rgba(0, 0, 0, 0.08)',
-    shadowColor: '#000',
+    shadowColor: theme.colors.shadow,
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.1,
     shadowRadius: 2,

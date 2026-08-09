@@ -166,7 +166,7 @@ export const forHorizontalIOS = ({ current, next, layouts }) => {
       transform: [{ translateX: translateFocused }, { translateX: translateUnfocused }],
       // Add shadow to the card (iOS only, Android uses elevation)
       ...(Platform.OS === 'ios' && {
-        shadowColor: '#000',
+        shadowColor: theme.colors.shadow,
         shadowOffset: { width: -3, height: 0 },
         shadowOpacity,
         shadowRadius: 8,
@@ -180,7 +180,7 @@ export const forHorizontalIOS = ({ current, next, layouts }) => {
     },
     overlayStyle: {
       opacity: overlayOpacity,
-      backgroundColor: '#000',
+      backgroundColor: theme.colors.background.dark,
     },
   };
 };

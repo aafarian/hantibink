@@ -4,6 +4,7 @@ import Constants from 'expo-constants';
 import { Platform } from 'react-native';
 import Logger from './logger';
 import ApiClient from '../services/ApiClient';
+import { theme } from '../styles/theme';
 
 // EAS Project ID - configured in app.config.js, with fallback for local development
 const EAS_PROJECT_ID =
@@ -77,7 +78,7 @@ export async function registerForPushNotificationsAsync() {
         name: 'Messages',
         importance: Notifications.AndroidImportance.MAX,
         vibrationPattern: [0, 250, 250, 250],
-        lightColor: '#FF231F7C',
+        lightColor: theme.colors.primary,
         showBadge: true,
         enableVibrate: true,
         enableLights: true,

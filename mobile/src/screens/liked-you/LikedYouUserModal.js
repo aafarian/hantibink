@@ -144,7 +144,7 @@ const styles = StyleSheet.create({
   superLikeInfo: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#FFF8DC',
+    backgroundColor: theme.colors.accentTint,
     padding: 10,
     borderRadius: 10,
     marginTop: 15,
@@ -169,7 +169,7 @@ const styles = StyleSheet.create({
     borderRadius: 25,
   },
   passButton: {
-    backgroundColor: '#FFE5E5',
+    backgroundColor: theme.colors.primaryTint,
   },
   passButtonText: {
     color: theme.colors.primary,

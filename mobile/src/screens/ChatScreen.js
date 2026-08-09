@@ -1279,7 +1279,7 @@ const ChatScreen = ({ route, navigation }) => {
           open={showReactionPicker !== null}
           onClose={handleCloseEmojiPicker}
           theme={{
-            backdrop: '#00000080',
+            backdrop: theme.colors.overlay.medium,
             knob: theme.colors.primary,
             category: {
               icon: theme.colors.text.secondary,
@@ -1288,7 +1288,7 @@ const ChatScreen = ({ route, navigation }) => {
               containerActive: 'rgba(211, 47, 47, 0.15)',
             },
             search: {
-              background: '#f5f5f5',
+              background: theme.colors.gray[100],
               placeholder: theme.colors.text.muted,
               text: theme.colors.text.primary,
             },

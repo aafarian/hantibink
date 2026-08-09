@@ -68,7 +68,7 @@ const ChatHeader = ({
                 <Ionicons
                   name="diamond-outline"
                   size={12}
-                  color="#FFB800"
+                  color={theme.colors.premium}
                   style={styles.premiumDiamond}
                 />
               </View>
@@ -133,14 +133,14 @@ const styles = StyleSheet.create({
     width: 8,
     height: 8,
     borderRadius: 4,
-    backgroundColor: '#4CAF50',
+    backgroundColor: theme.colors.online,
     position: 'absolute',
   },
   onlineShockwave: {
     width: 8,
     height: 8,
     borderRadius: 4,
-    backgroundColor: '#4CAF50',
+    backgroundColor: theme.colors.online,
     position: 'absolute',
   },
   statusText: {

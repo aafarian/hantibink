@@ -500,7 +500,7 @@ const styles = StyleSheet.create({
   },
   inputError: {
     borderColor: theme.colors.primary,
-    backgroundColor: '#FFF5F5',
+    backgroundColor: theme.colors.feedback.errorTint,
   },
   errorText: {
     color: theme.colors.primary,
@@ -512,13 +512,13 @@ const styles = StyleSheet.create({
   errorContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#FFF5F5',
+    backgroundColor: theme.colors.feedback.errorTint,
     borderRadius: 12,
     paddingHorizontal: 16,
     paddingVertical: 12,
     marginBottom: 20,
     borderWidth: 1,
-    borderColor: '#FFD1D1',
+    borderColor: theme.colors.feedback.errorBorder,
   },
   errorIcon: {
     marginRight: 10,
