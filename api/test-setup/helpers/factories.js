@@ -29,6 +29,7 @@ export const userFactory = {
       longitude: faker.location.longitude(),
       isActive: true,
       isPremium: false,
+      isDiscoverable: true,
       ...overrides,
     };
   },

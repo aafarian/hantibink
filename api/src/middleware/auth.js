@@ -9,6 +9,21 @@ const prisma = getPrismaClient();
 const lastActivityUpdate = new Map();
 const ACTIVITY_UPDATE_INTERVAL = 30000; // 30 seconds
 
+// Sweep stale entries so the map cannot grow without bound. unref() keeps
+// the interval from holding the process (and test runners) open.
+const activitySweepInterval = setInterval(
+  () => {
+    const cutoff = Date.now() - ACTIVITY_UPDATE_INTERVAL;
+    for (const [userId, ts] of lastActivityUpdate) {
+      if (ts < cutoff) {
+        lastActivityUpdate.delete(userId);
+      }
+    }
+  },
+  10 * 60 * 1000,
+);
+activitySweepInterval.unref?.();
+
 /**
  * Update user's lastActive timestamp (throttled to avoid excessive DB writes)
  */

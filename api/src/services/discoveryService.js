@@ -1,5 +1,6 @@
 const { getPrismaClient } = require('../config/database');
 const logger = require('../utils/logger');
+const { PUBLIC_USER_SELECT } = require('../utils/userSelectors');
 
 const prisma = getPrismaClient();
 
@@ -362,6 +363,7 @@ const getUsersForDiscovery = async (currentUserId, options = {}) => {
       id: { notIn: allExcludedIds },
       isActive: true,
       isProfilePaused: false, // Exclude users who paused their profile
+      isDiscoverable: true, // Complete profiles only (backfilled by migration)
     };
 
     // In strict mode, only get users matching preferences
@@ -391,14 +393,22 @@ const getUsersForDiscovery = async (currentUserId, options = {}) => {
       some: {},
     };
 
-    // Get ALL potential users (we'll filter and sort later)
+    // Get potential users with a bounded select — sensitive columns
+    // (password, email, tokens, quotas) never leave the database.
     const users = await prisma.user.findMany({
       where: baseWhereClause,
-      include: {
+      select: {
+        ...PUBLIC_USER_SELECT,
+        // Scoring inputs; coordinates are stripped before the response
+        latitude: true,
+        longitude: true,
+        interestedIn: true,
+        minAge: true,
+        maxAge: true,
         photos: {
           orderBy: [
-            { isMain: 'desc' },  // Main photo first
-            { order: 'asc' },    // Then by order
+            { isMain: 'desc' }, // Main photo first
+            { order: 'asc' }, // Then by order
           ],
         },
         interests: {
@@ -407,7 +417,7 @@ const getUsersForDiscovery = async (currentUserId, options = {}) => {
           },
         },
       },
-      take: 500, // Get more initially to have enough for filtering
+      take: 200,
     });
 
     logger.info(
@@ -446,31 +456,11 @@ const getUsersForDiscovery = async (currentUserId, options = {}) => {
         defaultFilters
       );
 
-      // Remove sensitive data — everything a stranger must never see
-      /* eslint-disable no-unused-vars */
-      const {
-        password,
-        email,
-        firebaseUid,
-        pushToken,
-        emailVerificationToken,
-        emailVerificationExpiry,
-        passwordResetToken,
-        passwordResetExpiry,
-        passwordResetAttempts,
-        passwordResetLastRequest,
-        latitude,
-        longitude,
-        notifyMessages,
-        notifyMatches,
-        notifyLikes,
-        dailyLikesUsed,
-        dailyLikesResetAt,
-        dailySuperLikesUsed,
-        dailySuperLikesResetAt,
-        ...userWithoutSensitive
-      } = user;
-      /* eslint-enable no-unused-vars */
+      // The bounded select above already withholds credentials/tokens.
+      // Coordinates are scoring inputs only — strip them from the response.
+      const userWithoutSensitive = { ...user };
+      delete userWithoutSensitive.latitude;
+      delete userWithoutSensitive.longitude;
 
       // Get main photo URL - prioritize mainPhotoUrl field, then first photo with isMain
       const mainPhotoUrl = user.mainPhotoUrl ||

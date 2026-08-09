@@ -102,6 +102,9 @@ model User {
   blockedUsers           BlockedUser[]  @relation("blockedByUsers")
   blockedByUsers         BlockedUser[]  @relation("blockedUsers")
 
+  @@index([isActive, isProfilePaused, isDiscoverable])
+  @@index([lastActive])
+  @@index([pushToken])
   @@map("users")
 }
 
@@ -133,6 +136,7 @@ model Photo {
   user            User     @relation("userPhotos", fields: [userId], references: [id], onDelete: Cascade)
   userAsMainPhoto User[]   @relation("mainPhoto")
 
+  @@index([userId, order])
   @@map("photos")
 }
 
@@ -148,6 +152,7 @@ model UserAction {
   sender     User       @relation("actionsSent", fields: [senderId], references: [id], onDelete: Cascade)
 
   @@unique([senderId, receiverId])
+  @@index([receiverId, action, createdAt])
   @@map("user_actions")
 }
 
@@ -172,6 +177,7 @@ model Match {
   mutedBy           MutedMatch[]
 
   @@unique([user1Id, user2Id])
+  @@index([user2Id, isActive])
   @@map("matches")
 }
 
@@ -199,6 +205,8 @@ model Message {
   replies     Message[]         @relation("MessageReplies")
   reactions   MessageReaction[]
 
+  @@index([matchId, createdAt])
+  @@index([receiverId, isRead])
   @@map("messages")
 }
 
@@ -292,6 +300,8 @@ model Report {
   reportedUser User         @relation("reportedUser", fields: [reportedId], references: [id], onDelete: Cascade)
   reporter     User         @relation("reportingUser", fields: [reporterId], references: [id], onDelete: Cascade)
 
+  @@index([status, createdAt])
+  @@index([reportedId])
   @@map("reports")
 }
 
@@ -304,6 +314,7 @@ model MutedMatch {
   match     Match    @relation(fields: [matchId], references: [id], onDelete: Cascade)
 
   @@unique([userId, matchId])
+  @@index([matchId])
   @@map("muted_matches")
 }
 
@@ -316,6 +327,7 @@ model BlockedUser {
   blocked   User     @relation("blockedUsers", fields: [blockedId], references: [id], onDelete: Cascade)
 
   @@unique([blockerId, blockedId])
+  @@index([blockedId])
   @@map("blocked_users")
 }
 
@@ -385,4 +397,27 @@ enum ReportStatus {
 enum OnboardingStage {
   REGISTERED        // Just signed up
   SETUP_COMPLETE    // Has gender, interestedIn, photo, location
+}
+
+/// Server-published runtime configuration (app version, feature flags, ...).
+/// One row per concern; values are JSON. Read with a short cache, written by
+/// the admin dashboard — no redeploy needed to change them.
+model AppConfig {
+  key       String   @id
+  value     Json
+  updatedAt DateTime @updatedAt
+
+  @@map("app_config")
+}
+
+/// Pre-launch marketing email signups (public POST /api/waitlist).
+model Waitlist {
+  id          String    @id @default(cuid())
+  createdAt   DateTime  @default(now())
+  email       String    @unique
+  name        String?
+  source      String?
+  confirmedAt DateTime?
+
+  @@map("waitlist")
 }

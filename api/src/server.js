@@ -343,8 +343,12 @@ process.on('uncaughtException', (error) => {
 });
 
 process.on('unhandledRejection', (reason, promise) => {
+  // A stray floating promise must not kill the container mid-request.
+  // Log + report; uncaughtException (actual corruption) still exits above.
   logger.error('Unhandled Rejection at:', promise, 'reason:', reason);
-  process.exit(1);
+  if (process.env.SENTRY_DSN) {
+    Sentry.captureException(reason instanceof Error ? reason : new Error(String(reason)));
+  }
 });
 
 module.exports = app;

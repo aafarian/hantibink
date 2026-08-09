@@ -47,8 +47,10 @@ const getUserMatches = async (userId, options = {}) => {
             },
           },
         },
+        // Only the latest message — unread counts come from one groupBy below
         messages: {
           orderBy: { createdAt: 'desc' },
+          take: 1,
           select: {
             content: true,
             createdAt: true,
@@ -62,6 +64,24 @@ const getUserMatches = async (userId, options = {}) => {
       skip: offset,
     });
 
+    // One aggregated query for unread counts across all fetched matches
+    // (previously every message of every match was loaded and counted in JS)
+    const matchIds = matches.map((m) => m.id);
+    const unreadGroups = matchIds.length
+      ? await prisma.message.groupBy({
+          by: ['matchId'],
+          where: {
+            matchId: { in: matchIds },
+            receiverId: userId,
+            isRead: false,
+          },
+          _count: { _all: true },
+        })
+      : [];
+    const unreadByMatch = new Map(
+      unreadGroups.map((g) => [g.matchId, g._count._all]),
+    );
+
     // Transform matches to include other user info and last message
     const transformedMatches = matches.map((match) => {
       const otherUser = match.user1Id === userId ? match.user2 : match.user1;
@@ -70,10 +90,7 @@ const getUserMatches = async (userId, options = {}) => {
       // Calculate age
       const age = calculateAge(otherUser.birthDate);
 
-      // Count unread messages (messages from other user that haven't been read)
-      const unreadCount = match.messages.filter(
-        (msg) => msg.senderId !== userId && !msg.isRead
-      ).length;
+      const unreadCount = unreadByMatch.get(match.id) || 0;
 
       return {
         id: match.id,
