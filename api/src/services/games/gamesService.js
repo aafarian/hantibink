@@ -150,6 +150,10 @@ const emitGameUpdate = (io, session, event, actorId) => {
       gameType: session.gameType,
       status: session.status,
       version: session.version,
+      // Versions restart per session, so clients need createdAt to order
+      // snapshots ACROSS sessions (a delayed delta from a finished game
+      // must not replace a newer one)
+      createdAt: session.createdAt,
       event,
       actorId,
       view: engine.viewFor(session.state, viewerId),
@@ -236,18 +240,24 @@ const endActiveSessions = async (where, userId, io = null) => {
     where: { status: 'ACTIVE', ...where },
   });
 
+  let ended = 0;
   for (const session of sessions) {
+    // Unlike moves and expiry there is NO version predicate: the opt-out
+    // must win against a concurrent move, not lose the optimistic race and
+    // leave the game playable. The status check alone is enough to keep a
+    // terminal state from being overwritten twice.
     const updated = await prisma.gameSession.updateMany({
-      where: { id: session.id, status: 'ACTIVE', version: session.version },
-      data: { status: 'FORFEITED', completedAt: new Date(), version: session.version + 1 },
+      where: { id: session.id, status: 'ACTIVE' },
+      data: { status: 'FORFEITED', completedAt: new Date(), version: { increment: 1 } },
     });
     if (updated.count > 0) {
+      ended += 1;
       const fresh = await prisma.gameSession.findUnique({ where: { id: session.id } });
       await postEndSummaryMessage(fresh.matchId, userId, fresh, io);
       emitGameUpdate(io, fresh, 'forfeited', userId);
     }
   }
-  return { ended: sessions.length };
+  return { ended };
 };
 
 const setGamesEnabled = async (userId, enabled, io = null) => {

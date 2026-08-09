@@ -3,6 +3,11 @@ import GamesApiService from '../services/GamesApiService';
 import SocketService from '../services/SocketService';
 import Logger from '../utils/logger';
 
+const toTime = value => {
+  const time = value ? new Date(value).getTime() : 0;
+  return Number.isFinite(time) ? time : 0;
+};
+
 /**
  * Owns the active game session for a chat: fetch-on-mount, socket deltas
  * (version-checked so stale snapshots never regress state), and refetch on
@@ -12,22 +17,31 @@ import Logger from '../utils/logger';
 const useGameSession = matchId => {
   const [session, setSession] = useState(null);
   // Versions are PER SESSION (each new game restarts at 0), so the gate
-  // tracks {sessionId, version}: a snapshot is stale only when it's an
-  // older version of the SAME session. A different session id always
-  // replaces — otherwise a finished game's version would swallow the next
-  // game's snapshots until a remount.
-  const lastRef = useRef({ id: null, version: -1 });
+  // tracks {sessionId, version, createdAt}: same-session snapshots are
+  // ordered by version, DIFFERENT sessions by createdAt — so a delayed
+  // snapshot from a finished game can't replace a newer game, and a
+  // finished game's version can't swallow the next game's snapshots.
+  // Missing timestamps fail open (replace) rather than freeze the UI.
+  const lastRef = useRef({ id: null, version: -1, createdAt: 0 });
 
-  const isStale = (id, version) =>
-    id != null &&
-    id === lastRef.current.id &&
-    typeof version === 'number' &&
-    version < lastRef.current.version;
+  const isStale = (id, version, createdAt) => {
+    if (id == null) {
+      return false;
+    }
+    if (id === lastRef.current.id) {
+      return typeof version === 'number' && version < lastRef.current.version;
+    }
+    const incoming = toTime(createdAt);
+    return incoming > 0 && lastRef.current.createdAt > 0 && incoming < lastRef.current.createdAt;
+  };
 
-  const track = (id, version) => {
+  const track = (id, version, createdAt) => {
+    const time = toTime(createdAt);
     lastRef.current = {
       id: id ?? null,
       version: typeof version === 'number' ? version : -1,
+      // A same-session update without a timestamp keeps the known one
+      createdAt: time || (id === lastRef.current.id ? lastRef.current.createdAt : 0),
     };
   };
 
@@ -37,7 +51,7 @@ const useGameSession = matchId => {
     }
     try {
       const active = await GamesApiService.getActiveSession(matchId);
-      track(active?.id, active?.version);
+      track(active?.id, active?.version, active?.createdAt);
       setSession(active);
     } catch (error) {
       Logger.warn('Game session refresh failed:', error);
@@ -52,10 +66,10 @@ const useGameSession = matchId => {
       if (!snapshot || snapshot.matchId !== matchId) {
         return;
       }
-      if (isStale(snapshot.id, snapshot.version)) {
+      if (isStale(snapshot.id, snapshot.version, snapshot.createdAt)) {
         return;
       }
-      track(snapshot.id, snapshot.version);
+      track(snapshot.id, snapshot.version, snapshot.createdAt);
       setSession(snapshot);
     },
     [matchId]
@@ -68,10 +82,10 @@ const useGameSession = matchId => {
       if (data?.matchId !== matchId) {
         return;
       }
-      if (isStale(data.sessionId, data.version)) {
+      if (isStale(data.sessionId, data.version, data.createdAt)) {
         return;
       }
-      track(data.sessionId, data.version);
+      track(data.sessionId, data.version, data.createdAt);
       if (data.status && data.status !== 'ACTIVE') {
         // Completed/declined/forfeited: keep the final snapshot briefly so
         // cards can render the ending, but the "active" bar hides
@@ -81,6 +95,7 @@ const useGameSession = matchId => {
           gameType: data.gameType,
           status: data.status,
           version: data.version,
+          createdAt: data.createdAt,
           view: data.view,
         });
       } else {
@@ -93,6 +108,7 @@ const useGameSession = matchId => {
           gameType: data.gameType,
           status: data.status,
           version: data.version,
+          createdAt: data.createdAt,
           view: data.view,
         }));
       }
