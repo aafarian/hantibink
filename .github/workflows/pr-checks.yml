@@ -172,6 +172,27 @@ jobs:
         working-directory: mobile
         run: npm run lint
 
+  test-mobile:
+    name: Test Mobile
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install mobile dependencies
+        working-directory: mobile
+        run: npm install
+
+      - name: Run mobile tests
+        working-directory: mobile
+        run: npm test -- --ci
+
   migration-reminder:
     name: Migration Reminder
     runs-on: ubuntu-latest
