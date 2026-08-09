@@ -348,6 +348,81 @@ router.post('/reset-password', sensitiveAuthLimiter, async (req, res) => {
 });
 
 /**
+ * Minimal branded HTML shell for the browser-facing verification page.
+ */
+const verifyEmailPage = (title, message, isSuccess) => `<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>${title} — Hantibink</title>
+  <style>
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #FDEDEC; margin: 0; display: flex; align-items: center; justify-content: center; min-height: 100vh; }
+    .card { background: #fff; border-radius: 16px; padding: 40px; max-width: 400px; margin: 20px; text-align: center; box-shadow: 0 4px 24px rgba(0,0,0,0.08); }
+    .logo { font-size: 26px; font-weight: 800; color: #C0392B; margin-bottom: 16px; }
+    .icon { font-size: 48px; margin-bottom: 8px; }
+    h1 { font-size: 22px; color: #1F2937; margin: 8px 0; }
+    p { color: #64748B; line-height: 1.6; }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <div class="logo">Hantibink</div>
+    <div class="icon">${isSuccess ? '✅' : '😕'}</div>
+    <h1>${title}</h1>
+    <p>${message}</p>
+    ${isSuccess ? '<p>You can close this page and return to the app.</p>' : ''}
+  </div>
+</body>
+</html>`;
+
+/**
+ * @route   GET /api/auth/verify-email?token=...
+ * @desc    Browser-facing email verification (link target in the email)
+ * @access  Public
+ */
+router.get('/verify-email', sensitiveAuthLimiter, async (req, res) => {
+  try {
+    const { token } = req.query;
+
+    if (!token) {
+      return res
+        .status(400)
+        .send(verifyEmailPage('Invalid link', 'This verification link is missing its token.', false));
+    }
+
+    let user;
+    try {
+      user = await verifyEmailWithToken(token);
+    } catch (verifyError) {
+      return res
+        .status(400)
+        .send(
+          verifyEmailPage(
+            'Link expired',
+            'This verification link is invalid or has expired. Request a new one from the app.',
+            false,
+          ),
+        );
+    }
+
+    // Welcome email after successful verification (non-blocking)
+    sendWelcomeEmail(user.email, user.name).catch((err) =>
+      logger.error('Failed to send welcome email:', err),
+    );
+
+    return res.send(
+      verifyEmailPage('Email verified!', 'Your email address has been confirmed.', true),
+    );
+  } catch (error) {
+    logger.error('Browser email verification error:', error);
+    return res
+      .status(500)
+      .send(verifyEmailPage('Something went wrong', 'Please try again from the app.', false));
+  }
+});
+
+/**
  * @route   POST /api/auth/verify-email
  * @desc    Verify email address with token
  * @access  Public

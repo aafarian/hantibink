@@ -4,20 +4,51 @@ const { getPrismaClient } = require('../config/database');
 
 const prisma = getPrismaClient();
 
-// Initialize SendGrid if API key is provided
-let sgMail = null;
-if (process.env.SENDGRID_API_KEY) {
+// Email transport: Resend when RESEND_API_KEY is set, console fallback
+// otherwise (dev/test). Every sender below routes through sendEmail so the
+// provider can be swapped in exactly one place.
+let resendClient = null;
+if (process.env.RESEND_API_KEY) {
   try {
-    sgMail = require('@sendgrid/mail');
-    sgMail.setApiKey(process.env.SENDGRID_API_KEY);
-    logger.info('SendGrid initialized successfully');
+    const { Resend } = require('resend');
+    resendClient = new Resend(process.env.RESEND_API_KEY);
+    logger.info('Resend email transport initialized');
   } catch (error) {
-    logger.warn('SendGrid initialization failed:', error.message);
+    logger.warn('Resend initialization failed:', error.message);
   }
 }
 
 const FROM_EMAIL = process.env.FROM_EMAIL || 'noreply@hantibink.com';
 const FROM_NAME = process.env.FROM_NAME || 'Hantibink';
+
+/**
+ * Send an email through the configured transport.
+ * Returns true when handed to the provider (or logged in fallback mode).
+ */
+const sendEmail = async ({ to, subject, html, text, logLabel, logExtra = {} }) => {
+  if (resendClient) {
+    const { error } = await resendClient.emails.send({
+      from: `${FROM_NAME} <${FROM_EMAIL}>`,
+      to,
+      subject,
+      html,
+      text,
+    });
+    if (error) {
+      throw new Error(`Resend send failed: ${error.message || error.name}`);
+    }
+    logger.info(`${logLabel || 'Email'} sent to ${to} via Resend`);
+    return true;
+  }
+
+  // Development fallback - log instead of sending
+  logger.info('========================================');
+  logger.info(`${logLabel || 'EMAIL'} (no email provider configured)`);
+  logger.info(`Email: ${to}`);
+  Object.entries(logExtra).forEach(([k, v]) => logger.info(`${k}: ${v}`));
+  logger.info('========================================');
+  return true;
+};
 
 /**
  * Generate a verification token
@@ -31,7 +62,8 @@ const generateVerificationToken = () => {
  */
 const sendVerificationEmail = async (email, name, token) => {
   try {
-    const verificationUrl = `${process.env.APP_URL || 'http://localhost:3000'}/verify-email?token=${token}`;
+    // Links to the API-hosted verification page (GET /api/auth/verify-email)
+    const verificationUrl = `${process.env.APP_URL || 'http://localhost:4242'}/api/auth/verify-email?token=${token}`;
     const subject = 'Verify Your Hantibink Account';
 
     const htmlContent = `
@@ -44,13 +76,13 @@ const sendVerificationEmail = async (email, name, token) => {
           body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; line-height: 1.6; color: #333; }
           .container { max-width: 600px; margin: 0 auto; padding: 20px; }
           .header { text-align: center; padding: 20px 0; }
-          .logo { font-size: 28px; font-weight: bold; color: #D32F2F; }
+          .logo { font-size: 28px; font-weight: bold; color: #C0392B; }
           .content { background: #f9f9f9; border-radius: 12px; padding: 30px; margin: 20px 0; }
-          .btn { display: inline-block; background: #D32F2F; color: #fff; text-decoration: none; padding: 14px 32px; border-radius: 8px; font-weight: bold; margin: 20px 0; }
-          .btn:hover { background: #B71C1C; }
+          .btn { display: inline-block; background: #C0392B; color: #fff; text-decoration: none; padding: 14px 32px; border-radius: 8px; font-weight: bold; margin: 20px 0; }
+          .btn:hover { background: #A93226; }
           .link-box { background: #fff; border: 1px solid #ddd; border-radius: 8px; padding: 15px; margin: 15px 0; word-break: break-all; font-size: 13px; color: #666; }
           .footer { text-align: center; font-size: 12px; color: #999; margin-top: 30px; }
-          .expiry { color: #D32F2F; font-weight: bold; }
+          .expiry { color: #C0392B; font-weight: bold; }
         </style>
       </head>
       <body>
@@ -91,27 +123,14 @@ If you didn't create a Hantibink account, you can safely ignore this email.
 - The Hantibink Team
     `;
 
-    // Send via SendGrid if available
-    if (sgMail) {
-      await sgMail.send({
-        to: email,
-        from: { email: FROM_EMAIL, name: FROM_NAME },
-        subject,
-        text: textContent,
-        html: htmlContent,
-      });
-      logger.info(`Verification email sent to ${email} via SendGrid`);
-      return true;
-    }
-
-    // Development fallback - log the verification link
-    logger.info('========================================');
-    logger.info('EMAIL VERIFICATION (SendGrid not configured)');
-    logger.info(`Email: ${email}`);
-    logger.info(`Verification URL: ${verificationUrl}`);
-    logger.info('========================================');
-
-    return true;
+    return await sendEmail({
+      to: email,
+      subject,
+      html: htmlContent,
+      text: textContent,
+      logLabel: 'EMAIL VERIFICATION',
+      logExtra: { 'Verification URL': verificationUrl },
+    });
   } catch (error) {
     logger.error('Failed to send verification email:', error);
     throw error;
@@ -242,13 +261,13 @@ const sendWelcomeEmail = async (email, name) => {
           body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; line-height: 1.6; color: #333; }
           .container { max-width: 600px; margin: 0 auto; padding: 20px; }
           .header { text-align: center; padding: 20px 0; }
-          .logo { font-size: 28px; font-weight: bold; color: #D32F2F; }
+          .logo { font-size: 28px; font-weight: bold; color: #C0392B; }
           .content { background: #f9f9f9; border-radius: 12px; padding: 30px; margin: 20px 0; }
-          .btn { display: inline-block; background: #D32F2F; color: #fff; text-decoration: none; padding: 14px 32px; border-radius: 8px; font-weight: bold; margin: 20px 0; }
+          .btn { display: inline-block; background: #C0392B; color: #fff; text-decoration: none; padding: 14px 32px; border-radius: 8px; font-weight: bold; margin: 20px 0; }
           .checklist { background: #fff; border-radius: 8px; padding: 20px; margin: 20px 0; }
           .checklist-item { display: flex; align-items: center; padding: 10px 0; border-bottom: 1px solid #eee; }
           .checklist-item:last-child { border-bottom: none; }
-          .check-icon { width: 24px; height: 24px; background: #D32F2F; border-radius: 50%; color: #fff; text-align: center; line-height: 24px; margin-right: 12px; font-size: 14px; }
+          .check-icon { width: 24px; height: 24px; background: #C0392B; border-radius: 50%; color: #fff; text-align: center; line-height: 24px; margin-right: 12px; font-size: 14px; }
           .footer { text-align: center; font-size: 12px; color: #999; margin-top: 30px; }
         </style>
       </head>
@@ -262,7 +281,7 @@ const sendWelcomeEmail = async (email, name) => {
             <p>Your email has been verified and you're ready to start discovering amazing people in the Armenian community.</p>
 
             <div class="checklist">
-              <h3 style="margin-top: 0; color: #D32F2F;">Complete your profile for better matches:</h3>
+              <h3 style="margin-top: 0; color: #C0392B;">Complete your profile for better matches:</h3>
               <div class="checklist-item">
                 <span class="check-icon">1</span>
                 <span><strong>Add photos</strong> - Show your personality with great pictures</span>
@@ -312,26 +331,13 @@ Happy connecting!
 - The Hantibink Team
     `;
 
-    // Send via SendGrid if available
-    if (sgMail) {
-      await sgMail.send({
-        to: email,
-        from: { email: FROM_EMAIL, name: FROM_NAME },
-        subject,
-        text: textContent,
-        html: htmlContent,
-      });
-      logger.info(`Welcome email sent to ${email} via SendGrid`);
-      return true;
-    }
-
-    // Development fallback - log
-    logger.info('========================================');
-    logger.info('WELCOME EMAIL (SendGrid not configured)');
-    logger.info(`Email: ${email}`);
-    logger.info('========================================');
-
-    return true;
+    return await sendEmail({
+      to: email,
+      subject,
+      html: htmlContent,
+      text: textContent,
+      logLabel: 'WELCOME EMAIL',
+    });
   } catch (error) {
     logger.error('Failed to send welcome email:', error);
     // Don't throw - welcome email is not critical
@@ -358,10 +364,10 @@ const sendPasswordResetEmail = async (email, name, code) => {
           body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; line-height: 1.6; color: #333; }
           .container { max-width: 600px; margin: 0 auto; padding: 20px; }
           .header { text-align: center; padding: 20px 0; }
-          .logo { font-size: 28px; font-weight: bold; color: #D32F2F; }
+          .logo { font-size: 28px; font-weight: bold; color: #C0392B; }
           .content { background: #f9f9f9; border-radius: 12px; padding: 30px; margin: 20px 0; }
-          .code-box { background: #fff; border: 2px solid #D32F2F; border-radius: 8px; padding: 20px; text-align: center; margin: 20px 0; }
-          .code { font-size: 36px; font-weight: bold; letter-spacing: 8px; color: #D32F2F; }
+          .code-box { background: #fff; border: 2px solid #C0392B; border-radius: 8px; padding: 20px; text-align: center; margin: 20px 0; }
+          .code { font-size: 36px; font-weight: bold; letter-spacing: 8px; color: #C0392B; }
           .footer { text-align: center; font-size: 12px; color: #999; margin-top: 30px; }
           .warning { background: #fff3cd; border-radius: 8px; padding: 15px; margin-top: 20px; font-size: 13px; }
         </style>
@@ -405,27 +411,14 @@ Didn't request this? If you didn't request a password reset, you can safely igno
 - The Hantibink Team
     `;
 
-    // Send via SendGrid if available
-    if (sgMail) {
-      await sgMail.send({
-        to: email,
-        from: { email: FROM_EMAIL, name: FROM_NAME },
-        subject,
-        text: textContent,
-        html: htmlContent,
-      });
-      logger.info(`Password reset email sent to ${email} via SendGrid`);
-      return true;
-    }
-
-    // Development fallback - log the code
-    logger.info('========================================');
-    logger.info('PASSWORD RESET CODE (SendGrid not configured)');
-    logger.info(`Email: ${email}`);
-    logger.info(`Code: ${code}`);
-    logger.info('========================================');
-
-    return true;
+    return await sendEmail({
+      to: email,
+      subject,
+      html: htmlContent,
+      text: textContent,
+      logLabel: 'PASSWORD RESET CODE',
+      logExtra: { Code: code },
+    });
   } catch (error) {
     logger.error('Failed to send password reset email:', error);
     // Don't throw - we still want to return success to prevent enumeration
@@ -433,11 +426,66 @@ Didn't request this? If you didn't request a password reset, you can safely igno
   }
 };
 
+/**
+ * Send the waitlist confirmation email.
+ */
+const sendWaitlistEmail = async (email, name) => {
+  try {
+    const subject = "You're on the Hantibink list 🎉";
+    const htmlContent = `
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <meta charset="utf-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <style>
+          body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; line-height: 1.6; color: #333; }
+          .container { max-width: 600px; margin: 0 auto; padding: 20px; }
+          .header { text-align: center; padding: 20px 0; }
+          .logo { font-size: 28px; font-weight: bold; color: #C0392B; }
+          .content { background: #f9f9f9; border-radius: 12px; padding: 30px; margin: 20px 0; }
+          .footer { text-align: center; font-size: 12px; color: #999; margin-top: 30px; }
+        </style>
+      </head>
+      <body>
+        <div class="container">
+          <div class="header"><div class="logo">Hantibink</div></div>
+          <div class="content">
+            <h2 style="margin-top: 0;">You're on the list${name ? `, ${name}` : ''}!</h2>
+            <p>Thanks for signing up. You'll be among the first to know when Hantibink launches.</p>
+            <p>Great connections are worth the wait. ❤️</p>
+          </div>
+          <div class="footer">
+            <p>You received this because this address joined the Hantibink waitlist. If this wasn't you, just ignore this email.</p>
+            <p>&copy; ${new Date().getFullYear()} Hantibink. All rights reserved.</p>
+          </div>
+        </div>
+      </body>
+      </html>
+    `;
+    const textContent = `You're on the list${name ? `, ${name}` : ''}!\n\nThanks for signing up. You'll be among the first to know when Hantibink launches.\n\n- The Hantibink Team`;
+
+    return await sendEmail({
+      to: email,
+      subject,
+      html: htmlContent,
+      text: textContent,
+      logLabel: 'WAITLIST CONFIRMATION',
+    });
+  } catch (error) {
+    logger.error('Failed to send waitlist email:', error);
+    // Never fail the signup because the confirmation email failed
+    return false;
+  }
+};
+
 module.exports = {
+  sendEmail,
   sendVerificationEmail,
   createEmailVerification,
   verifyEmailWithToken,
   resendVerificationEmail,
   sendWelcomeEmail,
   sendPasswordResetEmail,
+  sendWaitlistEmail,
 };
