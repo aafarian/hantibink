@@ -318,27 +318,48 @@ const passUser = async (senderId, receiverId, io = null) => {
       throw error;
     }
 
-    // Check if action already exists
-    const existingAction = await prisma.userAction.findUnique({
-      where: {
-        senderId_receiverId: {
+    const action = await prisma.$transaction(async (tx) => {
+      // Check if action already exists
+      const existingAction = await tx.userAction.findUnique({
+        where: {
+          senderId_receiverId: {
+            senderId,
+            receiverId,
+          },
+        },
+      });
+
+      if (existingAction) {
+        throw new Error('You have already acted on this user');
+      }
+
+      // Create the pass action
+      const created = await tx.userAction.create({
+        data: {
           senderId,
           receiverId,
+          action: 'PASS',
         },
-      },
-    });
+      });
 
-    if (existingAction) {
-      throw new Error('You have already acted on this user');
-    }
+      // Re-check the block inside the transaction: a block committed
+      // between the entry check and this insert rolls the PASS back
+      // instead of persisting an action for a blocked pair
+      const blocked = await tx.blockedUser.findFirst({
+        where: {
+          OR: [
+            { blockerId: senderId, blockedId: receiverId },
+            { blockerId: receiverId, blockedId: senderId },
+          ],
+        },
+      });
+      if (blocked) {
+        const error = new Error('User not available');
+        error.code = 'USER_NOT_AVAILABLE';
+        throw error;
+      }
 
-    // Create the pass action
-    const action = await prisma.userAction.create({
-      data: {
-        senderId,
-        receiverId,
-        action: 'PASS',
-      },
+      return created;
     });
 
     // If Socket.IO is available, emit an event to update the "Liked You" screen

@@ -95,7 +95,7 @@ router.post('/block/:userId', authenticateJWT, moderationValidation.userIdParam,
   try {
     const { userId: blockedId } = req.params;
     const { matchId } = req.body;
-    const result = await blockUser(req.user.id, blockedId, matchId);
+    const result = await blockUser(req.user.id, blockedId, matchId, req.app.get('io'));
 
     res.json({
       success: true,
@@ -165,7 +165,7 @@ router.get('/blocked', authenticateJWT, async (req, res) => {
 router.post('/unmatch/:matchId', authenticateJWT, moderationValidation.matchIdParam, async (req, res) => {
   try {
     const { matchId } = req.params;
-    const result = await unmatch(req.user.id, matchId);
+    const result = await unmatch(req.user.id, matchId, req.app.get('io'));
 
     res.json({
       success: true,
