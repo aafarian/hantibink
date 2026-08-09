@@ -6,10 +6,12 @@ import { useToast } from '../contexts/ToastContext';
 import ApiDataService from '../services/ApiDataService';
 import ApiClient from '../services/ApiClient';
 import Logger from '../utils/logger';
+import useAdminCheck from '../hooks/useAdminCheck';
 import { theme } from '../styles/theme';
 import ScreenWrapper from '../components/shared/ScreenWrapper';
 
 const AccountSettingsScreen = ({ navigation }) => {
+  const isAdmin = useAdminCheck();
   const { logout, userProfile } = useAuth();
   const { showSuccess, showError } = useToast();
   const [isProfilePaused, setIsProfilePaused] = useState(false);
@@ -221,6 +223,10 @@ const AccountSettingsScreen = ({ navigation }) => {
         </View>
 
         <View style={styles.settingsContainer}>
+          {isAdmin &&
+            renderSettingItem('shield-outline', 'Admin', 'App administration', () =>
+              navigation.navigate('Admin')
+            )}
           {renderSettingItem('log-out-outline', 'Logout', 'Sign out of your account', handleLogout)}
         </View>
 

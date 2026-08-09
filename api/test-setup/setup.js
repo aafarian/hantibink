@@ -104,6 +104,7 @@ beforeEach(async () => {
   await global.prisma.user.deleteMany();
   await global.prisma.waitlist.deleteMany();
   await global.prisma.appConfig.deleteMany();
+  await global.prisma.adminAuditLog.deleteMany();
 });
 
 // Cleanup after all tests

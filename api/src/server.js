@@ -73,6 +73,8 @@ const matchesRoutes = require('./routes/matches');
 const messagesRoutes = require('./routes/messages');
 const moderationRoutes = require('./routes/moderation');
 const waitlistRoutes = require('./routes/waitlist');
+const adminRoutes = require('./routes/admin');
+const configRoutes = require('./routes/config');
 
 // Initialize Express app and HTTP server
 const app = express();
@@ -235,6 +237,12 @@ apiRouter.use('/moderation', moderationRoutes);
 
 // Waitlist routes (public, rate-limited)
 apiRouter.use('/waitlist', waitlistRoutes);
+
+// Public runtime config (feature flags)
+apiRouter.use('/config', configRoutes);
+
+// Admin routes (email-allowlist gated; non-admins get 404s)
+apiRouter.use('/admin', adminRoutes);
 
 // Mount API router
 app.use('/api/v1', apiRouter);
