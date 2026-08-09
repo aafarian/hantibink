@@ -609,11 +609,21 @@ const ENDED_LABELS = {
  * Full per-round This or That review: every question asked so far with
  * each player's answer spelled out — richer than the in-panel history.
  */
-const ThisOrThatRecap = ({ view, myId }) => {
+const ThisOrThatRecap = ({ view, myId, live = false }) => {
   const rounds = view.rounds || [];
-  const played = rounds.slice(0, Math.min((view.currentRound ?? 0) + 1, rounds.length));
+  // The in-progress round only makes sense while the game is live — an
+  // ended game's half-answered round ("Not answered yet") can never be
+  // answered, so it's dropped from the recap entirely
+  const played = rounds.slice(
+    0,
+    Math.min((view.currentRound ?? 0) + (live ? 1 : 0), rounds.length)
+  );
   if (played.length === 0) {
-    return <Text style={styles.cardHint}>No rounds played yet</Text>;
+    return (
+      <Text style={styles.cardHint}>
+        {live ? 'No rounds played yet' : 'No rounds were completed'}
+      </Text>
+    );
   }
   return (
     <View>
@@ -696,7 +706,7 @@ export const GameRecapModal = ({ visible, session, myId, onClose }) => {
           <Text style={styles.pickerSubtitle}>{statusLine}</Text>
           <ScrollView style={styles.recapBody} keyboardShouldPersistTaps="handled">
             {session.gameType === 'THIS_OR_THAT' ? (
-              <ThisOrThatRecap view={session.view} myId={myId} />
+              <ThisOrThatRecap view={session.view} myId={myId} live={session.status === 'ACTIVE'} />
             ) : Body ? (
               <Body view={session.view} myId={myId} canAct={false} onMove={() => {}} />
             ) : null}
