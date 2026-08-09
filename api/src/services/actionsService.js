@@ -309,6 +309,15 @@ const passUser = async (senderId, receiverId, io = null) => {
       throw error;
     }
 
+    // Blocked pairs cannot interact; 404-style wording avoids revealing
+    // the block to the sender.
+    const { isUserBlocked } = require('./moderationService');
+    if (await isUserBlocked(senderId, receiverId)) {
+      const error = new Error('User not available');
+      error.code = 'USER_NOT_AVAILABLE';
+      throw error;
+    }
+
     // Check if action already exists
     const existingAction = await prisma.userAction.findUnique({
       where: {

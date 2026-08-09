@@ -100,6 +100,7 @@ const findMatchForMember = async (matchId, userId) => {
   return prisma.match.findFirst({
     where: {
       id: matchId,
+      isActive: true,
       OR: [{ user1Id: userId }, { user2Id: userId }],
     },
     select: { id: true, user1Id: true, user2Id: true, isActive: true },
