@@ -15,7 +15,7 @@ export const MatchListSkeleton = ({ rows = 6 }) => (
   <View style={styles.listContainer}>
     {Array.from({ length: rows }).map((_, index) => (
       <Reanimated.View
-        key={index}
+        key={`match-skeleton-${index}`}
         entering={FadeInDown.delay(index * 40).duration(300)}
         style={styles.matchRow}
       >
@@ -36,7 +36,7 @@ export const CardGridSkeleton = ({ cards = 6 }) => (
   <View style={styles.gridContainer}>
     {Array.from({ length: cards }).map((_, index) => (
       <Reanimated.View
-        key={index}
+        key={`grid-skeleton-${index}`}
         entering={FadeInDown.delay(index * 40).duration(300)}
         style={styles.gridCard}
       >

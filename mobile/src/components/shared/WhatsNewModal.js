@@ -1,5 +1,13 @@
 import React, { useEffect, useState, useCallback } from 'react';
-import { View, Text, Modal, StyleSheet, TouchableOpacity, Pressable } from 'react-native';
+import {
+  View,
+  Text,
+  Modal,
+  ScrollView,
+  StyleSheet,
+  TouchableOpacity,
+  Pressable,
+} from 'react-native';
 import * as Application from 'expo-application';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Ionicons } from '@expo/vector-icons';
@@ -71,7 +79,9 @@ const WhatsNewModal = () => {
           </View>
           <Text style={styles.headline}>{entry.headline}</Text>
           <Text style={styles.version}>Version {entry.version}</Text>
-          <View style={styles.notes}>
+          {/* Bounded so long notes or scaled-up text can't push the
+              dismiss button off-screen (see ScrollView-in-Modal pattern) */}
+          <ScrollView style={styles.notes} contentContainerStyle={styles.notesContent}>
             {entry.notes.map(note => (
               <View key={note} style={styles.noteRow}>
                 <Ionicons
@@ -83,7 +93,7 @@ const WhatsNewModal = () => {
                 <Text style={styles.noteText}>{note}</Text>
               </View>
             ))}
-          </View>
+          </ScrollView>
           <TouchableOpacity style={styles.button} onPress={dismiss}>
             <Text style={styles.buttonText}>Nice!</Text>
           </TouchableOpacity>
@@ -136,7 +146,11 @@ const styles = StyleSheet.create({
   },
   notes: {
     alignSelf: 'stretch',
+    maxHeight: 280,
     marginBottom: theme.spacing.xl,
+  },
+  notesContent: {
+    flexGrow: 0,
   },
   noteRow: {
     flexDirection: 'row',

@@ -1,9 +1,10 @@
 /**
  * Tolerant dotted-numeric version comparison (not full semver).
  *
- * Handles ragged lengths ("1.0" vs "1.0.1") and non-numeric segments
- * (falls back to per-segment string compare) so malformed server config can
- * never make the update UI nag incorrectly or crash.
+ * Handles ragged lengths ("1.0" vs "1.0.1"). Differing non-numeric
+ * segments compare as equal — their ordering is unknowable, and treating
+ * malformed server config as "newer" would raise a false soft-update
+ * banner or a non-dismissible force-update modal. Fail open, never nag.
  */
 
 /**
@@ -23,7 +24,7 @@ export const compareVersions = (a, b) => {
         return na < nb ? -1 : 1;
       }
     } else if (sa !== sb) {
-      return sa < sb ? -1 : 1;
+      return 0;
     }
   }
   return 0;

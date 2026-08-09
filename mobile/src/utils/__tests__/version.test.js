@@ -22,6 +22,14 @@ describe('compareVersions', () => {
     expect(() => compareVersions('abc', '1.0.0')).not.toThrow();
     expect(compareVersions('1.0.0', '1.0.0-beta')).not.toBeNaN();
   });
+
+  it('treats malformed segments as equal (fail open)', () => {
+    expect(compareVersions('1.0.0', 'not-a-version')).toBe(0);
+    expect(compareVersions('abc', 'xyz')).toBe(0);
+    expect(compareVersions('1.0.0', '1.0.x')).toBe(0);
+    // Identical malformed segments still let later numeric ones decide
+    expect(compareVersions('1.beta.2', '1.beta.3')).toBe(-1);
+  });
 });
 
 describe('updateState', () => {
