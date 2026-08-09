@@ -452,8 +452,9 @@ const undoLastAction = async (userId, io = null) => {
     // Use transaction to ensure all operations succeed or fail together
     let deactivatedMatchId = null;
     await prisma.$transaction(async (tx) => {
-      // If it was a LIKE that created a match, we need to deactivate the match
-      if (lastAction.action === 'LIKE') {
+      // LIKE and SUPER_LIKE both create matches — undoing either must
+      // deactivate a match it formed
+      if (lastAction.action === 'LIKE' || lastAction.action === 'SUPER_LIKE') {
         const match = await tx.match.findFirst({
           where: {
             OR: [
@@ -493,11 +494,13 @@ const undoLastAction = async (userId, io = null) => {
           }
         }
 
-        // Decrement total likes for receiver
-        await tx.user.update({
-          where: { id: lastAction.receiverId },
-          data: { totalLikes: { decrement: 1 } },
-        });
+        // Decrement total likes for receiver (only LIKE increments it)
+        if (lastAction.action === 'LIKE') {
+          await tx.user.update({
+            where: { id: lastAction.receiverId },
+            data: { totalLikes: { decrement: 1 } },
+          });
+        }
       }
 
       // Delete the action
