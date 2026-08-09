@@ -75,25 +75,90 @@ describe('Games engines (pure)', () => {
     ).toThrow();
   });
 
-  it('Question Roulette: simultaneous reveal', () => {
+  it('Question Roulette: creator answer commits at init, simultaneous reveal', () => {
     const engine = getEngine('QUESTION_ROULETTE');
-    let state = engine.init({ creatorId: 'u1', opponentId: 'u2', usedIds: [] });
-    state = engine.applyMove(state, 'u1', { type: 'answer', text: 'Sunrise hikes' });
+    let state = engine.init({
+      creatorId: 'u1',
+      opponentId: 'u2',
+      usedIds: [],
+      payload: { answer: 'Sunrise hikes' },
+    });
 
     const u2view = engine.viewFor(state, 'u2');
     expect(u2view.answers).toEqual({});
     expect(u2view.opponentAnswered).toBe(true);
     expect(JSON.stringify(u2view)).not.toContain('Sunrise hikes');
 
+    // Creator already answered at init — no double answer
+    expect(() => engine.applyMove(state, 'u1', { type: 'answer', text: 'again' })).toThrow();
+
     state = engine.applyMove(state, 'u2', { type: 'answer', text: 'Late night drives' });
     expect(engine.isComplete(state)).toBe(true);
     expect(engine.viewFor(state, 'u2').answers.u1).toBe('Sunrise hikes');
   });
 
+  it('Question Roulette: init without an answer is rejected (no draft sessions)', () => {
+    const engine = getEngine('QUESTION_ROULETTE');
+    expect(() => engine.init({ creatorId: 'u1', opponentId: 'u2', usedIds: [] })).toThrow();
+    expect(() =>
+      engine.init({ creatorId: 'u1', opponentId: 'u2', usedIds: [], payload: { answer: '  ' } }),
+    ).toThrow();
+    expect(() =>
+      engine.init({
+        creatorId: 'u1',
+        opponentId: 'u2',
+        usedIds: [],
+        payload: { questionId: 'qr_does_not_exist', answer: 'hi' },
+      }),
+    ).toThrow();
+  });
+
+  const initRiddle = (engine, usedIds = []) => {
+    const [offer] = engine.offers({ usedIds });
+    return engine.init({
+      creatorId: 'u1',
+      opponentId: 'u2',
+      usedIds,
+      payload: { riddleId: offer.id },
+    });
+  };
+
+  it('Emoji Riddle: offers include answers for the creator; chosen riddle starts guessing', () => {
+    const engine = getEngine('EMOJI_RIDDLE');
+    const offers = engine.offers({ usedIds: [] });
+    expect(offers.length).toBe(3);
+    for (const offer of offers) {
+      expect(offer.emoji).toBeTruthy();
+      expect(offer.answer).toBeTruthy();
+      expect(offer.category).toBeTruthy();
+    }
+
+    const state = engine.init({
+      creatorId: 'u1',
+      opponentId: 'u2',
+      usedIds: [],
+      payload: { riddleId: offers[1].id },
+    });
+    expect(state.phase).toBe('guessing');
+    expect(state.riddleId).toBe(offers[1].id);
+  });
+
+  it('Emoji Riddle: init requires a riddleId from the offered set', () => {
+    const engine = getEngine('EMOJI_RIDDLE');
+    expect(() => engine.init({ creatorId: 'u1', opponentId: 'u2', usedIds: [] })).toThrow();
+    expect(() =>
+      engine.init({
+        creatorId: 'u1',
+        opponentId: 'u2',
+        usedIds: [],
+        payload: { riddleId: 'er_not_offered' },
+      }),
+    ).toThrow();
+  });
+
   it('Emoji Riddle: normalized matching, hint after 2 misses, answer hidden', () => {
     const engine = getEngine('EMOJI_RIDDLE');
-    let state = engine.init({ creatorId: 'u1', opponentId: 'u2', usedIds: [] });
-    state = engine.applyMove(state, 'u1', { type: 'confirm-riddle' });
+    let state = initRiddle(engine);
 
     let view = engine.viewFor(state, 'u2');
     expect(view.answer).toBeUndefined();
@@ -112,8 +177,7 @@ describe('Games engines (pure)', () => {
 
   it('Emoji Riddle: exhausting attempts ends the game unsolved', () => {
     const engine = getEngine('EMOJI_RIDDLE');
-    let state = engine.init({ creatorId: 'u1', opponentId: 'u2', usedIds: [] });
-    state = engine.applyMove(state, 'u1', { type: 'confirm-riddle' });
+    let state = initRiddle(engine);
     for (const guess of ['a', 'b', 'c']) {
       state = engine.applyMove(state, 'u2', { type: 'guess', text: guess });
     }
@@ -232,13 +296,9 @@ describe('Games Routes', () => {
     const created = await request(app)
       .post(`/games/${match.id}/sessions`)
       .set('Authorization', auth1.authHeader)
-      .send({ gameType: 'QUESTION_ROULETTE' });
+      .send({ gameType: 'QUESTION_ROULETTE', payload: { answer: 'Answer one' } });
     const sessionId = created.body.data.id;
 
-    await request(app)
-      .post(`/games/${match.id}/sessions/${sessionId}/moves`)
-      .set('Authorization', auth1.authHeader)
-      .send({ type: 'answer', text: 'Answer one' });
     const done = await request(app)
       .post(`/games/${match.id}/sessions/${sessionId}/moves`)
       .set('Authorization', auth2.authHeader)
@@ -251,6 +311,45 @@ describe('Games Routes', () => {
       where: { matchId: match.id, messageType: 'GAME', metadata: { contains: 'game-summary' } },
     });
     expect(summary).not.toBeNull();
+  });
+
+  it('offers endpoint returns riddle choices to the creator, nothing persisted', async () => {
+    const { auth1, match } = await setupPair();
+
+    const response = await request(app)
+      .get(`/games/${match.id}/offers`)
+      .query({ gameType: 'EMOJI_RIDDLE' })
+      .set('Authorization', auth1.authHeader);
+
+    expect(response.status).toBe(200);
+    expect(response.body.data.offers.length).toBe(3);
+    expect(response.body.data.offers[0].answer).toBeTruthy();
+
+    // Browsing offers creates no session and sends no message
+    const sessions = await global.prisma.gameSession.count({ where: { matchId: match.id } });
+    const messages = await global.prisma.message.count({ where: { matchId: match.id } });
+    expect(sessions).toBe(0);
+    expect(messages).toBe(0);
+  });
+
+  it('roulette without an answer and riddle without a chosen riddle are rejected', async () => {
+    const { auth1, match } = await setupPair();
+
+    const noAnswer = await request(app)
+      .post(`/games/${match.id}/sessions`)
+      .set('Authorization', auth1.authHeader)
+      .send({ gameType: 'QUESTION_ROULETTE' });
+    expect(noAnswer.status).toBe(400);
+
+    const noRiddle = await request(app)
+      .post(`/games/${match.id}/sessions`)
+      .set('Authorization', auth1.authHeader)
+      .send({ gameType: 'EMOJI_RIDDLE' });
+    expect(noRiddle.status).toBe(400);
+
+    // Failed commits leave nothing behind — no session, no chat message
+    const sessions = await global.prisma.gameSession.count({ where: { matchId: match.id } });
+    expect(sessions).toBe(0);
   });
 
   it('decline ends the session', async () => {
@@ -281,7 +380,7 @@ describe('Games Routes', () => {
         const started = await request(app)
           .post(`/games/${match.id}/sessions`)
           .set('Authorization', auth1.authHeader)
-          .send({ gameType: 'QUESTION_ROULETTE' });
+          .send({ gameType: 'QUESTION_ROULETTE', payload: { answer: `Answer ${i}` } });
         expect(started.status).toBe(201);
         await request(app)
           .post(`/games/${match.id}/sessions/${started.body.data.id}/decline`)
@@ -290,7 +389,7 @@ describe('Games Routes', () => {
       const fourth = await request(app)
         .post(`/games/${match.id}/sessions`)
         .set('Authorization', auth1.authHeader)
-        .send({ gameType: 'QUESTION_ROULETTE' });
+        .send({ gameType: 'QUESTION_ROULETTE', payload: { answer: 'Blocked anyway' } });
       expect(fourth.status).toBe(403);
 
       // This or That stays free
@@ -308,10 +407,18 @@ describe('Games Routes', () => {
         where: { id: auth2.user.id },
         data: { isPremium: true },
       });
+      const offers = await request(app)
+        .get(`/games/${match.id}/offers`)
+        .query({ gameType: 'EMOJI_RIDDLE' })
+        .set('Authorization', auth1.authHeader);
+      expect(offers.status).toBe(200);
       const premiumPair = await request(app)
         .post(`/games/${match.id}/sessions`)
         .set('Authorization', auth1.authHeader)
-        .send({ gameType: 'EMOJI_RIDDLE' });
+        .send({
+          gameType: 'EMOJI_RIDDLE',
+          payload: { riddleId: offers.body.data.offers[0].id },
+        });
       expect(premiumPair.status).toBe(201);
     } finally {
       delete process.env.GAMES_GATING_ENABLED;

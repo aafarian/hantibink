@@ -44,36 +44,75 @@ const makeMoveId = () => `mv_${Date.now()}_${Math.random().toString(36).slice(2,
 
 /* --------------------------- Picker (modal) --------------------------- */
 
-export const GamePickerSheet = ({ visible, onClose, onPick }) => (
-  <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
-    <View style={styles.pickerContainer}>
-      <Pressable style={styles.backdrop} onPress={onClose} />
-      <View style={styles.pickerContent}>
-        <Text style={styles.pickerTitle}>Break the ice 🧊</Text>
-        <Text style={styles.pickerSubtitle}>Play right here in the chat</Text>
-        {Object.entries(GAME_META).map(([type, meta]) => (
-          <TouchableOpacity
-            key={type}
-            style={styles.pickerRow}
-            onPress={() => {
-              Haptics.selectionAsync();
-              onPick(type);
-            }}
-          >
-            <View style={styles.pickerIcon}>
-              <Ionicons name={meta.icon} size={22} color={theme.colors.primary} />
-            </View>
-            <View style={styles.pickerRowText}>
-              <Text style={styles.pickerRowTitle}>{meta.label}</Text>
-              <Text style={styles.pickerRowTagline}>{meta.tagline}</Text>
-            </View>
-            <Ionicons name="chevron-forward" size={18} color={theme.colors.text.muted} />
-          </TouchableOpacity>
-        ))}
+export const GamePickerSheet = ({ visible, onClose, onPick, activeSession, myId, onEndActive }) => {
+  const hasActiveGame = activeSession && activeSession.status === 'ACTIVE';
+  const activeMeta = hasActiveGame ? GAME_META[activeSession.gameType] : null;
+  const isActiveCreator = hasActiveGame && activeSession.createdBy === myId;
+
+  return (
+    <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
+      <View style={styles.pickerContainer}>
+        <Pressable style={styles.backdrop} onPress={onClose} />
+        <View style={styles.pickerContent}>
+          <Text style={styles.pickerTitle}>Break the ice</Text>
+          {hasActiveGame ? (
+            <>
+              <Text style={styles.pickerSubtitle}>
+                Finish or end your current game to start a new one
+              </Text>
+              <View style={styles.activePanel}>
+                <View style={styles.pickerIcon}>
+                  <Ionicons name={activeMeta.icon} size={22} color={theme.colors.primary} />
+                </View>
+                <View style={styles.pickerRowText}>
+                  <Text style={styles.pickerRowTitle}>{activeMeta.label}</Text>
+                  <Text style={styles.pickerRowTagline}>{turnLabel(activeSession, myId)}</Text>
+                </View>
+              </View>
+              <TouchableOpacity style={styles.primaryButton} onPress={onClose}>
+                <Text style={styles.primaryButtonText}>Back to the game</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={styles.secondaryButton}
+                onPress={() => {
+                  Haptics.selectionAsync();
+                  onEndActive();
+                }}
+              >
+                <Text style={styles.secondaryButtonText}>
+                  {isActiveCreator ? 'End this game' : 'Decline this game'}
+                </Text>
+              </TouchableOpacity>
+            </>
+          ) : (
+            <>
+              <Text style={styles.pickerSubtitle}>Play right here in the chat</Text>
+              {Object.entries(GAME_META).map(([type, meta]) => (
+                <TouchableOpacity
+                  key={type}
+                  style={styles.pickerRow}
+                  onPress={() => {
+                    Haptics.selectionAsync();
+                    onPick(type);
+                  }}
+                >
+                  <View style={styles.pickerIcon}>
+                    <Ionicons name={meta.icon} size={22} color={theme.colors.primary} />
+                  </View>
+                  <View style={styles.pickerRowText}>
+                    <Text style={styles.pickerRowTitle}>{meta.label}</Text>
+                    <Text style={styles.pickerRowTagline}>{meta.tagline}</Text>
+                  </View>
+                  <Ionicons name="chevron-forward" size={18} color={theme.colors.text.muted} />
+                </TouchableOpacity>
+              ))}
+            </>
+          )}
+        </View>
       </View>
-    </View>
-  </Modal>
-);
+    </Modal>
+  );
+};
 
 /* ------------------------ Two Truths composer ------------------------- */
 
@@ -134,6 +173,103 @@ export const TwoTruthsComposer = ({ visible, onClose, onSubmit }) => {
   );
 };
 
+/* ------------------------- Roulette composer -------------------------- */
+
+/**
+ * Pre-commit draft: the creator sees the question and answers it before
+ * anything exists server-side. Closing is a silent cancel.
+ */
+export const RouletteComposer = ({ visible, question, onClose, onSubmit }) => {
+  const [draft, setDraft] = useState('');
+
+  return (
+    <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
+      <View style={styles.pickerContainer}>
+        <Pressable style={styles.backdrop} onPress={onClose} />
+        <View style={styles.pickerContent}>
+          <View style={styles.composerHeader}>
+            <Text style={styles.pickerTitle}>Question Roulette</Text>
+            <TouchableOpacity
+              onPress={onClose}
+              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+              accessibilityLabel="Cancel"
+            >
+              <Ionicons name="close" size={22} color={theme.colors.text.muted} />
+            </TouchableOpacity>
+          </View>
+          <Text style={styles.pickerSubtitle}>
+            Answer first — they only see the game once you've committed
+          </Text>
+          <Text style={styles.cardPrompt}>{question}</Text>
+          <TextInput
+            style={styles.answerInput}
+            placeholder="Your answer (they can't see it early)"
+            placeholderTextColor={theme.colors.text.muted}
+            value={draft}
+            onChangeText={setDraft}
+            maxLength={280}
+            multiline
+          />
+          <TouchableOpacity
+            style={[styles.primaryButton, !draft.trim() && styles.primaryButtonDisabled]}
+            disabled={!draft.trim()}
+            onPress={() => {
+              onSubmit(draft.trim());
+              setDraft('');
+            }}
+          >
+            <Text style={styles.primaryButtonText}>Send the question</Text>
+          </TouchableOpacity>
+        </View>
+      </View>
+    </Modal>
+  );
+};
+
+/* ------------------------- Riddle picker sheet ------------------------- */
+
+/**
+ * The creator chooses which riddle to send, seeing each answer up front.
+ * Nothing is created server-side until they pick one.
+ */
+export const RiddlePickerSheet = ({ visible, offers, onClose, onSubmit }) => (
+  <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
+    <View style={styles.pickerContainer}>
+      <Pressable style={styles.backdrop} onPress={onClose} />
+      <View style={styles.pickerContent}>
+        <View style={styles.composerHeader}>
+          <Text style={styles.pickerTitle}>Emoji Riddle</Text>
+          <TouchableOpacity
+            onPress={onClose}
+            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+            accessibilityLabel="Cancel"
+          >
+            <Ionicons name="close" size={22} color={theme.colors.text.muted} />
+          </TouchableOpacity>
+        </View>
+        <Text style={styles.pickerSubtitle}>Pick the riddle they'll have to crack</Text>
+        {(offers || []).map(offer => (
+          <TouchableOpacity
+            key={offer.id}
+            style={styles.riddleOption}
+            onPress={() => {
+              Haptics.selectionAsync();
+              onSubmit(offer.id);
+            }}
+          >
+            <Text style={styles.riddleOptionEmoji}>{offer.emoji}</Text>
+            <View style={styles.pickerRowText}>
+              <Text style={styles.pickerRowTitle}>{offer.answer}</Text>
+              <Text style={styles.pickerRowTagline}>{offer.category}</Text>
+            </View>
+            <Ionicons name="chevron-forward" size={18} color={theme.colors.text.muted} />
+          </TouchableOpacity>
+        ))}
+      </View>
+    </View>
+  </Modal>
+);
+
 /* --------------------------- Active game bar -------------------------- */
 
 const turnLabel = (session, myId) => {
@@ -154,9 +290,6 @@ const turnLabel = (session, myId) => {
     return view.answers && view.answers[myId] ? 'Waiting for their answer…' : 'Your answer awaits';
   }
   if (gameType === 'EMOJI_RIDDLE') {
-    if (view.phase === 'picking') {
-      return view.players?.creatorId === myId ? 'Confirm your riddle' : 'Riddle incoming…';
-    }
     return view.players?.creatorId === myId ? 'They are guessing…' : 'Your guess!';
   }
   return 'Game on';
@@ -227,7 +360,7 @@ const ThisOrThatBody = ({ view, canAct, onMove }) => {
           </View>
           {round.myPick && !round.picks && (
             <Text style={styles.cardHint}>
-              {round.opponentPicked ? 'Revealing…' : 'Waiting for their pick 👀'}
+              {round.opponentPicked ? 'Revealing…' : 'Waiting for their pick'}
             </Text>
           )}
         </>
@@ -285,7 +418,7 @@ const RouletteBody = ({ view, myId, onMove }) => {
         <Text style={styles.cardHint}>
           {view.opponentAnswered
             ? 'Revealing…'
-            : 'Answered! Waiting for theirs — reveal is simultaneous 🤝'}
+            : 'Answered! Waiting for theirs — the reveal is simultaneous'}
         </Text>
       ) : (
         <>
@@ -321,20 +454,9 @@ const EmojiRiddleBody = ({ view, myId, onMove }) => {
   return (
     <View>
       <Text style={styles.riddleEmoji}>{view.emoji}</Text>
-      {view.phase === 'picking' ? (
-        isCreator ? (
-          <TouchableOpacity
-            style={styles.primaryButton}
-            onPress={() => onMove({ type: 'confirm-riddle', clientMoveId: makeMoveId() })}
-          >
-            <Text style={styles.primaryButtonText}>Send this riddle</Text>
-          </TouchableOpacity>
-        ) : (
-          <Text style={styles.cardHint}>They're choosing a riddle…</Text>
-        )
-      ) : done ? (
+      {done ? (
         <Text style={styles.cardPrompt}>
-          {view.solved ? `Solved! It was ${view.answer} 🎉` : `It was "${view.answer}" 🙈`}
+          {view.solved ? `Solved! It was ${view.answer}` : `It was "${view.answer}"`}
         </Text>
       ) : isCreator ? (
         <Text style={styles.cardHint}>
@@ -471,6 +593,44 @@ const styles = StyleSheet.create({
     marginRight: theme.spacing.md,
   },
   pickerRowText: { flex: 1 },
+  activePanel: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: theme.colors.background.secondary,
+    borderRadius: theme.borderRadius.md,
+    padding: theme.spacing.md,
+    marginBottom: theme.spacing.sm,
+  },
+  composerHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  riddleOption: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: theme.colors.border.medium,
+    borderRadius: theme.borderRadius.md,
+    padding: theme.spacing.md,
+    marginBottom: theme.spacing.sm,
+    backgroundColor: theme.colors.background.primary,
+  },
+  riddleOptionEmoji: {
+    fontSize: 24,
+    marginRight: theme.spacing.md,
+  },
+  secondaryButton: {
+    borderRadius: theme.borderRadius.md,
+    paddingVertical: theme.spacing.md,
+    alignItems: 'center',
+    marginTop: theme.spacing.sm,
+  },
+  secondaryButtonText: {
+    color: theme.colors.text.secondary,
+    fontSize: theme.typography.sizes.md,
+    fontFamily: theme.typography.fontFamily.semibold,
+  },
   pickerRowTitle: {
     fontSize: theme.typography.sizes.md,
     fontFamily: theme.typography.fontFamily.semibold,

@@ -55,6 +55,8 @@ import useGameSession from '../hooks/useGameSession';
 import {
   GamePickerSheet,
   TwoTruthsComposer,
+  RouletteComposer,
+  RiddlePickerSheet,
   ActiveGameBar,
   GameMessageCard,
 } from '../components/games/GameComponents';
@@ -101,24 +103,22 @@ const ChatScreen = ({ route, navigation }) => {
   const [isRecording, setIsRecording] = useState(false);
   const [isUploadingAudio, setIsUploadingAudio] = useState(false);
 
-  // In-chat games
+  // In-chat games. Roulette and the riddle are drafts until the creator
+  // commits (answers / picks) — no session exists server-side before that.
   const [showGamePicker, setShowGamePicker] = useState(false);
   const [showTwoTruthsComposer, setShowTwoTruthsComposer] = useState(false);
+  const [rouletteOffer, setRouletteOffer] = useState(null);
+  const [riddleOffers, setRiddleOffers] = useState(null);
   const {
     session: gameSession,
     refresh: refreshGameSession,
     applySnapshot: applyGameSnapshot,
   } = useGameSession(match.matchId);
 
-  const handlePickGame = useCallback(
-    async gameType => {
-      setShowGamePicker(false);
-      if (gameType === 'TWO_TRUTHS') {
-        setShowTwoTruthsComposer(true);
-        return;
-      }
+  const createGame = useCallback(
+    async (gameType, payload = null) => {
       try {
-        const created = await GamesApiService.createSession(match.matchId, gameType);
+        const created = await GamesApiService.createSession(match.matchId, gameType, payload);
         applyGameSnapshot(created);
       } catch (error) {
         showError(error.message || 'Could not start the game');
@@ -127,17 +127,54 @@ const ChatScreen = ({ route, navigation }) => {
     [match.matchId, showError, applyGameSnapshot]
   );
 
+  const handlePickGame = useCallback(
+    async gameType => {
+      setShowGamePicker(false);
+      if (gameType === 'TWO_TRUTHS') {
+        setShowTwoTruthsComposer(true);
+        return;
+      }
+      if (gameType === 'QUESTION_ROULETTE' || gameType === 'EMOJI_RIDDLE') {
+        try {
+          const { offers } = await GamesApiService.getOffers(match.matchId, gameType);
+          if (gameType === 'QUESTION_ROULETTE') {
+            setRouletteOffer(offers?.[0] || null);
+          } else {
+            setRiddleOffers(offers || []);
+          }
+        } catch (error) {
+          showError(error.message || 'Could not load the game');
+        }
+        return;
+      }
+      createGame(gameType);
+    },
+    [match.matchId, showError, createGame]
+  );
+
   const handleTwoTruthsSubmit = useCallback(
     async payload => {
       setShowTwoTruthsComposer(false);
-      try {
-        const created = await GamesApiService.createSession(match.matchId, 'TWO_TRUTHS', payload);
-        applyGameSnapshot(created);
-      } catch (error) {
-        showError(error.message || 'Could not start the game');
-      }
+      createGame('TWO_TRUTHS', payload);
     },
-    [match.matchId, showError, applyGameSnapshot]
+    [createGame]
+  );
+
+  const handleRouletteSubmit = useCallback(
+    async answer => {
+      const questionId = rouletteOffer?.id;
+      setRouletteOffer(null);
+      createGame('QUESTION_ROULETTE', { questionId, answer });
+    },
+    [rouletteOffer?.id, createGame]
+  );
+
+  const handleRiddleSubmit = useCallback(
+    async riddleId => {
+      setRiddleOffers(null);
+      createGame('EMOJI_RIDDLE', { riddleId });
+    },
+    [createGame]
   );
 
   const handleGameMove = useCallback(
@@ -161,6 +198,28 @@ const ChatScreen = ({ route, navigation }) => {
       showError('Could not decline');
     }
   }, [match.matchId, gameSession?.id, showError, applyGameSnapshot]);
+
+  // From the picker's "finish or end first" state: the creator forfeits
+  // their own game, the opponent declines it
+  const handleEndActiveGame = useCallback(async () => {
+    setShowGamePicker(false);
+    try {
+      const isCreator = gameSession?.createdBy === user.uid;
+      const ended = isCreator
+        ? await GamesApiService.forfeit(match.matchId, gameSession?.id)
+        : await GamesApiService.decline(match.matchId, gameSession?.id);
+      applyGameSnapshot(ended);
+    } catch (error) {
+      showError('Could not end the game');
+    }
+  }, [
+    match.matchId,
+    gameSession?.id,
+    gameSession?.createdBy,
+    user.uid,
+    showError,
+    applyGameSnapshot,
+  ]);
 
   // Refs
   const flatListRef = useRef(null);
@@ -404,8 +463,15 @@ const ChatScreen = ({ route, navigation }) => {
         const currentUserId = String(user.uid || '');
         const messageId = data.message?.id;
 
-        // Skip if it's our own message OR if we already added this message (via API response)
-        if (messageSenderId === currentUserId || sentMessageIdsRef.current.has(messageId)) {
+        // Skip our own optimistically-added messages. Server-created GAME
+        // messages (start/summary cards) are never in the optimistic list,
+        // so they flow through even when we authored the action —
+        // handleNewMessage dedupes by id if both paths deliver.
+        const isServerCreated = data.message?.messageType === 'GAME';
+        if (
+          sentMessageIdsRef.current.has(messageId) ||
+          (messageSenderId === currentUserId && !isServerCreated)
+        ) {
           Logger.info(`📩 Skipping own/duplicate message: ${messageId}`);
           return;
         }
@@ -506,6 +572,9 @@ const ChatScreen = ({ route, navigation }) => {
       senderName: msg.senderName,
       createdAt: msg.timestamp || msg.createdAt,
       messageType: msg.messageType || 'TEXT',
+      // Game cards render from metadata — dropping it turns them into
+      // plain text bubbles until the next full reload
+      metadata: msg.metadata || null,
       isRead: msg.isRead || false,
       isDelivered: msg.isDelivered || false,
       reactions: msg.reactions || {},
@@ -1350,12 +1419,29 @@ const ChatScreen = ({ route, navigation }) => {
             visible={showGamePicker}
             onClose={() => setShowGamePicker(false)}
             onPick={handlePickGame}
+            activeSession={gameSession}
+            myId={user.uid}
+            onEndActive={handleEndActiveGame}
           />
 
           <TwoTruthsComposer
             visible={showTwoTruthsComposer}
             onClose={() => setShowTwoTruthsComposer(false)}
             onSubmit={handleTwoTruthsSubmit}
+          />
+
+          <RouletteComposer
+            visible={!!rouletteOffer}
+            question={rouletteOffer?.question}
+            onClose={() => setRouletteOffer(null)}
+            onSubmit={handleRouletteSubmit}
+          />
+
+          <RiddlePickerSheet
+            visible={!!riddleOffers}
+            offers={riddleOffers || []}
+            onClose={() => setRiddleOffers(null)}
+            onSubmit={handleRiddleSubmit}
           />
           <GifPicker
             visible={showGifPicker}

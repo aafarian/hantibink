@@ -17,6 +17,11 @@ const throwIfGated = response => {
 };
 
 const GamesApiService = {
+  async getOffers(matchId, gameType) {
+    const response = await apiClient.get(`/games/${matchId}/offers`, { gameType });
+    return throwIfGated(response);
+  },
+
   async createSession(matchId, gameType, payload = null) {
     const response = await apiClient.post(`/games/${matchId}/sessions`, {
       gameType,

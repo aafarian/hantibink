@@ -1,5 +1,5 @@
 const express = require('express');
-const { param, body } = require('express-validator');
+const { param, body, query } = require('express-validator');
 const { authenticateJWT } = require('../middleware/auth');
 const { handleValidationErrors } = require('../middleware/validation');
 const { writeBurstLimiter } = require('../middleware/rateLimiters');
@@ -10,6 +10,25 @@ const router = express.Router();
 
 const ID = (name) => param(name).notEmpty().isString().isLength({ max: 64 });
 const io = (req) => req.app.get('io');
+
+/**
+ * @route   GET /api/games/:matchId/offers?gameType=…
+ * @desc    Creator-side prompt offers (roulette question, riddle choices)
+ *          rendered in the pre-commit composer. Nothing is persisted.
+ */
+router.get(
+  '/:matchId/offers',
+  authenticateJWT,
+  [
+    ID('matchId'),
+    query('gameType').isIn(['QUESTION_ROULETTE', 'EMOJI_RIDDLE']),
+    handleValidationErrors,
+  ],
+  catchAsync(async (req, res) => {
+    const data = await games.getGameOffers(req.params.matchId, req.user.id, req.query.gameType);
+    res.json({ success: true, data });
+  }),
+);
 
 /**
  * @route   POST /api/games/:matchId/sessions   {gameType, payload?}
@@ -73,7 +92,7 @@ router.post(
   [
     ID('matchId'),
     ID('sessionId'),
-    body('type').isIn(['pick', 'guess', 'answer', 'confirm-riddle']),
+    body('type').isIn(['pick', 'guess', 'answer']),
     body('clientMoveId').optional().isString().isLength({ max: 64 }),
     body('choice').optional().isIn(['A', 'B']),
     body('index').optional().isInt({ min: 0, max: 2 }),

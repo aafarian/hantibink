@@ -151,6 +151,27 @@ const redactedSession = (session, viewerId) => ({
   view: getEngine(session.gameType).viewFor(session.state, viewerId),
 });
 
+/**
+ * Creator-side prompt offers for games with server content (roulette
+ * question, riddle choices). The client renders these in the pre-commit
+ * composer; nothing is persisted and the opponent sees nothing.
+ */
+const getGameOffers = async (matchId, userId, gameType) => {
+  const match = await assertMembership(matchId, userId);
+  const engine = getEngine(gameType);
+  if (typeof engine.offers !== 'function') {
+    throw new AppError('This game has no prompt offers', 400);
+  }
+  const gate = await canStartGame(userId, match, gameType);
+  if (!gate.allowed) {
+    const error = new AppError(gate.message, 403);
+    error.code = gate.error;
+    throw error;
+  }
+  const usedIds = await getUsedPromptIds(matchId, gameType);
+  return { gameType, offers: engine.offers({ usedIds }) };
+};
+
 const createSession = async (matchId, userId, gameType, payload, io = null) => {
   const match = await assertMembership(matchId, userId);
   const opponentId = match.user1Id === userId ? match.user2Id : match.user1Id;
@@ -201,7 +222,7 @@ const createSession = async (matchId, userId, gameType, payload, io = null) => {
       matchId,
       userId,
       {
-        content: `🎮 ${GAME_LABELS[gameType]}`,
+        content: GAME_LABELS[gameType],
         messageType: 'GAME',
         metadata: JSON.stringify({ kind: 'game-start', sessionId: session.id, gameType }),
       },
@@ -282,7 +303,7 @@ const submitMove = async (matchId, sessionId, userId, move, io = null) => {
         matchId,
         userId,
         {
-          content: `🎮 ${GAME_LABELS[fresh.gameType]}: ${summary.title}`,
+          content: `${GAME_LABELS[fresh.gameType]}: ${summary.title}`,
           messageType: 'GAME',
           metadata: JSON.stringify({
             kind: 'game-summary',
@@ -329,6 +350,7 @@ const endSession = async (matchId, sessionId, userId, status, io = null) => {
 };
 
 module.exports = {
+  getGameOffers,
   createSession,
   getActiveSession,
   getSession,

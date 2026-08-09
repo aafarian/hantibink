@@ -5,6 +5,13 @@
  *   viewFor(state, viewerId) -> redacted view    (NEVER leaks secret picks)
  *   isComplete(state) -> boolean
  *   summary(state, names) -> {title, line}       (copy for the summary card)
+ *   offers({usedIds}) -> creator-side prompt choices (only where the game
+ *     has content to preview before committing; answers included by design)
+ *
+ * Sessions exist only once the creator has committed their part (answered
+ * the roulette question, chosen the riddle, authored the statements) — the
+ * "draft" lives client-side, so the opponent never sees or gets notified
+ * about a game that wasn't actually sent.
  *
  * The service layer owns persistence, membership, idempotency, sockets.
  */
@@ -110,12 +117,12 @@ const thisOrThat = {
     const pct = Math.round((matches / total) * 100);
     const line =
       matches === total
-        ? 'Did you two share a brain?! 🤯'
+        ? 'Did you two share a brain?!'
         : pct >= 70
-          ? 'Dangerously compatible 🔥'
+          ? 'Dangerously compatible'
           : pct >= 40
-            ? 'Opposites attract, right? 😏'
-            : 'Well… you know what they say about opposites 😅';
+            ? 'Opposites attract, right?'
+            : 'Well… you know what they say about opposites';
     return { title: `${matches}/${total} matched (${pct}%)`, line, matches, total };
   },
 };
@@ -176,7 +183,7 @@ const twoTruths = {
   summary: (state) => {
     const caught = state.guessIndex === state.lieIndex;
     return {
-      title: caught ? 'Lie detected! 🕵️' : 'Fooled them 😏',
+      title: caught ? 'Lie detected!' : 'Fooled them',
       line: caught
         ? 'The guesser saw right through it.'
         : `The lie was: "${state.statements[state.lieIndex]}"`,
@@ -188,14 +195,30 @@ const twoTruths = {
 /* --------------------------- Question Roulette ------------------------- */
 
 const questionRoulette = {
-  init: ({ creatorId, opponentId, usedIds }) => {
-    const [question] = pickUnused(QUESTION_ROULETTE, usedIds, 1);
+  offers: ({ usedIds }) =>
+    pickUnused(QUESTION_ROULETTE, usedIds, 1).map(({ id, question }) => ({ id, question })),
+
+  init: ({ creatorId, opponentId, usedIds, payload }) => {
+    const offered = pickUnused(QUESTION_ROULETTE, usedIds, 1);
+    let question = offered[0];
+    if (payload?.questionId) {
+      question = offered.find((q) => q.id === payload.questionId);
+      if (!question) {
+        throw new AppError('questionId must be the offered question', 400);
+      }
+    }
+    // Creating IS the commit: the creator answers the question they were
+    // shown, so the opponent is only ever notified about a playable game
+    const answer = String(payload?.answer ?? '').trim();
+    if (!answer || answer.length > 280) {
+      throw new AppError('Answer must be 1-280 characters', 400);
+    }
     return {
       contentVersion: CONTENT_VERSION,
       players: { creatorId, opponentId },
       questionId: question.id,
       question: question.question,
-      answers: {},
+      answers: { [creatorId]: answer },
       usedPromptIds: [question.id],
     };
   },
@@ -231,7 +254,7 @@ const questionRoulette = {
   isComplete: (state) => Object.keys(state.answers).length === 2,
 
   summary: () => ({
-    title: 'Both answered! 💬',
+    title: 'Both answered!',
     line: 'Answers revealed — keep the conversation going.',
   }),
 };
@@ -239,20 +262,28 @@ const questionRoulette = {
 /* ----------------------------- Emoji Riddle ---------------------------- */
 
 const emojiRiddle = {
+  // Creator-side picker: answers are included on purpose — the creator
+  // chooses which riddle to send knowing what it is
+  offers: ({ usedIds }) =>
+    pickUnused(EMOJI_RIDDLES, usedIds, 3).map(({ id, emoji, answer, category }) => ({
+      id,
+      emoji,
+      answer,
+      category,
+    })),
+
   init: ({ creatorId, opponentId, usedIds, payload }) => {
     const offered = pickUnused(EMOJI_RIDDLES, usedIds, 3);
-    let riddle = offered[0];
-    if (payload?.riddleId) {
-      riddle = offered.find((r) => r.id === payload.riddleId);
-      if (!riddle) {
-        throw new AppError('riddleId must be one of the offered riddles', 400);
-      }
+    // Choosing the riddle IS the commit — no server-side picking phase, so
+    // the riddleId is required and must come from the offered set
+    const riddle = offered.find((r) => r.id === payload?.riddleId);
+    if (!riddle) {
+      throw new AppError('riddleId must be one of the offered riddles', 400);
     }
     return {
       contentVersion: CONTENT_VERSION,
       players: { creatorId, opponentId },
-      phase: 'picking', // creator confirms one of the offered riddles
-      offeredIds: offered.map((r) => r.id),
+      phase: 'guessing',
       riddleId: riddle.id,
       emoji: riddle.emoji,
       answer: riddle.answer,
@@ -266,43 +297,33 @@ const emojiRiddle = {
   },
 
   applyMove: (state, userId, move) => {
+    if (move.type !== 'guess') {
+      throw new AppError('Invalid move', 400);
+    }
+    if (state.phase !== 'guessing') {
+      throw new AppError('Riddle is not ready for guesses', 409);
+    }
+    if (userId === state.players.creatorId) {
+      throw new AppError('The sender cannot guess their own riddle', 403);
+    }
+    const text = String(move.text || '').trim();
+    if (!text || text.length > 100) {
+      throw new AppError('Guess must be 1-100 characters', 400);
+    }
+    const normalized = normalizeGuess(text);
+    const correct =
+      normalized === normalizeGuess(state.answer) ||
+      state.altAnswers.some((alt) => normalizeGuess(alt) === normalized);
+
     const next = structuredClone(state);
-
-    if (move.type === 'confirm-riddle') {
-      if (userId !== state.players.creatorId || state.phase !== 'picking') {
-        throw new AppError('Invalid move', 400);
-      }
-      next.phase = 'guessing';
-      return next;
+    next.attempts = [...state.attempts, { text, correct }];
+    if (correct) {
+      next.solved = true;
+      next.phase = 'done';
+    } else if (next.attempts.length >= state.maxAttempts) {
+      next.phase = 'done';
     }
-
-    if (move.type === 'guess') {
-      if (state.phase !== 'guessing') {
-        throw new AppError('Riddle is not ready for guesses', 409);
-      }
-      if (userId === state.players.creatorId) {
-        throw new AppError('The sender cannot guess their own riddle', 403);
-      }
-      const text = String(move.text || '').trim();
-      if (!text || text.length > 100) {
-        throw new AppError('Guess must be 1-100 characters', 400);
-      }
-      const normalized = normalizeGuess(text);
-      const correct =
-        normalized === normalizeGuess(state.answer) ||
-        state.altAnswers.some((alt) => normalizeGuess(alt) === normalized);
-
-      next.attempts = [...state.attempts, { text, correct }];
-      if (correct) {
-        next.solved = true;
-        next.phase = 'done';
-      } else if (next.attempts.length >= state.maxAttempts) {
-        next.phase = 'done';
-      }
-      return next;
-    }
-
-    throw new AppError('Invalid move', 400);
+    return next;
   },
 
   viewFor: (state, viewerId) => {
@@ -324,8 +345,9 @@ const emojiRiddle = {
 
   summary: (state) => ({
     title: state.solved
-      ? `Solved in ${state.attempts.length} ${state.attempts.length === 1 ? 'try' : 'tries'}! 🎉`
-      : 'Stumped! 🙈',
+      ? `Solved in ${state.attempts.length} ${state.attempts.length === 1 ? 'try' : 'tries'}!`
+      : 'Stumped!',
+    // The emoji here is the riddle itself, not decoration
     line: state.solved
       ? `${state.emoji} = ${state.answer}`
       : `It was "${state.answer}" (${state.emoji})`,
