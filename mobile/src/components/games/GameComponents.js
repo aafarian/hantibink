@@ -342,7 +342,24 @@ export const ActiveGamePanel = ({ session, myId, onMove, onEnd }) => {
 
 /* -------------------------- Per-game renderers ------------------------ */
 
-const ThisOrThatBody = ({ view, canAct, onMove }) => {
+// A revealed round says WHO picked WHAT — a bare heart/X next to the
+// options didn't communicate that the other person had answered
+const revealLine = (round, myId) => {
+  const optionText = pick => (pick === 'A' ? round.a : pick === 'B' ? round.b : null);
+  const myPickText = optionText(round.myPick);
+  const theirPick = round.picks
+    ? Object.entries(round.picks).find(([userId]) => userId !== myId)?.[1]
+    : null;
+  const theirPickText = optionText(theirPick);
+  if (!myPickText || !theirPickText) {
+    return `${round.a} / ${round.b}`;
+  }
+  return round.isMatch
+    ? `You both picked ${myPickText}`
+    : `You: ${myPickText} · Them: ${theirPickText}`;
+};
+
+const ThisOrThatBody = ({ view, myId, canAct, onMove }) => {
   const round = view.rounds?.[view.currentRound];
   const finishedRounds = (view.rounds || []).filter(r => r.revealed);
   return (
@@ -357,7 +374,7 @@ const ThisOrThatBody = ({ view, canAct, onMove }) => {
                 color={r.isMatch ? theme.colors.primary : theme.colors.text.muted}
               />
               <Text style={styles.totHistoryText} numberOfLines={1}>
-                {r.a} / {r.b}
+                {revealLine(r, myId)}
               </Text>
             </View>
           ))}
