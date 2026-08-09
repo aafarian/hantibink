@@ -258,9 +258,10 @@ const submitMove = async (matchId, sessionId, userId, move, io = null) => {
 
   const complete = engine.isComplete(newState);
 
-  // Optimistic lock: version must not have moved under us
+  // Optimistic lock: version must not have moved under us, and a
+  // concurrent decline/forfeit must not be overwritten
   const updated = await prisma.gameSession.updateMany({
-    where: { id: sessionId, version: session.version },
+    where: { id: sessionId, status: 'ACTIVE', version: session.version },
     data: {
       state: newState,
       version: session.version + 1,
@@ -313,10 +314,16 @@ const endSession = async (matchId, sessionId, userId, status, io = null) => {
   if (session.status !== 'ACTIVE') {
     throw new AppError('This game has ended', 409);
   }
-  const fresh = await prisma.gameSession.update({
-    where: { id: sessionId },
-    data: { status, completedAt: new Date() },
+  // Same optimistic lock as moves: a terminal write that raced a move (or
+  // another terminal request) loses instead of clobbering the newer state
+  const updated = await prisma.gameSession.updateMany({
+    where: { id: sessionId, status: 'ACTIVE', version: session.version },
+    data: { status, completedAt: new Date(), version: session.version + 1 },
   });
+  if (updated.count === 0) {
+    throw new AppError('Game state changed — refresh and try again', 409);
+  }
+  const fresh = await prisma.gameSession.findUnique({ where: { id: sessionId } });
   emitGameUpdate(io, fresh, status.toLowerCase(), userId);
   return redactedSession(fresh, userId);
 };

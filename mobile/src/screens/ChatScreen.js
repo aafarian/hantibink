@@ -104,7 +104,11 @@ const ChatScreen = ({ route, navigation }) => {
   // In-chat games
   const [showGamePicker, setShowGamePicker] = useState(false);
   const [showTwoTruthsComposer, setShowTwoTruthsComposer] = useState(false);
-  const { session: gameSession, refresh: refreshGameSession } = useGameSession(match.matchId);
+  const {
+    session: gameSession,
+    refresh: refreshGameSession,
+    applySnapshot: applyGameSnapshot,
+  } = useGameSession(match.matchId);
 
   const handlePickGame = useCallback(
     async gameType => {
@@ -114,45 +118,49 @@ const ChatScreen = ({ route, navigation }) => {
         return;
       }
       try {
-        await GamesApiService.createSession(match.matchId, gameType);
+        const created = await GamesApiService.createSession(match.matchId, gameType);
+        applyGameSnapshot(created);
       } catch (error) {
         showError(error.message || 'Could not start the game');
       }
     },
-    [match.matchId, showError]
+    [match.matchId, showError, applyGameSnapshot]
   );
 
   const handleTwoTruthsSubmit = useCallback(
     async payload => {
       setShowTwoTruthsComposer(false);
       try {
-        await GamesApiService.createSession(match.matchId, 'TWO_TRUTHS', payload);
+        const created = await GamesApiService.createSession(match.matchId, 'TWO_TRUTHS', payload);
+        applyGameSnapshot(created);
       } catch (error) {
         showError(error.message || 'Could not start the game');
       }
     },
-    [match.matchId, showError]
+    [match.matchId, showError, applyGameSnapshot]
   );
 
   const handleGameMove = useCallback(
     async move => {
       try {
-        await GamesApiService.submitMove(match.matchId, gameSession?.id, move);
+        const updated = await GamesApiService.submitMove(match.matchId, gameSession?.id, move);
+        applyGameSnapshot(updated);
       } catch (error) {
         showError(error.message || 'Move failed');
         refreshGameSession();
       }
     },
-    [match.matchId, gameSession?.id, showError, refreshGameSession]
+    [match.matchId, gameSession?.id, showError, refreshGameSession, applyGameSnapshot]
   );
 
   const handleGameDecline = useCallback(async () => {
     try {
-      await GamesApiService.decline(match.matchId, gameSession?.id);
+      const ended = await GamesApiService.decline(match.matchId, gameSession?.id);
+      applyGameSnapshot(ended);
     } catch (error) {
       showError('Could not decline');
     }
-  }, [match.matchId, gameSession?.id, showError]);
+  }, [match.matchId, gameSession?.id, showError, applyGameSnapshot]);
 
   // Refs
   const flatListRef = useRef(null);

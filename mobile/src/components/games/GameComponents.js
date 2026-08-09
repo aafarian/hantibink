@@ -91,8 +91,10 @@ export const TwoTruthsComposer = ({ visible, onClose, onSubmit }) => {
           <Text style={styles.pickerSubtitle}>
             Write three statements, then tap the one that's the lie
           </Text>
+          {/* Fixed slots: position is the identity, and content-derived keys
+              would remount the TextInput on every keystroke */}
           {statements.map((statement, index) => (
-            <View key={index} style={styles.composerRow}>
+            <View key={`slot-${index}`} style={styles.composerRow}>
               <TextInput
                 style={styles.composerInput}
                 placeholder={`Statement ${index + 1}`}
@@ -247,7 +249,7 @@ const TwoTruthsBody = ({ view, myId, onMove }) => {
         const wasGuess = done && view.guessIndex === index;
         return (
           <TouchableOpacity
-            key={index}
+            key={`${index}-${statement}`}
             style={[
               styles.statement,
               isLie && styles.statementLie,
@@ -342,7 +344,7 @@ const EmojiRiddleBody = ({ view, myId, onMove }) => {
         <>
           {view.category && <Text style={styles.cardHint}>Hint: it's a {view.category}</Text>}
           {(view.attempts || []).map((attempt, index) => (
-            <Text key={index} style={styles.missedGuess}>
+            <Text key={`${index}-${attempt.text}`} style={styles.missedGuess}>
               ✗ {attempt.text}
             </Text>
           ))}

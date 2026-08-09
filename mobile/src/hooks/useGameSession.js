@@ -26,6 +26,23 @@ const useGameSession = matchId => {
     }
   }, [matchId]);
 
+  // Authoritative REST snapshots (create/move/decline responses) go through
+  // the same version gate as socket deltas, so a successful write updates
+  // the UI even when the corresponding socket event never arrives.
+  const applySnapshot = useCallback(
+    snapshot => {
+      if (!snapshot || snapshot.matchId !== matchId) {
+        return;
+      }
+      if (typeof snapshot.version === 'number' && snapshot.version < versionRef.current) {
+        return;
+      }
+      versionRef.current = snapshot.version ?? versionRef.current;
+      setSession(snapshot);
+    },
+    [matchId]
+  );
+
   useEffect(() => {
     refresh();
 
@@ -79,7 +96,7 @@ const useGameSession = matchId => {
     };
   }, [matchId, refresh]);
 
-  return { session, setSession, refresh };
+  return { session, setSession, refresh, applySnapshot };
 };
 
 export default useGameSession;
