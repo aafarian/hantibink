@@ -25,6 +25,7 @@ import Animated, {
 } from 'react-native-reanimated';
 import * as Haptics from 'expo-haptics';
 import { theme } from '../styles/theme';
+import ConfettiBurst from './shared/ConfettiBurst';
 
 const { width: screenWidth } = Dimensions.get('window');
 
@@ -165,6 +166,9 @@ const MatchModal = ({
       <View style={styles.overlay}>
         {/* Tappable background to dismiss */}
         <Pressable style={styles.dismissArea} onPress={onClose} />
+
+        {/* Celebration burst behind the card */}
+        <ConfettiBurst trigger={visible} />
 
         <Animated.View style={[styles.container, containerAnimatedStyle]}>
           {/* Close button */}

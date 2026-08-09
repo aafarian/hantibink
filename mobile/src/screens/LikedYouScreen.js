@@ -17,7 +17,7 @@ import apiClient from '../services/ApiClient';
 import SocketService from '../services/SocketService';
 import MatchModal from '../components/MatchModal';
 import PremiumUpgradeModal from '../components/modals/PremiumUpgradeModal';
-import { LoadingScreen } from '../components/LoadingScreen';
+import { CardGridSkeleton } from '../components/shared/SkeletonPlaceholders';
 import { ErrorScreen } from '../components/ErrorScreen';
 import Logger from '../utils/logger';
 import { useTabNavigation } from '../hooks/useTabNavigation';
@@ -666,7 +666,11 @@ const LikedYouScreen = () => {
   };
 
   if (loading) {
-    return <LoadingScreen message="Loading likes..." />;
+    return (
+      <View style={styles.container}>
+        <CardGridSkeleton />
+      </View>
+    );
   }
 
   if (error) {

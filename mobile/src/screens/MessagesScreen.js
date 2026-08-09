@@ -3,7 +3,7 @@ import { View, FlatList } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { useMatchesWithProfiles } from '../hooks/useMatches';
 import { useUnread } from '../contexts/UnreadContext';
-import { LoadingScreen } from '../components/LoadingScreen';
+import { MatchListSkeleton } from '../components/shared/SkeletonPlaceholders';
 import { ErrorScreen, EmptyState } from '../components/ErrorScreen';
 import { MatchCard } from '../components/MatchCard';
 import { theme } from '../styles/theme';
@@ -65,7 +65,11 @@ const MessagesScreen = () => {
   );
 
   if (loading) {
-    return <LoadingScreen message="Loading your matches..." />;
+    return (
+      <View style={commonStyles.container}>
+        <MatchListSkeleton />
+      </View>
+    );
   }
 
   if (error) {
