@@ -17,7 +17,7 @@ import useAdminCheck from '../../hooks/useAdminCheck';
 import { useToast } from '../../contexts/ToastContext';
 import Logger from '../../utils/logger';
 import {
-  PillTabs,
+  AdminTabs,
   KpiGrid,
   KpiTile,
   MiniBars,
@@ -461,7 +461,7 @@ const AdminScreen = ({ navigation }) => {
         <Text style={styles.headerTitle}>Admin</Text>
         <View style={styles.backButton} />
       </View>
-      <PillTabs tabs={TABS} active={tab} onChange={setTab} />
+      <AdminTabs tabs={TABS} active={tab} onChange={setTab} />
       <ScrollView
         contentContainerStyle={styles.scrollContent}
         refreshControl={
