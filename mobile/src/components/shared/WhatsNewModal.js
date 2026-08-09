@@ -74,25 +74,28 @@ const WhatsNewModal = () => {
       <View style={styles.container}>
         <Pressable style={styles.backdrop} onPress={dismiss} />
         <View style={styles.content}>
-          <View style={styles.iconCircle}>
-            <Ionicons name="sparkles" size={28} color={theme.colors.primary} />
-          </View>
-          <Text style={styles.headline}>{entry.headline}</Text>
-          <Text style={styles.version}>Version {entry.version}</Text>
-          {/* Bounded so long notes or scaled-up text can't push the
-              dismiss button off-screen (see ScrollView-in-Modal pattern) */}
-          <ScrollView style={styles.notes} contentContainerStyle={styles.notesContent}>
-            {entry.notes.map(note => (
-              <View key={note} style={styles.noteRow}>
-                <Ionicons
-                  name="checkmark-circle"
-                  size={theme.icons.xs}
-                  color={theme.colors.status.success}
-                  style={styles.noteIcon}
-                />
-                <Text style={styles.noteText}>{note}</Text>
-              </View>
-            ))}
+          {/* Everything except the dismiss button scrolls, so no amount of
+              accessibility text scaling can push "Nice!" off-screen
+              (see ScrollView-in-Modal pattern) */}
+          <ScrollView style={styles.scrollArea} contentContainerStyle={styles.scrollContent}>
+            <View style={styles.iconCircle}>
+              <Ionicons name="sparkles" size={28} color={theme.colors.primary} />
+            </View>
+            <Text style={styles.headline}>{entry.headline}</Text>
+            <Text style={styles.version}>Version {entry.version}</Text>
+            <View style={styles.notes}>
+              {entry.notes.map(note => (
+                <View key={note} style={styles.noteRow}>
+                  <Ionicons
+                    name="checkmark-circle"
+                    size={theme.icons.xs}
+                    color={theme.colors.status.success}
+                    style={styles.noteIcon}
+                  />
+                  <Text style={styles.noteText}>{note}</Text>
+                </View>
+              ))}
+            </View>
           </ScrollView>
           <TouchableOpacity style={styles.button} onPress={dismiss}>
             <Text style={styles.buttonText}>Nice!</Text>
@@ -147,16 +150,16 @@ const styles = StyleSheet.create({
     marginTop: theme.spacing.xs,
     marginBottom: theme.spacing.lg,
   },
-  notes: {
+  scrollArea: {
     alignSelf: 'stretch',
-    // Shrinks first when the card hits its maxHeight, so the fixed chrome
-    // (icon, headline, button) always fits
     flexShrink: 1,
-    maxHeight: 280,
     marginBottom: theme.spacing.xl,
   },
-  notesContent: {
-    flexGrow: 0,
+  scrollContent: {
+    alignItems: 'center',
+  },
+  notes: {
+    alignSelf: 'stretch',
   },
   noteRow: {
     flexDirection: 'row',
