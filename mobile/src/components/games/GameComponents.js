@@ -326,7 +326,7 @@ const canDismissInstantly = (session, myId) =>
  * requires scrolling. The bar above toggles it; the in-thread card is a
  * compact marker that opens the recap modal.
  */
-export const ActiveGamePanel = ({ session, myId, onMove, onEnd, onDismiss }) => {
+export const ActiveGamePanel = ({ session, myId, onMove, onEnd, onDismiss, onDetails }) => {
   if (!session || session.status !== 'ACTIVE') {
     return null;
   }
@@ -338,6 +338,14 @@ export const ActiveGamePanel = ({ session, myId, onMove, onEnd, onDismiss }) => 
       <View style={styles.cardHeader}>
         <Ionicons name={meta.icon || 'game-controller'} size={16} color={theme.colors.primary} />
         <Text style={styles.cardTitle}>{meta.label}</Text>
+        <TouchableOpacity
+          onPress={onDetails}
+          hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+          accessibilityLabel="Game details"
+          style={styles.panelDetailsButton}
+        >
+          <Ionicons name="information-circle-outline" size={18} color={theme.colors.text.muted} />
+        </TouchableOpacity>
         {instantDismiss ? (
           <TouchableOpacity
             onPress={onDismiss}
@@ -699,10 +707,10 @@ export const GameRecapModal = ({ visible, session, myId, onClose }) => {
   );
 };
 
-export const GameMessageCard = ({ metadata, session, myId, onOpenDetails }) => {
+export const GameMessageCard = ({ metadata, onOpenDetails }) => {
   const meta = GAME_META[metadata.gameType] || {};
 
-  // Summary card (game over) — tap for the full recap
+  // Post-game card (every ended game gets one) — tap for the full recap
   if (metadata.kind === 'game-summary') {
     return (
       <Pressable style={styles.card} onPress={() => onOpenDetails?.(metadata)}>
@@ -712,33 +720,16 @@ export const GameMessageCard = ({ metadata, session, myId, onOpenDetails }) => {
         </View>
         <Text style={styles.summaryTitle}>{metadata.summary?.title}</Text>
         <Text style={styles.summaryLine}>{metadata.summary?.line}</Text>
+        <Text style={[styles.recapLink, styles.recapLinkCentered]}>Tap to see what happened</Text>
       </Pressable>
     );
   }
 
-  // Compact marker in the thread — the docked panel is the play surface,
-  // so the card never duplicates the live game. Tapping it opens the
-  // recap modal, during play and after the game is over alike.
-  const isLive = session && session.id === metadata.sessionId && session.status === 'ACTIVE';
-  const statusLine = isLive
-    ? turnLabel(session, myId)
-    : session && session.id === metadata.sessionId
-      ? ENDED_LABELS[session.status] || 'This game has ended'
-      : 'This game has ended';
-
-  return (
-    <Pressable style={styles.card} onPress={() => onOpenDetails?.(metadata)}>
-      <View style={styles.cardHeader}>
-        <Ionicons name={meta.icon || 'game-controller'} size={16} color={theme.colors.primary} />
-        <Text style={styles.cardTitle}>{meta.label}</Text>
-        {isLive && <View style={styles.liveDot} />}
-      </View>
-      <Text style={styles.cardHint}>{statusLine}</Text>
-      <Text style={styles.recapLink}>
-        {isLive ? 'Tap for details — play below' : 'Tap to see what happened'}
-      </Text>
-    </Pressable>
-  );
+  // The start message is never rendered: while a game is live it exists
+  // ONLY in the docked panel, and when it ends the server posts the
+  // post-game summary card above. The start message still drives the
+  // opponent's notification and thread preview.
+  return null;
 };
 
 /* -------------------------------- Styles ------------------------------ */
@@ -1042,11 +1033,11 @@ const styles = StyleSheet.create({
     fontFamily: theme.typography.fontFamily.semibold,
     color: theme.colors.primary,
   },
-  liveDot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-    backgroundColor: theme.colors.status.success,
+  recapLinkCentered: {
+    textAlign: 'center',
+  },
+  panelDetailsButton: {
+    marginRight: theme.spacing.md,
   },
   recapRound: {
     borderTopWidth: StyleSheet.hairlineWidth,

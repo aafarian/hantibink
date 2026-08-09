@@ -210,6 +210,7 @@ const endAllActiveGamesForUser = async (userId, io = null) => {
     });
     if (updated.count > 0) {
       const fresh = await prisma.gameSession.findUnique({ where: { id: session.id } });
+      await postEndSummaryMessage(fresh.matchId, userId, fresh, io);
       emitGameUpdate(io, fresh, 'forfeited', userId);
     }
   }
@@ -407,6 +408,61 @@ const submitMove = async (matchId, sessionId, userId, move, io = null) => {
   return redactedSession(fresh, userId);
 };
 
+/** Copy for a game that ended before completion. */
+const endSummary = (session) => {
+  const state = session.state;
+  let line = 'Ended early';
+  if (session.gameType === 'THIS_OR_THAT') {
+    line = `Played ${state.currentRound} of ${state.rounds.length} rounds`;
+  } else if (session.gameType === 'QUESTION_ROULETTE') {
+    line = 'Ended before both answers were in';
+  } else if (session.gameType === 'TWO_TRUTHS') {
+    line = 'Ended before the guess';
+  } else if (session.gameType === 'EMOJI_RIDDLE') {
+    const attempts = state.attempts?.length || 0;
+    line = attempts
+      ? `Ended unsolved after ${attempts} ${attempts === 1 ? 'guess' : 'guesses'}`
+      : 'Ended before any guesses';
+  }
+  return { title: 'Game ended', line };
+};
+
+/**
+ * The thread shows nothing while a game is live (play happens in the
+ * docked panel) — the post-game card IS this summary message. Every
+ * ended game posts one, except a This or That withdrawn before any pick
+ * (version 1 = only the terminal write), which stays silent.
+ */
+const postEndSummaryMessage = async (matchId, userId, session, io) => {
+  if (session.gameType === 'THIS_OR_THAT' && session.version <= 1) {
+    return;
+  }
+  const summary = endSummary(session);
+  try {
+    const message = await sendMessage(
+      matchId,
+      userId,
+      {
+        content: `${GAME_LABELS[session.gameType]}: ${summary.title}`,
+        messageType: 'GAME',
+        metadata: JSON.stringify({
+          kind: 'game-summary',
+          sessionId: session.id,
+          gameType: session.gameType,
+          summary,
+        }),
+      },
+      io,
+    );
+    await prisma.gameSession.update({
+      where: { id: session.id },
+      data: { summaryMessageId: message?.id || null },
+    });
+  } catch (error) {
+    logger.warn('Game end message failed:', error.message);
+  }
+};
+
 const endSession = async (matchId, sessionId, userId, status, io = null) => {
   let session = await loadSessionForMember(matchId, sessionId, userId);
   session = await expireIfOverdue(session);
@@ -423,6 +479,7 @@ const endSession = async (matchId, sessionId, userId, status, io = null) => {
     throw new AppError('Game state changed — refresh and try again', 409);
   }
   const fresh = await prisma.gameSession.findUnique({ where: { id: sessionId } });
+  await postEndSummaryMessage(matchId, userId, fresh, io);
   emitGameUpdate(io, fresh, status.toLowerCase(), userId);
   return redactedSession(fresh, userId);
 };

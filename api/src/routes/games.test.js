@@ -352,6 +352,39 @@ describe('Games Routes', () => {
     expect(sessions).toBe(0);
   });
 
+  it('an early-ended committed game leaves a "Game ended" card; an unpicked ToT stays silent', async () => {
+    const { auth1, auth2, match } = await setupPair();
+
+    // Committed roulette declined -> post-game summary message
+    const roulette = await request(app)
+      .post(`/games/${match.id}/sessions`)
+      .set('Authorization', auth1.authHeader)
+      .send({ gameType: 'QUESTION_ROULETTE', payload: { answer: 'Mine' } });
+    await request(app)
+      .post(`/games/${match.id}/sessions/${roulette.body.data.id}/decline`)
+      .set('Authorization', auth2.authHeader);
+
+    const summary = await global.prisma.message.findFirst({
+      where: { matchId: match.id, metadata: { contains: 'game-summary' } },
+    });
+    expect(summary).not.toBeNull();
+    expect(JSON.parse(summary.metadata).summary.title).toBe('Game ended');
+
+    // ToT withdrawn before any pick -> no summary message
+    const tot = await request(app)
+      .post(`/games/${match.id}/sessions`)
+      .set('Authorization', auth1.authHeader)
+      .send({ gameType: 'THIS_OR_THAT' });
+    await request(app)
+      .post(`/games/${match.id}/sessions/${tot.body.data.id}/forfeit`)
+      .set('Authorization', auth1.authHeader);
+
+    const summaries = await global.prisma.message.count({
+      where: { matchId: match.id, metadata: { contains: 'game-summary' } },
+    });
+    expect(summaries).toBe(1);
+  });
+
   it('decline ends the session', async () => {
     const { auth1, auth2, match } = await setupPair();
     const created = await request(app)

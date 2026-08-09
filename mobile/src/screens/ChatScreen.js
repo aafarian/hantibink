@@ -1088,14 +1088,7 @@ const ChatScreen = ({ route, navigation }) => {
           gameMetadata = null;
         }
         if (gameMetadata?.kind) {
-          return (
-            <GameMessageCard
-              metadata={gameMetadata}
-              session={gameSession}
-              myId={user.uid}
-              onOpenDetails={handleOpenGameDetails}
-            />
-          );
+          return <GameMessageCard metadata={gameMetadata} onOpenDetails={handleOpenGameDetails} />;
         }
       }
 
@@ -1133,7 +1126,6 @@ const ChatScreen = ({ route, navigation }) => {
       handleReactionsPress,
       scrollToMessage,
       openPhotoViewer,
-      gameSession,
       handleOpenGameDetails,
     ]
   );
@@ -1464,6 +1456,7 @@ const ChatScreen = ({ route, navigation }) => {
               onMove={handleGameMove}
               onEnd={requestEndGame}
               onDismiss={handleEndActiveGame}
+              onDetails={() => setRecapSession(gameSession)}
             />
           )}
           <ChatInput
