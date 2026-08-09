@@ -15,13 +15,8 @@ import { theme } from '../../styles/theme';
 const ChatMenu = ({ visible, onClose, onAction, isMuted }) => {
   if (!visible) return null;
 
+  // 'Search in conversation' is intentionally absent until the feature ships
   const menuItems = [
-    {
-      id: 'search',
-      icon: 'search',
-      label: 'Search in conversation',
-      color: theme.colors.text.primary,
-    },
     { id: 'viewProfile', icon: 'person', label: 'View profile', color: theme.colors.text.primary },
     {
       id: 'mute',

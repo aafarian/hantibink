@@ -25,7 +25,6 @@ const TAB_ICONS = {
   People: { active: 'people', inactive: 'people-outline' },
   'Liked You': { active: 'heart', inactive: 'heart-outline' },
   Messages: { active: 'chatbubbles', inactive: 'chatbubbles-outline' },
-  'API Test': { active: 'flask', inactive: 'flask-outline' },
 };
 
 /**
