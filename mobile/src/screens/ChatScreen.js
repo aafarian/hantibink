@@ -58,6 +58,7 @@ import {
   RouletteComposer,
   RiddlePickerSheet,
   ActiveGameBar,
+  ActiveGamePanel,
   GameMessageCard,
 } from '../components/games/GameComponents';
 
@@ -109,11 +110,22 @@ const ChatScreen = ({ route, navigation }) => {
   const [showTwoTruthsComposer, setShowTwoTruthsComposer] = useState(false);
   const [rouletteOffer, setRouletteOffer] = useState(null);
   const [riddleOffers, setRiddleOffers] = useState(null);
+  const [gamePanelExpanded, setGamePanelExpanded] = useState(true);
+  const [showEndGameConfirm, setShowEndGameConfirm] = useState(false);
   const {
     session: gameSession,
     refresh: refreshGameSession,
     applySnapshot: applyGameSnapshot,
   } = useGameSession(match.matchId);
+
+  // A freshly active game opens the docked panel; collapsing it is
+  // remembered until the next game starts
+  const activeGameId = gameSession?.status === 'ACTIVE' ? gameSession.id : null;
+  useEffect(() => {
+    if (activeGameId) {
+      setGamePanelExpanded(true);
+    }
+  }, [activeGameId]);
 
   const createGame = useCallback(
     async (gameType, payload = null) => {
@@ -190,20 +202,8 @@ const ChatScreen = ({ route, navigation }) => {
     [match.matchId, gameSession?.id, showError, refreshGameSession, applyGameSnapshot]
   );
 
-  const handleGameDecline = useCallback(async () => {
-    try {
-      const ended = await GamesApiService.decline(match.matchId, gameSession?.id);
-      applyGameSnapshot(ended);
-    } catch (error) {
-      showError(error.message || 'Could not decline');
-      // The server may have rejected because a competing outcome landed
-      // first — resync so the card shows the real state
-      refreshGameSession();
-    }
-  }, [match.matchId, gameSession?.id, showError, applyGameSnapshot, refreshGameSession]);
-
-  // From the picker's "finish or end first" state: the creator forfeits
-  // their own game, the opponent declines it
+  // "I'm done" is available to both players and ends the game for both:
+  // the creator forfeits their own game, the opponent declines it
   const handleEndActiveGame = useCallback(async () => {
     setShowGamePicker(false);
     try {
@@ -225,6 +225,18 @@ const ChatScreen = ({ route, navigation }) => {
     applyGameSnapshot,
     refreshGameSession,
   ]);
+
+  // Ending is destructive for both players, so "I'm done" confirms first.
+  // The ToT pre-pick X stays instant — nothing is committed yet.
+  const requestEndGame = useCallback(() => {
+    setShowGamePicker(false);
+    setShowEndGameConfirm(true);
+  }, []);
+
+  const confirmEndGame = useCallback(() => {
+    setShowEndGameConfirm(false);
+    handleEndActiveGame();
+  }, [handleEndActiveGame]);
 
   // Refs
   const flatListRef = useRef(null);
@@ -1035,7 +1047,7 @@ const ChatScreen = ({ route, navigation }) => {
               session={gameSession}
               myId={user.uid}
               onMove={handleGameMove}
-              onDecline={handleGameDecline}
+              onEnd={requestEndGame}
               onDismiss={handleEndActiveGame}
             />
           );
@@ -1078,7 +1090,7 @@ const ChatScreen = ({ route, navigation }) => {
       openPhotoViewer,
       gameSession,
       handleGameMove,
-      handleGameDecline,
+      requestEndGame,
       handleEndActiveGame,
     ]
   );
@@ -1399,7 +1411,20 @@ const ChatScreen = ({ route, navigation }) => {
           />
 
           {/* Input */}
-          <ActiveGameBar session={gameSession} myId={user.uid} onPress={() => {}} />
+          <ActiveGameBar
+            session={gameSession}
+            myId={user.uid}
+            expanded={gamePanelExpanded}
+            onPress={() => setGamePanelExpanded(previous => !previous)}
+          />
+          {gamePanelExpanded && (
+            <ActiveGamePanel
+              session={gameSession}
+              myId={user.uid}
+              onMove={handleGameMove}
+              onEnd={requestEndGame}
+            />
+          )}
           <ChatInput
             messageText={messageText}
             onTextChange={handleTypingChange}
@@ -1436,7 +1461,7 @@ const ChatScreen = ({ route, navigation }) => {
             onPick={handlePickGame}
             activeSession={gameSession}
             myId={user.uid}
-            onEndActive={handleEndActiveGame}
+            onEndActive={requestEndGame}
           />
 
           <TwoTruthsComposer
@@ -1546,6 +1571,16 @@ const ChatScreen = ({ route, navigation }) => {
           confirmText="Unmatch"
           onConfirm={handleUnmatch}
           onCancel={() => setShowUnmatchConfirm(false)}
+        />
+
+        {/* End game confirmation */}
+        <ConfirmationModal
+          visible={showEndGameConfirm}
+          title="Done with this game?"
+          message="This ends the game for both of you."
+          confirmText="I'm done"
+          onConfirm={confirmEndGame}
+          onCancel={() => setShowEndGameConfirm(false)}
         />
 
         {/* Report Modal */}

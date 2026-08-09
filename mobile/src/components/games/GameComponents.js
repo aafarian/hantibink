@@ -12,6 +12,7 @@ import {
   Modal,
   Pressable,
   TextInput,
+  ScrollView,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
@@ -47,7 +48,6 @@ const makeMoveId = () => `mv_${Date.now()}_${Math.random().toString(36).slice(2,
 export const GamePickerSheet = ({ visible, onClose, onPick, activeSession, myId, onEndActive }) => {
   const hasActiveGame = activeSession && activeSession.status === 'ACTIVE';
   const activeMeta = hasActiveGame ? GAME_META[activeSession.gameType] : null;
-  const isActiveCreator = hasActiveGame && activeSession.createdBy === myId;
 
   return (
     <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
@@ -79,9 +79,7 @@ export const GamePickerSheet = ({ visible, onClose, onPick, activeSession, myId,
                   onEndActive();
                 }}
               >
-                <Text style={styles.secondaryButtonText}>
-                  {isActiveCreator ? 'End this game' : 'Decline this game'}
-                </Text>
+                <Text style={styles.secondaryButtonText}>I'm done with this game</Text>
               </TouchableOpacity>
             </>
           ) : (
@@ -295,7 +293,7 @@ const turnLabel = (session, myId) => {
   return 'Game on';
 };
 
-export const ActiveGameBar = ({ session, myId, onPress }) => {
+export const ActiveGameBar = ({ session, myId, onPress, expanded = false }) => {
   if (!session || session.status !== 'ACTIVE') {
     return null;
   }
@@ -306,8 +304,39 @@ export const ActiveGameBar = ({ session, myId, onPress }) => {
       <Text style={styles.barLabel} numberOfLines={1}>
         {meta.label} · {turnLabel(session, myId)}
       </Text>
-      <Ionicons name="chevron-up" size={16} color={theme.colors.text.muted} />
+      <Ionicons
+        name={expanded ? 'chevron-down' : 'chevron-up'}
+        size={16}
+        color={theme.colors.text.muted}
+      />
     </TouchableOpacity>
+  );
+};
+
+/**
+ * The live game, docked above the chat input so play never requires
+ * scrolling back to the start card. The bar above toggles it; the
+ * in-thread card remains as the anchor and stays interactive.
+ */
+export const ActiveGamePanel = ({ session, myId, onMove, onEnd }) => {
+  if (!session || session.status !== 'ACTIVE') {
+    return null;
+  }
+  const meta = GAME_META[session.gameType] || {};
+  const Body = BODIES[session.gameType];
+  return (
+    <View style={styles.panel}>
+      <View style={styles.cardHeader}>
+        <Ionicons name={meta.icon || 'game-controller'} size={16} color={theme.colors.primary} />
+        <Text style={styles.cardTitle}>{meta.label}</Text>
+        <TouchableOpacity onPress={onEnd} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+          <Text style={styles.declineText}>I'm done</Text>
+        </TouchableOpacity>
+      </View>
+      <ScrollView style={styles.panelBody} keyboardShouldPersistTaps="handled">
+        {Body ? <Body view={session.view} myId={myId} canAct onMove={onMove} /> : null}
+      </ScrollView>
+    </View>
   );
 };
 
@@ -507,7 +536,14 @@ const BODIES = {
  * Interactive card rendered in the thread for the ACTIVE session's start
  * message. Ended sessions render their summary from message metadata.
  */
-export const GameMessageCard = ({ metadata, session, myId, onMove, onDecline, onDismiss }) => {
+const ENDED_LABELS = {
+  COMPLETED: 'Game complete',
+  DECLINED: 'Game ended',
+  FORFEITED: 'Game ended',
+  EXPIRED: 'Game expired',
+};
+
+export const GameMessageCard = ({ metadata, session, myId, onMove, onEnd, onDismiss }) => {
   const meta = GAME_META[metadata.gameType] || {};
 
   // Summary card (game over)
@@ -543,9 +579,9 @@ export const GameMessageCard = ({ metadata, session, myId, onMove, onDecline, on
       <View style={styles.cardHeader}>
         <Ionicons name={meta.icon || 'game-controller'} size={16} color={theme.colors.primary} />
         <Text style={styles.cardTitle}>{meta.label}</Text>
-        {isLive && session.createdBy !== myId && (
-          <TouchableOpacity onPress={onDecline} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
-            <Text style={styles.declineText}>Decline</Text>
+        {isLive && !creatorCanDismiss && (
+          <TouchableOpacity onPress={onEnd} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+            <Text style={styles.declineText}>I'm done</Text>
           </TouchableOpacity>
         )}
         {creatorCanDismiss && (
@@ -563,7 +599,7 @@ export const GameMessageCard = ({ metadata, session, myId, onMove, onDecline, on
       ) : (
         <Text style={styles.cardHint}>
           {session && session.id === metadata.sessionId
-            ? `Game ${session.status?.toLowerCase() || 'over'}`
+            ? ENDED_LABELS[session.status] || 'This game has ended'
             : 'This game has ended'}
         </Text>
       )}
@@ -694,6 +730,18 @@ const styles = StyleSheet.create({
     paddingVertical: theme.spacing.sm,
     borderTopWidth: StyleSheet.hairlineWidth,
     borderTopColor: theme.colors.border.light,
+  },
+  panel: {
+    backgroundColor: theme.colors.background.secondary,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: theme.colors.border.light,
+    paddingHorizontal: theme.spacing.lg,
+    paddingTop: theme.spacing.md,
+    paddingBottom: theme.spacing.sm,
+  },
+  panelBody: {
+    // Bounded so a long This or That history can't crowd out the input
+    maxHeight: 300,
   },
   barLabel: {
     flex: 1,
