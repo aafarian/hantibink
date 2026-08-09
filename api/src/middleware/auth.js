@@ -1,5 +1,4 @@
 const { verifyToken, extractTokenFromHeader } = require('../utils/jwt');
-const { verifyIdToken } = require('../config/firebase');
 const logger = require('../utils/logger');
 const { getPrismaClient } = require('../config/database');
 
@@ -133,68 +132,6 @@ const authenticateJWT = async (req, res, next) => {
 };
 
 /**
- * Firebase Authentication Middleware
- */
-const authenticateFirebase = async (req, res, next) => {
-  try {
-    const authHeader = req.headers.authorization;
-    const token = extractTokenFromHeader(authHeader);
-
-    if (!token) {
-      return res.status(401).json({
-        error: 'Authentication required',
-        message: 'No Firebase ID token provided',
-      });
-    }
-
-    // Verify Firebase ID token
-    const decodedToken = await verifyIdToken(token);
-    
-    // Get user from database using Firebase UID
-    const user = await prisma.user.findUnique({
-      where: { firebaseUid: decodedToken.uid },
-      select: {
-        id: true,
-        email: true,
-        name: true,
-        firebaseUid: true,
-        isActive: true,
-        createdAt: true,
-        updatedAt: true,
-      },
-    });
-
-    if (!user) {
-      return res.status(401).json({
-        error: 'Authentication failed',
-        message: 'User not found',
-      });
-    }
-
-    if (!user.isActive) {
-      return res.status(401).json({
-        error: 'Authentication failed',
-        message: 'User account is inactive',
-      });
-    }
-
-    // Attach user and Firebase token to request
-    req.user = user;
-    req.firebaseToken = decodedToken;
-    req.token = token;
-    
-    next();
-  } catch (error) {
-    logger.error('❌ Firebase authentication failed:', error);
-    
-    return res.status(401).json({
-      error: 'Authentication failed',
-      message: 'Invalid Firebase ID token',
-    });
-  }
-};
-
-/**
  * Optional Authentication Middleware
  * Authenticates if token is provided, but doesn't require it
  */
@@ -293,7 +230,6 @@ const authMiddleware = (req, res, next) => authenticateJWT(req, res, next);
 
 module.exports = {
   authenticateJWT,
-  authenticateFirebase,
   optionalAuth,
   requireAdmin,
   authMiddleware, // Alias for tests

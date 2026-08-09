@@ -61,7 +61,6 @@ const {
   gracefulShutdown: dbGracefulShutdown,
 } = require('./config/database');
 const { initializeFirebase } = require('./config/firebase');
-const { cleanup: cacheCleanup } = require('./middleware/cache');
 const { initializeSocket } = require('./socket');
 
 // Import routes
@@ -273,9 +272,6 @@ const gracefulShutdown = async (signal) => {
     logger.info('HTTP server closed.');
 
     try {
-      // Clean up cache middleware
-      cacheCleanup();
-      
       // Close database connections
       await dbGracefulShutdown();
 

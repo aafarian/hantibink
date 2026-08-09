@@ -46,26 +46,6 @@ const errorHandler = (err, req, res, _next) => {
     });
   }
 
-  // Mongoose bad ObjectId
-  if (err.name === 'CastError') {
-    const message = 'Resource not found';
-    error = new AppError(message, 404);
-  }
-
-  // Mongoose duplicate key
-  if (err.code === 11000) {
-    const value = err.errmsg.match(/(["'])(\\?.)*?\1/)[0];
-    const message = `Duplicate field value: ${value}. Please use another value!`;
-    error = new AppError(message, 400);
-  }
-
-  // Mongoose validation error
-  if (err.name === 'ValidationError') {
-    const errors = Object.values(err.errors).map((val) => val.message);
-    const message = `Invalid input data. ${errors.join('. ')}`;
-    error = new AppError(message, 400);
-  }
-
   // JWT errors
   if (err.name === 'JsonWebTokenError') {
     const message = 'Invalid token. Please log in again!';
@@ -138,10 +118,10 @@ const sendErrorResponse = (err, req, res) => {
   // Operational, trusted error: send message to client
   if (err.isOperational) {
     res.status(statusCode).json({
-      status,
+      success: false,
+      error: status,
       message: err.message,
       ...(process.env.NODE_ENV === 'development' && {
-        error: err,
         stack: err.stack,
       }),
     });
@@ -150,10 +130,10 @@ const sendErrorResponse = (err, req, res) => {
     logger.error('Programming Error:', err);
 
     res.status(500).json({
-      status: 'error',
+      success: false,
+      error: 'error',
       message: 'Something went wrong!',
       ...(process.env.NODE_ENV === 'development' && {
-        error: err,
         stack: err.stack,
       }),
     });
