@@ -1005,9 +1005,17 @@ const ChatScreen = ({ route, navigation }) => {
   const renderMessage = useCallback(
     ({ item, index }) => {
       const isOwnMessage = item.senderId === user.uid;
-      const showAvatar = index === 0 || reversedMessages[index - 1]?.senderId !== item.senderId;
-      // For inverted list, the last message in a group is when the next message (index - 1) is from a different sender
-      const isLastInGroup = index === 0 || reversedMessages[index - 1]?.senderId !== item.senderId;
+      // Grouping (avatar + timestamp on the newest message of a same-sender
+      // run) must skip GAME messages: they render as centered sender-neutral
+      // cards, and letting one sit as "newest of the group" swallowed the
+      // group's avatar — incoming bubbles then looked indented for no reason
+      let newerIndex = index - 1;
+      while (newerIndex >= 0 && reversedMessages[newerIndex]?.messageType === 'GAME') {
+        newerIndex--;
+      }
+      const newerMessage = newerIndex >= 0 ? reversedMessages[newerIndex] : null;
+      const isLastInGroup = !newerMessage || newerMessage.senderId !== item.senderId;
+      const showAvatar = isLastInGroup;
       const isTapped = tappedMessageId === item.id;
       // Only animate temp messages (optimistically added) - they're new messages being sent
       const shouldAnimate = item.isTemp === true;
