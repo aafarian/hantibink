@@ -46,7 +46,17 @@ const authenticateJWT = async (req, res, next) => {
 
     // Verify JWT token
     const decoded = verifyToken(token);
-    
+
+    // Only access tokens are valid for API calls. Refresh and password-reset
+    // tokens carry a `type` claim and are rejected here; legacy access tokens
+    // (issued before the claim existed, max 7d lifetime) have none and pass.
+    if (decoded.type && decoded.type !== 'access') {
+      return res.status(401).json({
+        error: 'Authentication failed',
+        message: 'Invalid token',
+      });
+    }
+
     // Get user from database
     const user = await prisma.user.findUnique({
       where: { id: decoded.userId },
@@ -186,6 +196,10 @@ const optionalAuth = async (req, res, next) => {
 
     // Try to authenticate
     const decoded = verifyToken(token);
+    if (decoded.type && decoded.type !== 'access') {
+      req.user = null;
+      return next();
+    }
     const user = await prisma.user.findUnique({
       where: { id: decoded.userId },
       select: {
@@ -216,8 +230,19 @@ const optionalAuth = async (req, res, next) => {
 };
 
 /**
+ * Parse the ADMIN_EMAILS env allowlist (comma-separated, case-insensitive).
+ * Read at call time so tests can vary the env per case.
+ */
+const getAdminEmails = () =>
+  (process.env.ADMIN_EMAILS || '')
+    .split(',')
+    .map((e) => e.trim().toLowerCase())
+    .filter(Boolean);
+
+/**
  * Admin Role Middleware
- * Requires authentication and admin role
+ * Requires authentication and an email on the ADMIN_EMAILS allowlist.
+ * Fails closed: with no allowlist configured, nobody is an admin.
  */
 const requireAdmin = async (req, res, next) => {
   try {
@@ -228,9 +253,10 @@ const requireAdmin = async (req, res, next) => {
       });
     }
 
-    // Check if user has admin role (you can extend this based on your role system)
-    const adminEmail = process.env.ADMIN_EMAIL || 'admin@hantibink.com';
-    if (req.user.email !== adminEmail) {
+    const adminEmails = getAdminEmails();
+    const userEmail = (req.user.email || '').toLowerCase();
+    if (!adminEmails.length || !userEmail || !adminEmails.includes(userEmail)) {
+      logger.logSecurity('Admin access denied', req.ip, req.user.id);
       return res.status(403).json({
         error: 'Access denied',
         message: 'Admin privileges required',

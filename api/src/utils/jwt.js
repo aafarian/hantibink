@@ -1,7 +1,11 @@
 const jwt = require('jsonwebtoken');
 const logger = require('./logger');
 
+if (!process.env.JWT_SECRET && process.env.NODE_ENV === 'production') {
+  throw new Error('JWT_SECRET must be set in production');
+}
 const JWT_SECRET = process.env.JWT_SECRET || 'dev_jwt_secret_change_in_production';
+const PASSWORD_RESET_EXPIRES_IN = '5m';
 const JWT_EXPIRES_IN = process.env.JWT_EXPIRES_IN || '7d';
 const JWT_REFRESH_EXPIRES_IN = process.env.JWT_REFRESH_EXPIRES_IN || '30d';
 
@@ -10,7 +14,7 @@ const JWT_REFRESH_EXPIRES_IN = process.env.JWT_REFRESH_EXPIRES_IN || '30d';
  */
 const generateAccessToken = (payload) => {
   try {
-    const token = jwt.sign(payload, JWT_SECRET, {
+    const token = jwt.sign({ ...payload, type: 'access' }, JWT_SECRET, {
       expiresIn: JWT_EXPIRES_IN,
       issuer: 'hantibink-api',
       audience: 'hantibink-app',
@@ -95,6 +99,27 @@ const generateTokenPair = (payload) => {
 };
 
 /**
+ * Generate a short-lived, single-purpose password-reset token.
+ * Its `type` claim keeps it unusable as an access or refresh token.
+ */
+const generatePasswordResetToken = (userId) => {
+  try {
+    return jwt.sign(
+      { userId, type: 'password-reset', purpose: 'password-reset' },
+      JWT_SECRET,
+      {
+        expiresIn: PASSWORD_RESET_EXPIRES_IN,
+        issuer: 'hantibink-api',
+        audience: 'hantibink-app',
+      },
+    );
+  } catch (error) {
+    logger.error('❌ Failed to generate password reset token:', error);
+    throw error;
+  }
+};
+
+/**
  * Extract token from Authorization header
  */
 const extractTokenFromHeader = (authHeader) => {
@@ -120,6 +145,7 @@ module.exports = {
   verifyToken,
   decodeToken,
   generateTokenPair,
+  generatePasswordResetToken,
   extractTokenFromHeader,
   verifyAccessToken,  // Alias for tests
   verifyRefreshToken, // Alias for tests
