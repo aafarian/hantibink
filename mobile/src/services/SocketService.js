@@ -19,6 +19,7 @@ class SocketService {
     this.connectionListeners = new Set();
     this.likedYouListeners = new Set();
     this.userStatusListeners = new Set();
+    this.gameListeners = new Set();
     this.heartbeatInterval = null;
     this.appStateSubscription = null;
     this.isAppActive = true;
@@ -142,6 +143,11 @@ class SocketService {
       this.matchListeners.forEach(callback => callback('new-match', data));
     });
 
+    // In-chat game state deltas (per-viewer redacted snapshots)
+    this.socket.on('game-updated', data => {
+      this.gameListeners.forEach(callback => callback('game-updated', data));
+    });
+
     // Liked You update events
     this.socket.on('liked-you-update', data => {
       Logger.info('💘 Liked You update received via WebSocket!');
@@ -250,6 +256,16 @@ class SocketService {
   onLikedYouUpdate(callback) {
     this.likedYouListeners.add(callback);
     return () => this.likedYouListeners.delete(callback);
+  }
+
+  /**
+   * Subscribe to game session updates
+   * @param {function} callback - Called with (event, data)
+   * @returns {function} Unsubscribe function
+   */
+  onGame(callback) {
+    this.gameListeners.add(callback);
+    return () => this.gameListeners.delete(callback);
   }
 
   /**

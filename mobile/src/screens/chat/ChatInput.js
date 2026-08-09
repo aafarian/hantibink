@@ -1,4 +1,5 @@
 import React from 'react';
+import { Ionicons } from '@expo/vector-icons';
 import { View, TextInput, TouchableOpacity, Text, StyleSheet } from 'react-native';
 import AudioRecorder from '../../components/AudioRecorder';
 import AnimatedSendButton from '../../components/chat/AnimatedSendButton';
@@ -26,6 +27,7 @@ const ChatInput = ({
   onTextChange,
   onSend,
   onGifPress,
+  onGamesPress,
   isRecording,
   onRecordingStart,
   onRecordingComplete,
@@ -42,6 +44,19 @@ const ChatInput = ({
       {/* Hide GIF and input when recording */}
       {!isRecording && (
         <>
+          {onGamesPress && (
+            <TouchableOpacity
+              style={styles.attachButton}
+              onPress={onGamesPress}
+              disabled={isUploadingAudio}
+            >
+              <Ionicons
+                name="game-controller-outline"
+                size={22}
+                color={isUploadingAudio ? theme.colors.text.muted : theme.colors.primary}
+              />
+            </TouchableOpacity>
+          )}
           <TouchableOpacity
             style={styles.attachButton}
             onPress={onGifPress}

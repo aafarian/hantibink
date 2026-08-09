@@ -50,6 +50,14 @@ import AnimatedTypingIndicator from '../components/chat/AnimatedTypingIndicator'
 import AnimatedMessageBubble from '../components/chat/AnimatedMessageBubble';
 import AnimatedScrollToBottom from '../components/chat/AnimatedScrollToBottom';
 import { theme } from '../styles/theme';
+import GamesApiService from '../services/GamesApiService';
+import useGameSession from '../hooks/useGameSession';
+import {
+  GamePickerSheet,
+  TwoTruthsComposer,
+  ActiveGameBar,
+  GameMessageCard,
+} from '../components/games/GameComponents';
 
 const ChatScreen = ({ route, navigation }) => {
   const { match } = route.params;
@@ -92,6 +100,59 @@ const ChatScreen = ({ route, navigation }) => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isRecording, setIsRecording] = useState(false);
   const [isUploadingAudio, setIsUploadingAudio] = useState(false);
+
+  // In-chat games
+  const [showGamePicker, setShowGamePicker] = useState(false);
+  const [showTwoTruthsComposer, setShowTwoTruthsComposer] = useState(false);
+  const { session: gameSession, refresh: refreshGameSession } = useGameSession(match.matchId);
+
+  const handlePickGame = useCallback(
+    async gameType => {
+      setShowGamePicker(false);
+      if (gameType === 'TWO_TRUTHS') {
+        setShowTwoTruthsComposer(true);
+        return;
+      }
+      try {
+        await GamesApiService.createSession(match.matchId, gameType);
+      } catch (error) {
+        showError(error.message || 'Could not start the game');
+      }
+    },
+    [match.matchId, showError]
+  );
+
+  const handleTwoTruthsSubmit = useCallback(
+    async payload => {
+      setShowTwoTruthsComposer(false);
+      try {
+        await GamesApiService.createSession(match.matchId, 'TWO_TRUTHS', payload);
+      } catch (error) {
+        showError(error.message || 'Could not start the game');
+      }
+    },
+    [match.matchId, showError]
+  );
+
+  const handleGameMove = useCallback(
+    async move => {
+      try {
+        await GamesApiService.submitMove(match.matchId, gameSession?.id, move);
+      } catch (error) {
+        showError(error.message || 'Move failed');
+        refreshGameSession();
+      }
+    },
+    [match.matchId, gameSession?.id, showError, refreshGameSession]
+  );
+
+  const handleGameDecline = useCallback(async () => {
+    try {
+      await GamesApiService.decline(match.matchId, gameSession?.id);
+    } catch (error) {
+      showError('Could not decline');
+    }
+  }, [match.matchId, gameSession?.id, showError]);
 
   // Refs
   const flatListRef = useRef(null);
@@ -869,6 +930,27 @@ const ChatScreen = ({ route, navigation }) => {
       // Only animate temp messages (optimistically added) - they're new messages being sent
       const shouldAnimate = item.isTemp === true;
 
+      // Game cards render as centered interactive cards, not bubbles
+      if (item.messageType === 'GAME') {
+        let gameMetadata = null;
+        try {
+          gameMetadata = item.metadata ? JSON.parse(item.metadata) : null;
+        } catch (parseError) {
+          gameMetadata = null;
+        }
+        if (gameMetadata?.kind) {
+          return (
+            <GameMessageCard
+              metadata={gameMetadata}
+              session={gameSession}
+              myId={user.uid}
+              onMove={handleGameMove}
+              onDecline={handleGameDecline}
+            />
+          );
+        }
+      }
+
       return (
         <AnimatedMessageBubble isOwnMessage={isOwnMessage} shouldAnimate={shouldAnimate}>
           <ChatMessageBubble
@@ -903,6 +985,9 @@ const ChatScreen = ({ route, navigation }) => {
       handleReactionsPress,
       scrollToMessage,
       openPhotoViewer,
+      gameSession,
+      handleGameMove,
+      handleGameDecline,
     ]
   );
 
@@ -1222,11 +1307,13 @@ const ChatScreen = ({ route, navigation }) => {
           />
 
           {/* Input */}
+          <ActiveGameBar session={gameSession} myId={user.uid} onPress={() => {}} />
           <ChatInput
             messageText={messageText}
             onTextChange={handleTypingChange}
             onSend={sendMessage}
             onGifPress={() => setShowGifPicker(true)}
+            onGamesPress={() => setShowGamePicker(true)}
             isRecording={isRecording}
             onRecordingStart={() => setIsRecording(true)}
             onRecordingComplete={(uri, duration, waveform) => {
@@ -1251,6 +1338,17 @@ const ChatScreen = ({ route, navigation }) => {
           />
 
           {/* GIF Picker Modal */}
+          <GamePickerSheet
+            visible={showGamePicker}
+            onClose={() => setShowGamePicker(false)}
+            onPick={handlePickGame}
+          />
+
+          <TwoTruthsComposer
+            visible={showTwoTruthsComposer}
+            onClose={() => setShowTwoTruthsComposer(false)}
+            onSubmit={handleTwoTruthsSubmit}
+          />
           <GifPicker
             visible={showGifPicker}
             onClose={() => setShowGifPicker(false)}
