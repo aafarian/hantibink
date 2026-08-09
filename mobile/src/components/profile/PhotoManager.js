@@ -398,9 +398,6 @@ const PhotoManager = ({
         // Store latest order in ref for debounced save (avoids stale closure)
         latestPhotoOrderRef.current = updatedPhotos.map(photo => photo.id);
 
-        // Clear dragging state
-        setTimeout(() => setDraggingItem(null), 0);
-
         // DEBOUNCED API SAVE: Only save to API after user stops moving photos
         if (mode === 'edit') {
           // Clear any existing debounce timer
@@ -423,6 +420,9 @@ const PhotoManager = ({
       } catch (error) {
         Logger.error('❌ Error handling drag release:', error);
         onError?.('Failed to reorder photos');
+      } finally {
+        // Release always resets the drag visuals — the ignore branches above
+        // used to skip this and leave the photo stuck enlarged
         setTimeout(() => setDraggingItem(null), 0);
       }
     },
