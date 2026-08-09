@@ -59,6 +59,11 @@ const AudioRecorder = ({
   const startTimeRef = useRef(null);
   const slideXRef = useRef(0);
   const isBusyRef = useRef(false);
+  // The finger can lift while the recorder is still being prepared — the
+  // release handler sees isRecording=false and does nothing, which used to
+  // orphan a live recorder (stuck recording UI, and the next prepare died
+  // with "Only one Recording object can be prepared at a given time")
+  const releasedDuringStartRef = useRef(false);
   const audioLevelsRef = useRef(Array(WAVE_BAR_COUNT).fill(0.02));
   const waveformDataRef = useRef([]); // Store all levels for the final waveform
 
@@ -176,6 +181,12 @@ const AudioRecorder = ({
         playsInSilentModeIOS: true,
       });
 
+      // A stale recorder from a failed stop would block the new prepare
+      if (recordingRef.current) {
+        await recordingRef.current.stopAndUnloadAsync().catch(() => {});
+        recordingRef.current = null;
+      }
+
       // Reset buffers BEFORE the recording exists — the status callback is
       // live from creation and must not race the reset
       waveformDataRef.current = [];
@@ -196,6 +207,15 @@ const AudioRecorder = ({
         updateAudioLevel,
         METERING_INTERVAL
       );
+
+      // Finger already lifted (stray quick tap): unload immediately and
+      // never enter the recording state
+      if (releasedDuringStartRef.current) {
+        await recording.stopAndUnloadAsync().catch(() => {});
+        await Audio.setAudioModeAsync({ allowsRecordingIOS: false }).catch(() => {});
+        isBusyRef.current = false;
+        return false;
+      }
 
       recordingRef.current = recording;
       startTimeRef.current = Date.now();
@@ -344,6 +364,7 @@ const AudioRecorder = ({
       onMoveShouldSetPanResponder: () => isRecordingRef.current,
       onPanResponderGrant: async () => {
         if (!disabledRef.current && !isBusyRef.current && !isRecordingRef.current) {
+          releasedDuringStartRef.current = false;
           // Use ref to get latest function
           await startRecordingRef.current?.();
         }
@@ -355,6 +376,12 @@ const AudioRecorder = ({
         }
       },
       onPanResponderRelease: () => {
+        if (!isRecordingRef.current && isBusyRef.current) {
+          // Start still in flight — flag it so the recorder unloads the
+          // moment it comes up instead of recording to nobody
+          releasedDuringStartRef.current = true;
+          return;
+        }
         if (isRecordingRef.current) {
           if (slideXRef.current < CANCEL_THRESHOLD) {
             // Swiped far enough - cancel the recording
@@ -374,6 +401,10 @@ const AudioRecorder = ({
         }
       },
       onPanResponderTerminate: () => {
+        if (!isRecordingRef.current && isBusyRef.current) {
+          releasedDuringStartRef.current = true;
+          return;
+        }
         if (isRecordingRef.current) {
           // System interrupted - cancel the recording
           stopRecordingRef.current?.(true);
