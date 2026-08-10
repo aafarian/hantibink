@@ -1,8 +1,26 @@
-import React, { useEffect, useRef } from 'react';
-import { View, Text, StyleSheet, Modal, TouchableOpacity, Pressable, Animated } from 'react-native';
+import React, { useEffect, useRef, useState, useCallback } from 'react';
+import {
+  View,
+  Text,
+  StyleSheet,
+  Modal,
+  TouchableOpacity,
+  Pressable,
+  Animated,
+  ActivityIndicator,
+} from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useAuth } from '../../contexts/AuthContext';
+import { useToast } from '../../contexts/ToastContext';
+import { getPremiumPackages, purchasePremium, restorePurchases } from '../../utils/purchases';
 import { theme } from '../../styles/theme';
+
+const PACKAGE_LABELS = {
+  MONTHLY: 'Monthly',
+  THREE_MONTH: '3 Months',
+  ANNUAL: 'Yearly',
+};
 
 /**
  * Premium features:
@@ -48,6 +66,61 @@ const PREMIUM_FEATURES = [
 const PremiumUpgradeModal = ({ visible, onClose, onUpgrade }) => {
   const insets = useSafeAreaInsets();
   const overlayOpacity = useRef(new Animated.Value(0)).current;
+  const { refreshUserProfile } = useAuth();
+  const { showSuccess, showError } = useToast();
+  const [packages, setPackages] = useState([]);
+  const [buying, setBuying] = useState(null);
+  const [restoring, setRestoring] = useState(false);
+
+  // Live prices from RevenueCat; empty in builds without an RC key, where
+  // the legacy single CTA renders instead
+  useEffect(() => {
+    if (visible) {
+      getPremiumPackages().then(setPackages);
+    }
+  }, [visible]);
+
+  const handlePurchase = useCallback(
+    async pkg => {
+      if (buying) {
+        return;
+      }
+      setBuying(pkg.identifier);
+      try {
+        const result = await purchasePremium(pkg);
+        if (result.success && result.active) {
+          // The webhook flips the server flag; refresh picks it up
+          await refreshUserProfile?.();
+          showSuccess('Premium is active. Enjoy!');
+          onClose?.();
+        } else if (!result.cancelled) {
+          showError(result.message || 'Purchase failed. You were not charged.');
+        }
+      } finally {
+        setBuying(null);
+      }
+    },
+    [buying, refreshUserProfile, showSuccess, showError, onClose]
+  );
+
+  const handleRestore = useCallback(async () => {
+    if (restoring) {
+      return;
+    }
+    setRestoring(true);
+    try {
+      const result = await restorePurchases();
+      if (result.active) {
+        await refreshUserProfile?.();
+        showSuccess('Premium restored!');
+        onClose?.();
+      } else {
+        showError(result.message || 'No previous purchase found for this account.');
+      }
+    } finally {
+      setRestoring(false);
+    }
+  }, [restoring, refreshUserProfile, showSuccess, showError, onClose]);
 
   useEffect(() => {
     if (visible) {
@@ -112,13 +185,46 @@ const PremiumUpgradeModal = ({ visible, onClose, onUpgrade }) => {
             ))}
           </View>
 
-          {/* CTA Button */}
-          <TouchableOpacity
-            style={styles.upgradeButton}
-            onPress={handleUpgrade}
-            activeOpacity={0.8}
-          >
-            <Text style={styles.upgradeButtonText}>Get Premium</Text>
+          {/* Purchase options (live store prices) or the legacy CTA when
+              this build has no RevenueCat key */}
+          {packages.length > 0 ? (
+            <View style={styles.packagesRow}>
+              {packages.map(pkg => (
+                <TouchableOpacity
+                  key={pkg.identifier}
+                  style={[styles.packageOption, buying === pkg.identifier && styles.packageBuying]}
+                  disabled={!!buying}
+                  onPress={() => handlePurchase(pkg)}
+                  activeOpacity={0.8}
+                >
+                  {buying === pkg.identifier ? (
+                    <ActivityIndicator size="small" color={theme.colors.premium} />
+                  ) : (
+                    <>
+                      <Text style={styles.packageLabel}>
+                        {PACKAGE_LABELS[pkg.packageType] || pkg.packageType}
+                      </Text>
+                      <Text style={styles.packagePrice}>{pkg.product.priceString}</Text>
+                    </>
+                  )}
+                </TouchableOpacity>
+              ))}
+            </View>
+          ) : (
+            <TouchableOpacity
+              style={styles.upgradeButton}
+              onPress={handleUpgrade}
+              activeOpacity={0.8}
+            >
+              <Text style={styles.upgradeButtonText}>Get Premium</Text>
+            </TouchableOpacity>
+          )}
+
+          {/* App Store requires a visible restore path */}
+          <TouchableOpacity style={styles.laterButton} onPress={handleRestore} disabled={restoring}>
+            <Text style={styles.laterButtonText}>
+              {restoring ? 'Restoring…' : 'Restore Purchases'}
+            </Text>
           </TouchableOpacity>
 
           {/* Secondary action */}
@@ -212,6 +318,36 @@ const styles = StyleSheet.create({
     fontSize: theme.typography.sizes.sm,
     fontFamily: theme.typography.fontFamily.regular,
     color: theme.colors.text.secondary,
+  },
+  packagesRow: {
+    flexDirection: 'row',
+    gap: theme.spacing.sm,
+    marginBottom: theme.spacing.sm,
+  },
+  packageOption: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: theme.spacing.md,
+    borderRadius: theme.borderRadius.lg,
+    borderWidth: 1.5,
+    borderColor: theme.colors.premium,
+    backgroundColor: `${theme.colors.premium}10`,
+    minHeight: 64,
+  },
+  packageBuying: {
+    opacity: 0.7,
+  },
+  packageLabel: {
+    fontSize: theme.typography.sizes.sm,
+    fontWeight: theme.typography.weights.semibold,
+    color: theme.colors.text.primary,
+  },
+  packagePrice: {
+    fontSize: theme.typography.sizes.md,
+    fontWeight: theme.typography.weights.bold,
+    color: theme.colors.premium,
+    marginTop: 2,
   },
   upgradeButton: {
     backgroundColor: theme.colors.primary,

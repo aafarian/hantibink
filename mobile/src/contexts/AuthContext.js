@@ -6,6 +6,7 @@ import Logger from '../utils/logger';
 import { uploadImageToFirebase } from '../utils/imageUpload';
 import * as Location from 'expo-location';
 import { registerForPushNotificationsAsync, clearPushTokenAsync } from '../utils/notifications';
+import { rcLogIn, rcLogOut } from '../utils/purchases';
 import {
   identifyUser,
   resetAnalytics,
@@ -54,6 +55,14 @@ export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
   const [userProfile, setUserProfile] = useState(null);
+
+  // Tie the RevenueCat customer to our user id — webhooks then carry it as
+  // app_user_id, which is how the server knows whose isPremium to flip
+  useEffect(() => {
+    if (user?.uid) {
+      rcLogIn(user.uid);
+    }
+  }, [user?.uid]);
 
   // Initialize API client and check for existing session
   useEffect(() => {
@@ -527,6 +536,9 @@ export const AuthProvider = ({ children }) => {
 
       // Logout from API
       await ApiDataService.logout();
+
+      // Detach the RevenueCat customer so the next login can't inherit it
+      await rcLogOut();
 
       // Update offline status and disconnect WebSocket
       if (user?.uid) {

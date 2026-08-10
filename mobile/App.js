@@ -8,6 +8,7 @@ import * as SplashScreen from 'expo-splash-screen';
 import Constants from 'expo-constants';
 import { useFonts } from 'expo-font';
 import ErrorBoundary from './src/components/ErrorBoundary';
+import { configurePurchases } from './src/utils/purchases';
 import { AuthProvider } from './src/contexts/AuthContext';
 import { ToastProvider } from './src/contexts/ToastContext';
 import { UnreadProvider } from './src/contexts/UnreadContext';
@@ -32,6 +33,9 @@ if (SENTRY_DSN && !__DEV__) {
     tracesSampleRate: 0.1,
   });
 }
+
+// RevenueCat (no-op when no key is baked into this build)
+configurePurchases();
 
 function App() {
   const [fontsLoaded, fontError] = useFonts(fontMap);
