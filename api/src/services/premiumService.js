@@ -155,15 +155,45 @@ const getUserQuotas = async (userId) => {
  * free-era days, and a concurrent spend can never be restored by the seed.
  * GREATEST keeps a balance that survived a downgrade (raw SQL because the
  * Prisma update API cannot express a field-relative floor atomically).
+ *
+ * eventAt/eventId/expiresAt (RevenueCat event timestamp, unique event id,
+ * and the entitlement's expiration) make the grant conditional:
+ * - refused when the entitlement window is already over (expiresAt in the
+ *   past) — a stale redelivered grant can never re-open unpaid access
+ * - otherwise applies when newer than the last recorded event, or when it
+ *   shares that timestamp but is a DIFFERENT event (grants win equal-
+ *   timestamp ties — the renewal-boundary shape — while a matching id is
+ *   a true duplicate and a no-op)
+ * The outcome is therefore delivery-order-independent: premium ends up set
+ * iff the entitlement window is genuinely open. Omit all three (admin
+ * grants) to apply always. Returns true when the update applied.
  */
-const activatePremium = async (userId) => {
-  await prisma.$executeRaw`
+const activatePremium = async (userId, eventAt = null, eventId = null, expiresAt = null) => {
+  // Prisma sends Date params as timestamptz while the column is a naive
+  // UTC timestamp; AT TIME ZONE 'UTC' pins the comparison and the stored
+  // value to UTC regardless of the server's session timezone.
+  const updated = await prisma.$executeRaw`
     UPDATE "users"
     SET "isPremium" = true,
         "superLikeAccruedAt" = (NOW() AT TIME ZONE 'utc'),
-        "superLikeBalance" = GREATEST("superLikeBalance", 2)
+        "superLikeBalance" = GREATEST("superLikeBalance", 2),
+        "rcLastEventAt" = COALESCE(${eventAt} AT TIME ZONE 'UTC', "rcLastEventAt"),
+        "rcLastEventId" = CASE
+          WHEN ${eventAt}::timestamptz IS NULL THEN "rcLastEventId"
+          ELSE ${eventId}
+        END
     WHERE "id" = ${userId}
+      AND (${expiresAt}::timestamptz IS NULL
+        OR (${expiresAt} AT TIME ZONE 'UTC') > (NOW() AT TIME ZONE 'utc'))
+      AND (${eventAt}::timestamptz IS NULL
+        OR "rcLastEventAt" IS NULL
+        OR "rcLastEventAt" < (${eventAt} AT TIME ZONE 'UTC')
+        OR ("rcLastEventAt" = (${eventAt} AT TIME ZONE 'UTC')
+          AND ${eventId}::text IS NOT NULL
+          AND "rcLastEventId" IS NOT NULL
+          AND "rcLastEventId" <> ${eventId}))
   `;
+  return updated > 0;
 };
 
 /**

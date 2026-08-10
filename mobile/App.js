@@ -18,6 +18,7 @@ import AppNavigator from './src/navigation/AppNavigator';
 import { theme } from './src/styles/theme';
 import { fontMap } from './src/styles/fonts';
 import { initAnalytics, trackAppOpened } from './src/utils/analytics';
+import { configurePurchases } from './src/utils/purchases';
 
 // Keep splash screen visible while fonts load
 SplashScreen.preventAutoHideAsync();
@@ -32,6 +33,9 @@ if (SENTRY_DSN && !__DEV__) {
     tracesSampleRate: 0.1,
   });
 }
+
+// RevenueCat (no-op when no key is baked into this build)
+configurePurchases();
 
 function App() {
   const [fontsLoaded, fontError] = useFonts(fontMap);

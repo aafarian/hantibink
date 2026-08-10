@@ -239,6 +239,9 @@ apiRouter.use('/moderation', moderationRoutes);
 // Waitlist routes (public, rate-limited)
 apiRouter.use('/waitlist', waitlistRoutes);
 
+// Billing provider webhooks (shared-secret auth inside the route)
+apiRouter.use('/webhooks', require('./routes/webhooks'));
+
 // In-chat games (protected)
 apiRouter.use('/games', gamesRoutes);
 

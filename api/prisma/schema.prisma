@@ -47,6 +47,8 @@ model User {
   isProfilePaused        Boolean        @default(false)
   pausedAt               DateTime?
   isPremium              Boolean        @default(false)
+  rcLastEventAt          DateTime?      // newest RevenueCat event applied — stale/duplicate webhooks are no-ops
+  rcLastEventId          String?        // id of that event — tie-breaks distinct events sharing a timestamp
   gamesEnabled           Boolean        @default(true)  // in-chat games; icon shows only when both members enabled
   hasCompletedOnboarding Boolean        @default(false)
   onboardingStage        OnboardingStage @default(REGISTERED)
