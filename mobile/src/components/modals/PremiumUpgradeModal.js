@@ -67,7 +67,7 @@ const PremiumUpgradeModal = ({ visible, onClose, onUpgrade }) => {
   const insets = useSafeAreaInsets();
   const overlayOpacity = useRef(new Animated.Value(0)).current;
   const { refreshUserProfile } = useAuth();
-  const { showSuccess, showError } = useToast();
+  const { showSuccess, showError, showInfo } = useToast();
   const [packages, setPackages] = useState([]);
   const [buying, setBuying] = useState(null);
   const [restoring, setRestoring] = useState(false);
@@ -137,8 +137,14 @@ const PremiumUpgradeModal = ({ visible, onClose, onUpgrade }) => {
   }, [visible, overlayOpacity]);
 
   const handleUpgrade = () => {
-    onUpgrade?.();
-    onClose();
+    if (onUpgrade) {
+      onUpgrade();
+      onClose();
+      return;
+    }
+    // Keyless build (no RevenueCat key baked in): no purchase can start
+    // here, so say so instead of silently closing the modal
+    showInfo('Purchases are coming soon — this version can’t start one yet.');
   };
 
   return (
