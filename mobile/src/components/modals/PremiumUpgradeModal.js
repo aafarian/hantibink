@@ -14,7 +14,12 @@ import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuth } from '../../contexts/AuthContext';
 import { useToast } from '../../contexts/ToastContext';
-import { getPremiumPackages, purchasePremium, restorePurchases } from '../../utils/purchases';
+import {
+  getPremiumPackages,
+  purchasePremium,
+  restorePurchases,
+  isPurchasesReady,
+} from '../../utils/purchases';
 import { theme } from '../../styles/theme';
 
 const PACKAGE_LABELS = {
@@ -68,11 +73,14 @@ const PremiumUpgradeModal = ({ visible, onClose, onUpgrade }) => {
   const insets = useSafeAreaInsets();
   const overlayOpacity = useRef(new Animated.Value(0)).current;
   const { refreshUserProfile } = useAuth();
-  const { showSuccess, showError } = useToast();
+  const { showSuccess } = useToast();
   const [packages, setPackages] = useState([]);
   const [buying, setBuying] = useState(null);
   const [restoring, setRestoring] = useState(false);
   const [comingSoon, setComingSoon] = useState(false);
+  // In-modal feedback line: toasts render beneath native modals, so any
+  // message that must be read while the modal is open lands here instead
+  const [notice, setNotice] = useState(null);
 
   // Live prices from RevenueCat; empty in builds without an RC key, where
   // the legacy single CTA renders instead
@@ -88,6 +96,7 @@ const PremiumUpgradeModal = ({ visible, onClose, onUpgrade }) => {
         return;
       }
       setBuying(pkg.identifier);
+      setNotice(null);
       try {
         const result = await purchasePremium(pkg);
         if (result.success && result.active) {
@@ -96,13 +105,13 @@ const PremiumUpgradeModal = ({ visible, onClose, onUpgrade }) => {
           showSuccess('Premium is active. Enjoy!');
           onClose?.();
         } else if (!result.cancelled) {
-          showError(result.message || 'Purchase failed. You were not charged.');
+          setNotice(result.message || 'Purchase failed. You were not charged.');
         }
       } finally {
         setBuying(null);
       }
     },
-    [buying, refreshUserProfile, showSuccess, showError, onClose]
+    [buying, refreshUserProfile, showSuccess, onClose]
   );
 
   const handleRestore = useCallback(async () => {
@@ -110,6 +119,7 @@ const PremiumUpgradeModal = ({ visible, onClose, onUpgrade }) => {
       return;
     }
     setRestoring(true);
+    setNotice(null);
     try {
       const result = await restorePurchases();
       if (result.active) {
@@ -117,12 +127,12 @@ const PremiumUpgradeModal = ({ visible, onClose, onUpgrade }) => {
         showSuccess('Premium restored!');
         onClose?.();
       } else {
-        showError(result.message || 'No previous purchase found for this account.');
+        setNotice(result.message || 'No previous purchase found for this account.');
       }
     } finally {
       setRestoring(false);
     }
-  }, [restoring, refreshUserProfile, showSuccess, showError, onClose]);
+  }, [restoring, refreshUserProfile, showSuccess, onClose]);
 
   useEffect(() => {
     if (visible) {
@@ -136,6 +146,7 @@ const PremiumUpgradeModal = ({ visible, onClose, onUpgrade }) => {
     } else {
       overlayOpacity.setValue(0);
       setComingSoon(false);
+      setNotice(null);
     }
   }, [visible, overlayOpacity]);
 
@@ -241,12 +252,22 @@ const PremiumUpgradeModal = ({ visible, onClose, onUpgrade }) => {
             )}
           </ScrollView>
 
-          {/* App Store requires a visible restore path */}
-          <TouchableOpacity style={styles.laterButton} onPress={handleRestore} disabled={restoring}>
-            <Text style={styles.laterButtonText}>
-              {restoring ? 'Restoring…' : 'Restore Purchases'}
-            </Text>
-          </TouchableOpacity>
+          {/* In-modal feedback (purchase/restore failures) */}
+          {notice && <Text style={styles.noticeText}>{notice}</Text>}
+
+          {/* App Store requires a visible restore path wherever purchases
+              can happen; keyless builds have neither, so no dead control */}
+          {isPurchasesReady() && (
+            <TouchableOpacity
+              style={styles.laterButton}
+              onPress={handleRestore}
+              disabled={restoring}
+            >
+              <Text style={styles.laterButtonText}>
+                {restoring ? 'Restoring…' : 'Restore Purchases'}
+              </Text>
+            </TouchableOpacity>
+          )}
 
           {/* Secondary action */}
           <TouchableOpacity style={styles.laterButton} onPress={onClose}>
@@ -399,6 +420,13 @@ const styles = StyleSheet.create({
   },
   upgradeButtonDisabled: {
     opacity: 0.65,
+  },
+  noticeText: {
+    marginTop: theme.spacing.sm,
+    textAlign: 'center',
+    color: theme.colors.text.secondary,
+    fontSize: theme.typography.sizes.sm,
+    fontFamily: theme.typography.fontFamily.bodyMedium,
   },
 });
 
