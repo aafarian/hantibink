@@ -88,29 +88,44 @@ describe('RevenueCat webhook', () => {
     expect(anon.status).toBe(200);
   });
 
-  it('ignores SANDBOX events unless REVENUECAT_ALLOW_SANDBOX is set', async () => {
-    const user = await userFactory.create(global.prisma, { isPremium: false });
-    const sandboxPurchase = rcEvent({ app_user_id: user.id, environment: 'SANDBOX' });
+  it('honors SANDBOX events only for allowlisted tester accounts', async () => {
+    const tester = await userFactory.create(global.prisma, { isPremium: false });
+    const civilian = await userFactory.create(global.prisma, { isPremium: false });
+    const sandboxPurchase = (userId) =>
+      rcEvent({ app_user_id: userId, environment: 'SANDBOX' });
 
+    // No allowlist configured → every sandbox event is ignored
     const blocked = await request(app)
       .post('/webhooks/revenuecat')
       .set('Authorization', SECRET)
-      .send(sandboxPurchase);
+      .send(sandboxPurchase(tester.id));
     expect(blocked.status).toBe(200);
-    let fresh = await global.prisma.user.findUnique({ where: { id: user.id } });
-    expect(fresh.isPremium).toBe(false);
+    let freshTester = await global.prisma.user.findUnique({ where: { id: tester.id } });
+    expect(freshTester.isPremium).toBe(false);
 
-    process.env.REVENUECAT_ALLOW_SANDBOX = 'true';
+    process.env.REVENUECAT_SANDBOX_USER_IDS = ` ${tester.id} , some-other-tester `;
     try {
+      // Allowlisted tester is processed
       const allowed = await request(app)
         .post('/webhooks/revenuecat')
         .set('Authorization', SECRET)
-        .send(sandboxPurchase);
+        .send(sandboxPurchase(tester.id));
       expect(allowed.status).toBe(200);
-      fresh = await global.prisma.user.findUnique({ where: { id: user.id } });
-      expect(fresh.isPremium).toBe(true);
+      freshTester = await global.prisma.user.findUnique({ where: { id: tester.id } });
+      expect(freshTester.isPremium).toBe(true);
+
+      // Any other production account stays untouched even while testing is on
+      const stillBlocked = await request(app)
+        .post('/webhooks/revenuecat')
+        .set('Authorization', SECRET)
+        .send(sandboxPurchase(civilian.id));
+      expect(stillBlocked.status).toBe(200);
+      const freshCivilian = await global.prisma.user.findUnique({
+        where: { id: civilian.id },
+      });
+      expect(freshCivilian.isPremium).toBe(false);
     } finally {
-      delete process.env.REVENUECAT_ALLOW_SANDBOX;
+      delete process.env.REVENUECAT_SANDBOX_USER_IDS;
     }
   });
 

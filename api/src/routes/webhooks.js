@@ -38,12 +38,21 @@ router.post('/revenuecat', async (req, res) => {
     }
 
     // Test Store / sandbox purchases must never touch real entitlements.
-    // RC stamps every event with its store environment; drop SANDBOX events
-    // unless the deploy explicitly opts in (REVENUECAT_ALLOW_SANDBOX=true,
-    // set only while sandbox-testing the purchase flow).
-    if (event.environment === 'SANDBOX' && process.env.REVENUECAT_ALLOW_SANDBOX !== 'true') {
-      logger.info(`RevenueCat SANDBOX event ${event.type} ignored (REVENUECAT_ALLOW_SANDBOX not set)`);
-      return res.json({ received: true });
+    // RC stamps every event with its store environment; SANDBOX events are
+    // honored only for allowlisted tester accounts (REVENUECAT_SANDBOX_USER_IDS,
+    // comma-separated DB ids, set only while sandbox-testing the purchase
+    // flow) — there is deliberately no "allow all sandbox" mode.
+    if (event.environment === 'SANDBOX') {
+      const testers = (process.env.REVENUECAT_SANDBOX_USER_IDS || '')
+        .split(',')
+        .map((id) => id.trim())
+        .filter(Boolean);
+      if (!testers.includes(event.app_user_id)) {
+        logger.info(
+          `RevenueCat SANDBOX event ${event.type} ignored (app_user_id not an allowlisted tester)`,
+        );
+        return res.json({ received: true });
+      }
     }
 
     // We call Purchases.logIn(<our user id>) on the client, so app_user_id
