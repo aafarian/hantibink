@@ -162,12 +162,18 @@ export const TwoTruthsComposer = ({ visible, onClose, onSubmit }) => {
             onPress={async () => {
               setSubmitting(true);
               try {
-                await onSubmit({ statements: statements.map(s => s.trim()), lieIndex });
-                setStatements(['', '', '']);
-                setLieIndex(null);
+                // Only a confirmed create clears the draft — failures keep
+                // everything typed so the user can retry
+                const ok = await onSubmit({
+                  statements: statements.map(s => s.trim()),
+                  lieIndex,
+                });
+                if (ok) {
+                  setStatements(['', '', '']);
+                  setLieIndex(null);
+                }
               } catch {
-                // Error already surfaced by the submit handler; keep the
-                // draft so the user can retry
+                // Error already surfaced by the submit handler
               } finally {
                 setSubmitting(false);
               }
@@ -232,11 +238,12 @@ export const RouletteComposer = ({ visible, question, onClose, onSubmit }) => {
             onPress={async () => {
               setSubmitting(true);
               try {
-                await onSubmit(draft.trim());
-                setDraft('');
+                const ok = await onSubmit(draft.trim());
+                if (ok) {
+                  setDraft('');
+                }
               } catch {
-                // Error already surfaced by the submit handler; keep the
-                // draft so the user can retry
+                // Error already surfaced by the submit handler
               } finally {
                 setSubmitting(false);
               }
@@ -403,8 +410,13 @@ const PanelInner = ({
       // Errors are surfaced by the handler itself (toast + refetch) — this
       // catch only stops the rejection from escaping the event handler
     } finally {
-      pendingRef.current = false;
-      setPendingMove(null);
+      // Release on the NEXT frame: the resolve and the snapshot's setState
+      // land in the same batch, so a same-tick release would leave one
+      // render where the stale view is actionable again
+      requestAnimationFrame(() => {
+        pendingRef.current = false;
+        setPendingMove(null);
+      });
     }
   };
   return (

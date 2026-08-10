@@ -201,13 +201,18 @@ const ChatScreen = ({ route, navigation }) => {
     }
   }, [activeGameId]);
 
+  // Returns whether the game was actually created — callers use it to keep
+  // composers (and their drafts) open on failure instead of silently
+  // discarding what the user typed
   const createGame = useCallback(
     async (gameType, payload = null) => {
       try {
         const created = await GamesApiService.createSession(match.matchId, gameType, payload);
         applyGameSnapshot(created);
+        return true;
       } catch (error) {
         showError(error.message || 'Could not start the game');
+        return false;
       }
     },
     [match.matchId, showError, applyGameSnapshot]
@@ -246,8 +251,11 @@ const ChatScreen = ({ route, navigation }) => {
   // dead gap where nothing on screen acknowledged the submit
   const handleTwoTruthsSubmit = useCallback(
     async payload => {
-      await createGame('TWO_TRUTHS', payload);
-      setShowTwoTruthsComposer(false);
+      const ok = await createGame('TWO_TRUTHS', payload);
+      if (ok) {
+        setShowTwoTruthsComposer(false);
+      }
+      return ok;
     },
     [createGame]
   );
@@ -255,16 +263,22 @@ const ChatScreen = ({ route, navigation }) => {
   const handleRouletteSubmit = useCallback(
     async answer => {
       const questionId = rouletteOffer?.id;
-      await createGame('QUESTION_ROULETTE', { questionId, answer });
-      setRouletteOffer(null);
+      const ok = await createGame('QUESTION_ROULETTE', { questionId, answer });
+      if (ok) {
+        setRouletteOffer(null);
+      }
+      return ok;
     },
     [rouletteOffer?.id, createGame]
   );
 
   const handleRiddleSubmit = useCallback(
     async riddleId => {
-      await createGame('EMOJI_RIDDLE', { riddleId });
-      setRiddleOffers(null);
+      const ok = await createGame('EMOJI_RIDDLE', { riddleId });
+      if (ok) {
+        setRiddleOffers(null);
+      }
+      return ok;
     },
     [createGame]
   );
