@@ -9,7 +9,6 @@ import * as Haptics from 'expo-haptics';
 import { useAuth } from '../contexts/AuthContext';
 import { useUnread } from '../contexts/UnreadContext';
 import { LocationProvider } from '../contexts/LocationContext';
-import { ToastProvider } from '../contexts/ToastContext';
 import LocationPromptModal from '../components/LocationPromptModal';
 import Logger from '../utils/logger';
 import { useLocationTracking } from '../hooks/useLocationTracking';
@@ -386,22 +385,20 @@ const AppNavigator = () => {
         onReady={handleNavigationReady}
         onStateChange={handleNavigationStateChange}
       >
-        <ToastProvider>
-          <LocationProvider>
-            {(() => {
-              if (user && userProfile) {
-                return (
-                  <>
-                    <MainNavigator />
-                    <LocationPromptModal />
-                  </>
-                );
-              } else {
-                return <AuthNavigator />;
-              }
-            })()}
-          </LocationProvider>
-        </ToastProvider>
+        <LocationProvider>
+          {(() => {
+            if (user && userProfile) {
+              return (
+                <>
+                  <MainNavigator />
+                  <LocationPromptModal />
+                </>
+              );
+            } else {
+              return <AuthNavigator />;
+            }
+          })()}
+        </LocationProvider>
       </NavigationContainer>
 
       {/* Force Update Modal - Shows when app version is below minimum */}

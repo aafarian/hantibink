@@ -2,7 +2,6 @@ import { StatusBar } from 'expo-status-bar';
 import React, { useEffect, useCallback } from 'react';
 import { StyleSheet } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
-import { Provider as PaperProvider } from 'react-native-paper';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import * as Sentry from '@sentry/react-native';
 import * as SplashScreen from 'expo-splash-screen';
@@ -69,30 +68,28 @@ function App() {
 
   return (
     <ErrorBoundary>
-      <PaperProvider>
-        <SafeAreaProvider>
-          <UpdateProvider>
-            <ToastProvider>
-              <AuthProvider>
-                <FeatureFlagsProvider>
-                  <UnreadProvider>
-                    <GestureHandlerRootView style={styles.container} onLayout={onLayoutRootView}>
-                      <StatusBar
-                        style="light"
-                        backgroundColor={theme.colors.primary}
-                        translucent={true}
-                      />
-                      <PhotoViewerProvider>
-                        <AppNavigator />
-                      </PhotoViewerProvider>
-                    </GestureHandlerRootView>
-                  </UnreadProvider>
-                </FeatureFlagsProvider>
-              </AuthProvider>
-            </ToastProvider>
-          </UpdateProvider>
-        </SafeAreaProvider>
-      </PaperProvider>
+      <SafeAreaProvider>
+        <UpdateProvider>
+          <ToastProvider>
+            <AuthProvider>
+              <FeatureFlagsProvider>
+                <UnreadProvider>
+                  <GestureHandlerRootView style={styles.container} onLayout={onLayoutRootView}>
+                    <StatusBar
+                      style="light"
+                      backgroundColor={theme.colors.primary}
+                      translucent={true}
+                    />
+                    <PhotoViewerProvider>
+                      <AppNavigator />
+                    </PhotoViewerProvider>
+                  </GestureHandlerRootView>
+                </UnreadProvider>
+              </FeatureFlagsProvider>
+            </AuthProvider>
+          </ToastProvider>
+        </UpdateProvider>
+      </SafeAreaProvider>
     </ErrorBoundary>
   );
 }

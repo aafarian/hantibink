@@ -74,7 +74,7 @@ const isMatchMuted = async (userId, matchId) => {
  * @param {string} blockedId - The user being blocked
  * @param {string} _matchId - Optional match ID for context (unused, all matches are deactivated)
  */
-const blockUser = async (blockerId, blockedId, _matchId = null) => {
+const blockUser = async (blockerId, blockedId, _matchId = null, io = null) => {
   if (blockerId === blockedId) {
     throw new AppError('Cannot block yourself', 400);
   }
@@ -93,8 +93,9 @@ const blockUser = async (blockerId, blockedId, _matchId = null) => {
       },
     });
 
-    // Deactivate any matches between these users
-    await tx.match.updateMany({
+    // Deactivate any matches between these users. Their IDs are collected
+    // first so live socket rooms can be revoked after commit.
+    const pairMatches = await tx.match.findMany({
       where: {
         OR: [
           { user1Id: blockerId, user2Id: blockedId },
@@ -102,6 +103,10 @@ const blockUser = async (blockerId, blockedId, _matchId = null) => {
         ],
         isActive: true,
       },
+      select: { id: true },
+    });
+    await tx.match.updateMany({
+      where: { id: { in: pairMatches.map((m) => m.id) } },
       data: {
         isActive: false,
         unmatchedBy: blockerId,
@@ -114,11 +119,15 @@ const blockUser = async (blockerId, blockedId, _matchId = null) => {
     // blocked users reappear in each other's decks. Block enforcement itself
     // lives in the BlockedUser table checks (isUserBlocked/getBlockedUserIds).
 
-    return blocked;
+    return { blocked, deactivatedMatchIds: pairMatches.map((m) => m.id) };
   });
 
+  for (const matchId of result.deactivatedMatchIds) {
+    io?.evictMatchRoom?.(matchId);
+  }
+
   logger.info(`User ${blockerId} blocked user ${blockedId}`);
-  return { blockedId, blockedAt: result.createdAt };
+  return { blockedId, blockedAt: result.blocked.createdAt };
 };
 
 /**
@@ -185,7 +194,7 @@ const isUserBlocked = async (userId1, userId2) => {
  * @param {string} userId - The user who is unmatching
  * @param {string} matchId - The match to remove
  */
-const unmatch = async (userId, matchId) => {
+const unmatch = async (userId, matchId, io = null) => {
   // Verify user is part of this match
   const match = await prisma.match.findFirst({
     where: {
@@ -208,6 +217,8 @@ const unmatch = async (userId, matchId) => {
       unmatchedAt: new Date(),
     },
   });
+
+  io?.evictMatchRoom?.(matchId);
 
   logger.info(`User ${userId} unmatched from match ${matchId}`);
   return { matchId };

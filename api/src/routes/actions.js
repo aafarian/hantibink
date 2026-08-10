@@ -184,7 +184,7 @@ router.post('/super-like', authenticateJWT, writeBurstLimiter, actionValidation.
  */
 router.post('/undo', authenticateJWT, writeBurstLimiter, async (req, res) => {
   try {
-    const result = await undoLastAction(req.user.id);
+    const result = await undoLastAction(req.user.id, req.app.get('io'));
 
     res.json({
       success: true,

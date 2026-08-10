@@ -309,27 +309,57 @@ const passUser = async (senderId, receiverId, io = null) => {
       throw error;
     }
 
-    // Check if action already exists
-    const existingAction = await prisma.userAction.findUnique({
-      where: {
-        senderId_receiverId: {
-          senderId,
-          receiverId,
-        },
-      },
-    });
-
-    if (existingAction) {
-      throw new Error('You have already acted on this user');
+    // Blocked pairs cannot interact; 404-style wording avoids revealing
+    // the block to the sender.
+    const { isUserBlocked } = require('./moderationService');
+    if (await isUserBlocked(senderId, receiverId)) {
+      const error = new Error('User not available');
+      error.code = 'USER_NOT_AVAILABLE';
+      throw error;
     }
 
-    // Create the pass action
-    const action = await prisma.userAction.create({
-      data: {
-        senderId,
-        receiverId,
-        action: 'PASS',
-      },
+    const action = await prisma.$transaction(async (tx) => {
+      // Check if action already exists
+      const existingAction = await tx.userAction.findUnique({
+        where: {
+          senderId_receiverId: {
+            senderId,
+            receiverId,
+          },
+        },
+      });
+
+      if (existingAction) {
+        throw new Error('You have already acted on this user');
+      }
+
+      // Create the pass action
+      const created = await tx.userAction.create({
+        data: {
+          senderId,
+          receiverId,
+          action: 'PASS',
+        },
+      });
+
+      // Re-check the block inside the transaction: a block committed
+      // between the entry check and this insert rolls the PASS back
+      // instead of persisting an action for a blocked pair
+      const blocked = await tx.blockedUser.findFirst({
+        where: {
+          OR: [
+            { blockerId: senderId, blockedId: receiverId },
+            { blockerId: receiverId, blockedId: senderId },
+          ],
+        },
+      });
+      if (blocked) {
+        const error = new Error('User not available');
+        error.code = 'USER_NOT_AVAILABLE';
+        throw error;
+      }
+
+      return created;
     });
 
     // If Socket.IO is available, emit an event to update the "Liked You" screen
@@ -390,7 +420,7 @@ const getUserActions = async (userId, options = {}) => {
 /**
  * Undo last action (premium feature)
  */
-const undoLastAction = async (userId) => {
+const undoLastAction = async (userId, io = null) => {
   try {
     // Check if user can undo (premium feature)
     const undoCheck = await canUndo(userId);
@@ -420,9 +450,11 @@ const undoLastAction = async (userId) => {
     }
 
     // Use transaction to ensure all operations succeed or fail together
+    let deactivatedMatchId = null;
     await prisma.$transaction(async (tx) => {
-      // If it was a LIKE that created a match, we need to deactivate the match
-      if (lastAction.action === 'LIKE') {
+      // LIKE and SUPER_LIKE both create matches — undoing either must
+      // deactivate a match it formed
+      if (lastAction.action === 'LIKE' || lastAction.action === 'SUPER_LIKE') {
         const match = await tx.match.findFirst({
           where: {
             OR: [
@@ -450,6 +482,7 @@ const undoLastAction = async (userId) => {
               where: { id: match.id },
               data: { isActive: false },
             });
+            deactivatedMatchId = match.id;
 
             // Decrement match counts for both users
             await tx.user.updateMany({
@@ -461,11 +494,13 @@ const undoLastAction = async (userId) => {
           }
         }
 
-        // Decrement total likes for receiver
-        await tx.user.update({
-          where: { id: lastAction.receiverId },
-          data: { totalLikes: { decrement: 1 } },
-        });
+        // Decrement total likes for receiver (only LIKE increments it)
+        if (lastAction.action === 'LIKE') {
+          await tx.user.update({
+            where: { id: lastAction.receiverId },
+            data: { totalLikes: { decrement: 1 } },
+          });
+        }
       }
 
       // Delete the action
@@ -473,6 +508,12 @@ const undoLastAction = async (userId) => {
         where: { id: lastAction.id },
       });
     });
+
+    // Same revocation as block/unmatch: an undone mutual match must not
+    // leave either participant with live presence access to its room
+    if (deactivatedMatchId) {
+      io?.evictMatchRoom?.(deactivatedMatchId);
+    }
 
     logger.info(`Action undone: ${lastAction.id} (${lastAction.action})`);
 

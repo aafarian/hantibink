@@ -184,7 +184,7 @@ const getMatchDetails = async (matchId, currentUserId) => {
 /**
  * Deactivate a match (unmatch)
  */
-const deactivateMatch = async (matchId, userId) => {
+const deactivateMatch = async (matchId, userId, io = null) => {
   try {
     const match = await prisma.match.findUnique({
       where: { id: matchId },
@@ -204,6 +204,8 @@ const deactivateMatch = async (matchId, userId) => {
       where: { id: matchId },
       data: { isActive: false },
     });
+
+    io?.evictMatchRoom?.(matchId);
 
     logger.info(`Match ${matchId} deactivated by user ${userId}`);
 

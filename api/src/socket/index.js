@@ -100,6 +100,7 @@ const findMatchForMember = async (matchId, userId) => {
   return prisma.match.findFirst({
     where: {
       id: matchId,
+      isActive: true,
       OR: [{ user1Id: userId }, { user2Id: userId }],
     },
     select: { id: true, user1Id: true, user2Id: true, isActive: true },
@@ -126,6 +127,20 @@ const initializeSocket = (httpServer) => {
 
   // Track socket -> user data for proper disconnect handling
   const socketUserMap = new Map();
+
+  // Server-side room revocation: when a match is deactivated (block,
+  // unmatch), evict every socket from its room and drop the cached
+  // membership so presence, heartbeat, and disconnect broadcasts stop
+  // reaching former participants immediately — not just on reconnect.
+  io.evictMatchRoom = (matchId) => {
+    if (!matchId) {
+      return;
+    }
+    for (const userData of socketUserMap.values()) {
+      userData.matchIds.delete(matchId);
+    }
+    io.in(`match:${matchId}`).socketsLeave(`match:${matchId}`);
+  };
 
   io.on('connection', (socket) => {
     const userId = socket.data.userId;

@@ -54,7 +54,7 @@ import { theme } from '../styles/theme';
 const ChatScreen = ({ route, navigation }) => {
   const { match } = route.params;
   const { user } = useAuth();
-  const { showError, showInfo, showSuccess } = useToast();
+  const { showError, showSuccess } = useToast();
   const isPremium = useIsPremium();
   const { openPhotoViewer } = usePhotoViewer();
   const _insets = useSafeAreaInsets();
@@ -935,46 +935,40 @@ const ChatScreen = ({ route, navigation }) => {
   }, []);
 
   // Menu action handlers
-  const handleMenuAction = useCallback(
-    action => {
-      setShowMenu(false);
-      switch (action) {
-        case 'viewProfile':
-          setIsProfileSheetOpen(true);
-          profileSheetRef.current?.open();
-          break;
-        case 'search':
-          showInfo('Coming soon!');
-          break;
-        case 'mute':
-          setShowMuteConfirm(true);
-          break;
-        case 'block':
-          setShowBlockConfirm(true);
-          break;
-        case 'unmatch':
-          setShowUnmatchConfirm(true);
-          break;
-        case 'report':
-          setShowReportModal(true);
-          break;
-        default:
-          break;
-      }
-    },
-    [showInfo]
-  );
+  const handleMenuAction = useCallback(action => {
+    setShowMenu(false);
+    switch (action) {
+      case 'viewProfile':
+        setIsProfileSheetOpen(true);
+        profileSheetRef.current?.open();
+        break;
+      case 'mute':
+        setShowMuteConfirm(true);
+        break;
+      case 'block':
+        setShowBlockConfirm(true);
+        break;
+      case 'unmatch':
+        setShowUnmatchConfirm(true);
+        break;
+      case 'report':
+        setShowReportModal(true);
+        break;
+      default:
+        break;
+    }
+  }, []);
 
   // Load mute status on mount
   useEffect(() => {
     const checkMuteStatus = async () => {
-      if (match?.id) {
-        const muted = await ApiDataService.isMatchMuted(match.id);
+      if (match?.matchId) {
+        const muted = await ApiDataService.isMatchMuted(match.matchId);
         setIsMuted(muted);
       }
     };
     checkMuteStatus();
-  }, [match?.id]);
+  }, [match?.matchId]);
 
   // Moderation action handlers
   const handleMuteToggle = useCallback(async () => {
@@ -982,13 +976,13 @@ const ChatScreen = ({ route, navigation }) => {
     try {
       let success;
       if (isMuted) {
-        success = await ApiDataService.unmuteMatch(match.id);
+        success = await ApiDataService.unmuteMatch(match.matchId);
         if (success) {
           setIsMuted(false);
           showSuccess('Notifications unmuted');
         }
       } else {
-        success = await ApiDataService.muteMatch(match.id);
+        success = await ApiDataService.muteMatch(match.matchId);
         if (success) {
           setIsMuted(true);
           showSuccess('Notifications muted');
@@ -1004,12 +998,12 @@ const ChatScreen = ({ route, navigation }) => {
       setIsSubmitting(false);
       setShowMuteConfirm(false);
     }
-  }, [match?.id, isMuted, showSuccess, showError]);
+  }, [match?.matchId, isMuted, showSuccess, showError]);
 
   const handleBlock = useCallback(async () => {
     setIsSubmitting(true);
     try {
-      const success = await ApiDataService.blockUser(match?.otherUser?.id, match?.id);
+      const success = await ApiDataService.blockUser(match?.otherUser?.id, match?.matchId);
       if (success) {
         showSuccess(`${match?.otherUser?.name || 'User'} has been blocked`);
         navigation.navigate('MessagesList');
@@ -1023,12 +1017,12 @@ const ChatScreen = ({ route, navigation }) => {
       setIsSubmitting(false);
       setShowBlockConfirm(false);
     }
-  }, [match?.id, match?.otherUser, navigation, showSuccess, showError]);
+  }, [match?.matchId, match?.otherUser, navigation, showSuccess, showError]);
 
   const handleUnmatch = useCallback(async () => {
     setIsSubmitting(true);
     try {
-      const success = await ApiDataService.unmatch(match?.id);
+      const success = await ApiDataService.unmatch(match?.matchId);
       if (success) {
         showSuccess('Unmatched successfully');
         navigation.navigate('MessagesList');
@@ -1042,7 +1036,7 @@ const ChatScreen = ({ route, navigation }) => {
       setIsSubmitting(false);
       setShowUnmatchConfirm(false);
     }
-  }, [match?.id, navigation, showSuccess, showError]);
+  }, [match?.matchId, navigation, showSuccess, showError]);
 
   const handleReport = useCallback(
     async (reason, description) => {

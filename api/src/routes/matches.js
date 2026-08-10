@@ -128,7 +128,7 @@ router.delete('/:matchId', authenticateJWT, matchValidation.unmatch, async (req,
   try {
     const { matchId } = req.params;
     
-    const result = await deactivateMatch(matchId, req.user.id);
+    const result = await deactivateMatch(matchId, req.user.id, req.app.get('io'));
     
     res.json({
       success: true,

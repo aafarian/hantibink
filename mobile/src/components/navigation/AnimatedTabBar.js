@@ -19,13 +19,13 @@ const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
 
 /**
  * Tab icon configuration mapping route names to Ionicons.
+ * Exported so tests can assert the map matches the real tab routes.
  */
-const TAB_ICONS = {
+export const TAB_ICONS = {
   Profile: { active: 'person', inactive: 'person-outline' },
   People: { active: 'people', inactive: 'people-outline' },
   'Liked You': { active: 'heart', inactive: 'heart-outline' },
   Messages: { active: 'chatbubbles', inactive: 'chatbubbles-outline' },
-  'API Test': { active: 'flask', inactive: 'flask-outline' },
 };
 
 /**
