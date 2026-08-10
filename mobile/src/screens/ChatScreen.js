@@ -201,13 +201,18 @@ const ChatScreen = ({ route, navigation }) => {
     }
   }, [activeGameId]);
 
+  // Returns whether the game was actually created — callers use it to keep
+  // composers (and their drafts) open on failure instead of silently
+  // discarding what the user typed
   const createGame = useCallback(
     async (gameType, payload = null) => {
       try {
         const created = await GamesApiService.createSession(match.matchId, gameType, payload);
         applyGameSnapshot(created);
+        return true;
       } catch (error) {
         showError(error.message || 'Could not start the game');
+        return false;
       }
     },
     [match.matchId, showError, applyGameSnapshot]
@@ -223,10 +228,14 @@ const ChatScreen = ({ route, navigation }) => {
       if (gameType === 'QUESTION_ROULETTE' || gameType === 'EMOJI_RIDDLE') {
         try {
           const { offers } = await GamesApiService.getOffers(match.matchId, gameType);
+          if (!offers?.length) {
+            showError('No fresh prompts available for this game right now');
+            return;
+          }
           if (gameType === 'QUESTION_ROULETTE') {
-            setRouletteOffer(offers?.[0] || null);
+            setRouletteOffer(offers[0]);
           } else {
-            setRiddleOffers(offers || []);
+            setRiddleOffers(offers);
           }
         } catch (error) {
           showError(error.message || 'Could not load the game');
@@ -238,10 +247,15 @@ const ChatScreen = ({ route, navigation }) => {
     [match.matchId, showError, createGame]
   );
 
+  // Await the create BEFORE closing the composer — closing first left a
+  // dead gap where nothing on screen acknowledged the submit
   const handleTwoTruthsSubmit = useCallback(
     async payload => {
-      setShowTwoTruthsComposer(false);
-      createGame('TWO_TRUTHS', payload);
+      const ok = await createGame('TWO_TRUTHS', payload);
+      if (ok) {
+        setShowTwoTruthsComposer(false);
+      }
+      return ok;
     },
     [createGame]
   );
@@ -249,16 +263,22 @@ const ChatScreen = ({ route, navigation }) => {
   const handleRouletteSubmit = useCallback(
     async answer => {
       const questionId = rouletteOffer?.id;
-      setRouletteOffer(null);
-      createGame('QUESTION_ROULETTE', { questionId, answer });
+      const ok = await createGame('QUESTION_ROULETTE', { questionId, answer });
+      if (ok) {
+        setRouletteOffer(null);
+      }
+      return ok;
     },
     [rouletteOffer?.id, createGame]
   );
 
   const handleRiddleSubmit = useCallback(
     async riddleId => {
-      setRiddleOffers(null);
-      createGame('EMOJI_RIDDLE', { riddleId });
+      const ok = await createGame('EMOJI_RIDDLE', { riddleId });
+      if (ok) {
+        setRiddleOffers(null);
+      }
+      return ok;
     },
     [createGame]
   );
@@ -866,7 +886,9 @@ const ChatScreen = ({ route, navigation }) => {
       // Upload audio to Firebase Storage
       const audioUrl = await uploadAudioToFirebase(audioUri, user.uid);
 
-      const metadata = waveform ? JSON.stringify({ waveform, durationMs }) : null;
+      // Always carry durationMs — the player's whole progress UI divides by
+      // it, and without it the first playback renders a dead progress line
+      const metadata = JSON.stringify({ ...(waveform ? { waveform } : {}), durationMs });
 
       // Send the message with waveform data
       await sendMessageCore({

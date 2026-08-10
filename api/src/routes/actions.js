@@ -19,9 +19,13 @@ const router = express.Router();
  */
 const handlePremiumError = (error, res) => {
   if (error.code === 'PREMIUM_REQUIRED' || error.code === 'DAILY_LIMIT_REACHED') {
+    // Expected outcome, not an incident: warn (logger.error would forward
+    // to Sentry via its wrapper and page for every free user out of likes)
+    logger.warn(`Quota/premium gate: ${error.code} — ${error.message}`);
     return res.status(403).json({
       success: false,
       error: error.code,
+      code: error.code,
       message: error.message,
       quotas: error.quotas,
     });
@@ -93,13 +97,14 @@ router.post('/like', authenticateJWT, writeBurstLimiter, actionValidation.like, 
       data: result,
     });
   } catch (error) {
-    logger.error('❌ Like user error:', error);
-
     // Handle premium-related errors with 403
     const premiumResponse = handlePremiumError(error, res);
     if (premiumResponse) {
       return;
     }
+
+    logger.error('❌ Like user error:', error);
+
 
     res.status(400).json({
       success: false,
@@ -161,13 +166,14 @@ router.post('/super-like', authenticateJWT, writeBurstLimiter, actionValidation.
       data: result,
     });
   } catch (error) {
-    logger.error('❌ Super like user error:', error);
-
     // Handle premium-related errors with 403
     const premiumResponse = handlePremiumError(error, res);
     if (premiumResponse) {
       return;
     }
+
+    logger.error('❌ Super like user error:', error);
+
 
     res.status(400).json({
       success: false,
@@ -192,13 +198,14 @@ router.post('/undo', authenticateJWT, writeBurstLimiter, async (req, res) => {
       data: result,
     });
   } catch (error) {
-    logger.error('❌ Undo action error:', error);
-
     // Handle premium-related errors with 403
     const premiumResponse = handlePremiumError(error, res);
     if (premiumResponse) {
       return;
     }
+
+    logger.error('❌ Undo action error:', error);
+
 
     res.status(400).json({
       success: false,

@@ -362,9 +362,15 @@ const AudioRecorder = ({
     PanResponder.create({
       onStartShouldSetPanResponder: () => !disabledRef.current && !isBusyRef.current,
       onMoveShouldSetPanResponder: () => isRecordingRef.current,
+      // Never surrender the touch mid-record (bubble swipeables would
+      // otherwise steal it and silently cancel the recording)
+      onPanResponderTerminationRequest: () => false,
       onPanResponderGrant: async () => {
         if (!disabledRef.current && !isBusyRef.current && !isRecordingRef.current) {
           releasedDuringStartRef.current = false;
+          // Immediate feedback BEFORE the async permission/recorder setup —
+          // the button felt dead for the whole native round-trip otherwise
+          Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
           // Use ref to get latest function
           await startRecordingRef.current?.();
         }
@@ -499,6 +505,9 @@ const AudioRecorder = ({
   return (
     <Animated.View
       {...panResponder.panHandlers}
+      hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+      accessibilityRole="button"
+      accessibilityLabel="Hold to record a voice message"
       style={[styles.micButton, disabled && styles.micButtonDisabled]}
     >
       <Ionicons

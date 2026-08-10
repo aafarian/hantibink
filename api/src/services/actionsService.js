@@ -1,5 +1,6 @@
 const { getPrismaClient } = require('../config/database');
 const logger = require('../utils/logger');
+const { AppError } = require('../middleware/errorHandler');
 const {
   sendMatchNotification,
   sendLikeNotification,
@@ -44,7 +45,10 @@ const likeUser = async (
     if (actionType === 'SUPER_LIKE') {
       const superLikeCheck = await canSuperLike(senderId);
       if (!superLikeCheck.allowed) {
-        const error = new Error(superLikeCheck.message);
+        // AppError 403, not a bare Error: quota rejections are expected
+        // client outcomes — a bare throw becomes a 500 that pages Sentry
+        // and hides the real message behind "Something went wrong"
+        const error = new AppError(superLikeCheck.message, 403);
         error.code = superLikeCheck.error;
         error.quotas = superLikeCheck.quotas;
         throw error;
@@ -52,7 +56,7 @@ const likeUser = async (
     } else if (actionType === 'LIKE') {
       const likeCheck = await canLike(senderId);
       if (!likeCheck.allowed) {
-        const error = new Error(likeCheck.message);
+        const error = new AppError(likeCheck.message, 403);
         error.code = likeCheck.error;
         error.quotas = likeCheck.quotas;
         throw error;
@@ -157,7 +161,10 @@ const likeUser = async (
           data: { superLikeBalance: { decrement: 1 } },
         });
         if (spent.count === 0) {
-          const error = new Error('You\'re out of Super Likes. You bank 2 more each day, up to 5.');
+          const error = new AppError(
+            'You\'re out of Super Likes. You bank 2 more each day, up to 5.',
+            403,
+          );
           error.code = 'DAILY_LIMIT_REACHED';
           throw error;
         }
@@ -432,7 +439,7 @@ const undoLastAction = async (userId, io = null) => {
     // Check if user can undo (premium feature)
     const undoCheck = await canUndo(userId);
     if (!undoCheck.allowed) {
-      const error = new Error(undoCheck.message);
+      const error = new AppError(undoCheck.message, 403);
       error.code = undoCheck.error;
       error.quotas = undoCheck.quotas;
       throw error;

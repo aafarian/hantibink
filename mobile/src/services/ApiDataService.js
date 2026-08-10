@@ -447,7 +447,9 @@ class ApiDataService {
         };
       } else {
         Logger.error('❌ Failed to like user via API:', response.message);
-        throw new Error(response.message || 'Like failed');
+        const err = new Error(response.message || 'Like failed');
+        err.code = response.code;
+        throw err;
       }
     } catch (error) {
       Logger.error('❌ Error liking user via API:', error);
@@ -455,7 +457,9 @@ class ApiDataService {
       if (error.message?.includes('already acted')) {
         throw new Error('You have already swiped on this person');
       }
-      throw new Error(error.message || 'Like failed');
+      const err = new Error(error.message || 'Like failed');
+      err.code = error.code;
+      throw err;
     }
   }
 
@@ -499,7 +503,9 @@ class ApiDataService {
         return response.data;
       } else {
         Logger.error('❌ Failed to super like user via API:', response.message);
-        throw new Error(response.message || 'Super like failed');
+        const err = new Error(response.message || 'Super like failed');
+        err.code = response.code;
+        throw err;
       }
     } catch (error) {
       Logger.error('❌ Error super liking user via API:', error);

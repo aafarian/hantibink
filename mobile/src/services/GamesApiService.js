@@ -18,7 +18,12 @@ const throwIfGated = response => {
 
 const GamesApiService = {
   async getOffers(matchId, gameType) {
-    const response = await apiClient.get(`/games/${matchId}/offers`, { gameType });
+    // Query string built inline — apiClient.get's second arg is a fetch
+    // init, NOT params (passing {gameType} there silently dropped it and
+    // the server 400'd on the missing required query param)
+    const response = await apiClient.get(
+      `/games/${matchId}/offers?gameType=${encodeURIComponent(gameType)}`
+    );
     return throwIfGated(response);
   },
 

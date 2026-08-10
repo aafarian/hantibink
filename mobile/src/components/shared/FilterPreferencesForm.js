@@ -28,22 +28,22 @@ const FILTER_OPTIONS = {
     { id: 'WOMAN', label: 'Women' },
     { id: 'OTHER', label: 'Other' },
   ],
-  relationshipTypes: [
-    'Long-term',
-    'Short-term',
-    'Casual',
-    'Marriage',
-    'Friendship',
-    'Not sure yet',
-  ],
-  smokingOptions: ['Non-smoker', 'Social smoker', 'Regular smoker', "Doesn't matter"],
+  // IMPORTANT: these values are compared server-side (lowercased) against
+  // what profiles actually store via ProfileFieldsConfig — a value that
+  // doesn't exist there silently filters out EVERY candidate
+  relationshipTypes: ['Casual', 'Serious', 'Friendship', 'Marriage', 'Hookups', 'Not-sure'],
+  smokingOptions: ['Never', 'Sometimes', 'Regularly', "Doesn't matter"],
   drinkingOptions: ['Never', 'Socially', 'Regularly', "Doesn't matter"],
   educationOptions: [
     'High School',
     'Some College',
-    "Bachelor's",
-    "Master's",
+    'Associate Degree',
+    "Bachelor's Degree",
+    "Master's Degree",
     'PhD',
+    'Professional Degree',
+    'Trade School',
+    'Other',
     "Doesn't matter",
   ],
   languageOptions: [
@@ -61,7 +61,6 @@ const FILTER_OPTIONS = {
     'German',
     'Korean',
     'Italian',
-    'Other',
   ],
 };
 
