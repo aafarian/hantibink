@@ -241,6 +241,9 @@ const endAllActiveGamesForUser = async (userId, io = null) =>
 const setMatchGamesMuted = async (matchId, userId, muted, io = null) => {
   await assertMembership(matchId, userId);
   if (muted) {
+    // Order matters: the mute must COMMIT before the cleanup scan, so a
+    // creation racing us either gets forfeited by the scan or sees this
+    // row in its post-insert re-check (see createSession)
     await prisma.gameMute.upsert({
       where: { userId_matchId: { userId, matchId } },
       update: {},
@@ -279,6 +282,9 @@ const endActiveSessions = async (where, userId, io = null) => {
 };
 
 const setGamesEnabled = async (userId, enabled, io = null) => {
+  // Order matters: the flag must COMMIT before the cleanup scan, so a
+  // creation racing us either gets forfeited by the scan or sees this
+  // flag in its post-insert re-check (see createSession)
   await prisma.user.update({
     where: { id: userId },
     data: { gamesEnabled: enabled },
@@ -359,7 +365,16 @@ const createSession = async (matchId, userId, gameType, payload, io = null) => {
   // mute whose cleanup ran before this insert existed would otherwise
   // leave a playable game behind. Either its cleanup sees our row and
   // forfeits it, or we see its write here and retract — nothing escapes
-  // both. Retract before any chat card or emit, so the game never existed
+  // both. Sound under READ COMMITTED because each side commits its write
+  // before its cross-read: the insert above is already committed when this
+  // re-check snapshots, and disable/mute commit their flag before their
+  // cleanup scan. For both checks to miss, each read would need a snapshot
+  // predating the other side's commit, which contradicts the commit order
+  // (this read starts strictly after our insert committed, so any flag the
+  // scan-that-missed-us wrote is already visible here). Do NOT wrap the
+  // insert and this re-check in one transaction — delaying the insert's
+  // visibility until after the re-check is exactly what would reopen the
+  // race. Retract before any chat card or emit, so the game never existed
   // as far as either player can tell.
   if (!(await pairHasGamesOn(match))) {
     await prisma.gameSession.deleteMany({
