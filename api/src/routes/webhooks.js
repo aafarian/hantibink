@@ -37,6 +37,15 @@ router.post('/revenuecat', async (req, res) => {
       return res.status(400).json({ success: false, message: 'Missing event' });
     }
 
+    // Test Store / sandbox purchases must never touch real entitlements.
+    // RC stamps every event with its store environment; drop SANDBOX events
+    // unless the deploy explicitly opts in (REVENUECAT_ALLOW_SANDBOX=true,
+    // set only while sandbox-testing the purchase flow).
+    if (event.environment === 'SANDBOX' && process.env.REVENUECAT_ALLOW_SANDBOX !== 'true') {
+      logger.info(`RevenueCat SANDBOX event ${event.type} ignored (REVENUECAT_ALLOW_SANDBOX not set)`);
+      return res.json({ received: true });
+    }
+
     // We call Purchases.logIn(<our user id>) on the client, so app_user_id
     // is our DB id. Anonymous ids (pre-login purchases) resolve via a later
     // TRANSFER/INITIAL_PURCHASE once logIn aliases them.
@@ -56,17 +65,34 @@ router.post('/revenuecat', async (req, res) => {
       return res.json({ received: true });
     }
 
+    // RC retries and redelivers, so arrival order isn't event order. Writes
+    // below only apply when the event is strictly newer than the last one
+    // recorded on the user (rcLastEventAt) — the condition lives in the
+    // UPDATE itself, so stale/duplicate deliveries are atomic no-ops.
+    const eventAtMs = Number(event.event_timestamp_ms);
+    const eventAt = Number.isFinite(eventAtMs) && eventAtMs > 0 ? new Date(eventAtMs) : null;
+
     if (GRANTS_PREMIUM.has(event.type)) {
       // Atomic flag + accrual clock + day-one Super Like bank
-      await activatePremium(userId);
-      logger.info(`💎 Premium activated for ${userId} (${event.type}, ${event.product_id})`);
+      const applied = await activatePremium(userId, eventAt);
+      if (applied) {
+        logger.info(`💎 Premium activated for ${userId} (${event.type}, ${event.product_id})`);
+      } else {
+        logger.info(`RevenueCat ${event.type} for ${userId} is stale — ignored`);
+      }
     } else if (event.type === 'EXPIRATION') {
-      await prisma.user.update({
-        where: { id: userId },
-        data: { isPremium: false },
-        select: { id: true },
+      const { count } = await prisma.user.updateMany({
+        where: {
+          id: userId,
+          ...(eventAt ? { OR: [{ rcLastEventAt: null }, { rcLastEventAt: { lt: eventAt } }] } : {}),
+        },
+        data: { isPremium: false, ...(eventAt ? { rcLastEventAt: eventAt } : {}) },
       });
-      logger.info(`💎 Premium expired for ${userId} (${event.expiration_reason || 'unknown'})`);
+      if (count > 0) {
+        logger.info(`💎 Premium expired for ${userId} (${event.expiration_reason || 'unknown'})`);
+      } else {
+        logger.info(`RevenueCat EXPIRATION for ${userId} is stale — ignored`);
+      }
     } else {
       // CANCELLATION (auto-renew off, still entitled), BILLING_ISSUE (grace
       // period), TRANSFER, TEST — acknowledge and log; entitlement only

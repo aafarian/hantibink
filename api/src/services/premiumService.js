@@ -155,15 +155,25 @@ const getUserQuotas = async (userId) => {
  * free-era days, and a concurrent spend can never be restored by the seed.
  * GREATEST keeps a balance that survived a downgrade (raw SQL because the
  * Prisma update API cannot express a field-relative floor atomically).
+ *
+ * eventAt (RevenueCat event timestamp) makes the grant conditional: it only
+ * applies when newer than the last recorded event, so stale or duplicate
+ * webhook deliveries are no-ops. Omit it (admin grants) to apply always.
+ * Returns true when the update applied.
  */
-const activatePremium = async (userId) => {
-  await prisma.$executeRaw`
+const activatePremium = async (userId, eventAt = null) => {
+  const updated = await prisma.$executeRaw`
     UPDATE "users"
     SET "isPremium" = true,
         "superLikeAccruedAt" = (NOW() AT TIME ZONE 'utc'),
-        "superLikeBalance" = GREATEST("superLikeBalance", 2)
+        "superLikeBalance" = GREATEST("superLikeBalance", 2),
+        "rcLastEventAt" = COALESCE(${eventAt}, "rcLastEventAt")
     WHERE "id" = ${userId}
+      AND (${eventAt}::timestamp IS NULL
+        OR "rcLastEventAt" IS NULL
+        OR "rcLastEventAt" < ${eventAt})
   `;
+  return updated > 0;
 };
 
 /**

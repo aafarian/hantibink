@@ -78,7 +78,7 @@ export const purchasePremium = async pkg => {
   }
   try {
     const { customerInfo } = await Purchases.purchasePackage(pkg);
-    const active = !!customerInfo.entitlements.active.premium;
+    const active = !!customerInfo?.entitlements?.active?.premium;
     return { success: true, cancelled: false, active };
   } catch (error) {
     if (error.userCancelled) {
@@ -96,7 +96,7 @@ export const restorePurchases = async () => {
   }
   try {
     const customerInfo = await Purchases.restorePurchases();
-    return { active: !!customerInfo.entitlements.active.premium };
+    return { active: !!customerInfo?.entitlements?.active?.premium };
   } catch (error) {
     Logger.warn('RevenueCat restore failed:', error.message);
     return { active: false, message: error.message };

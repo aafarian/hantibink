@@ -8,7 +8,6 @@ import * as SplashScreen from 'expo-splash-screen';
 import Constants from 'expo-constants';
 import { useFonts } from 'expo-font';
 import ErrorBoundary from './src/components/ErrorBoundary';
-import { configurePurchases } from './src/utils/purchases';
 import { AuthProvider } from './src/contexts/AuthContext';
 import { ToastProvider } from './src/contexts/ToastContext';
 import { UnreadProvider } from './src/contexts/UnreadContext';
@@ -19,6 +18,7 @@ import AppNavigator from './src/navigation/AppNavigator';
 import { theme } from './src/styles/theme';
 import { fontMap } from './src/styles/fonts';
 import { initAnalytics, trackAppOpened } from './src/utils/analytics';
+import { configurePurchases } from './src/utils/purchases';
 
 // Keep splash screen visible while fonts load
 SplashScreen.preventAutoHideAsync();

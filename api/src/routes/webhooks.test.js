@@ -88,6 +88,91 @@ describe('RevenueCat webhook', () => {
     expect(anon.status).toBe(200);
   });
 
+  it('ignores SANDBOX events unless REVENUECAT_ALLOW_SANDBOX is set', async () => {
+    const user = await userFactory.create(global.prisma, { isPremium: false });
+    const sandboxPurchase = rcEvent({ app_user_id: user.id, environment: 'SANDBOX' });
+
+    const blocked = await request(app)
+      .post('/webhooks/revenuecat')
+      .set('Authorization', SECRET)
+      .send(sandboxPurchase);
+    expect(blocked.status).toBe(200);
+    let fresh = await global.prisma.user.findUnique({ where: { id: user.id } });
+    expect(fresh.isPremium).toBe(false);
+
+    process.env.REVENUECAT_ALLOW_SANDBOX = 'true';
+    try {
+      const allowed = await request(app)
+        .post('/webhooks/revenuecat')
+        .set('Authorization', SECRET)
+        .send(sandboxPurchase);
+      expect(allowed.status).toBe(200);
+      fresh = await global.prisma.user.findUnique({ where: { id: user.id } });
+      expect(fresh.isPremium).toBe(true);
+    } finally {
+      delete process.env.REVENUECAT_ALLOW_SANDBOX;
+    }
+  });
+
+  it('ignores a stale RENEWAL delivered after a newer EXPIRATION', async () => {
+    const user = await userFactory.create(global.prisma, { isPremium: true });
+    const renewedAt = Date.parse('2026-08-01T00:00:00Z');
+    const expiredAt = Date.parse('2026-08-02T00:00:00Z');
+
+    await request(app)
+      .post('/webhooks/revenuecat')
+      .set('Authorization', SECRET)
+      .send(rcEvent({ type: 'EXPIRATION', app_user_id: user.id, event_timestamp_ms: expiredAt }));
+    await request(app)
+      .post('/webhooks/revenuecat')
+      .set('Authorization', SECRET)
+      .send(rcEvent({ type: 'RENEWAL', app_user_id: user.id, event_timestamp_ms: renewedAt }));
+
+    const fresh = await global.prisma.user.findUnique({ where: { id: user.id } });
+    expect(fresh.isPremium).toBe(false);
+  });
+
+  it('ignores a stale EXPIRATION delivered after a newer purchase', async () => {
+    const user = await userFactory.create(global.prisma, { isPremium: false });
+    const expiredAt = Date.parse('2026-08-01T00:00:00Z');
+    const repurchasedAt = Date.parse('2026-08-02T00:00:00Z');
+
+    await request(app)
+      .post('/webhooks/revenuecat')
+      .set('Authorization', SECRET)
+      .send(rcEvent({ app_user_id: user.id, event_timestamp_ms: repurchasedAt }));
+    await request(app)
+      .post('/webhooks/revenuecat')
+      .set('Authorization', SECRET)
+      .send(rcEvent({ type: 'EXPIRATION', app_user_id: user.id, event_timestamp_ms: expiredAt }));
+
+    const fresh = await global.prisma.user.findUnique({ where: { id: user.id } });
+    expect(fresh.isPremium).toBe(true);
+  });
+
+  it('treats a duplicate delivery of the same event as a no-op', async () => {
+    const user = await userFactory.create(global.prisma, { isPremium: false });
+    const purchase = rcEvent({
+      app_user_id: user.id,
+      event_timestamp_ms: Date.parse('2026-08-01T00:00:00Z'),
+    });
+
+    await request(app).post('/webhooks/revenuecat').set('Authorization', SECRET).send(purchase);
+    const afterFirst = await global.prisma.user.findUnique({ where: { id: user.id } });
+
+    const redelivery = await request(app)
+      .post('/webhooks/revenuecat')
+      .set('Authorization', SECRET)
+      .send(purchase);
+    expect(redelivery.status).toBe(200);
+
+    const afterSecond = await global.prisma.user.findUnique({ where: { id: user.id } });
+    expect(afterSecond.isPremium).toBe(true);
+    // The duplicate must not re-run the grant (accrual clock would reset)
+    expect(afterSecond.superLikeAccruedAt).toEqual(afterFirst.superLikeAccruedAt);
+    expect(afterSecond.rcLastEventAt).toEqual(afterFirst.rcLastEventAt);
+  });
+
   it('ignores non-entitlement events like CANCELLATION', async () => {
     const user = await userFactory.create(global.prisma, { isPremium: true });
 
