@@ -21,7 +21,13 @@ import ScreenWrapper from './ScreenWrapper';
 
 // Filter option constants
 const FILTER_OPTIONS = {
-  genders: ['Men', 'Women', 'Other'],
+  // Server-canonical ids with display labels — the API only accepts
+  // MAN/WOMAN/OTHER, and loaded preferences come back in that form too
+  genders: [
+    { id: 'MAN', label: 'Men' },
+    { id: 'WOMAN', label: 'Women' },
+    { id: 'OTHER', label: 'Other' },
+  ],
   relationshipTypes: [
     'Long-term',
     'Short-term',
@@ -371,21 +377,21 @@ const FilterPreferencesForm = ({
               <View style={styles.genderOptionsContainer}>
                 {FILTER_OPTIONS.genders.map(gender => (
                   <TouchableOpacity
-                    key={gender}
+                    key={gender.id}
                     style={[
                       styles.genderOption,
-                      corePreferences.interestedIn.includes(gender) && styles.genderOptionActive,
+                      corePreferences.interestedIn.includes(gender.id) && styles.genderOptionActive,
                     ]}
-                    onPress={() => toggleCoreArrayFilter('interestedIn', gender)}
+                    onPress={() => toggleCoreArrayFilter('interestedIn', gender.id)}
                   >
                     <Text
                       style={[
                         styles.genderOptionText,
-                        corePreferences.interestedIn.includes(gender) &&
+                        corePreferences.interestedIn.includes(gender.id) &&
                           styles.genderOptionTextActive,
                       ]}
                     >
-                      {gender}
+                      {gender.label}
                     </Text>
                   </TouchableOpacity>
                 ))}
