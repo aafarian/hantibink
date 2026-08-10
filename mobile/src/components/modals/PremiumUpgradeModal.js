@@ -67,10 +67,11 @@ const PremiumUpgradeModal = ({ visible, onClose, onUpgrade }) => {
   const insets = useSafeAreaInsets();
   const overlayOpacity = useRef(new Animated.Value(0)).current;
   const { refreshUserProfile } = useAuth();
-  const { showSuccess, showError, showInfo } = useToast();
+  const { showSuccess, showError } = useToast();
   const [packages, setPackages] = useState([]);
   const [buying, setBuying] = useState(null);
   const [restoring, setRestoring] = useState(false);
+  const [comingSoon, setComingSoon] = useState(false);
 
   // Live prices from RevenueCat; empty in builds without an RC key, where
   // the legacy single CTA renders instead
@@ -133,6 +134,7 @@ const PremiumUpgradeModal = ({ visible, onClose, onUpgrade }) => {
       }).start();
     } else {
       overlayOpacity.setValue(0);
+      setComingSoon(false);
     }
   }, [visible, overlayOpacity]);
 
@@ -143,8 +145,9 @@ const PremiumUpgradeModal = ({ visible, onClose, onUpgrade }) => {
       return;
     }
     // Keyless build (no RevenueCat key baked in): no purchase can start
-    // here, so say so instead of silently closing the modal
-    showInfo('Purchases are coming soon — this version can’t start one yet.');
+    // here. Feedback must render INSIDE the modal — native modals sit
+    // above the toast host, so a toast would be invisible.
+    setComingSoon(true);
   };
 
   return (
@@ -217,13 +220,20 @@ const PremiumUpgradeModal = ({ visible, onClose, onUpgrade }) => {
               ))}
             </View>
           ) : (
-            <TouchableOpacity
-              style={styles.upgradeButton}
-              onPress={handleUpgrade}
-              activeOpacity={0.8}
-            >
-              <Text style={styles.upgradeButtonText}>Get Premium</Text>
-            </TouchableOpacity>
+            <>
+              <TouchableOpacity
+                style={styles.upgradeButton}
+                onPress={handleUpgrade}
+                activeOpacity={0.8}
+              >
+                <Text style={styles.upgradeButtonText}>Get Premium</Text>
+              </TouchableOpacity>
+              {comingSoon && (
+                <Text style={styles.comingSoonNote}>
+                  Purchases are coming soon — this version of the app can’t start one yet.
+                </Text>
+              )}
+            </>
           )}
 
           {/* App Store requires a visible restore path */}
@@ -377,6 +387,13 @@ const styles = StyleSheet.create({
     color: theme.colors.text.muted,
     fontSize: theme.typography.sizes.md,
     fontFamily: theme.typography.fontFamily.regular,
+  },
+  comingSoonNote: {
+    marginTop: theme.spacing.sm,
+    textAlign: 'center',
+    color: theme.colors.text.secondary,
+    fontSize: theme.typography.sizes.sm,
+    fontFamily: theme.typography.fontFamily.bodyMedium,
   },
 });
 
