@@ -80,8 +80,8 @@ const NotificationSettingsScreen = ({ navigation }) => {
       <Switch
         value={settings[key]}
         onValueChange={value => updateSetting(key, value)}
-        trackColor={{ false: '#E5E5EA', true: theme.colors.primary }}
-        thumbColor={settings[key] ? theme.colors.text.white : '#f4f3f4'}
+        trackColor={{ false: theme.colors.border.light, true: theme.colors.primary }}
+        thumbColor={settings[key] ? theme.colors.text.white : theme.colors.gray[100]}
       />
     </View>
   );

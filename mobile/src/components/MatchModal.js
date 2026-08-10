@@ -174,7 +174,7 @@ const MatchModal = ({
 
           {/* Header with gradient */}
           <LinearGradient
-            colors={[theme.colors.primary, '#FF8E53']}
+            colors={[theme.colors.primary, theme.colors.primaryLight]}
             style={styles.header}
             start={{ x: 0, y: 0 }}
             end={{ x: 1, y: 0 }}
@@ -258,7 +258,7 @@ const styles = StyleSheet.create({
   title: {
     fontSize: theme.typography.sizes.xxxl,
     fontWeight: theme.typography.weights.bold,
-    fontFamily: theme.typography.fontFamily.bold,
+    fontFamily: theme.typography.fontFamily.heading,
     color: theme.colors.text.white,
     marginBottom: theme.spacing.xs,
   },

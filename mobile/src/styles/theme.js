@@ -1,3 +1,11 @@
+/**
+ * Design tokens for Hantibink.
+ *
+ * Every component color must flow through theme.colors.* — enforced by the
+ * no-restricted-syntax hex-literal lint rule (theme.js is the only exempt
+ * file). This keeps the palette swappable: dark mode later means a second
+ * palette object behind a useTheme provider, with zero component changes.
+ */
 export const theme = {
   colors: {
     // Armenian tricolor — premium shades
@@ -22,6 +30,7 @@ export const theme = {
       primary: '#FFFFFF', // Pure white to avoid scroll strobe with off-white
       secondary: '#F9FAFB', // Gray-50, neutral
       tertiary: '#F3F4F6', // Gray-100, neutral
+      dark: '#000000', // Photo viewers, media surfaces, transition underlay
     },
     overlay: {
       light: 'rgba(255, 255, 255, 0.2)',
@@ -31,10 +40,32 @@ export const theme = {
     },
     status: {
       success: '#4CAF50',
+      successDark: '#2E7D32', // strongest tier of success ramps
       error: '#F44336',
       warning: '#FF9800',
       info: '#2196F3',
     },
+    // Swipe action buttons (discovery deck)
+    action: {
+      nope: '#FF5252',
+      like: '#4CAF50',
+      superlike: '#00BCD4',
+      rewind: '#FFB300',
+    },
+    // Destructive actions (delete account, sign out, remove photo)
+    destructive: '#FF3B30',
+    destructiveTint: 'rgba(255, 59, 48, 0.08)',
+    // Form feedback backgrounds and borders
+    feedback: {
+      successTint: '#E8F5E9',
+      successBorder: '#C8E6C9',
+      errorTint: '#FFF5F5',
+      errorBorder: '#FFD1D1',
+    },
+    // Presence indicator (semantically distinct from status.success)
+    online: '#4CAF50',
+    // Shadow color for shadowColor styles
+    shadow: '#000',
     border: {
       light: '#E5E7EB', // Gray-200, neutral
       medium: '#D1D5DB', // Gray-300, neutral
@@ -62,11 +93,22 @@ export const theme = {
     xxl: 64,
   },
   typography: {
+    // Typeface system: Outfit (display/headings) + DM Sans (body).
+    // Use the SEMANTIC roles in new code; the legacy weight-named aliases
+    // exist so the 70+ existing call sites migrated without a sweep.
     fontFamily: {
-      regular: 'NunitoSans_400Regular',
-      medium: 'NunitoSans_500Medium',
-      semibold: 'NunitoSans_600SemiBold',
-      bold: 'NunitoSans_700Bold',
+      // Semantic roles
+      display: 'Outfit_700Bold', // hero text, celebrations, screen titles
+      heading: 'Outfit_600SemiBold', // section titles, card names, modal titles
+      headingLight: 'Outfit_500Medium', // sub-headings
+      body: 'DMSans_400Regular',
+      bodyMedium: 'DMSans_500Medium',
+      label: 'DMSans_600SemiBold', // buttons, badges, form labels
+      // Legacy aliases (weight-named) — resolve to DM Sans
+      regular: 'DMSans_400Regular',
+      medium: 'DMSans_500Medium',
+      semibold: 'DMSans_600SemiBold',
+      bold: 'DMSans_700Bold',
     },
     sizes: {
       xs: 10,

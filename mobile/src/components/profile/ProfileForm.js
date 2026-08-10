@@ -216,9 +216,9 @@ const ProfileForm = forwardRef(
               placeholder={field.placeholder}
               placeholderTextColor={
                 validationErrors[field.key]
-                  ? '#FF9999'
+                  ? theme.colors.feedback.errorBorder
                   : changedFields.has(field.key)
-                    ? '#A5D6A7'
+                    ? theme.colors.feedback.successBorder
                     : theme.colors.gray[500]
               }
               multiline={field.multiline}
@@ -578,9 +578,9 @@ const styles = StyleSheet.create({
   selectedTag: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#FFF5F5',
+    backgroundColor: theme.colors.feedback.errorTint,
     borderWidth: 1,
-    borderColor: '#FFE0E0',
+    borderColor: theme.colors.feedback.errorBorder,
     borderRadius: theme.borderRadius.lg,
     paddingHorizontal: theme.spacing.md,
     paddingVertical: theme.spacing.xs,
@@ -653,12 +653,12 @@ const styles = StyleSheet.create({
     color: theme.colors.status.success,
   },
   changedIndicator: {
-    backgroundColor: '#E8F5E9',
+    backgroundColor: theme.colors.feedback.successTint,
     paddingHorizontal: theme.spacing.sm,
     paddingVertical: 3,
     borderRadius: theme.borderRadius.lg,
     borderWidth: 1,
-    borderColor: '#C8E6C9',
+    borderColor: theme.colors.feedback.successBorder,
   },
   changedText: {
     fontSize: theme.typography.sizes.xs,
@@ -669,13 +669,13 @@ const styles = StyleSheet.create({
   textInputChanged: {
     borderColor: theme.colors.status.success,
     borderWidth: 1.5,
-    backgroundColor: '#F1F8E9',
+    backgroundColor: theme.colors.feedback.successTint,
   },
   selectorButtonChanged: {
     // Not used anymore - moved to selectorRowChanged
   },
   selectorRowChanged: {
-    backgroundColor: '#F1F8E9',
+    backgroundColor: theme.colors.feedback.successTint,
     borderColor: theme.colors.status.success,
     borderWidth: 1.5,
   },
@@ -686,7 +686,7 @@ const styles = StyleSheet.create({
   },
   bubbleChangedSelected: {
     backgroundColor: theme.colors.status.success,
-    borderColor: '#388E3C',
+    borderColor: theme.colors.status.successDark,
   },
 
   // Validation error styles
@@ -696,7 +696,7 @@ const styles = StyleSheet.create({
   textInputError: {
     borderColor: theme.colors.status.error,
     borderWidth: 1.5,
-    backgroundColor: '#FFF5F5',
+    backgroundColor: theme.colors.feedback.errorTint,
   },
   errorText: {
     color: theme.colors.status.error,

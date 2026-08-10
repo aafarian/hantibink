@@ -181,7 +181,7 @@ const styles = StyleSheet.create({
   },
   title: {
     fontSize: 28,
-    fontFamily: theme.typography.fontFamily.bold,
+    fontFamily: theme.typography.fontFamily.display,
     fontWeight: 'bold',
     color: theme.colors.text.primary,
     marginBottom: 10,
@@ -198,7 +198,7 @@ const styles = StyleSheet.create({
   },
   infoCard: {
     flexDirection: 'row',
-    backgroundColor: '#FFF5F5',
+    backgroundColor: theme.colors.feedback.errorTint,
     borderRadius: 12,
     padding: 16,
     marginBottom: 30,

@@ -6,13 +6,7 @@ import { SafeAreaProvider } from 'react-native-safe-area-context';
 import * as Sentry from '@sentry/react-native';
 import * as SplashScreen from 'expo-splash-screen';
 import Constants from 'expo-constants';
-import {
-  useFonts,
-  NunitoSans_400Regular,
-  NunitoSans_500Medium,
-  NunitoSans_600SemiBold,
-  NunitoSans_700Bold,
-} from '@expo-google-fonts/nunito-sans';
+import { useFonts } from 'expo-font';
 import ErrorBoundary from './src/components/ErrorBoundary';
 import { AuthProvider } from './src/contexts/AuthContext';
 import { ToastProvider } from './src/contexts/ToastContext';
@@ -22,6 +16,7 @@ import { PhotoViewerProvider } from './src/contexts/PhotoViewerContext';
 import { UpdateProvider } from './src/contexts/UpdateContext';
 import AppNavigator from './src/navigation/AppNavigator';
 import { theme } from './src/styles/theme';
+import { fontMap } from './src/styles/fonts';
 import { initAnalytics, trackAppOpened } from './src/utils/analytics';
 
 // Keep splash screen visible while fonts load
@@ -39,12 +34,7 @@ if (SENTRY_DSN && !__DEV__) {
 }
 
 function App() {
-  const [fontsLoaded, fontError] = useFonts({
-    NunitoSans_400Regular,
-    NunitoSans_500Medium,
-    NunitoSans_600SemiBold,
-    NunitoSans_700Bold,
-  });
+  const [fontsLoaded, fontError] = useFonts(fontMap);
 
   // Initialize analytics on app start
   useEffect(() => {

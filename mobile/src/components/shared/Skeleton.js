@@ -57,8 +57,8 @@ const PRESETS = {
 
 // Colors for skeleton shimmer effect
 const SKELETON_COLORS = {
-  base: '#E0E0E0',
-  highlight: '#F5F5F5',
+  base: theme.colors.gray[300],
+  highlight: theme.colors.gray[100],
 };
 
 const Skeleton = ({ variant, width, height, borderRadius, style }) => {

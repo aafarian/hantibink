@@ -283,7 +283,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     paddingVertical: 15,
     borderBottomWidth: 1,
-    borderBottomColor: '#E8E8E8',
+    borderBottomColor: theme.colors.gray[200],
   },
   backButton: {
     padding: 8,
@@ -318,7 +318,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#F8F9FA',
+    backgroundColor: theme.colors.background.secondary,
     borderWidth: 2,
     borderColor: theme.colors.secondary,
     borderStyle: 'dashed',
@@ -379,7 +379,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   instructionsContainer: {
-    backgroundColor: '#F8F9FA',
+    backgroundColor: theme.colors.background.secondary,
     padding: 20,
     borderRadius: 12,
     marginTop: 20,
@@ -401,7 +401,7 @@ const styles = StyleSheet.create({
   footer: {
     padding: 20,
     borderTopWidth: 1,
-    borderTopColor: '#E8E8E8',
+    borderTopColor: theme.colors.gray[200],
   },
   continueButton: {
     backgroundColor: theme.colors.secondary,
@@ -410,7 +410,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   disabledButton: {
-    backgroundColor: '#E8E8E8',
+    backgroundColor: theme.colors.gray[200],
   },
   continueButtonText: {
     color: theme.colors.text.white,

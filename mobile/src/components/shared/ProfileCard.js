@@ -364,7 +364,7 @@ const styles = StyleSheet.create({
   cardName: {
     fontSize: 24,
     fontWeight: 'bold',
-    fontFamily: theme.typography.fontFamily.bold,
+    fontFamily: theme.typography.fontFamily.heading,
     color: theme.colors.text.white,
     marginBottom: 4,
   },

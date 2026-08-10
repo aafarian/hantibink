@@ -1155,7 +1155,7 @@ const ProfileSetupModal = ({ visible, onClose, onComplete, userProfile }) => {
               disabled={loading || uploadingPhotos}
             >
               {loading || uploadingPhotos ? (
-                <ActivityIndicator color="#FFF" />
+                <ActivityIndicator color={theme.colors.text.white} />
               ) : (
                 <Text style={styles.nextButtonText}>
                   {currentStep === steps.length - 1 ? 'Finish Setup' : 'Next'}
@@ -1208,7 +1208,7 @@ const styles = StyleSheet.create({
   headerTitle: {
     fontSize: theme.typography.sizes.xxl,
     fontWeight: theme.typography.weights.bold,
-    fontFamily: theme.typography.fontFamily.bold,
+    fontFamily: theme.typography.fontFamily.heading,
     color: theme.colors.text.primary,
   },
   headerSubtitle: {
@@ -1263,7 +1263,7 @@ const styles = StyleSheet.create({
   stepTitle: {
     fontSize: theme.typography.sizes.huge,
     fontWeight: '800',
-    fontFamily: theme.typography.fontFamily.bold,
+    fontFamily: theme.typography.fontFamily.display,
     marginBottom: theme.spacing.sm,
     textAlign: 'center',
     color: theme.colors.gray[900],

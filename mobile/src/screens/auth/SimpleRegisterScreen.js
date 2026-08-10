@@ -488,7 +488,7 @@ const styles = StyleSheet.create({
   },
   title: {
     fontSize: 24,
-    fontFamily: theme.typography.fontFamily.bold,
+    fontFamily: theme.typography.fontFamily.heading,
     fontWeight: 'bold',
     color: theme.colors.text.primary,
   },
@@ -550,7 +550,7 @@ const styles = StyleSheet.create({
     marginBottom: 10,
   },
   registerButtonDisabled: {
-    backgroundColor: '#FFB6B6',
+    backgroundColor: theme.colors.feedback.errorBorder,
   },
   registerButtonText: {
     color: theme.colors.text.white,
@@ -577,7 +577,7 @@ const styles = StyleSheet.create({
   },
   inputError: {
     borderColor: theme.colors.primary,
-    backgroundColor: '#FFF5F5',
+    backgroundColor: theme.colors.feedback.errorTint,
   },
   errorText: {
     color: theme.colors.primary,

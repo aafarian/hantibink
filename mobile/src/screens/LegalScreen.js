@@ -250,7 +250,7 @@ const styles = StyleSheet.create({
   lastUpdated: {
     fontSize: 13,
     fontFamily: theme.typography.fontFamily.regular,
-    color: '#888',
+    color: theme.colors.text.muted,
     marginBottom: 24,
     fontStyle: 'italic',
   },
@@ -265,14 +265,14 @@ const styles = StyleSheet.create({
   paragraph: {
     fontSize: 15,
     fontFamily: theme.typography.fontFamily.regular,
-    color: '#555',
+    color: theme.colors.text.secondary,
     lineHeight: 22,
     marginBottom: 10,
   },
   bulletPoint: {
     fontSize: 15,
     fontFamily: theme.typography.fontFamily.regular,
-    color: '#555',
+    color: theme.colors.text.secondary,
     lineHeight: 24,
     marginLeft: 16,
   },

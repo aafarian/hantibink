@@ -192,7 +192,7 @@ const styles = StyleSheet.create({
     borderTopRightRadius: 20,
   },
   sheetIndicator: {
-    backgroundColor: '#ddd',
+    backgroundColor: theme.colors.border.medium,
     width: 36,
     height: 4,
   },
