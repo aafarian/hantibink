@@ -604,6 +604,8 @@ describe('Actions Service', () => {
       expect(result.premiumRequired).toBe(true);
       expect(result.totalLikesCount).toBe(5);
       expect(result.hiddenCount).toBe(5);
+      // The screen displays totalCount — it must carry the real teaser number
+      expect(result.totalCount).toBe(5);
     });
 
     it('excludes blocked users from the liker list', async () => {

@@ -545,28 +545,7 @@ const getWhoLikedMe = async (userId, options = {}) => {
     // Check premium status to determine result limit
     const premiumLimit = await getWhoLikedMeLimit(userId);
 
-    // Free users get NO liker entries — only the teaser count, which is the
-    // upsell ("N people liked you")
-    if (!premiumLimit.isPremium) {
-      limit = Math.min(limit, premiumLimit.limit);
-      if (limit <= 0 || offset >= premiumLimit.limit) {
-        const totalLikesCount = await prisma.userAction.count({
-          where: {
-            receiverId: userId,
-            action: { in: ['LIKE', 'SUPER_LIKE'] },
-          },
-        });
-        return {
-          users: [],
-          totalCount: 0,
-          totalLikesCount,
-          hiddenCount: totalLikesCount,
-          isPremium: false,
-          premiumRequired: true,
-          message: 'Upgrade to Premium to see everyone who liked you!',
-        };
-      }
-    }
+    limit = premiumLimit.isPremium ? limit : Math.min(limit, premiumLimit.limit);
 
     // Get the total count of users who liked the current user (before filtering)
     const totalLikesCount = await prisma.userAction.count({
@@ -589,6 +568,24 @@ const getWhoLikedMe = async (userId, options = {}) => {
       sender: { actionsReceived: { none: { senderId: userId } } },
       ...(blockedUserIds.length ? { senderId: { notIn: blockedUserIds } } : {}),
     };
+
+    // Free users get NO liker entries — only counts for the upsell teaser.
+    // totalCount stays "unacted likers" (same meaning as the premium path,
+    // and what the mobile screen displays); totalLikesCount is the raw total.
+    if (!premiumLimit.isPremium) {
+      const totalUnactedCount = await prisma.userAction.count({
+        where: unactedLikersWhere,
+      });
+      return {
+        users: [],
+        totalCount: totalUnactedCount,
+        totalLikesCount,
+        hiddenCount: totalUnactedCount,
+        isPremium: false,
+        premiumRequired: true,
+        message: 'Upgrade to Premium to see everyone who liked you!',
+      };
+    }
 
     logger.info(`🔍 Fetching who liked user ${userId} (limit: ${limit}, offset: ${offset})`);
     const likers = await prisma.userAction.findMany({
@@ -624,32 +621,6 @@ const getWhoLikedMe = async (userId, options = {}) => {
     });
     
     logger.info(`🔍 Batch ${offset}-${offset+limit}: Found ${likers.length} unacted likers`);
-
-    // Free tier is enforced HERE, not in the client: entries are returned so
-    // the app can show "N people liked you" placeholders, but the profiles
-    // themselves are withheld (a name or photo URL would BE the leak).
-    if (!premiumLimit.isPremium) {
-      const redactedLikers = likers.map((action) => ({
-        actionId: action.id,
-        actionType: action.action,
-        likedAt: action.createdAt,
-        user: null,
-      }));
-
-      const totalUnactedCount = await prisma.userAction.count({
-        where: unactedLikersWhere,
-      });
-
-      return {
-        users: redactedLikers,
-        totalCount: totalUnactedCount,
-        totalLikesCount,
-        isPremium: false,
-        premiumRequired: true,
-        hiddenCount: totalUnactedCount,
-        message: 'Upgrade to Premium to see everyone who liked you!',
-      };
-    }
 
     // Transform the data to include age calculation and format
     const transformedLikers = likers.map((action) => {

@@ -240,11 +240,21 @@ const setUserActive = async (userId, isActive, adminEmail, io = null) => {
 };
 
 const setUserPremium = async (userId, isPremium, adminEmail) => {
+  const before = await prisma.user.findUnique({
+    where: { id: userId },
+    select: { isPremium: true },
+  });
   const user = await prisma.user.update({
     where: { id: userId },
     data: { isPremium },
     select: { id: true, email: true, isPremium: true },
   });
+  // Becoming premium seeds the Super Like bank (fresh accrual clock +
+  // day-one balance) — otherwise days spent free would accrue as if premium
+  if (isPremium && before && !before.isPremium) {
+    const { seedPremiumBank } = require('./premiumService');
+    await seedPremiumBank(userId);
+  }
   await auditLog(adminEmail, isPremium ? 'user.premium.grant' : 'user.premium.revoke', 'user', userId);
   return user;
 };

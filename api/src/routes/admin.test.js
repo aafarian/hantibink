@@ -188,6 +188,23 @@ describe('Admin Routes', () => {
       });
       expect(audit).not.toBeNull();
     });
+
+    it('upgrading seeds the Super Like bank with 2, not back-accrued free days', async () => {
+      const adminUser = await createAdmin();
+      const tenDaysAgo = new Date(Date.now() - 10 * 86400000);
+      const target = await userFactory.create(global.prisma, {
+        superLikeAccruedAt: tenDaysAgo,
+      });
+
+      await request(app)
+        .post(`/admin/users/${target.id}/premium`)
+        .set('Authorization', adminUser.authHeader)
+        .send({ isPremium: true });
+
+      const { getUserQuotas } = await import('../services/premiumService.js');
+      const quotas = await getUserQuotas(target.id);
+      expect(quotas.superLikes.remaining).toBe(2);
+    });
   });
 
   describe('reports queue', () => {

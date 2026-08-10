@@ -88,6 +88,14 @@ const getUserQuotas = async (userId) => {
     });
     if (result.count > 0) {
       likesUsed = 0;
+    } else {
+      // Lost the reset race to a concurrent request — re-read so we report
+      // the winner's fresh window instead of stale pre-reset usage
+      const fresh = await prisma.user.findUnique({
+        where: { id: userId },
+        select: { dailyLikesUsed: true },
+      });
+      likesUsed = fresh?.dailyLikesUsed ?? likesUsed;
     }
   }
 
@@ -111,6 +119,13 @@ const getUserQuotas = async (userId) => {
       });
       if (result.count > 0) {
         superLikeBalance += grant;
+      } else {
+        // Lost the accrual race — the winner already granted; re-read
+        const fresh = await prisma.user.findUnique({
+          where: { id: userId },
+          select: { superLikeBalance: true },
+        });
+        superLikeBalance = fresh?.superLikeBalance ?? superLikeBalance;
       }
     }
   }
@@ -131,6 +146,24 @@ const getUserQuotas = async (userId) => {
     canUndo: limits.canUndo,
     whoLikedMeLimit: limits.whoLikedMeLimit,
   };
+};
+
+/**
+ * Call whenever a user BECOMES premium (admin toggle today, the billing
+ * webhook later): a fresh accrual clock so days spent as a free user never
+ * convert into Super Likes, and a day-one bank of 2 (never lowering a
+ * balance that survived a downgrade).
+ */
+const seedPremiumBank = async (userId) => {
+  await prisma.user.update({
+    where: { id: userId },
+    data: { superLikeAccruedAt: new Date() },
+    select: { id: true },
+  });
+  await prisma.user.updateMany({
+    where: { id: userId, superLikeBalance: { lt: 2 } },
+    data: { superLikeBalance: 2 },
+  });
 };
 
 /**
@@ -254,6 +287,7 @@ const requiresPremium = async (userId, feature) => {
 module.exports = {
   LIMITS,
   getUserQuotas,
+  seedPremiumBank,
   canLike,
   canSuperLike,
   canUndo,
