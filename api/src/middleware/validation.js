@@ -394,6 +394,20 @@ const profileValidation = {
       .isLength({ min: 2, max: 50 }).withMessage('Name must be between 2 and 50 characters')
       .matches(/^[a-zA-Z\s]+$/).withMessage('Name can only contain letters and spaces')
       .trim(),
+    // gender/interestedIn pass through to Prisma enums — unvalidated input
+    // crashed as a 500 instead of a clean 400
+    body('gender')
+      .optional()
+      .isIn(['MAN', 'WOMAN', 'OTHER', 'man', 'woman', 'other']).withMessage('Invalid gender')
+      .customSanitizer((value) => (value ? value.toUpperCase() : value)),
+    body('interestedIn')
+      .optional()
+      .isArray().withMessage('Interested in must be an array')
+      .custom((value) => {
+        const valid = ['MAN', 'WOMAN', 'OTHER', 'man', 'woman', 'other'];
+        return value.every((v) => valid.includes(v));
+      }).withMessage('Invalid interested in values')
+      .customSanitizer((value) => (value ? value.map((v) => v.toUpperCase()) : value)),
     body('bio')
       .optional({ nullable: true, checkFalsy: true })
       .isLength({ max: 500 }).withMessage('Bio must be less than 500 characters')

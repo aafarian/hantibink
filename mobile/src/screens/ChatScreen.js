@@ -223,10 +223,14 @@ const ChatScreen = ({ route, navigation }) => {
       if (gameType === 'QUESTION_ROULETTE' || gameType === 'EMOJI_RIDDLE') {
         try {
           const { offers } = await GamesApiService.getOffers(match.matchId, gameType);
+          if (!offers?.length) {
+            showError('No fresh prompts available for this game right now');
+            return;
+          }
           if (gameType === 'QUESTION_ROULETTE') {
-            setRouletteOffer(offers?.[0] || null);
+            setRouletteOffer(offers[0]);
           } else {
-            setRiddleOffers(offers || []);
+            setRiddleOffers(offers);
           }
         } catch (error) {
           showError(error.message || 'Could not load the game');
@@ -238,10 +242,12 @@ const ChatScreen = ({ route, navigation }) => {
     [match.matchId, showError, createGame]
   );
 
+  // Await the create BEFORE closing the composer — closing first left a
+  // dead gap where nothing on screen acknowledged the submit
   const handleTwoTruthsSubmit = useCallback(
     async payload => {
+      await createGame('TWO_TRUTHS', payload);
       setShowTwoTruthsComposer(false);
-      createGame('TWO_TRUTHS', payload);
     },
     [createGame]
   );
@@ -249,16 +255,16 @@ const ChatScreen = ({ route, navigation }) => {
   const handleRouletteSubmit = useCallback(
     async answer => {
       const questionId = rouletteOffer?.id;
+      await createGame('QUESTION_ROULETTE', { questionId, answer });
       setRouletteOffer(null);
-      createGame('QUESTION_ROULETTE', { questionId, answer });
     },
     [rouletteOffer?.id, createGame]
   );
 
   const handleRiddleSubmit = useCallback(
     async riddleId => {
+      await createGame('EMOJI_RIDDLE', { riddleId });
       setRiddleOffers(null);
-      createGame('EMOJI_RIDDLE', { riddleId });
     },
     [createGame]
   );
@@ -866,7 +872,9 @@ const ChatScreen = ({ route, navigation }) => {
       // Upload audio to Firebase Storage
       const audioUrl = await uploadAudioToFirebase(audioUri, user.uid);
 
-      const metadata = waveform ? JSON.stringify({ waveform, durationMs }) : null;
+      // Always carry durationMs — the player's whole progress UI divides by
+      // it, and without it the first playback renders a dead progress line
+      const metadata = JSON.stringify({ ...(waveform ? { waveform } : {}), durationMs });
 
       // Send the message with waveform data
       await sendMessageCore({

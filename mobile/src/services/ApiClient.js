@@ -259,6 +259,8 @@ class ApiClient {
         return {
           success: false,
           error: data.error || 'Server error',
+          // Machine-readable reason (DAILY_LIMIT_REACHED etc.) when provided
+          code: data.code,
           message: data.message || 'Server error occurred',
           status: response.status,
         };

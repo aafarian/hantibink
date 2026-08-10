@@ -100,8 +100,9 @@ const AudioMessage = ({
             { uri: audioUrl },
             { shouldPlay: false }
           );
-          // Only set duration if main sound wasn't loaded meanwhile (race condition fix)
-          if (status.durationMillis && !soundRef.current) {
+          // Seed duration whenever it's still unknown — a late-arriving
+          // preload is still better than 0, which freezes all progress math
+          if (status.durationMillis && durationRef.current === 0) {
             setDuration(status.durationMillis);
           }
           await tempSound.unloadAsync();
@@ -117,6 +118,12 @@ const AudioMessage = ({
   useEffect(() => {
     soundRef.current = sound;
   }, [sound]);
+
+  // Re-attach the status callback when its identity changes — the sound
+  // otherwise permanently holds the first closure (isScrubbing frozen)
+  useEffect(() => {
+    sound?.setOnPlaybackStatusUpdate(onPlaybackStatusUpdate);
+  }, [sound, onPlaybackStatusUpdate]);
 
   // Listen for other audio starting - pause AND reset this one
   useEffect(() => {
@@ -206,6 +213,14 @@ const AudioMessage = ({
 
         if (status.durationMillis) {
           setDuration(status.durationMillis);
+        } else {
+          // Remote files can resolve createAsync before duration is known —
+          // one immediate re-read usually has it, and without it the
+          // progress line stays dead for the whole first playback
+          const fresh = await newSound.getStatusAsync().catch(() => null);
+          if (fresh?.isLoaded && fresh.durationMillis) {
+            setDuration(fresh.durationMillis);
+          }
         }
         setSound(newSound);
         setLoading(false);
@@ -377,7 +392,7 @@ const AudioMessage = ({
         </View>
 
         {/* Playhead - vertical line, only show when audio has been played/seeked */}
-        {(isPlaying || position > 0) && (
+        {(isPlaying || position > 0) && duration > 0 && (
           <View
             pointerEvents="none"
             style={[

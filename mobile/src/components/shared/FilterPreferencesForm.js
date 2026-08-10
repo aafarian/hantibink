@@ -21,23 +21,29 @@ import ScreenWrapper from './ScreenWrapper';
 
 // Filter option constants
 const FILTER_OPTIONS = {
-  genders: ['Men', 'Women', 'Other'],
-  relationshipTypes: [
-    'Long-term',
-    'Short-term',
-    'Casual',
-    'Marriage',
-    'Friendship',
-    'Not sure yet',
+  // Server-canonical ids with display labels — the API only accepts
+  // MAN/WOMAN/OTHER, and loaded preferences come back in that form too
+  genders: [
+    { id: 'MAN', label: 'Men' },
+    { id: 'WOMAN', label: 'Women' },
+    { id: 'OTHER', label: 'Other' },
   ],
-  smokingOptions: ['Non-smoker', 'Social smoker', 'Regular smoker', "Doesn't matter"],
+  // IMPORTANT: these values are compared server-side (lowercased) against
+  // what profiles actually store via ProfileFieldsConfig — a value that
+  // doesn't exist there silently filters out EVERY candidate
+  relationshipTypes: ['Casual', 'Serious', 'Friendship', 'Marriage', 'Hookups', 'Not-sure'],
+  smokingOptions: ['Never', 'Sometimes', 'Regularly', "Doesn't matter"],
   drinkingOptions: ['Never', 'Socially', 'Regularly', "Doesn't matter"],
   educationOptions: [
     'High School',
     'Some College',
-    "Bachelor's",
-    "Master's",
+    'Associate Degree',
+    "Bachelor's Degree",
+    "Master's Degree",
     'PhD',
+    'Professional Degree',
+    'Trade School',
+    'Other',
     "Doesn't matter",
   ],
   languageOptions: [
@@ -55,7 +61,6 @@ const FILTER_OPTIONS = {
     'German',
     'Korean',
     'Italian',
-    'Other',
   ],
 };
 
@@ -371,21 +376,21 @@ const FilterPreferencesForm = ({
               <View style={styles.genderOptionsContainer}>
                 {FILTER_OPTIONS.genders.map(gender => (
                   <TouchableOpacity
-                    key={gender}
+                    key={gender.id}
                     style={[
                       styles.genderOption,
-                      corePreferences.interestedIn.includes(gender) && styles.genderOptionActive,
+                      corePreferences.interestedIn.includes(gender.id) && styles.genderOptionActive,
                     ]}
-                    onPress={() => toggleCoreArrayFilter('interestedIn', gender)}
+                    onPress={() => toggleCoreArrayFilter('interestedIn', gender.id)}
                   >
                     <Text
                       style={[
                         styles.genderOptionText,
-                        corePreferences.interestedIn.includes(gender) &&
+                        corePreferences.interestedIn.includes(gender.id) &&
                           styles.genderOptionTextActive,
                       ]}
                     >
-                      {gender}
+                      {gender.label}
                     </Text>
                   </TouchableOpacity>
                 ))}

@@ -126,6 +126,9 @@ const sendErrorResponse = (err, req, res) => {
     res.status(statusCode).json({
       success: false,
       error: status,
+      // Machine-readable code (e.g. DAILY_LIMIT_REACHED, PREMIUM_REQUIRED,
+      // GAMES_DISABLED) so clients can branch on the reason, not the prose
+      ...(err.code && { code: err.code }),
       message: err.message,
       ...(process.env.NODE_ENV === 'development' && {
         stack: err.stack,

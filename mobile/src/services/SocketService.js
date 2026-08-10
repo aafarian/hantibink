@@ -20,6 +20,7 @@ class SocketService {
     this.likedYouListeners = new Set();
     this.userStatusListeners = new Set();
     this.gameListeners = new Set();
+    this.joinedMatchRooms = new Set();
     this.heartbeatInterval = null;
     this.appStateSubscription = null;
     this.isAppActive = true;
@@ -73,6 +74,14 @@ class SocketService {
         this.socket.emit('join-user-room', this.userId);
         Logger.info(`👤 Joining user room: user:${this.userId}`);
       }
+
+      // Re-join match rooms: socket.io rooms are per-socket and drop on
+      // every disconnect, so without this any reconnect silently removes
+      // us from the chat we're looking at (server re-validates membership)
+      this.joinedMatchRooms.forEach(matchId => {
+        this.socket.emit('join-match-room', matchId);
+        Logger.info(`📱 Re-joined match room after reconnect: match:${matchId}`);
+      });
 
       // Start heartbeat to keep online status updated (only if app is active)
       if (this.isAppActive) {
@@ -206,13 +215,15 @@ class SocketService {
    * Join a match room for real-time messaging
    */
   joinMatchRoom(matchId) {
+    // Track intent regardless of connection state: the connect handler
+    // replays these, so a join requested while offline (or lost to a
+    // reconnect) happens as soon as we're back
+    this.joinedMatchRooms.add(matchId);
     if (this.socket && this.isConnected) {
       this.socket.emit('join-match-room', matchId);
       Logger.info(`📱 Joined match room: match:${matchId}`);
-      Logger.info(`📱 Socket connected: ${this.isConnected}, Socket ID: ${this.socket.id}`);
     } else {
-      Logger.warn(`📱 Cannot join match room ${matchId} - socket not connected`);
-      Logger.warn(`📱 Socket exists: ${!!this.socket}, Connected: ${this.isConnected}`);
+      Logger.warn(`📱 Queued match room join for reconnect: ${matchId}`);
     }
   }
 
@@ -220,6 +231,7 @@ class SocketService {
    * Leave a match room
    */
   leaveMatchRoom(matchId) {
+    this.joinedMatchRooms.delete(matchId);
     if (this.socket && this.isConnected) {
       this.socket.emit('leave-match-room', matchId);
       Logger.info(`📱 Left match room: ${matchId}`);

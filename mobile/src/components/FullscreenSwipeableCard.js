@@ -106,10 +106,11 @@ const FullscreenSwipeableCard = ({
   // Helper to format lifestyle fields
   const formatSmoking = smoking => {
     if (!smoking) return null;
+    // Keys match stored profile values (capitalized, per ProfileFieldsConfig)
     const map = {
-      never: 'Non-smoker',
-      sometimes: 'Social smoker',
-      regularly: 'Smoker',
+      Never: 'Non-smoker',
+      Sometimes: 'Social smoker',
+      Regularly: 'Smoker',
     };
     return map[smoking] || smoking;
   };
@@ -117,9 +118,9 @@ const FullscreenSwipeableCard = ({
   const formatDrinking = drinking => {
     if (!drinking) return null;
     const map = {
-      never: 'Non-drinker',
-      socially: 'Social drinker',
-      regularly: 'Regular drinker',
+      Never: 'Non-drinker',
+      Socially: 'Social drinker',
+      Regularly: 'Regular drinker',
     };
     return map[drinking] || drinking;
   };

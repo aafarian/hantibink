@@ -13,6 +13,7 @@ import {
   Pressable,
   TextInput,
   ScrollView,
+  ActivityIndicator,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
@@ -117,6 +118,7 @@ export const GamePickerSheet = ({ visible, onClose, onPick, activeSession, myId,
 export const TwoTruthsComposer = ({ visible, onClose, onSubmit }) => {
   const [statements, setStatements] = useState(['', '', '']);
   const [lieIndex, setLieIndex] = useState(null);
+  const [submitting, setSubmitting] = useState(false);
   const valid = statements.every(s => s.trim()) && lieIndex !== null;
 
   return (
@@ -155,15 +157,24 @@ export const TwoTruthsComposer = ({ visible, onClose, onSubmit }) => {
             </View>
           ))}
           <TouchableOpacity
-            style={[styles.primaryButton, !valid && styles.primaryButtonDisabled]}
-            disabled={!valid}
-            onPress={() => {
-              onSubmit({ statements: statements.map(s => s.trim()), lieIndex });
-              setStatements(['', '', '']);
-              setLieIndex(null);
+            style={[styles.primaryButton, (!valid || submitting) && styles.primaryButtonDisabled]}
+            disabled={!valid || submitting}
+            onPress={async () => {
+              setSubmitting(true);
+              try {
+                await onSubmit({ statements: statements.map(s => s.trim()), lieIndex });
+                setStatements(['', '', '']);
+                setLieIndex(null);
+              } finally {
+                setSubmitting(false);
+              }
             }}
           >
-            <Text style={styles.primaryButtonText}>Send challenge</Text>
+            {submitting ? (
+              <ActivityIndicator size="small" color={theme.colors.text.white} />
+            ) : (
+              <Text style={styles.primaryButtonText}>Send challenge</Text>
+            )}
           </TouchableOpacity>
         </View>
       </View>
@@ -179,6 +190,7 @@ export const TwoTruthsComposer = ({ visible, onClose, onSubmit }) => {
  */
 export const RouletteComposer = ({ visible, question, onClose, onSubmit }) => {
   const [draft, setDraft] = useState('');
+  const [submitting, setSubmitting] = useState(false);
 
   return (
     <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
@@ -209,14 +221,26 @@ export const RouletteComposer = ({ visible, question, onClose, onSubmit }) => {
             multiline
           />
           <TouchableOpacity
-            style={[styles.primaryButton, !draft.trim() && styles.primaryButtonDisabled]}
-            disabled={!draft.trim()}
-            onPress={() => {
-              onSubmit(draft.trim());
-              setDraft('');
+            style={[
+              styles.primaryButton,
+              (!draft.trim() || submitting) && styles.primaryButtonDisabled,
+            ]}
+            disabled={!draft.trim() || submitting}
+            onPress={async () => {
+              setSubmitting(true);
+              try {
+                await onSubmit(draft.trim());
+                setDraft('');
+              } finally {
+                setSubmitting(false);
+              }
             }}
           >
-            <Text style={styles.primaryButtonText}>Send the question</Text>
+            {submitting ? (
+              <ActivityIndicator size="small" color={theme.colors.text.white} />
+            ) : (
+              <Text style={styles.primaryButtonText}>Send the question</Text>
+            )}
           </TouchableOpacity>
         </View>
       </View>
@@ -334,6 +358,42 @@ export const ActiveGamePanel = ({ session, myId, onMove, onEnd, onDismiss, onDet
   const Body = BODIES[session.gameType];
   const instantDismiss = canDismissInstantly(session, myId);
   return (
+    <PanelInner
+      meta={meta}
+      Body={Body}
+      instantDismiss={instantDismiss}
+      {...{ session, myId, onMove, onEnd, onDismiss, onDetails }}
+    />
+  );
+};
+
+const PanelInner = ({
+  session,
+  myId,
+  onMove,
+  onEnd,
+  onDismiss,
+  onDetails,
+  meta,
+  Body,
+  instantDismiss,
+}) => {
+  // One in-flight move at a time: instant haptic + selected state, siblings
+  // disabled, spinner row until the authoritative snapshot lands
+  const [pendingMove, setPendingMove] = useState(null);
+  const guardedMove = async payload => {
+    if (pendingMove) {
+      return;
+    }
+    Haptics.selectionAsync();
+    setPendingMove(payload);
+    try {
+      await onMove?.(payload);
+    } finally {
+      setPendingMove(null);
+    }
+  };
+  return (
     <View style={styles.panel}>
       <View style={styles.cardHeader}>
         <Ionicons name={meta.icon || 'game-controller'} size={16} color={theme.colors.primary} />
@@ -361,7 +421,21 @@ export const ActiveGamePanel = ({ session, myId, onMove, onEnd, onDismiss, onDet
         )}
       </View>
       <ScrollView style={styles.panelBody} keyboardShouldPersistTaps="handled">
-        {Body ? <Body view={session.view} myId={myId} canAct onMove={onMove} /> : null}
+        {Body ? (
+          <Body
+            view={session.view}
+            myId={myId}
+            canAct={!pendingMove}
+            onMove={guardedMove}
+            pending={pendingMove}
+          />
+        ) : null}
+        {pendingMove && (
+          <View style={styles.pendingRow}>
+            <ActivityIndicator size="small" color={theme.colors.primary} />
+            <Text style={styles.cardHint}>Sending…</Text>
+          </View>
+        )}
       </ScrollView>
     </View>
   );
@@ -386,8 +460,9 @@ const revealLine = (round, myId) => {
     : `You: ${myPickText} · Them: ${theirPickText}`;
 };
 
-const ThisOrThatBody = ({ view, myId, canAct, onMove }) => {
+const ThisOrThatBody = ({ view, myId, canAct, onMove, pending }) => {
   const round = view.rounds?.[view.currentRound];
+  const pendingChoice = pending?.type === 'pick' ? pending.choice : null;
   const finishedRounds = (view.rounds || []).filter(r => r.revealed);
   return (
     <View>
@@ -416,14 +491,18 @@ const ThisOrThatBody = ({ view, myId, canAct, onMove }) => {
             {['A', 'B'].map(option => (
               <TouchableOpacity
                 key={option}
-                style={[styles.totChoice, round.myPick === option && styles.totChoiceActive]}
+                style={[
+                  styles.totChoice,
+                  (round.myPick === option || pendingChoice === option) && styles.totChoiceActive,
+                ]}
                 disabled={!canAct || !!round.myPick}
                 onPress={() => onMove({ type: 'pick', choice: option, clientMoveId: makeMoveId() })}
               >
                 <Text
                   style={[
                     styles.totChoiceText,
-                    round.myPick === option && styles.totChoiceTextActive,
+                    (round.myPick === option || pendingChoice === option) &&
+                      styles.totChoiceTextActive,
                   ]}
                 >
                   {option === 'A' ? round.a : round.b}
@@ -442,9 +521,10 @@ const ThisOrThatBody = ({ view, myId, canAct, onMove }) => {
   );
 };
 
-const TwoTruthsBody = ({ view, myId, canAct = true, onMove }) => {
+const TwoTruthsBody = ({ view, myId, canAct = true, onMove, pending }) => {
   const isAuthor = view.players?.creatorId === myId;
   const done = view.phase === 'done';
+  const pendingIndex = pending?.type === 'guess' ? pending.index : null;
   return (
     <View>
       <Text style={styles.cardPrompt}>
@@ -459,7 +539,7 @@ const TwoTruthsBody = ({ view, myId, canAct = true, onMove }) => {
             style={[
               styles.statement,
               isLie && styles.statementLie,
-              wasGuess && styles.statementGuess,
+              (wasGuess || pendingIndex === index) && styles.statementGuess,
             ]}
             disabled={isAuthor || done || !canAct}
             onPress={() => onMove({ type: 'guess', index, clientMoveId: makeMoveId() })}
@@ -474,7 +554,7 @@ const TwoTruthsBody = ({ view, myId, canAct = true, onMove }) => {
   );
 };
 
-const RouletteBody = ({ view, myId, canAct = true, onMove }) => {
+const RouletteBody = ({ view, myId, canAct = true, onMove, pending }) => {
   const [draft, setDraft] = useState('');
   const answered = !!(view.answers && view.answers[myId]);
   return (
@@ -515,13 +595,20 @@ const RouletteBody = ({ view, myId, canAct = true, onMove }) => {
             multiline
           />
           <TouchableOpacity
-            style={[styles.primaryButton, !draft.trim() && styles.primaryButtonDisabled]}
-            disabled={!draft.trim()}
+            style={[
+              styles.primaryButton,
+              (!draft.trim() || !canAct) && styles.primaryButtonDisabled,
+            ]}
+            disabled={!draft.trim() || !canAct}
             onPress={() =>
               onMove({ type: 'answer', text: draft.trim(), clientMoveId: makeMoveId() })
             }
           >
-            <Text style={styles.primaryButtonText}>Lock it in</Text>
+            {pending ? (
+              <ActivityIndicator size="small" color={theme.colors.text.white} />
+            ) : (
+              <Text style={styles.primaryButtonText}>Lock it in</Text>
+            )}
           </TouchableOpacity>
         </>
       )}
@@ -529,7 +616,7 @@ const RouletteBody = ({ view, myId, canAct = true, onMove }) => {
   );
 };
 
-const EmojiRiddleBody = ({ view, myId, canAct = true, onMove }) => {
+const EmojiRiddleBody = ({ view, myId, canAct = true, onMove, pending }) => {
   const [draft, setDraft] = useState('');
   const isCreator = view.players?.creatorId === myId;
   const done = view.phase === 'done';
@@ -566,14 +653,21 @@ const EmojiRiddleBody = ({ view, myId, canAct = true, onMove }) => {
                 maxLength={100}
               />
               <TouchableOpacity
-                style={[styles.primaryButton, !draft.trim() && styles.primaryButtonDisabled]}
-                disabled={!draft.trim()}
+                style={[
+                  styles.primaryButton,
+                  (!draft.trim() || !canAct) && styles.primaryButtonDisabled,
+                ]}
+                disabled={!draft.trim() || !canAct}
                 onPress={() => {
                   onMove({ type: 'guess', text: draft.trim(), clientMoveId: makeMoveId() });
                   setDraft('');
                 }}
               >
-                <Text style={styles.primaryButtonText}>Guess</Text>
+                {pending ? (
+                  <ActivityIndicator size="small" color={theme.colors.text.white} />
+                ) : (
+                  <Text style={styles.primaryButtonText}>Guess</Text>
+                )}
               </TouchableOpacity>
             </>
           ) : (
@@ -723,7 +817,11 @@ export const GameMessageCard = ({ metadata, onOpenDetails }) => {
   // Post-game card (every ended game gets one) — tap for the full recap
   if (metadata.kind === 'game-summary') {
     return (
-      <Pressable style={styles.card} onPress={() => onOpenDetails?.(metadata)}>
+      <Pressable
+        style={styles.card}
+        hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+        onPress={() => onOpenDetails?.(metadata)}
+      >
         <View style={styles.cardHeader}>
           <Ionicons name={meta.icon || 'game-controller'} size={16} color={theme.colors.primary} />
           <Text style={styles.cardTitle}>{meta.label}</Text>
@@ -873,6 +971,13 @@ const styles = StyleSheet.create({
     paddingHorizontal: theme.spacing.lg,
     paddingTop: theme.spacing.md,
     paddingBottom: theme.spacing.sm,
+  },
+  pendingRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    marginTop: 8,
   },
   panelBody: {
     // Bounded so a long This or That history can't crowd out the input

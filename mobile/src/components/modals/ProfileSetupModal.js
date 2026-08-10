@@ -987,7 +987,7 @@ const ProfileSetupModal = ({ visible, onClose, onComplete, userProfile }) => {
           <View style={styles.stepContent}>
             <Text style={styles.stepTitle}>Who are you interested in?</Text>
             <View style={styles.optionsContainer}>
-              {['MAN', 'WOMAN'].map(option => (
+              {['MAN', 'WOMAN', 'OTHER'].map(option => (
                 <TouchableOpacity
                   key={option}
                   style={[

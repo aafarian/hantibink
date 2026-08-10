@@ -5,7 +5,6 @@ import React, {
   useImperativeHandle,
   useEffect,
   useCallback,
-  useState,
 } from 'react';
 import {
   View,
@@ -22,7 +21,6 @@ import BottomSheet, { BottomSheetScrollView } from '@gorhom/bottom-sheet';
 import Animated, {
   useSharedValue,
   useAnimatedStyle,
-  useAnimatedScrollHandler,
   interpolate,
   Extrapolation,
 } from 'react-native-reanimated';
@@ -108,16 +106,12 @@ const ProfileBottomSheet = forwardRef(
     const bottomSheetRef = useRef(null);
     const snapPoints = useMemo(() => ['50%', availableHeight * 0.9], []);
     const isOpenRef = useRef(false);
-    const [enableContentPanning, setEnableContentPanning] = useState(false);
 
-    // Scroll position for parallax effect
+    // Scroll position for parallax effect. Written from the JS-thread
+    // onScroll below — gorhom funnels the user onScroll through runOnJS, so
+    // a useAnimatedScrollHandler result is NOT callable here (calling it
+    // threw every frame and tore down the whole surface in release builds)
     const scrollY = useSharedValue(0);
-
-    const scrollHandler = useAnimatedScrollHandler({
-      onScroll: event => {
-        scrollY.value = event.contentOffset.y;
-      },
-    });
 
     // Expose methods to parent
     useImperativeHandle(ref, () => ({
@@ -150,12 +144,16 @@ const ProfileBottomSheet = forwardRef(
       return () => backHandler.remove();
     }, [handleClose]);
 
-    // Handle scroll to detect when at top (for sheet dragging)
-    const handleScrollState = useCallback(event => {
-      const { contentOffset } = event.nativeEvent;
-      const isAtTop = contentOffset.y <= 0;
-      setEnableContentPanning(isAtTop);
-    }, []);
+    // Single JS-thread scroll callback: feeds the parallax shared value
+    // (cross-thread .value writes are legal). Sheet-vs-scroll arbitration is
+    // handled by gorhom's own scroll handlers — toggling
+    // enableContentPanningGesture per frame re-built the gesture mid-touch
+    const handleScroll = useCallback(
+      event => {
+        scrollY.value = event.nativeEvent.contentOffset.y;
+      },
+      [scrollY]
+    );
 
     // Build the interspersed content sections - memoized to prevent recalculation
     const profileSections = useMemo(() => {
@@ -449,7 +447,7 @@ const ProfileBottomSheet = forwardRef(
         enablePanDownToClose={true}
         backgroundStyle={styles.bottomSheetBackground}
         handleIndicatorStyle={styles.bottomSheetIndicator}
-        enableContentPanningGesture={enableContentPanning}
+        enableContentPanningGesture={true}
         enableHandlePanningGesture={true}
         topInset={statusBarHeight}
         onChange={index => {
@@ -477,12 +475,7 @@ const ProfileBottomSheet = forwardRef(
           contentContainerStyle={styles.scrollContent}
           bounces={true}
           overScrollMode="always"
-          onScroll={event => {
-            // Update scroll state for sheet dragging
-            handleScrollState(event);
-            // Run worklet handler for parallax
-            scrollHandler(event);
-          }}
+          onScroll={handleScroll}
           scrollEventThrottle={16}
         >
           {profileSections.map(section => renderSection(section))}

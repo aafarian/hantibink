@@ -231,8 +231,9 @@ const registerUser = async (userData) => {
       await sendVerificationEmail(user.email, user.name, verificationToken);
       logger.info(`📧 Verification email sent to ${user.email}`);
     } catch (emailError) {
-      logger.error('Failed to send verification email:', emailError);
-      // Don't fail registration if email fails - user can request resend
+      // warn, not error: bad/typo'd recipient domains are expected user
+      // input, and registration succeeds regardless (user can resend)
+      logger.warn('Failed to send verification email:', emailError.message);
     }
 
     // Return user data without password

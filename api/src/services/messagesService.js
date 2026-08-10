@@ -232,8 +232,13 @@ const sendMessage = async (matchId, senderId, messageData, io = null) => {
       // Emit to the match room (for users who have chat open)
       io.to(`match:${matchId}`).emit('new-message', messagePayload);
 
-      // Also emit to receiver's personal room (for threads list updates when not in chat)
+      // Also emit to BOTH personal rooms. The receiver needs it for threads
+      // list updates when not in chat; the sender needs it for messages the
+      // SERVER authors on their behalf (game start/summary cards) — their
+      // match-room membership can silently lapse across reconnects, and the
+      // client dedupes self-sent chat messages by id, so this is safe.
       io.to(`user:${receiverId}`).emit('new-message', messagePayload);
+      io.to(`user:${senderId}`).emit('new-message', messagePayload);
 
       // Emit message notification for push/in-app notifications
       io.to(`user:${receiverId}`).emit('message-notification', {
@@ -440,7 +445,7 @@ const deleteMessage = async (messageId, userId) => {
  * Search a conversation by text and/or message type (voice notes, games).
  * Newest first, capped — results carry enough to render a preview row.
  */
-const searchMessages = async (matchId, userId, { q = '', type = null, limit = 50 } = {}) => {
+const searchMessages = async (matchId, userId, { q = '', type = null, limit = 100 } = {}) => {
   const match = await prisma.match.findUnique({ where: { id: matchId } });
   if (!match) {
     throw new Error('Match not found');
@@ -467,7 +472,7 @@ const searchMessages = async (matchId, userId, { q = '', type = null, limit = 50
       createdAt: true,
     },
     orderBy: { createdAt: 'desc' },
-    take: Math.min(Number(limit) || 50, 50),
+    take: Math.min(Number(limit) || 100, 100),
   });
 
   return messages;

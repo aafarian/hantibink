@@ -486,6 +486,14 @@ const PeopleScreenOptimized = ({ navigation }) => {
           Logger.warn('User already acted on this person, silently skipping');
           return;
         }
+        // Out of likes is not an error — it's the premium pitch
+        if (
+          swipeRightErr.code === 'DAILY_LIMIT_REACHED' ||
+          swipeRightErr.code === 'PREMIUM_REQUIRED'
+        ) {
+          setShowUpgradeModal(true);
+          return;
+        }
         showError('Failed to save like. Please try again.');
       }
     },

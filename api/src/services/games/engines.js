@@ -199,12 +199,17 @@ const questionRoulette = {
     pickUnused(QUESTION_ROULETTE, usedIds, 1).map(({ id, question }) => ({ id, question })),
 
   init: ({ creatorId, opponentId, usedIds, payload }) => {
-    const offered = pickUnused(QUESTION_ROULETTE, usedIds, 1);
-    let question = offered[0];
+    // Accept any BANK question not yet used in this match, not just the
+    // re-derived offer: usedIds can shift between the offers fetch and this
+    // commit (another session created meanwhile), which would reject a
+    // perfectly legitimate choice. Bank membership + unused keeps integrity.
+    let question = pickUnused(QUESTION_ROULETTE, usedIds, 1)[0];
     if (payload?.questionId) {
-      question = offered.find((q) => q.id === payload.questionId);
+      question = QUESTION_ROULETTE.find(
+        (q) => q.id === payload.questionId && !usedIds.includes(q.id),
+      );
       if (!question) {
-        throw new AppError('questionId must be the offered question', 400);
+        throw new AppError('questionId must be an available question', 400);
       }
     }
     // Creating IS the commit: the creator answers the question they were
@@ -273,12 +278,14 @@ const emojiRiddle = {
     })),
 
   init: ({ creatorId, opponentId, usedIds, payload }) => {
-    const offered = pickUnused(EMOJI_RIDDLES, usedIds, 3);
-    // Choosing the riddle IS the commit — no server-side picking phase, so
-    // the riddleId is required and must come from the offered set
-    const riddle = offered.find((r) => r.id === payload?.riddleId);
+    // Choosing the riddle IS the commit. Accept any bank riddle not yet
+    // used in this match (not the re-derived offer set — usedIds can shift
+    // between the offers fetch and this commit and reject a valid pick)
+    const riddle = EMOJI_RIDDLES.find(
+      (r) => r.id === payload?.riddleId && !usedIds.includes(r.id),
+    );
     if (!riddle) {
-      throw new AppError('riddleId must be one of the offered riddles', 400);
+      throw new AppError('riddleId must be an available riddle', 400);
     }
     return {
       contentVersion: CONTENT_VERSION,

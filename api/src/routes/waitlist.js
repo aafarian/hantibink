@@ -83,7 +83,7 @@ router.post(
 
       // Confirmation email is best-effort
       sendWaitlistEmail(email, name).catch((err) =>
-        logger.error('Waitlist confirmation email failed:', err),
+        logger.warn('Waitlist confirmation email failed:', err.message),
       );
 
       return res.json(GENERIC_SUCCESS);
