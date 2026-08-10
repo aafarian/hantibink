@@ -10,35 +10,44 @@ const prisma = getPrismaClient();
 // Premium limits configuration
 const LIMITS = {
   FREE: {
-    dailyLikes: 10,
-    dailySuperLikes: 0,
+    // Likes arrive as a conveyor: a fresh batch every half day (00:00 and
+    // 12:00 UTC), use-it-or-lose-it — no banking
+    dailyLikes: 5,
+    superLikeAccrualPerDay: 0,
+    superLikeBankCap: 0,
     canUndo: false,
-    // Server-enforced: free users get at most this many liker entries, and
-    // those entries are redacted (user: null) — see actionsService.getWhoLikedMe.
-    whoLikedMeLimit: 3,
+    // Free users get the teaser count only — liker entries are premium
+    whoLikedMeLimit: 0,
   },
   PREMIUM: {
     dailyLikes: Infinity,
-    dailySuperLikes: 5,
+    // Super Likes accrue daily into a bank so they can be saved up
+    superLikeAccrualPerDay: 2,
+    superLikeBankCap: 5,
     canUndo: true,
     whoLikedMeLimit: Infinity, // Unlimited
   },
 };
 
-/**
- * Check if daily quotas need to be reset (resets at midnight UTC)
- */
-const shouldResetQuotas = (resetAt) => {
-  if (!resetAt) {
-    return true;
-  }
-
-  const now = new Date();
-  const resetDate = new Date(resetAt);
-
-  // Check if we're on a different UTC day
-  return now.toISOString().slice(0, 10) !== resetDate.toISOString().slice(0, 10);
+/** Start of the current likes window (half-day boundaries at UTC 00/12). */
+const likesWindowStart = (now = new Date()) => {
+  const start = new Date(now);
+  start.setUTCHours(start.getUTCHours() >= 12 ? 12 : 0, 0, 0, 0);
+  return start;
 };
+
+/** When the next batch of likes arrives. */
+const nextLikesRefillAt = (now = new Date()) => {
+  const next = likesWindowStart(now);
+  next.setUTCHours(next.getUTCHours() + 12);
+  return next;
+};
+
+const shouldResetLikes = (resetAt) => !resetAt || new Date(resetAt) < likesWindowStart();
+
+/** Whole UTC days elapsed since a date (for Super Like accrual). */
+const utcDaysSince = (from, to = new Date()) =>
+  Math.floor(new Date(to).getTime() / 86400000) - Math.floor(new Date(from).getTime() / 86400000);
 
 /**
  * Get user's current quota status and reset if needed
@@ -50,8 +59,8 @@ const getUserQuotas = async (userId) => {
       isPremium: true,
       dailyLikesUsed: true,
       dailyLikesResetAt: true,
-      dailySuperLikesUsed: true,
-      dailySuperLikesResetAt: true,
+      superLikeBalance: true,
+      superLikeAccruedAt: true,
     },
   });
 
@@ -61,15 +70,12 @@ const getUserQuotas = async (userId) => {
 
   const limits = user.isPremium ? LIMITS.PREMIUM : LIMITS.FREE;
   let likesUsed = user.dailyLikesUsed;
-  let superLikesUsed = user.dailySuperLikesUsed;
+  let superLikeBalance = user.superLikeBalance;
 
-  // Reset quotas if needed using conditional updates to prevent race conditions
-  // Each reset uses updateMany with a WHERE clause on the old timestamp,
-  // ensuring only one concurrent request can successfully reset
-  const needsLikesReset = shouldResetQuotas(user.dailyLikesResetAt);
-  const needsSuperLikesReset = shouldResetQuotas(user.dailySuperLikesResetAt);
-
-  if (needsLikesReset) {
+  // Reset the likes window when a half-day boundary has passed. The WHERE
+  // clause on the old timestamp makes concurrent resets race-safe: only one
+  // request wins.
+  if (shouldResetLikes(user.dailyLikesResetAt)) {
     const result = await prisma.user.updateMany({
       where: {
         id: userId,
@@ -80,26 +86,32 @@ const getUserQuotas = async (userId) => {
         dailyLikesResetAt: new Date(),
       },
     });
-    // If we successfully reset (count > 0), use 0; otherwise re-fetch
     if (result.count > 0) {
       likesUsed = 0;
     }
   }
 
-  if (needsSuperLikesReset) {
-    const result = await prisma.user.updateMany({
-      where: {
-        id: userId,
-        dailySuperLikesResetAt: user.dailySuperLikesResetAt, // Only update if timestamp hasn't changed
-      },
-      data: {
-        dailySuperLikesUsed: 0,
-        dailySuperLikesResetAt: new Date(),
-      },
-    });
-    // If we successfully reset (count > 0), use 0; otherwise re-fetch
-    if (result.count > 0) {
-      superLikesUsed = 0;
+  // Super Likes accrue daily into a bank (premium only). accruedAt always
+  // advances even when the bank is full, so idle days never pile up into an
+  // instant refill after a spend. Using increment (not an absolute write)
+  // means a concurrent spend can't be resurrected by a stale read here.
+  if (user.isPremium && limits.superLikeAccrualPerDay > 0) {
+    const days = utcDaysSince(user.superLikeAccruedAt);
+    if (days >= 1) {
+      const grant = Math.max(
+        0,
+        Math.min(limits.superLikeBankCap - superLikeBalance, days * limits.superLikeAccrualPerDay),
+      );
+      const result = await prisma.user.updateMany({
+        where: { id: userId, superLikeAccruedAt: user.superLikeAccruedAt },
+        data: {
+          superLikeBalance: { increment: grant },
+          superLikeAccruedAt: new Date(),
+        },
+      });
+      if (result.count > 0) {
+        superLikeBalance += grant;
+      }
     }
   }
 
@@ -109,11 +121,12 @@ const getUserQuotas = async (userId) => {
       used: likesUsed,
       limit: limits.dailyLikes,
       remaining: limits.dailyLikes === Infinity ? Infinity : Math.max(0, limits.dailyLikes - likesUsed),
+      refillAt: limits.dailyLikes === Infinity ? null : nextLikesRefillAt(),
     },
     superLikes: {
-      used: superLikesUsed,
-      limit: limits.dailySuperLikes,
-      remaining: Math.max(0, limits.dailySuperLikes - superLikesUsed),
+      remaining: user.isPremium ? superLikeBalance : 0,
+      limit: limits.superLikeBankCap,
+      accrualPerDay: limits.superLikeAccrualPerDay,
     },
     canUndo: limits.canUndo,
     whoLikedMeLimit: limits.whoLikedMeLimit,
@@ -134,7 +147,7 @@ const canLike = async (userId) => {
     return {
       allowed: false,
       error: 'DAILY_LIMIT_REACHED',
-      message: 'You\'ve used all your daily likes. Upgrade to Premium for unlimited likes!',
+      message: 'You\'re out of likes for now. A fresh batch of 5 arrives soon, or go unlimited with Premium!',
       quotas,
     };
   }
@@ -161,7 +174,7 @@ const canSuperLike = async (userId) => {
     return {
       allowed: false,
       error: 'DAILY_LIMIT_REACHED',
-      message: 'You\'ve used all your Super Likes for today. They reset at midnight UTC.',
+      message: 'You\'re out of Super Likes. You bank 2 more each day, up to 5.',
       quotas,
     };
   }

@@ -22,8 +22,11 @@ const errorHandler = (err, req, res, _next) => {
   let error = { ...err };
   error.message = err.message;
 
-  // Log error
-  logger.error(`Error ${err.statusCode || 500}: ${err.message}`, {
+  // Log error — expected client errors (4xx) log as warnings, because
+  // logger.error forwards to Sentry via its wrapper and 404 noise from
+  // crawlers/typos would page as high-priority issues
+  const logLevel = (err.statusCode || 500) >= 500 ? 'error' : 'warn';
+  logger[logLevel](`Error ${err.statusCode || 500}: ${err.message}`, {
     error: err.message,
     stack: err.stack,
     url: req.originalUrl,

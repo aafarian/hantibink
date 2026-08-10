@@ -28,8 +28,8 @@ const PREMIUM_FEATURES = [
   {
     icon: 'star',
     iconColor: theme.colors.premium,
-    title: '5 Super Likes Daily',
-    description: 'Stand out and get noticed',
+    title: '2 Super Likes a Day',
+    description: 'Bank up to 5 and use them when it counts',
   },
   {
     icon: 'arrow-undo',

@@ -147,7 +147,10 @@ describe('Actions Routes', () => {
     });
 
     it('should super-like successfully for premium user', async () => {
-      const { accessToken } = await userFactory.createWithAuth(global.prisma, { isPremium: true });
+      const { accessToken } = await userFactory.createWithAuth(global.prisma, {
+        isPremium: true,
+        superLikeBalance: 5,
+      });
       const targetUser = await userFactory.create(global.prisma);
 
       const response = await request(app)
@@ -229,7 +232,9 @@ describe('Actions Routes', () => {
 
   describe('GET /api/actions/who-liked-me', () => {
     it('should return users who liked current user', async () => {
-      const { user: user1, accessToken: accessToken1 } = await userFactory.createWithAuth(global.prisma);
+      const { user: user1, accessToken: accessToken1 } = await userFactory.createWithAuth(global.prisma, {
+        isPremium: true,
+      });
       const { user: user2, accessToken: accessToken2 } = await userFactory.createWithAuth(global.prisma);
       await photoFactory.create(global.prisma, user2.id, { isMain: true });
 

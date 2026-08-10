@@ -75,11 +75,14 @@ model User {
   passwordResetAttempts    Int          @default(0)
   passwordResetLastRequest DateTime?
 
-  // Daily Quotas (for premium features)
+  // Quotas: likes refill in half-day windows; Super Likes are a banked
+  // balance (premium accrues 2/day, capped at 5 — see premiumService)
   dailyLikesUsed           Int          @default(0)
   dailyLikesResetAt        DateTime     @default(now())
   dailySuperLikesUsed      Int          @default(0)
   dailySuperLikesResetAt   DateTime     @default(now())
+  superLikeBalance         Int          @default(0)
+  superLikeAccruedAt       DateTime     @default(now())
 
   // Relations
   matchesAsUser1         Match[]        @relation("user1Matches")

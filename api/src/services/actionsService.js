@@ -148,12 +148,19 @@ const likeUser = async (
         isMatch = true;
       }
 
-      // Increment daily quota inside transaction to prevent race conditions
+      // Spend quota inside the transaction to prevent race conditions.
+      // Super Likes come from the banked balance; the conditional WHERE is a
+      // race-safe backstop so concurrent spends can't drive it negative.
       if (actionType === 'SUPER_LIKE') {
-        await tx.user.update({
-          where: { id: senderId },
-          data: { dailySuperLikesUsed: { increment: 1 } },
+        const spent = await tx.user.updateMany({
+          where: { id: senderId, superLikeBalance: { gte: 1 } },
+          data: { superLikeBalance: { decrement: 1 } },
         });
+        if (spent.count === 0) {
+          const error = new Error('You\'re out of Super Likes. You bank 2 more each day, up to 5.');
+          error.code = 'DAILY_LIMIT_REACHED';
+          throw error;
+        }
       } else if (actionType === 'LIKE') {
         await tx.user.update({
           where: { id: senderId },
@@ -538,15 +545,22 @@ const getWhoLikedMe = async (userId, options = {}) => {
     // Check premium status to determine result limit
     const premiumLimit = await getWhoLikedMeLimit(userId);
 
-    // For free users, limit results to 3 and don't allow pagination beyond that
+    // Free users get NO liker entries — only the teaser count, which is the
+    // upsell ("N people liked you")
     if (!premiumLimit.isPremium) {
       limit = Math.min(limit, premiumLimit.limit);
-      if (offset >= premiumLimit.limit) {
-        // Free users can't paginate beyond the limit
+      if (limit <= 0 || offset >= premiumLimit.limit) {
+        const totalLikesCount = await prisma.userAction.count({
+          where: {
+            receiverId: userId,
+            action: { in: ['LIKE', 'SUPER_LIKE'] },
+          },
+        });
         return {
           users: [],
           totalCount: 0,
-          totalLikesCount: 0,
+          totalLikesCount,
+          hiddenCount: totalLikesCount,
           isPremium: false,
           premiumRequired: true,
           message: 'Upgrade to Premium to see everyone who liked you!',
