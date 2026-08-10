@@ -75,15 +75,18 @@ router.post('/revenuecat', async (req, res) => {
     }
 
     // RC retries and redelivers, so arrival order isn't event order. Writes
-    // below only apply when the event is strictly newer than the last one
-    // recorded on the user (rcLastEventAt) — the condition lives in the
-    // UPDATE itself, so stale/duplicate deliveries are atomic no-ops.
+    // below only apply when the event is newer than the last one recorded on
+    // the user (rcLastEventAt) — or shares its timestamp but is a different
+    // event (rcLastEventId tie-break; only a matching id is a duplicate).
+    // The condition lives in the UPDATE itself, so stale/duplicate
+    // deliveries are atomic no-ops.
     const eventAtMs = Number(event.event_timestamp_ms);
     const eventAt = Number.isFinite(eventAtMs) && eventAtMs > 0 ? new Date(eventAtMs) : null;
+    const eventId = typeof event.id === 'string' && event.id ? event.id : null;
 
     if (GRANTS_PREMIUM.has(event.type)) {
       // Atomic flag + accrual clock + day-one Super Like bank
-      const applied = await activatePremium(userId, eventAt);
+      const applied = await activatePremium(userId, eventAt, eventId);
       if (applied) {
         logger.info(`💎 Premium activated for ${userId} (${event.type}, ${event.product_id})`);
       } else {
@@ -93,9 +96,24 @@ router.post('/revenuecat', async (req, res) => {
       const { count } = await prisma.user.updateMany({
         where: {
           id: userId,
-          ...(eventAt ? { OR: [{ rcLastEventAt: null }, { rcLastEventAt: { lt: eventAt } }] } : {}),
+          ...(eventAt
+            ? {
+                OR: [
+                  { rcLastEventAt: null },
+                  { rcLastEventAt: { lt: eventAt } },
+                  // same millisecond but a different event id: a distinct
+                  // transition, not a duplicate (Prisma `not` excludes null)
+                  ...(eventId
+                    ? [{ rcLastEventAt: eventAt, rcLastEventId: { not: eventId } }]
+                    : []),
+                ],
+              }
+            : {}),
         },
-        data: { isPremium: false, ...(eventAt ? { rcLastEventAt: eventAt } : {}) },
+        data: {
+          isPremium: false,
+          ...(eventAt ? { rcLastEventAt: eventAt, rcLastEventId: eventId } : {}),
+        },
       });
       if (count > 0) {
         logger.info(`💎 Premium expired for ${userId} (${event.expiration_reason || 'unknown'})`);

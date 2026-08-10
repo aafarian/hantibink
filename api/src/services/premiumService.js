@@ -156,22 +156,35 @@ const getUserQuotas = async (userId) => {
  * GREATEST keeps a balance that survived a downgrade (raw SQL because the
  * Prisma update API cannot express a field-relative floor atomically).
  *
- * eventAt (RevenueCat event timestamp) makes the grant conditional: it only
- * applies when newer than the last recorded event, so stale or duplicate
- * webhook deliveries are no-ops. Omit it (admin grants) to apply always.
- * Returns true when the update applied.
+ * eventAt/eventId (RevenueCat event timestamp + unique event id) make the
+ * grant conditional: it applies when the event is newer than the last one
+ * recorded — or shares its timestamp but is a DIFFERENT event (distinct
+ * transitions can land in the same millisecond; only a matching id is a
+ * true duplicate). Stale and duplicate deliveries are no-ops. Omit both
+ * (admin grants) to apply always. Returns true when the update applied.
  */
-const activatePremium = async (userId, eventAt = null) => {
+const activatePremium = async (userId, eventAt = null, eventId = null) => {
+  // Prisma sends Date params as timestamptz while the column is a naive
+  // UTC timestamp; AT TIME ZONE 'UTC' pins the comparison and the stored
+  // value to UTC regardless of the server's session timezone.
   const updated = await prisma.$executeRaw`
     UPDATE "users"
     SET "isPremium" = true,
         "superLikeAccruedAt" = (NOW() AT TIME ZONE 'utc'),
         "superLikeBalance" = GREATEST("superLikeBalance", 2),
-        "rcLastEventAt" = COALESCE(${eventAt}, "rcLastEventAt")
+        "rcLastEventAt" = COALESCE(${eventAt} AT TIME ZONE 'UTC', "rcLastEventAt"),
+        "rcLastEventId" = CASE
+          WHEN ${eventAt}::timestamptz IS NULL THEN "rcLastEventId"
+          ELSE ${eventId}
+        END
     WHERE "id" = ${userId}
-      AND (${eventAt}::timestamp IS NULL
+      AND (${eventAt}::timestamptz IS NULL
         OR "rcLastEventAt" IS NULL
-        OR "rcLastEventAt" < ${eventAt})
+        OR "rcLastEventAt" < (${eventAt} AT TIME ZONE 'UTC')
+        OR ("rcLastEventAt" = (${eventAt} AT TIME ZONE 'UTC')
+          AND ${eventId}::text IS NOT NULL
+          AND "rcLastEventId" IS NOT NULL
+          AND "rcLastEventId" <> ${eventId}))
   `;
   return updated > 0;
 };

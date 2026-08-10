@@ -168,6 +168,7 @@ describe('RevenueCat webhook', () => {
   it('treats a duplicate delivery of the same event as a no-op', async () => {
     const user = await userFactory.create(global.prisma, { isPremium: false });
     const purchase = rcEvent({
+      id: 'evt-duplicate-purchase',
       app_user_id: user.id,
       event_timestamp_ms: Date.parse('2026-08-01T00:00:00Z'),
     });
@@ -186,6 +187,59 @@ describe('RevenueCat webhook', () => {
     // The duplicate must not re-run the grant (accrual clock would reset)
     expect(afterSecond.superLikeAccruedAt).toEqual(afterFirst.superLikeAccruedAt);
     expect(afterSecond.rcLastEventAt).toEqual(afterFirst.rcLastEventAt);
+  });
+
+  it('applies a distinct EXPIRATION that shares a timestamp with the prior grant', async () => {
+    const user = await userFactory.create(global.prisma, { isPremium: false });
+    const at = Date.parse('2026-08-01T00:00:00Z');
+
+    await request(app)
+      .post('/webhooks/revenuecat')
+      .set('Authorization', SECRET)
+      .send(rcEvent({ id: 'evt-grant', app_user_id: user.id, event_timestamp_ms: at }));
+    let fresh = await global.prisma.user.findUnique({ where: { id: user.id } });
+    expect(fresh.isPremium).toBe(true);
+
+    // Same millisecond, different event id — a real transition, not a dupe
+    await request(app)
+      .post('/webhooks/revenuecat')
+      .set('Authorization', SECRET)
+      .send(
+        rcEvent({
+          id: 'evt-expire',
+          type: 'EXPIRATION',
+          app_user_id: user.id,
+          event_timestamp_ms: at,
+        }),
+      );
+    fresh = await global.prisma.user.findUnique({ where: { id: user.id } });
+    expect(fresh.isPremium).toBe(false);
+  });
+
+  it('applies a distinct grant that shares a timestamp with the prior EXPIRATION', async () => {
+    const user = await userFactory.create(global.prisma, { isPremium: true });
+    const at = Date.parse('2026-08-01T00:00:00Z');
+
+    await request(app)
+      .post('/webhooks/revenuecat')
+      .set('Authorization', SECRET)
+      .send(
+        rcEvent({
+          id: 'evt-expire',
+          type: 'EXPIRATION',
+          app_user_id: user.id,
+          event_timestamp_ms: at,
+        }),
+      );
+    let fresh = await global.prisma.user.findUnique({ where: { id: user.id } });
+    expect(fresh.isPremium).toBe(false);
+
+    await request(app)
+      .post('/webhooks/revenuecat')
+      .set('Authorization', SECRET)
+      .send(rcEvent({ id: 'evt-repurchase', app_user_id: user.id, event_timestamp_ms: at }));
+    fresh = await global.prisma.user.findUnique({ where: { id: user.id } });
+    expect(fresh.isPremium).toBe(true);
   });
 
   it('ignores non-entitlement events like CANCELLATION', async () => {
