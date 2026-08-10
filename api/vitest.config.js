@@ -19,13 +19,25 @@ export default defineConfig({
     coverage: {
       provider: 'v8',
       reporter: ['text', 'json', 'json-summary', 'html'],
+      include: ['src/**'],
       exclude: [
         'node_modules',
         'test-setup',
         '*.config.js',
-        'src/migrations',
-        'src/seeds',
+        'src/**/*.test.js',
+        // Boot/config/tooling code isn't unit-testable in this harness
+        'src/server.js',
+        'src/config/**',
+        'src/scripts/**',
       ],
+      // Regression floor: set a few points below measured coverage so CI
+      // fails on backsliding without demanding aspirational numbers.
+      thresholds: {
+        lines: 55,
+        statements: 55,
+        functions: 45,
+        branches: 60,
+      },
     },
   },
   resolve: {

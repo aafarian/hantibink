@@ -69,19 +69,6 @@ const getAuth = () => {
 };
 
 /**
- * Get Firestore instance
- */
-const getFirestore = () => {
-  if (!firebaseApp) {
-    initializeFirebase();
-  }
-  if (!firebaseApp) {
-    throw new Error('Firebase not initialized - cannot get Firestore instance');
-  }
-  return admin.firestore();
-};
-
-/**
  * Verify Firebase ID token
  */
 const verifyIdToken = async (idToken) => {
@@ -95,71 +82,8 @@ const verifyIdToken = async (idToken) => {
   }
 };
 
-/**
- * Get user by UID
- */
-const getUserByUid = async (uid) => {
-  try {
-    const auth = getAuth();
-    const userRecord = await auth.getUser(uid);
-    return userRecord;
-  } catch (error) {
-    logger.error('❌ Failed to get user by UID:', error);
-    throw error;
-  }
-};
-
-/**
- * Create Firebase user
- */
-const createFirebaseUser = async (userData) => {
-  try {
-    const auth = getAuth();
-    const userRecord = await auth.createUser(userData);
-    logger.info(`✅ Firebase user created: ${userRecord.uid}`);
-    return userRecord;
-  } catch (error) {
-    logger.error('❌ Failed to create Firebase user:', error);
-    throw error;
-  }
-};
-
-/**
- * Update Firebase user
- */
-const updateFirebaseUser = async (uid, userData) => {
-  try {
-    const auth = getAuth();
-    const userRecord = await auth.updateUser(uid, userData);
-    logger.info(`✅ Firebase user updated: ${uid}`);
-    return userRecord;
-  } catch (error) {
-    logger.error('❌ Failed to update Firebase user:', error);
-    throw error;
-  }
-};
-
-/**
- * Delete Firebase user
- */
-const deleteFirebaseUser = async (uid) => {
-  try {
-    const auth = getAuth();
-    await auth.deleteUser(uid);
-    logger.info(`✅ Firebase user deleted: ${uid}`);
-  } catch (error) {
-    logger.error('❌ Failed to delete Firebase user:', error);
-    throw error;
-  }
-};
-
 module.exports = {
   initializeFirebase,
   getAuth,
-  getFirestore,
   verifyIdToken,
-  getUserByUid,
-  createFirebaseUser,
-  updateFirebaseUser,
-  deleteFirebaseUser,
 };

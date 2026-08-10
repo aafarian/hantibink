@@ -102,6 +102,8 @@ beforeEach(async () => {
   await global.prisma.photo.deleteMany();
   await global.prisma.report.deleteMany();
   await global.prisma.user.deleteMany();
+  await global.prisma.waitlist.deleteMany();
+  await global.prisma.appConfig.deleteMany();
 });
 
 // Cleanup after all tests

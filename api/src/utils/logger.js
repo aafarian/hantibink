@@ -7,10 +7,13 @@ const winston = require('winston');
 const Sentry = require('@sentry/node');
 const path = require('path');
 
-// Create logs directory if it doesn't exist
+const isProduction = process.env.NODE_ENV === 'production';
+
+// File transports only exist outside production — Cloud Run disks are
+// ephemeral, and Cloud Logging ingests stdout/stderr directly.
 const fs = require('fs');
 const logsDir = path.join(__dirname, '../../logs');
-if (!fs.existsSync(logsDir)) {
+if (!isProduction && !fs.existsSync(logsDir)) {
   fs.mkdirSync(logsDir, { recursive: true });
 }
 
@@ -52,32 +55,39 @@ const fileFormat = winston.format.combine(
   ),
 );
 
-// Define transports
-const transports = [
-  // Console transport
-  new winston.transports.Console({
-    format: consoleFormat,
-  }),
-
-  // File transport for errors
-  new winston.transports.File({
-    filename: path.join(logsDir, 'error.log'),
-    level: 'error',
-    format: fileFormat,
-  }),
-
-  // File transport for all logs
-  new winston.transports.File({
-    filename: path.join(logsDir, 'combined.log'),
-    format: fileFormat,
-  }),
-];
+// Production: single JSON console transport (Cloud Logging parses severity
+// and structured fields from JSON lines). Development: pretty console + files.
+const transports = isProduction
+  ? [
+      new winston.transports.Console({
+        format: winston.format.combine(
+          winston.format.timestamp(),
+          winston.format.json(),
+        ),
+      }),
+    ]
+  : [
+      new winston.transports.Console({
+        format: consoleFormat,
+      }),
+      new winston.transports.File({
+        filename: path.join(logsDir, 'error.log'),
+        level: 'error',
+        format: fileFormat,
+      }),
+      new winston.transports.File({
+        filename: path.join(logsDir, 'combined.log'),
+        format: fileFormat,
+      }),
+    ];
 
 // Create logger instance
 const logger = winston.createLogger({
   level: process.env.LOG_LEVEL || 'info',
   levels,
-  format: consoleFormat,
+  // Transport-level formats do the real work; avoid colorizing here so the
+  // production JSON transport never receives ANSI codes.
+  format: isProduction ? winston.format.timestamp() : consoleFormat,
   transports,
   exitOnError: false,
 });

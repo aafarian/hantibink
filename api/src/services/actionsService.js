@@ -219,7 +219,7 @@ const likeUser = async (
             } else {
               logger.info(`📵 Match notification skipped for user1 - matches disabled`);
             }
-          });
+          }).catch(err => logger.error('Match notification pref check failed (user1):', err));
         }
         if (match.user2.pushToken) {
           shouldSendNotification(match.user2Id, 'matches').then(shouldNotify => {
@@ -230,7 +230,7 @@ const likeUser = async (
             } else {
               logger.info(`📵 Match notification skipped for user2 - matches disabled`);
             }
-          });
+          }).catch(err => logger.error('Match notification pref check failed (user2):', err));
         }
 
         // Also emit an event to update the "Liked You" screen
@@ -562,32 +562,23 @@ const getWhoLikedMe = async (userId, options = {}) => {
       },
     });
 
-    // Get users the current user has already acted on FIRST
-    const allCurrentUserActions = await prisma.userAction.findMany({
-      where: {
-        senderId: userId,
-      },
-      select: {
-        receiverId: true,
-      },
-    });
-
     // Blocked users (either direction) never appear in the liker list
     const { getBlockedUserIds } = require('./moderationService');
     const blockedUserIds = await getBlockedUserIds(userId);
 
-    const allActedOnUserIds = Array.from(
-      new Set([...allCurrentUserActions.map(a => a.receiverId), ...blockedUserIds]),
-    );
+    // Shared filter: likers not yet acted on (relation filter compiles to a
+    // NOT EXISTS subquery — no more materializing every acted-on user ID
+    // into the query, which grew without bound) and not blocked.
+    const unactedLikersWhere = {
+      receiverId: userId,
+      action: { in: ['LIKE', 'SUPER_LIKE'] },
+      sender: { actionsReceived: { none: { senderId: userId } } },
+      ...(blockedUserIds.length ? { senderId: { notIn: blockedUserIds } } : {}),
+    };
 
-    // Now fetch users who liked the current user, excluding those already acted on
-    logger.info(`🔍 Fetching who liked user ${userId} (limit: ${limit}, offset: ${offset}, excluding ${allActedOnUserIds.length} acted-on/blocked users)`);
+    logger.info(`🔍 Fetching who liked user ${userId} (limit: ${limit}, offset: ${offset})`);
     const likers = await prisma.userAction.findMany({
-      where: {
-        receiverId: userId,
-        action: { in: ['LIKE', 'SUPER_LIKE'] },
-        senderId: { notIn: allActedOnUserIds }, // Filter in the query, not after
-      },
+      where: unactedLikersWhere,
       include: {
         sender: {
           select: {
@@ -632,11 +623,7 @@ const getWhoLikedMe = async (userId, options = {}) => {
       }));
 
       const totalUnactedCount = await prisma.userAction.count({
-        where: {
-          receiverId: userId,
-          action: { in: ['LIKE', 'SUPER_LIKE'] },
-          senderId: { notIn: allActedOnUserIds },
-        },
+        where: unactedLikersWhere,
       });
 
       return {
@@ -678,15 +665,11 @@ const getWhoLikedMe = async (userId, options = {}) => {
 
     // Get the accurate count of unacted users
     const totalUnactedCount = await prisma.userAction.count({
-      where: {
-        receiverId: userId,
-        action: { in: ['LIKE', 'SUPER_LIKE'] },
-        senderId: { notIn: allActedOnUserIds },
-      },
+      where: unactedLikersWhere,
     });
     
     logger.info(`📋 Retrieved ${transformedLikers.length} users in this batch for user ${userId}`);
-    logger.info(`📋 Total unacted likes: ${totalUnactedCount} (${totalLikesCount} total likes - ${allActedOnUserIds.length} users we've acted on)`);
+    logger.info(`📋 Total unacted likes: ${totalUnactedCount} of ${totalLikesCount} total likes`);
     
     // Log first few users for debugging
     if (transformedLikers.length > 0) {

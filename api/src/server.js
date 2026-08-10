@@ -61,7 +61,6 @@ const {
   gracefulShutdown: dbGracefulShutdown,
 } = require('./config/database');
 const { initializeFirebase } = require('./config/firebase');
-const { cleanup: cacheCleanup } = require('./middleware/cache');
 const { initializeSocket } = require('./socket');
 
 // Import routes
@@ -73,6 +72,7 @@ const actionsRoutes = require('./routes/actions');
 const matchesRoutes = require('./routes/matches');
 const messagesRoutes = require('./routes/messages');
 const moderationRoutes = require('./routes/moderation');
+const waitlistRoutes = require('./routes/waitlist');
 
 // Initialize Express app and HTTP server
 const app = express();
@@ -152,11 +152,14 @@ const limiter = rateLimit({
   standardHeaders: true, // Return rate limit info in the `RateLimit-*` headers
   legacyHeaders: false, // Disable the `X-RateLimit-*` headers
   skip: (req) => {
-    // Skip rate limiting for health checks
-    const skipPaths = ['/health', '/api/health'];
-    
-    // Use exact matching or startsWith for security
-    if (skipPaths.some(path => req.path === path)) {
+    // Skip rate limiting for health checks (including subpaths like
+    // /health/app-version, which every app launch calls)
+    if (
+      req.path === '/health' ||
+      req.path.startsWith('/health/') ||
+      req.path === '/api/health' ||
+      req.path.startsWith('/api/health/')
+    ) {
       return true;
     }
     
@@ -230,6 +233,9 @@ apiRouter.use('/messages', messagesRoutes);
 // Moderation routes (protected)
 apiRouter.use('/moderation', moderationRoutes);
 
+// Waitlist routes (public, rate-limited)
+apiRouter.use('/waitlist', waitlistRoutes);
+
 // Mount API router
 app.use('/api/v1', apiRouter);
 app.use('/api', apiRouter); // Fallback for simpler paths
@@ -266,9 +272,6 @@ const gracefulShutdown = async (signal) => {
     logger.info('HTTP server closed.');
 
     try {
-      // Clean up cache middleware
-      cacheCleanup();
-      
       // Close database connections
       await dbGracefulShutdown();
 
@@ -343,8 +346,12 @@ process.on('uncaughtException', (error) => {
 });
 
 process.on('unhandledRejection', (reason, promise) => {
+  // A stray floating promise must not kill the container mid-request.
+  // Log + report; uncaughtException (actual corruption) still exits above.
   logger.error('Unhandled Rejection at:', promise, 'reason:', reason);
-  process.exit(1);
+  if (process.env.SENTRY_DSN) {
+    Sentry.captureException(reason instanceof Error ? reason : new Error(String(reason)));
+  }
 });
 
 module.exports = app;

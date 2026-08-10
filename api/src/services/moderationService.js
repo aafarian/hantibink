@@ -1,4 +1,5 @@
 const logger = require('../utils/logger');
+const { AppError } = require('../middleware/errorHandler');
 const { getPrismaClient } = require('../config/database');
 
 const prisma = getPrismaClient();
@@ -19,7 +20,7 @@ const muteMatch = async (userId, matchId) => {
   });
 
   if (!match) {
-    throw new Error('Match not found or you are not part of this match');
+    throw new AppError('Match not found or you are not part of this match', 404);
   }
 
   // Create muted match record
@@ -75,7 +76,7 @@ const isMatchMuted = async (userId, matchId) => {
  */
 const blockUser = async (blockerId, blockedId, _matchId = null, io = null) => {
   if (blockerId === blockedId) {
-    throw new Error('Cannot block yourself');
+    throw new AppError('Cannot block yourself', 400);
   }
 
   // Use transaction for atomicity
@@ -204,7 +205,7 @@ const unmatch = async (userId, matchId, io = null) => {
   });
 
   if (!match) {
-    throw new Error('Match not found or you are not part of this match');
+    throw new AppError('Match not found or you are not part of this match', 404);
   }
 
   // Soft delete the match
@@ -232,7 +233,7 @@ const unmatch = async (userId, matchId, io = null) => {
  */
 const reportUser = async (reporterId, reportedId, reason, description = null) => {
   if (reporterId === reportedId) {
-    throw new Error('Cannot report yourself');
+    throw new AppError('Cannot report yourself', 400);
   }
 
   const report = await prisma.report.create({
