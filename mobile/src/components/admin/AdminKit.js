@@ -5,20 +5,21 @@ import React from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, ScrollView } from 'react-native';
 import { theme } from '../../styles/theme';
 
-export const PillTabs = ({ tabs, active, onChange }) => (
-  <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.tabsScroll}>
-    <View style={styles.tabsRow}>
+export const AdminTabs = ({ tabs, active, onChange }) => (
+  <View style={styles.tabsBar}>
+    <ScrollView
+      horizontal
+      showsHorizontalScrollIndicator={false}
+      contentContainerStyle={styles.tabsRow}
+    >
       {tabs.map(tab => (
-        <TouchableOpacity
-          key={tab}
-          style={[styles.pill, active === tab && styles.pillActive]}
-          onPress={() => onChange(tab)}
-        >
-          <Text style={[styles.pillText, active === tab && styles.pillTextActive]}>{tab}</Text>
+        <TouchableOpacity key={tab} style={styles.tabItem} onPress={() => onChange(tab)}>
+          <Text style={[styles.tabText, active === tab && styles.tabTextActive]}>{tab}</Text>
+          <View style={[styles.tabUnderline, active === tab && styles.tabUnderlineActive]} />
         </TouchableOpacity>
       ))}
-    </View>
-  </ScrollView>
+    </ScrollView>
+  </View>
 );
 
 export const KpiGrid = ({ children }) => <View style={styles.kpiGrid}>{children}</View>;
@@ -87,26 +88,33 @@ export const EmptyState = ({ message }) => (
 );
 
 const styles = StyleSheet.create({
-  tabsScroll: { flexGrow: 0 },
+  // Fixed height so the bar can never be compressed by the surrounding
+  // layout (pills used to get squashed to half height on the Users tab)
+  tabsBar: {
+    height: 44,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: theme.colors.border.light,
+  },
   tabsRow: {
-    flexDirection: 'row',
     paddingHorizontal: theme.spacing.lg,
-    paddingVertical: theme.spacing.md,
+    alignItems: 'flex-end',
   },
-  pill: {
-    paddingHorizontal: theme.spacing.lg,
-    paddingVertical: theme.spacing.sm,
-    borderRadius: theme.borderRadius.round,
-    backgroundColor: theme.colors.background.tertiary,
-    marginRight: theme.spacing.sm,
+  tabItem: {
+    marginRight: theme.spacing.xl,
+    height: '100%',
+    justifyContent: 'flex-end',
   },
-  pillActive: { backgroundColor: theme.colors.primary },
-  pillText: {
+  tabText: {
     fontSize: theme.typography.sizes.sm,
     fontFamily: theme.typography.fontFamily.semibold,
-    color: theme.colors.text.secondary,
+    color: theme.colors.text.muted,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+    paddingBottom: theme.spacing.sm,
   },
-  pillTextActive: { color: theme.colors.text.white },
+  tabTextActive: { color: theme.colors.primary },
+  tabUnderline: { height: 2, borderRadius: 1, backgroundColor: 'transparent' },
+  tabUnderlineActive: { backgroundColor: theme.colors.primary },
   kpiGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',

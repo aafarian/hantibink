@@ -10,9 +10,14 @@ const AdminApiService = {
   async checkAccess() {
     try {
       const response = await apiClient.get('/admin/check');
+      // null = couldn't determine (transient failure) — callers must not
+      // treat it as an authoritative "not admin"
+      if (!response?.success) {
+        return null;
+      }
       return !!response?.data?.isAdmin;
     } catch (error) {
-      return false;
+      return null;
     }
   },
 

@@ -161,4 +161,69 @@ describe('Messages Routes', () => {
       expect(reactions).toBe(0);
     });
   });
+
+  describe('GET /messages/:matchId/search', () => {
+    it('finds messages by word, case-insensitively', async () => {
+      const { auth1, auth2, match } = await setupMatchedPair();
+      await request(app)
+        .post(`/messages/${match.id}`)
+        .set('Authorization', auth1.authHeader)
+        .send({ content: 'Pizza night on Friday?' });
+      await request(app)
+        .post(`/messages/${match.id}`)
+        .set('Authorization', auth2.authHeader)
+        .send({ content: 'I prefer sushi honestly' });
+
+      const response = await request(app)
+        .get(`/messages/${match.id}/search`)
+        .query({ q: 'pizza' })
+        .set('Authorization', auth2.authHeader);
+
+      const data = expectSuccess(response, 200);
+      expect(data.length).toBe(1);
+      expect(data[0].content).toContain('Pizza');
+    });
+
+    it('filters by message type', async () => {
+      const { auth1, auth2, match } = await setupMatchedPair();
+      await request(app)
+        .post(`/messages/${match.id}`)
+        .set('Authorization', auth1.authHeader)
+        .send({ content: 'plain text' });
+      await global.prisma.message.create({
+        data: {
+          content: 'Voice message',
+          messageType: 'AUDIO',
+          mediaUrl: 'https://example.com/a.m4a',
+          match: { connect: { id: match.id } },
+          sender: { connect: { id: auth1.user.id } },
+          receiver: { connect: { id: auth2.user.id } },
+        },
+      });
+
+      const response = await request(app)
+        .get(`/messages/${match.id}/search`)
+        .query({ type: 'AUDIO' })
+        .set('Authorization', auth1.authHeader);
+
+      const data = expectSuccess(response, 200);
+      expect(data.length).toBe(1);
+      expect(data[0].messageType).toBe('AUDIO');
+    });
+
+    it('requires a query or a filter, and rejects non-members', async () => {
+      const { auth1, match } = await setupMatchedPair();
+      const empty = await request(app)
+        .get(`/messages/${match.id}/search`)
+        .set('Authorization', auth1.authHeader);
+      expect(empty.status).toBe(400);
+
+      const outsider = await userFactory.createWithAuth(global.prisma);
+      const probe = await request(app)
+        .get(`/messages/${match.id}/search`)
+        .query({ q: 'pizza' })
+        .set('Authorization', outsider.authHeader);
+      expect(probe.status).toBe(403);
+    });
+  });
 });

@@ -44,16 +44,29 @@ import ChatMenu from './chat/ChatMenu';
 import ChatHeader from './chat/ChatHeader';
 import ChatInput from './chat/ChatInput';
 import ChatReactionsSheet from './chat/ChatReactionsSheet';
+import ChatSearchModal from './chat/ChatSearchModal';
 import ChatMessageBubble from './chat/ChatMessageBubble';
 import AnimatedTypingIndicator from '../components/chat/AnimatedTypingIndicator';
 import AnimatedMessageBubble from '../components/chat/AnimatedMessageBubble';
 import AnimatedScrollToBottom from '../components/chat/AnimatedScrollToBottom';
 import { theme } from '../styles/theme';
+import GamesApiService from '../services/GamesApiService';
+import useGameSession from '../hooks/useGameSession';
+import {
+  GamePickerSheet,
+  TwoTruthsComposer,
+  RouletteComposer,
+  RiddlePickerSheet,
+  ActiveGameBar,
+  ActiveGamePanel,
+  GameMessageCard,
+  GameRecapModal,
+} from '../components/games/GameComponents';
 
 const ChatScreen = ({ route, navigation }) => {
   const { match } = route.params;
   const { user } = useAuth();
-  const { showError, showSuccess } = useToast();
+  const { showError, showInfo, showSuccess } = useToast();
   const isPremium = useIsPremium();
   const { openPhotoViewer } = usePhotoViewer();
   const _insets = useSafeAreaInsets();
@@ -91,6 +104,239 @@ const ChatScreen = ({ route, navigation }) => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isRecording, setIsRecording] = useState(false);
   const [isUploadingAudio, setIsUploadingAudio] = useState(false);
+
+  // In-chat games. Roulette and the riddle are drafts until the creator
+  // commits (answers / picks) — no session exists server-side before that.
+  const [showGamePicker, setShowGamePicker] = useState(false);
+  const [showTwoTruthsComposer, setShowTwoTruthsComposer] = useState(false);
+  const [rouletteOffer, setRouletteOffer] = useState(null);
+  const [riddleOffers, setRiddleOffers] = useState(null);
+  const [gamePanelExpanded, setGamePanelExpanded] = useState(true);
+  const [showEndGameConfirm, setShowEndGameConfirm] = useState(false);
+  const [gamesInfo, setGamesInfo] = useState({
+    enabled: true,
+    myGlobalEnabled: true,
+    mutedByMe: false,
+  });
+  const [showDisableGamesConfirm, setShowDisableGamesConfirm] = useState(false);
+  const [recapSession, setRecapSession] = useState(null);
+  const [showChatSearch, setShowChatSearch] = useState(false);
+  const {
+    session: gameSession,
+    refresh: refreshGameSession,
+    applySnapshot: applyGameSnapshot,
+  } = useGameSession(match.matchId);
+
+  // Games entry point renders only when BOTH members allow games and
+  // neither has muted them for this chat (server-enforced too)
+  const refreshGamesInfo = useCallback(async () => {
+    try {
+      const availability = await GamesApiService.getAvailability(match.matchId);
+      if (availability) {
+        setGamesInfo(availability);
+      }
+    } catch (error) {
+      Logger.warn('Games availability check failed:', error);
+    }
+  }, [match.matchId]);
+
+  useEffect(() => {
+    refreshGamesInfo();
+  }, [refreshGamesInfo]);
+
+  // Per-chat games mute (either direction) from the chat menu
+  const handleToggleChatGames = useCallback(async () => {
+    try {
+      await GamesApiService.setMatchGamesMuted(match.matchId, !gamesInfo.mutedByMe);
+      showSuccess(
+        gamesInfo.mutedByMe ? 'Games allowed in this chat' : 'Games turned off in this chat'
+      );
+    } catch (error) {
+      showError('Could not update the games setting');
+    }
+    refreshGamesInfo();
+    refreshGameSession();
+  }, [
+    match.matchId,
+    gamesInfo.mutedByMe,
+    showSuccess,
+    showError,
+    refreshGamesInfo,
+    refreshGameSession,
+  ]);
+
+  // Account-wide toggle, synced with the Account Settings switch
+  const handleToggleAllGames = useCallback(async () => {
+    if (gamesInfo.myGlobalEnabled) {
+      setShowDisableGamesConfirm(true);
+      return;
+    }
+    try {
+      await GamesApiService.setGamesEnabled(true);
+      showSuccess('In-chat games enabled');
+    } catch (error) {
+      showError('Could not update the games setting');
+    }
+    refreshGamesInfo();
+  }, [gamesInfo.myGlobalEnabled, showSuccess, showError, refreshGamesInfo]);
+
+  const confirmDisableAllGames = useCallback(async () => {
+    setShowDisableGamesConfirm(false);
+    try {
+      await GamesApiService.setGamesEnabled(false);
+      showSuccess('In-chat games turned off');
+    } catch (error) {
+      showError('Could not update the games setting');
+    }
+    refreshGamesInfo();
+    refreshGameSession();
+  }, [showSuccess, showError, refreshGamesInfo, refreshGameSession]);
+
+  // A freshly active game opens the docked panel; collapsing it is
+  // remembered until the next game starts
+  const activeGameId = gameSession?.status === 'ACTIVE' ? gameSession.id : null;
+  useEffect(() => {
+    if (activeGameId) {
+      setGamePanelExpanded(true);
+    }
+  }, [activeGameId]);
+
+  const createGame = useCallback(
+    async (gameType, payload = null) => {
+      try {
+        const created = await GamesApiService.createSession(match.matchId, gameType, payload);
+        applyGameSnapshot(created);
+      } catch (error) {
+        showError(error.message || 'Could not start the game');
+      }
+    },
+    [match.matchId, showError, applyGameSnapshot]
+  );
+
+  const handlePickGame = useCallback(
+    async gameType => {
+      setShowGamePicker(false);
+      if (gameType === 'TWO_TRUTHS') {
+        setShowTwoTruthsComposer(true);
+        return;
+      }
+      if (gameType === 'QUESTION_ROULETTE' || gameType === 'EMOJI_RIDDLE') {
+        try {
+          const { offers } = await GamesApiService.getOffers(match.matchId, gameType);
+          if (gameType === 'QUESTION_ROULETTE') {
+            setRouletteOffer(offers?.[0] || null);
+          } else {
+            setRiddleOffers(offers || []);
+          }
+        } catch (error) {
+          showError(error.message || 'Could not load the game');
+        }
+        return;
+      }
+      createGame(gameType);
+    },
+    [match.matchId, showError, createGame]
+  );
+
+  const handleTwoTruthsSubmit = useCallback(
+    async payload => {
+      setShowTwoTruthsComposer(false);
+      createGame('TWO_TRUTHS', payload);
+    },
+    [createGame]
+  );
+
+  const handleRouletteSubmit = useCallback(
+    async answer => {
+      const questionId = rouletteOffer?.id;
+      setRouletteOffer(null);
+      createGame('QUESTION_ROULETTE', { questionId, answer });
+    },
+    [rouletteOffer?.id, createGame]
+  );
+
+  const handleRiddleSubmit = useCallback(
+    async riddleId => {
+      setRiddleOffers(null);
+      createGame('EMOJI_RIDDLE', { riddleId });
+    },
+    [createGame]
+  );
+
+  const handleGameMove = useCallback(
+    async move => {
+      try {
+        const updated = await GamesApiService.submitMove(match.matchId, gameSession?.id, move);
+        applyGameSnapshot(updated);
+      } catch (error) {
+        showError(error.message || 'Move failed');
+        refreshGameSession();
+      }
+    },
+    [match.matchId, gameSession?.id, showError, refreshGameSession, applyGameSnapshot]
+  );
+
+  // "I'm done" is available to both players and ends the game for both:
+  // the creator forfeits their own game, the opponent declines it
+  const handleEndActiveGame = useCallback(async () => {
+    setShowGamePicker(false);
+    try {
+      const isCreator = gameSession?.createdBy === user.uid;
+      const ended = isCreator
+        ? await GamesApiService.forfeit(match.matchId, gameSession?.id)
+        : await GamesApiService.decline(match.matchId, gameSession?.id);
+      applyGameSnapshot(ended);
+    } catch (error) {
+      showError(error.message || 'Could not end the game');
+      refreshGameSession();
+    }
+  }, [
+    match.matchId,
+    gameSession?.id,
+    gameSession?.createdBy,
+    user.uid,
+    showError,
+    applyGameSnapshot,
+    refreshGameSession,
+  ]);
+
+  // Ending is destructive for both players, so "I'm done" confirms first.
+  // The ToT pre-pick X stays instant — nothing is committed yet.
+  const requestEndGame = useCallback(() => {
+    setShowGamePicker(false);
+    setShowEndGameConfirm(true);
+  }, []);
+
+  // Tap a game card (live or long over) → recap modal. The live session
+  // is used directly so the modal updates in real time; old games are
+  // fetched by the sessionId stored in the message metadata.
+  const handleOpenGameDetails = useCallback(
+    async metadata => {
+      if (!metadata?.sessionId) {
+        return;
+      }
+      if (gameSession?.id === metadata.sessionId) {
+        setRecapSession(gameSession);
+        return;
+      }
+      try {
+        const past = await GamesApiService.getSession(match.matchId, metadata.sessionId);
+        if (past) {
+          setRecapSession(past);
+        } else {
+          showError('Could not load this game');
+        }
+      } catch (error) {
+        showError('Could not load this game');
+      }
+    },
+    [match.matchId, gameSession, showError]
+  );
+
+  const confirmEndGame = useCallback(() => {
+    setShowEndGameConfirm(false);
+    handleEndActiveGame();
+  }, [handleEndActiveGame]);
 
   // Refs
   const flatListRef = useRef(null);
@@ -286,8 +532,15 @@ const ChatScreen = ({ route, navigation }) => {
         const currentUserId = String(user.uid || '');
         const messageId = data.message?.id;
 
-        // Skip if it's our own message OR if we already added this message (via API response)
-        if (messageSenderId === currentUserId || sentMessageIdsRef.current.has(messageId)) {
+        // Skip our own optimistically-added messages. Server-created GAME
+        // messages (start/summary cards) are never in the optimistic list,
+        // so they flow through even when we authored the action —
+        // handleNewMessage dedupes by id if both paths deliver.
+        const isServerCreated = data.message?.messageType === 'GAME';
+        if (
+          sentMessageIdsRef.current.has(messageId) ||
+          (messageSenderId === currentUserId && !isServerCreated)
+        ) {
           Logger.info(`📩 Skipping own/duplicate message: ${messageId}`);
           return;
         }
@@ -388,6 +641,9 @@ const ChatScreen = ({ route, navigation }) => {
       senderName: msg.senderName,
       createdAt: msg.timestamp || msg.createdAt,
       messageType: msg.messageType || 'TEXT',
+      // Game cards render from metadata — dropping it turns them into
+      // plain text bubbles until the next full reload
+      metadata: msg.metadata || null,
       isRead: msg.isRead || false,
       isDelivered: msg.isDelivered || false,
       reactions: msg.reactions || {},
@@ -813,12 +1069,33 @@ const ChatScreen = ({ route, navigation }) => {
   const renderMessage = useCallback(
     ({ item, index }) => {
       const isOwnMessage = item.senderId === user.uid;
-      const showAvatar = index === 0 || reversedMessages[index - 1]?.senderId !== item.senderId;
-      // For inverted list, the last message in a group is when the next message (index - 1) is from a different sender
-      const isLastInGroup = index === 0 || reversedMessages[index - 1]?.senderId !== item.senderId;
+      // Grouping (avatar + timestamp on the newest message of a same-sender
+      // run) must skip GAME messages: they render as centered sender-neutral
+      // cards, and letting one sit as "newest of the group" swallowed the
+      // group's avatar — incoming bubbles then looked indented for no reason
+      let newerIndex = index - 1;
+      while (newerIndex >= 0 && reversedMessages[newerIndex]?.messageType === 'GAME') {
+        newerIndex--;
+      }
+      const newerMessage = newerIndex >= 0 ? reversedMessages[newerIndex] : null;
+      const isLastInGroup = !newerMessage || newerMessage.senderId !== item.senderId;
+      const showAvatar = isLastInGroup;
       const isTapped = tappedMessageId === item.id;
       // Only animate temp messages (optimistically added) - they're new messages being sent
       const shouldAnimate = item.isTemp === true;
+
+      // Game cards render as centered interactive cards, not bubbles
+      if (item.messageType === 'GAME') {
+        let gameMetadata = null;
+        try {
+          gameMetadata = item.metadata ? JSON.parse(item.metadata) : null;
+        } catch (parseError) {
+          gameMetadata = null;
+        }
+        if (gameMetadata?.kind) {
+          return <GameMessageCard metadata={gameMetadata} onOpenDetails={handleOpenGameDetails} />;
+        }
+      }
 
       return (
         <AnimatedMessageBubble isOwnMessage={isOwnMessage} shouldAnimate={shouldAnimate}>
@@ -854,6 +1131,7 @@ const ChatScreen = ({ route, navigation }) => {
       handleReactionsPress,
       scrollToMessage,
       openPhotoViewer,
+      handleOpenGameDetails,
     ]
   );
 
@@ -886,29 +1164,41 @@ const ChatScreen = ({ route, navigation }) => {
   }, []);
 
   // Menu action handlers
-  const handleMenuAction = useCallback(action => {
-    setShowMenu(false);
-    switch (action) {
-      case 'viewProfile':
-        setIsProfileSheetOpen(true);
-        profileSheetRef.current?.open();
-        break;
-      case 'mute':
-        setShowMuteConfirm(true);
-        break;
-      case 'block':
-        setShowBlockConfirm(true);
-        break;
-      case 'unmatch':
-        setShowUnmatchConfirm(true);
-        break;
-      case 'report':
-        setShowReportModal(true);
-        break;
-      default:
-        break;
-    }
-  }, []);
+  const handleMenuAction = useCallback(
+    action => {
+      setShowMenu(false);
+      switch (action) {
+        case 'viewProfile':
+          setIsProfileSheetOpen(true);
+          profileSheetRef.current?.open();
+          break;
+        case 'search':
+          setShowChatSearch(true);
+          break;
+        case 'toggleChatGames':
+          handleToggleChatGames();
+          break;
+        case 'toggleAllGames':
+          handleToggleAllGames();
+          break;
+        case 'mute':
+          setShowMuteConfirm(true);
+          break;
+        case 'block':
+          setShowBlockConfirm(true);
+          break;
+        case 'unmatch':
+          setShowUnmatchConfirm(true);
+          break;
+        case 'report':
+          setShowReportModal(true);
+          break;
+        default:
+          break;
+      }
+    },
+    [handleToggleChatGames, handleToggleAllGames]
+  );
 
   // Load mute status on mount
   useEffect(() => {
@@ -1166,11 +1456,28 @@ const ChatScreen = ({ route, navigation }) => {
           />
 
           {/* Input */}
+          <ActiveGameBar
+            session={gameSession}
+            myId={user.uid}
+            expanded={gamePanelExpanded}
+            onPress={() => setGamePanelExpanded(previous => !previous)}
+          />
+          {gamePanelExpanded && (
+            <ActiveGamePanel
+              session={gameSession}
+              myId={user.uid}
+              onMove={handleGameMove}
+              onEnd={requestEndGame}
+              onDismiss={handleEndActiveGame}
+              onDetails={() => setRecapSession(gameSession)}
+            />
+          )}
           <ChatInput
             messageText={messageText}
             onTextChange={handleTypingChange}
             onSend={sendMessage}
             onGifPress={() => setShowGifPicker(true)}
+            onGamesPress={gamesInfo.enabled ? () => setShowGamePicker(true) : undefined}
             isRecording={isRecording}
             onRecordingStart={() => setIsRecording(true)}
             onRecordingComplete={(uri, duration, waveform) => {
@@ -1195,6 +1502,34 @@ const ChatScreen = ({ route, navigation }) => {
           />
 
           {/* GIF Picker Modal */}
+          <GamePickerSheet
+            visible={showGamePicker}
+            onClose={() => setShowGamePicker(false)}
+            onPick={handlePickGame}
+            activeSession={gameSession}
+            myId={user.uid}
+            onEndActive={requestEndGame}
+          />
+
+          <TwoTruthsComposer
+            visible={showTwoTruthsComposer}
+            onClose={() => setShowTwoTruthsComposer(false)}
+            onSubmit={handleTwoTruthsSubmit}
+          />
+
+          <RouletteComposer
+            visible={!!rouletteOffer}
+            question={rouletteOffer?.question}
+            onClose={() => setRouletteOffer(null)}
+            onSubmit={handleRouletteSubmit}
+          />
+
+          <RiddlePickerSheet
+            visible={!!riddleOffers}
+            offers={riddleOffers || []}
+            onClose={() => setRiddleOffers(null)}
+            onSubmit={handleRiddleSubmit}
+          />
           <GifPicker
             visible={showGifPicker}
             onClose={() => setShowGifPicker(false)}
@@ -1208,6 +1543,7 @@ const ChatScreen = ({ route, navigation }) => {
           onClose={() => setShowMenu(false)}
           onAction={handleMenuAction}
           isMuted={isMuted}
+          gamesInfo={gamesInfo}
         />
 
         {/* Reactions detail bottom sheet */}
@@ -1283,6 +1619,49 @@ const ChatScreen = ({ route, navigation }) => {
           confirmText="Unmatch"
           onConfirm={handleUnmatch}
           onCancel={() => setShowUnmatchConfirm(false)}
+        />
+
+        {/* End game confirmation */}
+        <ConfirmationModal
+          visible={showEndGameConfirm}
+          title="Done with this game?"
+          message="This ends the game for both of you."
+          confirmText="I'm done"
+          onConfirm={confirmEndGame}
+          onCancel={() => setShowEndGameConfirm(false)}
+        />
+
+        {/* Turning games off account-wide ends every game they're in */}
+        <ConfirmationModal
+          visible={showDisableGamesConfirm}
+          title="Turn off games in all chats?"
+          message="Any games you have going will end for both players. Your past games stay in your chats."
+          confirmText="Turn off"
+          onConfirm={confirmDisableAllGames}
+          onCancel={() => setShowDisableGamesConfirm(false)}
+        />
+
+        {/* Game recap — live sessions stay live inside the modal */}
+        <GameRecapModal
+          visible={!!recapSession}
+          session={recapSession && gameSession?.id === recapSession.id ? gameSession : recapSession}
+          myId={user.uid}
+          onClose={() => setRecapSession(null)}
+        />
+
+        {/* Conversation search */}
+        <ChatSearchModal
+          visible={showChatSearch}
+          matchId={match.matchId}
+          onClose={() => setShowChatSearch(false)}
+          onJumpToMessage={message => {
+            setShowChatSearch(false);
+            if (reversedMessages.some(m => m.id === message.id)) {
+              scrollToMessage(message.id);
+            } else {
+              showInfo('That message is further up the conversation');
+            }
+          }}
         />
 
         {/* Report Modal */}

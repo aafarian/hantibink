@@ -75,6 +75,7 @@ const moderationRoutes = require('./routes/moderation');
 const waitlistRoutes = require('./routes/waitlist');
 const adminRoutes = require('./routes/admin');
 const configRoutes = require('./routes/config');
+const gamesRoutes = require('./routes/games');
 
 // Initialize Express app and HTTP server
 const app = express();
@@ -237,6 +238,9 @@ apiRouter.use('/moderation', moderationRoutes);
 
 // Waitlist routes (public, rate-limited)
 apiRouter.use('/waitlist', waitlistRoutes);
+
+// In-chat games (protected)
+apiRouter.use('/games', gamesRoutes);
 
 // Public runtime config (feature flags)
 apiRouter.use('/config', configRoutes);

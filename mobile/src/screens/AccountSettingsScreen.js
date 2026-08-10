@@ -7,6 +7,7 @@ import ApiDataService from '../services/ApiDataService';
 import ApiClient from '../services/ApiClient';
 import Logger from '../utils/logger';
 import useAdminCheck from '../hooks/useAdminCheck';
+import GamesApiService from '../services/GamesApiService';
 import { theme } from '../styles/theme';
 import ScreenWrapper from '../components/shared/ScreenWrapper';
 
@@ -16,6 +17,58 @@ const AccountSettingsScreen = ({ navigation }) => {
   const { showSuccess, showError } = useToast();
   const [isProfilePaused, setIsProfilePaused] = useState(false);
   const [isPauseLoading, setIsPauseLoading] = useState(false);
+  const [gamesEnabled, setGamesEnabled] = useState(true);
+  const [isGamesLoading, setIsGamesLoading] = useState(false);
+
+  // In-chat games opt-in — chats show the games icon only when BOTH
+  // people have this on
+  useEffect(() => {
+    GamesApiService.getSettings()
+      .then(settings => {
+        if (settings) {
+          setGamesEnabled(!!settings.gamesEnabled);
+        }
+      })
+      .catch(error => Logger.error('Failed to load games setting:', error));
+  }, []);
+
+  const applyGamesToggle = useCallback(
+    async enabled => {
+      setIsGamesLoading(true);
+      const previous = gamesEnabled;
+      setGamesEnabled(enabled);
+      try {
+        await GamesApiService.setGamesEnabled(enabled);
+        showSuccess(enabled ? 'In-chat games enabled' : 'In-chat games turned off');
+      } catch (error) {
+        Logger.error('Failed to update games setting:', error);
+        setGamesEnabled(previous);
+        showError('Could not update the games setting');
+      } finally {
+        setIsGamesLoading(false);
+      }
+    },
+    [gamesEnabled, showSuccess, showError]
+  );
+
+  const handleGamesToggle = useCallback(
+    enabled => {
+      if (enabled) {
+        applyGamesToggle(true);
+        return;
+      }
+      // Turning games off ends every game they're in — worth a heads-up
+      Alert.alert(
+        'Turn off games?',
+        'Any games you have going will end for both players. Your past games stay in your chats.',
+        [
+          { text: 'Cancel', style: 'cancel' },
+          { text: 'Turn off', style: 'destructive', onPress: () => applyGamesToggle(false) },
+        ]
+      );
+    },
+    [applyGamesToggle]
+  );
 
   // Load pause status on mount
   const loadPauseStatus = useCallback(async () => {
@@ -197,6 +250,27 @@ const AccountSettingsScreen = ({ navigation }) => {
               disabled={isPauseLoading}
               trackColor={{ false: theme.colors.border.light, true: `${theme.colors.primary}80` }}
               thumbColor={isProfilePaused ? theme.colors.primary : theme.colors.gray[100]}
+            />
+          </View>
+
+          <View style={styles.settingItem}>
+            <View style={styles.settingIcon}>
+              <Ionicons name="game-controller-outline" size={24} color={theme.colors.primary} />
+            </View>
+            <View style={styles.settingContent}>
+              <Text style={styles.settingLabel}>In-Chat Games</Text>
+              <Text style={styles.settingDescription}>
+                {gamesEnabled
+                  ? 'Games show in chats when both people allow them'
+                  : 'Games are hidden in all your chats'}
+              </Text>
+            </View>
+            <Switch
+              value={gamesEnabled}
+              onValueChange={handleGamesToggle}
+              disabled={isGamesLoading}
+              trackColor={{ false: theme.colors.border.light, true: `${theme.colors.primary}80` }}
+              thumbColor={gamesEnabled ? theme.colors.primary : theme.colors.gray[100]}
             />
           </View>
         </View>

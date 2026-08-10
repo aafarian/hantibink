@@ -12,16 +12,35 @@ import { theme } from '../../styles/theme';
  * @param {function} props.onAction - Callback when a menu item is selected, receives action id
  * @param {boolean} props.isMuted - Whether notifications are currently muted (for dynamic label)
  */
-const ChatMenu = ({ visible, onClose, onAction, isMuted }) => {
+const ChatMenu = ({ visible, onClose, onAction, isMuted, gamesInfo }) => {
   if (!visible) return null;
 
-  // 'Search in conversation' is intentionally absent until the feature ships
   const menuItems = [
+    {
+      id: 'search',
+      icon: 'search',
+      label: 'Search in conversation',
+      color: theme.colors.text.primary,
+    },
     { id: 'viewProfile', icon: 'person', label: 'View profile', color: theme.colors.text.primary },
     {
       id: 'mute',
       icon: isMuted ? 'notifications' : 'notifications-off',
       label: isMuted ? 'Unmute notifications' : 'Mute notifications',
+      color: theme.colors.text.primary,
+    },
+    {
+      id: 'toggleChatGames',
+      icon: 'game-controller',
+      label: gamesInfo?.mutedByMe ? 'Allow games in this chat' : 'Turn off games in this chat',
+      color: theme.colors.text.primary,
+    },
+    {
+      id: 'toggleAllGames',
+      icon: 'game-controller-outline',
+      label: gamesInfo?.myGlobalEnabled
+        ? 'Turn off games in all chats'
+        : 'Turn on games in all chats',
       color: theme.colors.text.primary,
     },
     { id: 'block', icon: 'ban', label: 'Block user', color: theme.colors.status.warning },

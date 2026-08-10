@@ -1,13 +1,15 @@
 const express = require('express');
+const { query } = require('express-validator');
 const logger = require('../utils/logger');
 const { authenticateJWT } = require('../middleware/auth');
-const { messageValidation } = require('../middleware/validation');
+const { messageValidation, handleValidationErrors } = require('../middleware/validation');
 const { writeBurstLimiter } = require('../middleware/rateLimiters');
 const {
   getMessages,
   sendMessage,
   markMessagesAsRead,
   deleteMessage,
+  searchMessages,
 } = require('../services/messagesService');
 const { addReaction, removeReaction } = require('../services/reactionsService');
 const { getPrismaClient } = require('../config/database');
@@ -80,6 +82,47 @@ router.get('/:matchId', authenticateJWT, messageValidation.getMessages, async (r
     });
   }
 });
+
+/**
+ * @route   GET /api/messages/:matchId/search?q=&type=
+ * @desc    Search this conversation by text and/or message type
+ *          (type: TEXT | AUDIO | GAME | GIF). Needs a query or a type.
+ * @access  Private
+ */
+router.get(
+  '/:matchId/search',
+  authenticateJWT,
+  [
+    query('q').optional({ values: 'falsy' }).isString().isLength({ max: 100 }),
+    query('type').optional({ values: 'falsy' }).isIn(['TEXT', 'AUDIO', 'GAME', 'GIF']),
+    handleValidationErrors,
+  ],
+  async (req, res) => {
+    try {
+      const { q, type } = req.query;
+      if (!q?.trim() && !type) {
+        return res.status(400).json({
+          success: false,
+          error: 'Validation failed',
+          message: 'Provide a search query or a filter',
+        });
+      }
+
+      const results = await searchMessages(req.params.matchId, req.user.id, { q, type });
+      res.json({ success: true, data: results });
+    } catch (error) {
+      logger.error('❌ Search messages error:', error);
+      const status = error.message === 'Match not found' ? 404
+        : error.message === 'Unauthorized access to match' ? 403
+        : 500;
+      res.status(status).json({
+        success: false,
+        error: 'Failed to search messages',
+        message: error.message,
+      });
+    }
+  },
+);
 
 /**
  * @route   POST /api/messages/:matchId
