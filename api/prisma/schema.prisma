@@ -421,3 +421,19 @@ model Waitlist {
 
   @@map("waitlist")
 }
+
+/// Append-only ledger of every admin mutation. Best-effort writes — an
+/// audit failure never fails the action. No update/delete API exists.
+model AdminAuditLog {
+  id         String   @id @default(cuid())
+  createdAt  DateTime @default(now())
+  adminEmail String
+  action     String
+  targetType String?
+  targetId   String?
+  payload    Json?
+
+  @@index([createdAt])
+  @@index([targetType, targetId])
+  @@map("admin_audit_logs")
+}

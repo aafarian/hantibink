@@ -29,6 +29,7 @@ import ChatScreen from '../screens/ChatScreen';
 import PreferencesScreen from '../screens/PreferencesScreen';
 import NotificationSettingsScreen from '../screens/NotificationSettingsScreen';
 import AccountSettingsScreen from '../screens/AccountSettingsScreen';
+import AdminScreen from '../screens/admin/AdminScreen';
 
 // Import components
 import ProfileSetupModal from '../components/modals/ProfileSetupModal';
@@ -113,6 +114,13 @@ const ProfileStack = () => {
         component={NotificationSettingsScreen}
         options={{
           headerShown: false, // NotificationSettingsScreen has its own header
+        }}
+      />
+      <Stack.Screen
+        name="Admin"
+        component={AdminScreen}
+        options={{
+          headerShown: false, // AdminScreen has its own header
         }}
       />
       <Stack.Screen
