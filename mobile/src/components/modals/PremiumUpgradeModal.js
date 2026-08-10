@@ -8,6 +8,7 @@ import {
   Pressable,
   Animated,
   ActivityIndicator,
+  ScrollView,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -165,76 +166,80 @@ const PremiumUpgradeModal = ({ visible, onClose, onUpgrade }) => {
             <Ionicons name="close" size={24} color={theme.colors.text.secondary} />
           </TouchableOpacity>
 
-          {/* Header */}
-          <View style={styles.header}>
-            <View style={styles.premiumBadge}>
-              <Ionicons name="diamond" size={32} color={theme.colors.premium} />
-            </View>
-            <Text style={styles.title}>Upgrade to Premium</Text>
-            <Text style={styles.subtitle}>Get the most out of your experience</Text>
-          </View>
-
-          {/* Features list */}
-          <View style={styles.featuresContainer}>
-            {PREMIUM_FEATURES.map((feature, index) => (
-              <View key={index} style={styles.featureRow}>
-                <View
-                  style={[
-                    styles.featureIconContainer,
-                    { backgroundColor: `${feature.iconColor}15` },
-                  ]}
-                >
-                  <Ionicons name={feature.icon} size={22} color={feature.iconColor} />
-                </View>
-                <View style={styles.featureTextContainer}>
-                  <Text style={styles.featureTitle}>{feature.title}</Text>
-                  <Text style={styles.featureDescription}>{feature.description}</Text>
-                </View>
+          {/* Scrollable body: header, features, and purchase options. The
+              restore and dismiss actions stay OUTSIDE the scroll so they
+              remain reachable on short screens and with enlarged text. */}
+          <ScrollView style={styles.scrollArea} showsVerticalScrollIndicator={false}>
+            {/* Header */}
+            <View style={styles.header}>
+              <View style={styles.premiumBadge}>
+                <Ionicons name="diamond" size={32} color={theme.colors.premium} />
               </View>
-            ))}
-          </View>
+              <Text style={styles.title}>Upgrade to Premium</Text>
+              <Text style={styles.subtitle}>Get the most out of your experience</Text>
+            </View>
 
-          {/* Purchase options (live store prices) or the legacy CTA when
-              this build has no RevenueCat key */}
-          {packages.length > 0 ? (
-            <View style={styles.packagesRow}>
-              {packages.map(pkg => (
-                <TouchableOpacity
-                  key={pkg.identifier}
-                  style={[styles.packageOption, buying === pkg.identifier && styles.packageBuying]}
-                  disabled={!!buying}
-                  onPress={() => handlePurchase(pkg)}
-                  activeOpacity={0.8}
-                >
-                  {buying === pkg.identifier ? (
-                    <ActivityIndicator size="small" color={theme.colors.premium} />
-                  ) : (
-                    <>
-                      <Text style={styles.packageLabel}>
-                        {PACKAGE_LABELS[pkg.packageType] || pkg.packageType}
-                      </Text>
-                      <Text style={styles.packagePrice}>{pkg.product.priceString}</Text>
-                    </>
-                  )}
-                </TouchableOpacity>
+            {/* Features list */}
+            <View style={styles.featuresContainer}>
+              {PREMIUM_FEATURES.map((feature, index) => (
+                <View key={index} style={styles.featureRow}>
+                  <View
+                    style={[
+                      styles.featureIconContainer,
+                      { backgroundColor: `${feature.iconColor}15` },
+                    ]}
+                  >
+                    <Ionicons name={feature.icon} size={22} color={feature.iconColor} />
+                  </View>
+                  <View style={styles.featureTextContainer}>
+                    <Text style={styles.featureTitle}>{feature.title}</Text>
+                    <Text style={styles.featureDescription}>{feature.description}</Text>
+                  </View>
+                </View>
               ))}
             </View>
-          ) : (
-            <>
+
+            {/* Purchase options (live store prices) or the legacy CTA when
+              this build has no RevenueCat key */}
+            {packages.length > 0 ? (
+              <View style={styles.packagesRow}>
+                {packages.map(pkg => (
+                  <TouchableOpacity
+                    key={pkg.identifier}
+                    style={[
+                      styles.packageOption,
+                      buying === pkg.identifier && styles.packageBuying,
+                    ]}
+                    disabled={!!buying}
+                    onPress={() => handlePurchase(pkg)}
+                    activeOpacity={0.8}
+                  >
+                    {buying === pkg.identifier ? (
+                      <ActivityIndicator size="small" color={theme.colors.premium} />
+                    ) : (
+                      <>
+                        <Text style={styles.packageLabel}>
+                          {PACKAGE_LABELS[pkg.packageType] || pkg.packageType}
+                        </Text>
+                        <Text style={styles.packagePrice}>{pkg.product.priceString}</Text>
+                      </>
+                    )}
+                  </TouchableOpacity>
+                ))}
+              </View>
+            ) : (
               <TouchableOpacity
-                style={styles.upgradeButton}
+                style={[styles.upgradeButton, comingSoon && styles.upgradeButtonDisabled]}
                 onPress={handleUpgrade}
                 activeOpacity={0.8}
+                disabled={comingSoon}
               >
-                <Text style={styles.upgradeButtonText}>Get Premium</Text>
-              </TouchableOpacity>
-              {comingSoon && (
-                <Text style={styles.comingSoonNote}>
-                  Purchases are coming soon — this version of the app can’t start one yet.
+                <Text style={styles.upgradeButtonText}>
+                  {comingSoon ? 'Purchases coming soon' : 'Get Premium'}
                 </Text>
-              )}
-            </>
-          )}
+              </TouchableOpacity>
+            )}
+          </ScrollView>
 
           {/* App Store requires a visible restore path */}
           <TouchableOpacity style={styles.laterButton} onPress={handleRestore} disabled={restoring}>
@@ -271,6 +276,10 @@ const styles = StyleSheet.create({
     borderTopRightRadius: theme.borderRadius.xxl,
     paddingTop: theme.spacing.xl,
     paddingHorizontal: theme.spacing.xl,
+    maxHeight: '88%',
+  },
+  scrollArea: {
+    flexShrink: 1,
   },
   closeIcon: {
     position: 'absolute',
@@ -388,12 +397,8 @@ const styles = StyleSheet.create({
     fontSize: theme.typography.sizes.md,
     fontFamily: theme.typography.fontFamily.regular,
   },
-  comingSoonNote: {
-    marginTop: theme.spacing.sm,
-    textAlign: 'center',
-    color: theme.colors.text.secondary,
-    fontSize: theme.typography.sizes.sm,
-    fontFamily: theme.typography.fontFamily.bodyMedium,
+  upgradeButtonDisabled: {
+    opacity: 0.65,
   },
 });
 
