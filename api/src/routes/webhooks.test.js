@@ -11,6 +11,8 @@ const rcEvent = (overrides = {}) => ({
     type: 'INITIAL_PURCHASE',
     app_user_id: 'nobody',
     product_id: 'hantibink_premium_monthly',
+    // RC stamps every real event; mutating events without one are rejected
+    event_timestamp_ms: Date.parse('2026-08-01T00:00:00Z'),
     ...overrides,
   },
 });
@@ -273,6 +275,32 @@ describe('RevenueCat webhook', () => {
     expect(response.status).toBe(200);
     const fresh = await global.prisma.user.findUnique({ where: { id: user.id } });
     expect(fresh.isPremium).toBe(false);
+  });
+
+  it('rejects a mutating event without a valid event_timestamp_ms', async () => {
+    const user = await userFactory.create(global.prisma, { isPremium: false });
+
+    const response = await request(app)
+      .post('/webhooks/revenuecat')
+      .set('Authorization', SECRET)
+      .send(rcEvent({ app_user_id: user.id, event_timestamp_ms: null }));
+
+    expect(response.status).toBe(400);
+    const fresh = await global.prisma.user.findUnique({ where: { id: user.id } });
+    expect(fresh.isPremium).toBe(false);
+  });
+
+  it('still acknowledges non-mutating events without a timestamp', async () => {
+    const user = await userFactory.create(global.prisma, { isPremium: true });
+
+    const response = await request(app)
+      .post('/webhooks/revenuecat')
+      .set('Authorization', SECRET)
+      .send(
+        rcEvent({ type: 'CANCELLATION', app_user_id: user.id, event_timestamp_ms: null }),
+      );
+
+    expect(response.status).toBe(200);
   });
 
   it('ignores non-entitlement events like CANCELLATION', async () => {

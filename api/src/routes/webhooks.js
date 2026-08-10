@@ -91,6 +91,16 @@ router.post('/revenuecat', async (req, res) => {
     const expiresAt =
       Number.isFinite(expiresAtMs) && expiresAtMs > 0 ? new Date(expiresAtMs) : null;
 
+    // RC stamps every real event with event_timestamp_ms; a mutating event
+    // without one can't be ordered, so reject it rather than apply it
+    // unguarded (400 → RC retries, and a genuinely malformed payload
+    // surfaces in their dashboard instead of silently flipping premium)
+    const mutatesEntitlement = GRANTS_PREMIUM.has(event.type) || event.type === 'EXPIRATION';
+    if (mutatesEntitlement && !eventAt) {
+      logger.warn(`RevenueCat ${event.type} for ${userId} missing event_timestamp_ms — rejected`);
+      return res.status(400).json({ success: false, message: 'Missing event_timestamp_ms' });
+    }
+
     if (GRANTS_PREMIUM.has(event.type)) {
       // Atomic flag + accrual clock + day-one Super Like bank
       const applied = await activatePremium(userId, eventAt, eventId, expiresAt);
@@ -103,14 +113,9 @@ router.post('/revenuecat', async (req, res) => {
       const { count } = await prisma.user.updateMany({
         where: {
           id: userId,
-          ...(eventAt
-            ? { OR: [{ rcLastEventAt: null }, { rcLastEventAt: { lt: eventAt } }] }
-            : {}),
+          OR: [{ rcLastEventAt: null }, { rcLastEventAt: { lt: eventAt } }],
         },
-        data: {
-          isPremium: false,
-          ...(eventAt ? { rcLastEventAt: eventAt, rcLastEventId: eventId } : {}),
-        },
+        data: { isPremium: false, rcLastEventAt: eventAt, rcLastEventId: eventId },
       });
       if (count > 0) {
         logger.info(`💎 Premium expired for ${userId} (${event.expiration_reason || 'unknown'})`);
