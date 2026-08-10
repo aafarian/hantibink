@@ -149,15 +149,16 @@ const getUserQuotas = async (userId) => {
 };
 
 /**
- * Call whenever a user BECOMES premium (admin toggle today, the billing
- * webhook later): a fresh accrual clock so days spent as a free user never
- * convert into Super Likes, and a day-one bank of 2 (never lowering a
- * balance that survived a downgrade).
+ * The one true way to make a user premium (admin toggle today, the billing
+ * webhook later). The accrual clock resets IN THE SAME WRITE that sets
+ * isPremium, so a concurrent quota read can never pair premium=true with
+ * free-era days and back-accrue them into Super Likes. The day-one bank of
+ * 2 follows (never lowering a balance that survived a downgrade).
  */
-const seedPremiumBank = async (userId) => {
+const activatePremium = async (userId) => {
   await prisma.user.update({
     where: { id: userId },
-    data: { superLikeAccruedAt: new Date() },
+    data: { isPremium: true, superLikeAccruedAt: new Date() },
     select: { id: true },
   });
   await prisma.user.updateMany({
@@ -287,7 +288,7 @@ const requiresPremium = async (userId, feature) => {
 module.exports = {
   LIMITS,
   getUserQuotas,
-  seedPremiumBank,
+  activatePremium,
   canLike,
   canSuperLike,
   canUndo,

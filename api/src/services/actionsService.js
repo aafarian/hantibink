@@ -570,8 +570,11 @@ const getWhoLikedMe = async (userId, options = {}) => {
     };
 
     // Free users get NO liker entries — only counts for the upsell teaser.
-    // totalCount stays "unacted likers" (same meaning as the premium path,
-    // and what the mobile screen displays); totalLikesCount is the raw total.
+    // totalCount is DELIBERATELY the unacted count, not the raw total: it is
+    // the same field with the same meaning the premium list displays, so the
+    // teaser equals exactly what upgrading reveals. Counting already-acted
+    // likers would advertise people who no longer appear after purchase.
+    // totalLikesCount carries the raw total for anything that wants it.
     if (!premiumLimit.isPremium) {
       const totalUnactedCount = await prisma.userAction.count({
         where: unactedLikersWhere,
