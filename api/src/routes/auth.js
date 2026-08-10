@@ -1,8 +1,13 @@
 const express = require('express');
-const rateLimit = require('express-rate-limit');
 const logger = require('../utils/logger');
 const { authValidation } = require('../middleware/validation');
 const { authenticateJWT, optionalAuth } = require('../middleware/auth');
+const {
+  authLimiter,
+  sensitiveAuthLimiter,
+  refreshLimiter,
+  enumerationLimiter,
+} = require('../middleware/rateLimiters');
 const { getPrismaClient } = require('../config/database');
 
 const prisma = getPrismaClient();
@@ -21,19 +26,6 @@ const {
 const { googleAuth, completeOAuthProfile, checkUserExists } = require('../services/oauthService');
 
 const router = express.Router();
-
-// Create a more lenient rate limiter for auth endpoints
-const authLimiter = rateLimit({
-  windowMs: process.env.NODE_ENV === 'development' ? 1 * 60 * 1000 : 5 * 60 * 1000, // 1 min for dev, 5 min for prod
-  max: process.env.NODE_ENV === 'development' ? 50 : 10, // 50 attempts in dev, 10 in prod
-  message: {
-    error: 'Too many authentication attempts, please try again later',
-    retryAfter: process.env.NODE_ENV === 'development' ? 60 : 300,
-  },
-  standardHeaders: true,
-  legacyHeaders: false,
-  skipSuccessfulRequests: true, // Don't count successful requests
-});
 
 /**
  * @route   GET /api/auth
@@ -89,7 +81,7 @@ router.post('/register', authLimiter, authValidation.register, async (req, res) 
  * @desc    Check if email is already registered
  * @access  Public
  */
-router.post('/check-email', authLimiter, async (req, res) => {
+router.post('/check-email', enumerationLimiter, async (req, res) => {
   try {
     const { email } = req.body;
     
@@ -176,7 +168,7 @@ router.post('/firebase-login', authLimiter, authValidation.firebaseLogin, async 
  * @desc    Refresh access token
  * @access  Public
  */
-router.post('/refresh', authValidation.refreshToken, async (req, res) => {
+router.post('/refresh', refreshLimiter, authValidation.refreshToken, async (req, res) => {
   try {
     const { refreshToken } = req.body;
     const tokens = await refreshTokens(refreshToken);
@@ -232,7 +224,7 @@ router.post('/logout', optionalAuth, async (req, res) => {
  * @desc    Request password reset
  * @access  Public
  */
-router.post('/forgot-password', authLimiter, async (req, res) => {
+router.post('/forgot-password', sensitiveAuthLimiter, async (req, res) => {
   try {
     const { email } = req.body;
 
@@ -274,7 +266,7 @@ router.post('/forgot-password', authLimiter, async (req, res) => {
  * @desc    Verify password reset code
  * @access  Public
  */
-router.post('/verify-reset-code', authLimiter, async (req, res) => {
+router.post('/verify-reset-code', sensitiveAuthLimiter, async (req, res) => {
   try {
     const { email, code } = req.body;
 
@@ -313,7 +305,7 @@ router.post('/verify-reset-code', authLimiter, async (req, res) => {
  * @desc    Reset password with verified token
  * @access  Public
  */
-router.post('/reset-password', async (req, res) => {
+router.post('/reset-password', sensitiveAuthLimiter, async (req, res) => {
   try {
     const { token, newPassword } = req.body;
 
@@ -360,7 +352,7 @@ router.post('/reset-password', async (req, res) => {
  * @desc    Verify email address with token
  * @access  Public
  */
-router.post('/verify-email', async (req, res) => {
+router.post('/verify-email', sensitiveAuthLimiter, async (req, res) => {
   try {
     const { token } = req.body;
     
@@ -400,7 +392,7 @@ router.post('/verify-email', async (req, res) => {
  * @desc    Resend verification email
  * @access  Private (requires authentication)
  */
-router.post('/resend-verification', authenticateJWT, async (req, res) => {
+router.post('/resend-verification', sensitiveAuthLimiter, authenticateJWT, async (req, res) => {
   try {
     // Get user ID from authenticated user
     const userId = req.user.id;
@@ -511,7 +503,7 @@ router.post('/oauth/complete-profile', authLimiter, authenticateJWT, async (req,
  * @desc    Check if user exists and their auth methods
  * @access  Public
  */
-router.get('/oauth/check-user', authLimiter, async (req, res) => {
+router.get('/oauth/check-user', enumerationLimiter, async (req, res) => {
   try {
     const { email } = req.query;
     

@@ -191,6 +191,53 @@ describe('Matches Service', () => {
       expect(details.otherUser.name).toBe('User Two');
     });
 
+    it('never exposes credentials or private fields of the other user', async () => {
+      const user1 = await userFactory.create(global.prisma);
+      const user2 = await userFactory.create(global.prisma, {
+        latitude: 40.1772,
+        longitude: 44.5035,
+      });
+      await photoFactory.create(global.prisma, user2.id, { isMain: true });
+      await global.prisma.user.update({
+        where: { id: user2.id },
+        data: {
+          emailVerificationToken: 'super-secret-verify-token',
+          passwordResetToken: 'super-secret-reset-token',
+          pushToken: 'ExponentPushToken[secret]',
+        },
+      });
+
+      const match = await matchFactory.create(global.prisma, user1.id, user2.id);
+      const details = await getMatchDetails(match.id, user1.id);
+
+      const forbiddenKeys = [
+        'password',
+        'email',
+        'firebaseUid',
+        'emailVerificationToken',
+        'passwordResetToken',
+        'pushToken',
+        'latitude',
+        'longitude',
+        'birthDate',
+        'notifyMessages',
+        'dailyLikesUsed',
+      ];
+      forbiddenKeys.forEach((key) => {
+        expect(details.otherUser).not.toHaveProperty(key);
+      });
+
+      // Belt and braces: the serialized payload must not contain the secrets
+      const serialized = JSON.stringify(details);
+      expect(serialized).not.toContain('super-secret-verify-token');
+      expect(serialized).not.toContain('super-secret-reset-token');
+      expect(serialized).not.toContain(user2.email);
+
+      // But legitimate public profile data still flows
+      expect(details.otherUser.age).not.toBeNull();
+      expect(details.otherUser.photos.length).toBeGreaterThan(0);
+    });
+
     it('should throw error for non-existent match', async () => {
       const user1 = await userFactory.create(global.prisma);
 

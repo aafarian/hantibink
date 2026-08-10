@@ -446,7 +446,7 @@ describe('Actions Service', () => {
 
   describe('getWhoLikedMe', () => {
     it('should return users who liked the current user', async () => {
-      const user1 = await userFactory.create(global.prisma);
+      const user1 = await userFactory.create(global.prisma, { isPremium: true });
       const user2 = await userFactory.create(global.prisma);
       await photoFactory.create(global.prisma, user2.id, { isMain: true });
 
@@ -460,7 +460,7 @@ describe('Actions Service', () => {
     });
 
     it('should exclude users already acted on', async () => {
-      const user1 = await userFactory.create(global.prisma);
+      const user1 = await userFactory.create(global.prisma, { isPremium: true });
       const user2 = await userFactory.create(global.prisma);
       const user3 = await userFactory.create(global.prisma);
       await photoFactory.create(global.prisma, user2.id, { isMain: true });
@@ -493,7 +493,7 @@ describe('Actions Service', () => {
     });
 
     it('should respect limit and offset', async () => {
-      const user1 = await userFactory.create(global.prisma);
+      const user1 = await userFactory.create(global.prisma, { isPremium: true });
 
       // Create 5 users who like user1
       for (let i = 0; i < 5; i++) {
@@ -528,7 +528,7 @@ describe('Actions Service', () => {
     });
 
     it('should calculate age correctly from birthDate', async () => {
-      const user1 = await userFactory.create(global.prisma);
+      const user1 = await userFactory.create(global.prisma, { isPremium: true });
 
       const birthDate = new Date();
       birthDate.setFullYear(birthDate.getFullYear() - 30);
@@ -544,7 +544,7 @@ describe('Actions Service', () => {
     });
 
     it('should include photos in user details', async () => {
-      const user1 = await userFactory.create(global.prisma);
+      const user1 = await userFactory.create(global.prisma, { isPremium: true });
       const user2 = await userFactory.create(global.prisma);
       await photoFactory.create(global.prisma, user2.id, { isMain: true, url: 'https://example.com/photo.jpg' });
 
@@ -567,6 +567,73 @@ describe('Actions Service', () => {
 
       expect(result.users[0].likedAt).toBeDefined();
       expect(result.users[0].likedAt instanceof Date).toBe(true);
+    });
+
+    it('redacts liker profiles entirely for free users', async () => {
+      const freeUser = await userFactory.create(global.prisma, { isPremium: false });
+      const liker = await userFactory.create(global.prisma);
+      await photoFactory.create(global.prisma, liker.id, {
+        isMain: true,
+        url: 'https://example.com/secret.jpg',
+      });
+
+      await likeUser(liker.id, freeUser.id, 'LIKE');
+
+      const result = await getWhoLikedMe(freeUser.id);
+
+      expect(result.isPremium).toBe(false);
+      expect(result.premiumRequired).toBe(true);
+      expect(result.totalCount).toBe(1);
+      expect(result.users.length).toBe(1);
+      // The profile itself must be withheld server-side — no id, name, or photo
+      expect(result.users[0].user).toBeNull();
+      expect(JSON.stringify(result)).not.toContain(liker.name);
+      expect(JSON.stringify(result)).not.toContain('secret.jpg');
+    });
+
+    it('caps free users at the whoLikedMeLimit and blocks deeper pagination', async () => {
+      const freeUser = await userFactory.create(global.prisma, { isPremium: false });
+
+      for (let i = 0; i < 5; i++) {
+        const liker = await userFactory.create(global.prisma);
+        await photoFactory.create(global.prisma, liker.id, { isMain: true });
+        await likeUser(liker.id, freeUser.id, 'LIKE');
+      }
+
+      const firstPage = await getWhoLikedMe(freeUser.id, { limit: 20 });
+      expect(firstPage.users.length).toBeLessThanOrEqual(3);
+      expect(firstPage.hiddenCount).toBe(5);
+
+      const beyondLimit = await getWhoLikedMe(freeUser.id, { limit: 20, offset: 10 });
+      expect(beyondLimit.users.length).toBe(0);
+      expect(beyondLimit.premiumRequired).toBe(true);
+    });
+
+    it('excludes blocked users from the liker list', async () => {
+      const { blockUser } = await import('./moderationService.js');
+      const premiumUser = await userFactory.create(global.prisma, { isPremium: true });
+      const liker = await userFactory.create(global.prisma);
+      const blockedLiker = await userFactory.create(global.prisma);
+      await photoFactory.create(global.prisma, liker.id, { isMain: true });
+      await photoFactory.create(global.prisma, blockedLiker.id, { isMain: true });
+
+      await likeUser(liker.id, premiumUser.id, 'LIKE');
+      await likeUser(blockedLiker.id, premiumUser.id, 'LIKE');
+      await blockUser(premiumUser.id, blockedLiker.id);
+
+      const result = await getWhoLikedMe(premiumUser.id);
+
+      expect(result.users.length).toBe(1);
+      expect(result.users[0].user.id).toBe(liker.id);
+    });
+
+    it('rejects liking yourself', async () => {
+      const user = await userFactory.create(global.prisma);
+      await expect(likeUser(user.id, user.id, 'LIKE')).rejects.toThrow(
+        'Cannot act on yourself',
+      );
+      const matches = await global.prisma.match.findMany({});
+      expect(matches.length).toBe(0);
     });
   });
 });

@@ -1,6 +1,7 @@
 const express = require('express');
 const logger = require('../utils/logger');
 const { authenticateJWT } = require('../middleware/auth');
+const { moderationValidation } = require('../middleware/validation');
 const {
   muteMatch,
   unmuteMatch,
@@ -19,7 +20,7 @@ const router = express.Router();
  * @desc    Mute notifications for a match
  * @access  Private
  */
-router.post('/mute/:matchId', authenticateJWT, async (req, res) => {
+router.post('/mute/:matchId', authenticateJWT, moderationValidation.matchIdParam, async (req, res) => {
   try {
     const { matchId } = req.params;
     const result = await muteMatch(req.user.id, matchId);
@@ -43,7 +44,7 @@ router.post('/mute/:matchId', authenticateJWT, async (req, res) => {
  * @desc    Unmute notifications for a match
  * @access  Private
  */
-router.delete('/mute/:matchId', authenticateJWT, async (req, res) => {
+router.delete('/mute/:matchId', authenticateJWT, moderationValidation.matchIdParam, async (req, res) => {
   try {
     const { matchId } = req.params;
     const result = await unmuteMatch(req.user.id, matchId);
@@ -67,7 +68,7 @@ router.delete('/mute/:matchId', authenticateJWT, async (req, res) => {
  * @desc    Check if a match is muted
  * @access  Private
  */
-router.get('/mute/:matchId/status', authenticateJWT, async (req, res) => {
+router.get('/mute/:matchId/status', authenticateJWT, moderationValidation.matchIdParam, async (req, res) => {
   try {
     const { matchId } = req.params;
     const isMuted = await isMatchMuted(req.user.id, matchId);
@@ -90,11 +91,11 @@ router.get('/mute/:matchId/status', authenticateJWT, async (req, res) => {
  * @desc    Block a user
  * @access  Private
  */
-router.post('/block/:userId', authenticateJWT, async (req, res) => {
+router.post('/block/:userId', authenticateJWT, moderationValidation.userIdParam, async (req, res) => {
   try {
     const { userId: blockedId } = req.params;
     const { matchId } = req.body;
-    const result = await blockUser(req.user.id, blockedId, matchId);
+    const result = await blockUser(req.user.id, blockedId, matchId, req.app.get('io'));
 
     res.json({
       success: true,
@@ -115,7 +116,7 @@ router.post('/block/:userId', authenticateJWT, async (req, res) => {
  * @desc    Unblock a user
  * @access  Private
  */
-router.delete('/block/:userId', authenticateJWT, async (req, res) => {
+router.delete('/block/:userId', authenticateJWT, moderationValidation.userIdParam, async (req, res) => {
   try {
     const { userId: blockedId } = req.params;
     const result = await unblockUser(req.user.id, blockedId);
@@ -161,10 +162,10 @@ router.get('/blocked', authenticateJWT, async (req, res) => {
  * @desc    Unmatch from a match
  * @access  Private
  */
-router.post('/unmatch/:matchId', authenticateJWT, async (req, res) => {
+router.post('/unmatch/:matchId', authenticateJWT, moderationValidation.matchIdParam, async (req, res) => {
   try {
     const { matchId } = req.params;
-    const result = await unmatch(req.user.id, matchId);
+    const result = await unmatch(req.user.id, matchId, req.app.get('io'));
 
     res.json({
       success: true,
@@ -185,7 +186,7 @@ router.post('/unmatch/:matchId', authenticateJWT, async (req, res) => {
  * @desc    Report a user
  * @access  Private
  */
-router.post('/report', authenticateJWT, async (req, res) => {
+router.post('/report', authenticateJWT, moderationValidation.report, async (req, res) => {
   try {
     const { reportedId, reason, description } = req.body;
 

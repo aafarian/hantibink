@@ -13,7 +13,9 @@ const LIMITS = {
     dailyLikes: 10,
     dailySuperLikes: 0,
     canUndo: false,
-    whoLikedMeLimit: Infinity, // API returns all, frontend shows blurred for non-premium
+    // Server-enforced: free users get at most this many liker entries, and
+    // those entries are redacted (user: null) — see actionsService.getWhoLikedMe.
+    whoLikedMeLimit: 3,
   },
   PREMIUM: {
     dailyLikes: Infinity,

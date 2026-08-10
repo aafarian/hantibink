@@ -130,6 +130,13 @@ const sendMessage = async (matchId, senderId, messageData, io = null) => {
     const receiverId =
       match.user1Id === senderId ? match.user2Id : match.user1Id;
 
+    // Defense in depth: blocking deactivates the match, but re-check here in
+    // case a message races the block or a match is ever reactivated.
+    const { isUserBlocked } = require('./moderationService');
+    if (await isUserBlocked(senderId, receiverId)) {
+      throw new Error('Cannot send message to inactive match');
+    }
+
     // Create message
     const message = await prisma.message.create({
       data: {

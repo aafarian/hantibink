@@ -2,6 +2,7 @@ const express = require('express');
 const logger = require('../utils/logger');
 const { authenticateJWT } = require('../middleware/auth');
 const { actionValidation } = require('../middleware/validation');
+const { writeBurstLimiter } = require('../middleware/rateLimiters');
 const {
   likeUser,
   passUser,
@@ -77,7 +78,7 @@ router.get('/quotas', authenticateJWT, async (req, res) => {
  * @desc    Like a user
  * @access  Private
  */
-router.post('/like', authenticateJWT, actionValidation.like, async (req, res) => {
+router.post('/like', authenticateJWT, writeBurstLimiter, actionValidation.like, async (req, res) => {
   try {
     const { targetUserId } = req.body;
 
@@ -113,7 +114,7 @@ router.post('/like', authenticateJWT, actionValidation.like, async (req, res) =>
  * @desc    Pass on a user
  * @access  Private
  */
-router.post('/pass', authenticateJWT, actionValidation.pass, async (req, res) => {
+router.post('/pass', authenticateJWT, writeBurstLimiter, actionValidation.pass, async (req, res) => {
   try {
     const { targetUserId } = req.body;
 
@@ -143,7 +144,7 @@ router.post('/pass', authenticateJWT, actionValidation.pass, async (req, res) =>
  * @desc    Super like a user (premium feature)
  * @access  Private
  */
-router.post('/super-like', authenticateJWT, actionValidation.superLike, async (req, res) => {
+router.post('/super-like', authenticateJWT, writeBurstLimiter, actionValidation.superLike, async (req, res) => {
   try {
     const { targetUserId } = req.body;
 
@@ -181,9 +182,9 @@ router.post('/super-like', authenticateJWT, actionValidation.superLike, async (r
  * @desc    Undo last action (premium feature)
  * @access  Private
  */
-router.post('/undo', authenticateJWT, async (req, res) => {
+router.post('/undo', authenticateJWT, writeBurstLimiter, async (req, res) => {
   try {
-    const result = await undoLastAction(req.user.id);
+    const result = await undoLastAction(req.user.id, req.app.get('io'));
 
     res.json({
       success: true,

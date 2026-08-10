@@ -217,7 +217,10 @@ const registerUser = async (userData) => {
       where: { id: user.id },
       data: {
         onboardingStage: requiresSetup ? 'REGISTERED' : 'SETUP_COMPLETE',
-        isDiscoverable: false, // Not discoverable until email is verified
+        // Discoverability tracks profile completeness only (photos + basics).
+        // Email verification drives badges/nags, not discovery — this keeps
+        // registration consistent with utils/discoveryUtils.updateDiscoverableStatus.
+        isDiscoverable,
         hasCompletedOnboarding: !requiresSetup,
       },
     });
@@ -356,10 +359,10 @@ const loginWithFirebase = async (idToken) => {
       firebaseUid: user.firebaseUid,
     });
 
-    // Update last login
+    // Update last activity (there is no lastLoginAt column)
     await prisma.user.update({
       where: { id: user.id },
-      data: { lastLoginAt: new Date() },
+      data: { lastActive: new Date() },
     });
 
     logger.info(`✅ User logged in with Firebase: ${user.email}`);
@@ -1000,9 +1003,11 @@ const verifyPasswordResetCode = async (email, code) => {
       };
     }
 
-    // Generate a short-lived JWT for password update (5 minutes)
-    const { generateToken } = require('../utils/jwt');
-    const resetToken = generateToken({ userId: user.id, purpose: 'password-reset' }, '5m');
+    // Generate a short-lived, purpose-bound JWT for the password update.
+    // Token generation happens BEFORE clearing the one-time code so a
+    // generation failure never burns the code.
+    const { generatePasswordResetToken } = require('../utils/jwt');
+    const resetToken = generatePasswordResetToken(user.id);
 
     // Clear the reset code (one-time use)
     await prisma.user.update({
@@ -1040,8 +1045,9 @@ const resetPassword = async (token, newPassword) => {
       return { success: false, error: 'Invalid or expired reset token. Please request a new code.' };
     }
 
-    // Check token purpose
-    if (decoded.purpose !== 'password-reset') {
+    // Check token purpose AND type — an access or refresh token must never
+    // be able to change a password.
+    if (decoded.purpose !== 'password-reset' || decoded.type !== 'password-reset') {
       return { success: false, error: 'Invalid reset token' };
     }
 

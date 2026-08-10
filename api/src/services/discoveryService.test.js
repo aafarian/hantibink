@@ -534,6 +534,54 @@ describe('Discovery Service', () => {
       expect(results[0]).toHaveProperty('matchesPreferences');
       expect(typeof results[0].matchesPreferences).toBe('boolean');
     });
+
+    it('should not include tokens, coordinates, or notification prefs', async () => {
+      const user1 = await createEligibleUser('MAN', ['WOMAN']);
+      await createEligibleUser('WOMAN', ['MAN']);
+
+      const results = await getUsersForDiscovery(user1.id);
+
+      expect(results.length).toBeGreaterThan(0);
+      const forbidden = [
+        'firebaseUid',
+        'pushToken',
+        'emailVerificationToken',
+        'passwordResetToken',
+        'latitude',
+        'longitude',
+        'notifyMessages',
+        'dailyLikesUsed',
+      ];
+      forbidden.forEach((key) => {
+        expect(results[0]).not.toHaveProperty(key);
+      });
+    });
+  });
+
+  describe('getUsersForDiscovery - Strict Mode (regression)', () => {
+    it('does not throw with strictMode enabled (used stale MALE/FEMALE enums)', async () => {
+      const user1 = await createEligibleUser('MAN', ['WOMAN']);
+      await createEligibleUser('WOMAN', ['MAN']);
+
+      // This used to throw PrismaClientValidationError: 'MALE'/'FEMALE' are
+      // not valid Gender enum values.
+      const results = await getUsersForDiscovery(user1.id, { strictMode: true });
+      expect(Array.isArray(results)).toBe(true);
+      expect(results.length).toBeGreaterThan(0);
+    });
+
+    it('excludes blocked users from discovery', async () => {
+      const { blockUser } = require('./moderationService');
+      const user1 = await createEligibleUser('MAN', ['WOMAN']);
+      const visible = await createEligibleUser('WOMAN', ['MAN']);
+      const blocked = await createEligibleUser('WOMAN', ['MAN']);
+
+      await blockUser(user1.id, blocked.id);
+
+      const results = await getUsersForDiscovery(user1.id);
+      expect(results.some((u) => u.id === visible.id)).toBe(true);
+      expect(results.some((u) => u.id === blocked.id)).toBe(false);
+    });
   });
 });
 

@@ -20,6 +20,10 @@ describe('Integration Tests', () => {
     it('User A likes User B -> User B appears in getWhoLikedMe', async () => {
       const userA = await createDiscoverableUser('MAN', ['WOMAN']);
       const userB = await createDiscoverableUser('WOMAN', ['MAN']);
+      await global.prisma.user.update({
+        where: { id: userB.id },
+        data: { isPremium: true },
+      });
 
       // User A likes User B
       await likeUser(userA.id, userB.id, 'LIKE');
@@ -73,7 +77,7 @@ describe('Integration Tests', () => {
       expect(userBMessages.length).toBe(3);
     });
 
-    it('User A blocks User B -> match deactivated, actions removed', async () => {
+    it('User A blocks User B -> match deactivated, actions kept', async () => {
       const userA = await createDiscoverableUser('MAN', ['WOMAN']);
       const userB = await createDiscoverableUser('WOMAN', ['MAN']);
 
@@ -92,7 +96,7 @@ describe('Integration Tests', () => {
       userAMatches = await getUserMatches(userA.id);
       expect(userAMatches.length).toBe(0);
 
-      // Actions should be removed
+      // Actions are kept so neither user re-enters the other's discovery deck
       const actions = await global.prisma.userAction.findMany({
         where: {
           OR: [
@@ -101,7 +105,13 @@ describe('Integration Tests', () => {
           ],
         },
       });
-      expect(actions.length).toBe(0);
+      expect(actions.length).toBe(2);
+
+      // And discovery must not resurface the blocked pair
+      const userADiscovery = await getUsersForDiscovery(userA.id);
+      expect(userADiscovery.some((u) => u.id === userB.id)).toBe(false);
+      const userBDiscovery = await getUsersForDiscovery(userB.id);
+      expect(userBDiscovery.some((u) => u.id === userA.id)).toBe(false);
     });
   });
 
@@ -222,6 +232,10 @@ describe('Integration Tests', () => {
     it('Blocking removes from who liked me list', async () => {
       const userA = await createDiscoverableUser('MAN', ['WOMAN']);
       const userB = await createDiscoverableUser('WOMAN', ['MAN']);
+      await global.prisma.user.update({
+        where: { id: userA.id },
+        data: { isPremium: true },
+      });
 
       // User B likes User A
       await likeUser(userB.id, userA.id, 'LIKE');
@@ -233,7 +247,7 @@ describe('Integration Tests', () => {
       // User A blocks User B
       await blockUser(userA.id, userB.id);
 
-      // User B should no longer appear (action was deleted)
+      // User B should no longer appear (blocked users are excluded)
       whoLikedMe = await getWhoLikedMe(userA.id);
       expect(whoLikedMe.users.some((u) => u.user.id === userB.id)).toBe(false);
     });
