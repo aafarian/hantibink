@@ -1,12 +1,12 @@
-import Constants from 'expo-constants';
+import * as Updates from 'expo-updates';
 
 // GIPHY API key (same across all environments)
 const giphyApiKey = process.env.EXPO_PUBLIC_GIPHY_API_KEY || '';
 
 const ENV = {
   dev: {
-    apiUrl: process.env.EXPO_PUBLIC_API_URL || 'http://localhost:3000',
-    socketUrl: process.env.EXPO_PUBLIC_SOCKET_URL || 'http://localhost:3000',
+    apiUrl: process.env.EXPO_PUBLIC_API_URL || 'http://localhost:4242',
+    socketUrl: process.env.EXPO_PUBLIC_SOCKET_URL || 'http://localhost:4242',
     giphyApiKey,
   },
   staging: {
@@ -25,22 +25,23 @@ const ENV = {
   },
 };
 
-const getEnvVars = () => {
+export const getEnvVars = () => {
   if (__DEV__) {
     return ENV.dev;
   }
 
-  const releaseChannel = Constants.expoConfig?.releaseChannel;
+  // EAS Update channel (the old Constants.expoConfig.releaseChannel is a
+  // classic-updates field that is always undefined under EAS Update).
+  const channel = Updates.channel;
 
-  if (releaseChannel === 'staging') {
+  if (channel === 'staging') {
     return ENV.staging;
   }
 
-  if (releaseChannel === 'prod') {
-    return ENV.prod;
-  }
-
-  return ENV.dev;
+  // Fail-safe inversion: any non-dev build without a recognized channel talks
+  // to PROD, never to localhost. A misconfigured release hitting production
+  // is recoverable; one hitting localhost is a broken app in users' hands.
+  return ENV.prod;
 };
 
 export default getEnvVars();

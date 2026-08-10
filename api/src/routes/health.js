@@ -5,6 +5,7 @@
 const express = require('express');
 const router = express.Router();
 const { checkDatabaseHealth, getPrismaClient } = require('../config/database');
+const logger = require('../utils/logger');
 
 // Basic health check
 router.get('/', (req, res) => {
@@ -139,6 +140,10 @@ router.get('/app-version', async (req, res) => {
       }
     } catch (error) {
       // Fail open on defaults — a config read must never break the app boot
+      logger.warn(
+        'app-version: AppConfig read failed, serving env/default config:',
+        error.message,
+      );
     }
     appVersionCache = { value: config, fetchedAt: now };
   }

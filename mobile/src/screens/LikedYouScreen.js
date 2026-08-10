@@ -100,8 +100,26 @@ const LikedYouScreen = () => {
             return;
           }
 
-          // Transform the data to match our UI expectations
+          // Transform the data to match our UI expectations.
+          // Free-tier responses withhold profiles entirely (user: null) —
+          // those become placeholder cards keyed by actionId.
           const likes = responseData.map(item => {
+            if (!item.user) {
+              return {
+                id: item.actionId,
+                actionId: item.actionId,
+                isPlaceholder: true,
+                name: 'Someone',
+                age: '',
+                location: '',
+                bio: '',
+                photos: [],
+                mainPhoto: null,
+                isSuperLike: item.actionType === 'SUPER_LIKE',
+                likedAt: item.likedAt,
+                isNew: false,
+              };
+            }
             const likeData = {
               id: item.user.id,
               actionId: item.actionId,

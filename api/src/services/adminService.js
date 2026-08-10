@@ -8,6 +8,7 @@
  *   "showing first N" instead of silently truncating.
  */
 
+const { Prisma } = require('@prisma/client');
 const { getPrismaClient } = require('../config/database');
 const logger = require('../utils/logger');
 const { AppError } = require('../middleware/errorHandler');
@@ -204,6 +205,21 @@ const getUserDetail = async (userId) => {
 };
 
 /**
+ * Best-effort socket eviction after a ban — never fails the mutation.
+ */
+const forceLogoutUser = (userId, io) => {
+  if (!io) {
+    return;
+  }
+  try {
+    io.to(`user:${userId}`).emit('force-logout', { code: 'ACCOUNT_DISABLED' });
+    io.in(`user:${userId}`).disconnectSockets(true);
+  } catch (error) {
+    logger.warn('Could not disconnect banned user sockets:', error.message);
+  }
+};
+
+/**
  * Ban / unban. Banning disconnects live sockets and emits force-logout;
  * authenticateJWT rejects inactive users on the next request either way.
  */
@@ -216,13 +232,8 @@ const setUserActive = async (userId, isActive, adminEmail, io = null) => {
 
   await auditLog(adminEmail, isActive ? 'user.unban' : 'user.ban', 'user', userId);
 
-  if (!isActive && io) {
-    try {
-      io.to(`user:${userId}`).emit('force-logout', { code: 'ACCOUNT_DISABLED' });
-      io.in(`user:${userId}`).disconnectSockets(true);
-    } catch (error) {
-      logger.warn('Could not disconnect banned user sockets:', error.message);
-    }
+  if (!isActive) {
+    forceLogoutUser(userId, io);
   }
 
   return user;
@@ -292,19 +303,34 @@ const reviewReport = async (reportId, { outcome, action = 'NONE', adminNotes = n
   if (!report) {
     throw new AppError('Report not found', 404);
   }
-  if (report.status !== 'PENDING') {
-    throw new AppError('Report has already been reviewed', 409);
-  }
 
-  const updated = await prisma.report.update({
-    where: { id: reportId },
-    data: {
-      status: outcome,
-      reviewedBy: adminEmail,
-      reviewedAt: new Date(),
-      adminNotes,
-    },
-    include: REPORT_INCLUDE,
+  const shouldBan = outcome === 'RESOLVED' && action === 'BAN';
+
+  // The updateMany status guard makes concurrent reviews lose cleanly
+  // instead of overwriting each other, and a failed ban rolls the report
+  // back to PENDING rather than committing a resolution without the ban.
+  const updated = await prisma.$transaction(async (tx) => {
+    const claimed = await tx.report.updateMany({
+      where: { id: reportId, status: 'PENDING' },
+      data: {
+        status: outcome,
+        reviewedBy: adminEmail,
+        reviewedAt: new Date(),
+        adminNotes,
+      },
+    });
+    if (claimed.count === 0) {
+      throw new AppError('Report has already been reviewed', 409);
+    }
+
+    if (shouldBan) {
+      await tx.user.update({
+        where: { id: report.reportedId },
+        data: { isActive: false },
+      });
+    }
+
+    return tx.report.findUnique({ where: { id: reportId }, include: REPORT_INCLUDE });
   });
 
   await auditLog(adminEmail, `report.${outcome.toLowerCase()}`, 'report', reportId, {
@@ -312,8 +338,9 @@ const reviewReport = async (reportId, { outcome, action = 'NONE', adminNotes = n
     adminNotes,
   });
 
-  if (outcome === 'RESOLVED' && action === 'BAN') {
-    await setUserActive(report.reportedId, false, adminEmail, io);
+  if (shouldBan) {
+    await auditLog(adminEmail, 'user.ban', 'user', report.reportedId);
+    forceLogoutUser(report.reportedId, io);
   }
 
   return updated;
@@ -381,10 +408,12 @@ const getAppVersionConfig = async () => {
 
 /**
  * Publish app-version config. Refuses to roll minVersion/latestVersion
- * backwards (a downgrade would nag or brick the whole fleet).
+ * backwards (a downgrade would nag or brick the whole fleet). Omitted
+ * fields keep their current values — a minVersion-only publish must not
+ * silently clear an active force-update policy or its message.
  */
 const updateAppVersionConfig = async (input, adminEmail) => {
-  const { minVersion, latestVersion, forceUpdate = false, updateMessage = null, storeUrls } = input;
+  const { minVersion, latestVersion, forceUpdate, updateMessage, storeUrls } = input;
 
   for (const [label, value] of [
     ['minVersion', minVersion],
@@ -395,37 +424,63 @@ const updateAppVersionConfig = async (input, adminEmail) => {
     }
   }
 
-  const current = await getAppVersionConfig();
-  if (current) {
-    if (minVersion && current.minVersion && compareVersions(minVersion, current.minVersion) < 0) {
-      throw new AppError('Refusing version downgrade of minVersion', 400);
+  // Serializable so two overlapping publishes can't both validate against
+  // the same stale row — the loser aborts (P2034) and retries against the
+  // winner's committed state, keeping the no-downgrade guarantee.
+  const publish = () =>
+    prisma.$transaction(
+      async (tx) => {
+        const row = await tx.appConfig.findUnique({ where: { key: 'app_version' } });
+        const current = row?.value || null;
+
+        if (current) {
+          if (minVersion && current.minVersion && compareVersions(minVersion, current.minVersion) < 0) {
+            throw new AppError('Refusing version downgrade of minVersion', 400);
+          }
+          if (
+            latestVersion &&
+            current.latestVersion &&
+            compareVersions(latestVersion, current.latestVersion) < 0
+          ) {
+            throw new AppError('Refusing version downgrade of latestVersion', 400);
+          }
+        }
+
+        const value = {
+          ...(current || {}),
+          ...(minVersion ? { minVersion } : {}),
+          ...(latestVersion ? { latestVersion } : {}),
+          ...(Object.prototype.hasOwnProperty.call(input, 'forceUpdate')
+            ? { forceUpdate: !!forceUpdate }
+            : {}),
+          ...(Object.prototype.hasOwnProperty.call(input, 'updateMessage')
+            ? { updateMessage }
+            : {}),
+          ...(storeUrls ? { storeUrls } : {}),
+        };
+
+        const saved = await tx.appConfig.upsert({
+          where: { key: 'app_version' },
+          update: { value },
+          create: { key: 'app_version', value },
+        });
+        return saved.value;
+      },
+      { isolationLevel: Prisma.TransactionIsolationLevel.Serializable },
+    );
+
+  let value;
+  try {
+    value = await publish();
+  } catch (error) {
+    if (error.code !== 'P2034') {
+      throw error;
     }
-    if (
-      latestVersion &&
-      current.latestVersion &&
-      compareVersions(latestVersion, current.latestVersion) < 0
-    ) {
-      throw new AppError('Refusing version downgrade of latestVersion', 400);
-    }
+    value = await publish();
   }
 
-  const value = {
-    ...(current || {}),
-    ...(minVersion ? { minVersion } : {}),
-    ...(latestVersion ? { latestVersion } : {}),
-    forceUpdate: !!forceUpdate,
-    updateMessage,
-    ...(storeUrls ? { storeUrls } : {}),
-  };
-
-  const row = await prisma.appConfig.upsert({
-    where: { key: 'app_version' },
-    update: { value },
-    create: { key: 'app_version', value },
-  });
-
   await auditLog(adminEmail, 'config.appVersion.update', 'appConfig', 'app_version', value);
-  return row.value;
+  return value;
 };
 
 const getFlags = async () => {
@@ -465,22 +520,40 @@ const listAudit = async ({ cursor = null, limit = MAX_AUDIT_PAGE } = {}) => {
   return { items, capped: hasMore, nextCursor: hasMore ? items[items.length - 1].id : null };
 };
 
+/**
+ * Adds operation context to unexpected failures before they reach the
+ * route-level handler. Expected AppErrors (404/409/400) pass through
+ * silently — they're outcomes, not diagnostics.
+ */
+const withContext = (operation, fn) => {
+  return async (...args) => {
+    try {
+      return await fn(...args);
+    } catch (error) {
+      if (!(error instanceof AppError)) {
+        logger.error(`Admin ${operation} failed:`, error);
+      }
+      throw error;
+    }
+  };
+};
+
 module.exports = {
   auditLog,
-  getOverview,
-  listUsers,
-  getUserDetail,
-  setUserActive,
-  setUserPremium,
-  verifyUserEmail,
-  deleteUser,
-  listReports,
-  reviewReport,
-  listWaitlist,
-  exportWaitlistCsv,
-  getAppVersionConfig,
-  updateAppVersionConfig,
-  getFlags,
-  updateFlags,
-  listAudit,
+  getOverview: withContext('overview read', getOverview),
+  listUsers: withContext('user list', listUsers),
+  getUserDetail: withContext('user detail read', getUserDetail),
+  setUserActive: withContext('user ban/unban', setUserActive),
+  setUserPremium: withContext('premium update', setUserPremium),
+  verifyUserEmail: withContext('email verify', verifyUserEmail),
+  deleteUser: withContext('user delete', deleteUser),
+  listReports: withContext('report list', listReports),
+  reviewReport: withContext('report review', reviewReport),
+  listWaitlist: withContext('waitlist list', listWaitlist),
+  exportWaitlistCsv: withContext('waitlist export', exportWaitlistCsv),
+  getAppVersionConfig: withContext('app-version read', getAppVersionConfig),
+  updateAppVersionConfig: withContext('app-version publish', updateAppVersionConfig),
+  getFlags: withContext('flags read', getFlags),
+  updateFlags: withContext('flags update', updateFlags),
+  listAudit: withContext('audit list', listAudit),
 };

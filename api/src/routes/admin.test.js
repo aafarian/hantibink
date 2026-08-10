@@ -274,6 +274,39 @@ describe('Admin Routes', () => {
         .send({ latestVersion: 'not-a-version' });
       expect(junk.status).toBe(400);
     });
+
+    it('partial publishes preserve omitted force-update fields', async () => {
+      const adminUser = await createAdmin();
+
+      await request(app)
+        .put('/admin/config/app-version')
+        .set('Authorization', adminUser.authHeader)
+        .send({
+          minVersion: '1.1.0',
+          latestVersion: '1.2.0',
+          forceUpdate: true,
+          updateMessage: 'Please update',
+        });
+
+      const partial = await request(app)
+        .put('/admin/config/app-version')
+        .set('Authorization', adminUser.authHeader)
+        .send({ latestVersion: '1.3.0' });
+      expect(partial.status).toBe(200);
+      expect(partial.body.data.forceUpdate).toBe(true);
+      expect(partial.body.data.updateMessage).toBe('Please update');
+      expect(partial.body.data.minVersion).toBe('1.1.0');
+      expect(partial.body.data.latestVersion).toBe('1.3.0');
+
+      const cleared = await request(app)
+        .put('/admin/config/app-version')
+        .set('Authorization', adminUser.authHeader)
+        .send({ forceUpdate: false, updateMessage: null });
+      expect(cleared.status).toBe(200);
+      expect(cleared.body.data.forceUpdate).toBe(false);
+      expect(cleared.body.data.updateMessage).toBeNull();
+      expect(cleared.body.data.latestVersion).toBe('1.3.0');
+    });
   });
 
   describe('flags', () => {
