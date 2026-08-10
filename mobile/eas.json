@@ -23,7 +23,8 @@
         "NODE_ENV": "production",
         "EXPO_PUBLIC_BUILD_PROFILE": "preview",
         "EXPO_PUBLIC_API_URL": "https://hantibink-api-393816901275.us-central1.run.app",
-        "EXPO_PUBLIC_SOCKET_URL": "wss://hantibink-api-393816901275.us-central1.run.app"
+        "EXPO_PUBLIC_SOCKET_URL": "wss://hantibink-api-393816901275.us-central1.run.app",
+        "EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID": "393816901275-nbrrdv2t3smdc0dq62chnuf7gjv3jkbm.apps.googleusercontent.com"
       },
       "ios": {
         "resourceClass": "m-medium"
@@ -40,7 +41,8 @@
         "NODE_ENV": "production",
         "EXPO_PUBLIC_BUILD_PROFILE": "production",
         "EXPO_PUBLIC_API_URL": "https://hantibink-api-393816901275.us-central1.run.app",
-        "EXPO_PUBLIC_SOCKET_URL": "wss://hantibink-api-393816901275.us-central1.run.app"
+        "EXPO_PUBLIC_SOCKET_URL": "wss://hantibink-api-393816901275.us-central1.run.app",
+        "EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID": "393816901275-nbrrdv2t3smdc0dq62chnuf7gjv3jkbm.apps.googleusercontent.com"
       },
       "ios": {
         "resourceClass": "m-medium"
