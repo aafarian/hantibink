@@ -74,40 +74,37 @@ router.post('/revenuecat', async (req, res) => {
       return res.json({ received: true });
     }
 
-    // RC retries and redelivers, so arrival order isn't event order. Writes
-    // below only apply when the event is newer than the last one recorded on
-    // the user (rcLastEventAt) — or shares its timestamp but is a different
-    // event (rcLastEventId tie-break; only a matching id is a duplicate).
-    // The condition lives in the UPDATE itself, so stale/duplicate
+    // RC retries and redelivers, so arrival order isn't event order. The
+    // guards below make the outcome delivery-order-independent:
+    // - grants apply when newer than the last recorded event, or at an
+    //   equal timestamp with a different event id (grants win ties — the
+    //   renewal-boundary shape), but NEVER when their own entitlement
+    //   window has already closed (expiration_at_ms in the past)
+    // - EXPIRATION applies only when strictly newer; at an equal timestamp
+    //   the grant wins, and a matching timestamp+id is a duplicate
+    // Every condition lives in the UPDATE itself, so stale/duplicate
     // deliveries are atomic no-ops.
     const eventAtMs = Number(event.event_timestamp_ms);
     const eventAt = Number.isFinite(eventAtMs) && eventAtMs > 0 ? new Date(eventAtMs) : null;
     const eventId = typeof event.id === 'string' && event.id ? event.id : null;
+    const expiresAtMs = Number(event.expiration_at_ms);
+    const expiresAt =
+      Number.isFinite(expiresAtMs) && expiresAtMs > 0 ? new Date(expiresAtMs) : null;
 
     if (GRANTS_PREMIUM.has(event.type)) {
       // Atomic flag + accrual clock + day-one Super Like bank
-      const applied = await activatePremium(userId, eventAt, eventId);
+      const applied = await activatePremium(userId, eventAt, eventId, expiresAt);
       if (applied) {
         logger.info(`💎 Premium activated for ${userId} (${event.type}, ${event.product_id})`);
       } else {
-        logger.info(`RevenueCat ${event.type} for ${userId} is stale — ignored`);
+        logger.info(`RevenueCat ${event.type} for ${userId} is stale or already expired — ignored`);
       }
     } else if (event.type === 'EXPIRATION') {
       const { count } = await prisma.user.updateMany({
         where: {
           id: userId,
           ...(eventAt
-            ? {
-                OR: [
-                  { rcLastEventAt: null },
-                  { rcLastEventAt: { lt: eventAt } },
-                  // same millisecond but a different event id: a distinct
-                  // transition, not a duplicate (Prisma `not` excludes null)
-                  ...(eventId
-                    ? [{ rcLastEventAt: eventAt, rcLastEventId: { not: eventId } }]
-                    : []),
-                ],
-              }
+            ? { OR: [{ rcLastEventAt: null }, { rcLastEventAt: { lt: eventAt } }] }
             : {}),
         },
         data: {

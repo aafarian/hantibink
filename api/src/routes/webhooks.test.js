@@ -189,18 +189,28 @@ describe('RevenueCat webhook', () => {
     expect(afterSecond.rcLastEventAt).toEqual(afterFirst.rcLastEventAt);
   });
 
-  it('applies a distinct EXPIRATION that shares a timestamp with the prior grant', async () => {
+  it('lets the grant win an equal-timestamp tie regardless of arrival order', async () => {
+    // Renewal boundary: old period's EXPIRATION and the new grant can share
+    // a millisecond. Whichever arrives second, premium must survive.
     const user = await userFactory.create(global.prisma, { isPremium: false });
     const at = Date.parse('2026-08-01T00:00:00Z');
+    const futureExpiry = Date.now() + 30 * 24 * 60 * 60 * 1000;
 
     await request(app)
       .post('/webhooks/revenuecat')
       .set('Authorization', SECRET)
-      .send(rcEvent({ id: 'evt-grant', app_user_id: user.id, event_timestamp_ms: at }));
+      .send(
+        rcEvent({
+          id: 'evt-grant',
+          app_user_id: user.id,
+          event_timestamp_ms: at,
+          expiration_at_ms: futureExpiry,
+        }),
+      );
     let fresh = await global.prisma.user.findUnique({ where: { id: user.id } });
     expect(fresh.isPremium).toBe(true);
 
-    // Same millisecond, different event id — a real transition, not a dupe
+    // Same millisecond, different id, arriving AFTER the grant — refused
     await request(app)
       .post('/webhooks/revenuecat')
       .set('Authorization', SECRET)
@@ -213,7 +223,7 @@ describe('RevenueCat webhook', () => {
         }),
       );
     fresh = await global.prisma.user.findUnique({ where: { id: user.id } });
-    expect(fresh.isPremium).toBe(false);
+    expect(fresh.isPremium).toBe(true);
   });
 
   it('applies a distinct grant that shares a timestamp with the prior EXPIRATION', async () => {
@@ -240,6 +250,29 @@ describe('RevenueCat webhook', () => {
       .send(rcEvent({ id: 'evt-repurchase', app_user_id: user.id, event_timestamp_ms: at }));
     fresh = await global.prisma.user.findUnique({ where: { id: user.id } });
     expect(fresh.isPremium).toBe(true);
+  });
+
+  it('refuses a grant whose entitlement window has already closed', async () => {
+    // A redelivered stale purchase — even one that looks "newest" by
+    // timestamp — must never re-open unpaid access once its own
+    // expiration has passed.
+    const user = await userFactory.create(global.prisma, { isPremium: false });
+
+    const response = await request(app)
+      .post('/webhooks/revenuecat')
+      .set('Authorization', SECRET)
+      .send(
+        rcEvent({
+          id: 'evt-stale-grant',
+          app_user_id: user.id,
+          event_timestamp_ms: Date.now(),
+          expiration_at_ms: Date.parse('2026-08-01T00:00:00Z'),
+        }),
+      );
+
+    expect(response.status).toBe(200);
+    const fresh = await global.prisma.user.findUnique({ where: { id: user.id } });
+    expect(fresh.isPremium).toBe(false);
   });
 
   it('ignores non-entitlement events like CANCELLATION', async () => {
