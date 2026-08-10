@@ -384,6 +384,10 @@ class SocketService {
    * Disconnect from WebSocket server
    */
   disconnect() {
+    // Room intent must not survive logout — a next account would replay
+    // the previous account's joins (FORBIDDEN errors, wasted queries)
+    this.joinedMatchRooms.clear();
+
     // Stop heartbeat
     this.stopHeartbeat();
 

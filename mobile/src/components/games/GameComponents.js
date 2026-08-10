@@ -165,6 +165,9 @@ export const TwoTruthsComposer = ({ visible, onClose, onSubmit }) => {
                 await onSubmit({ statements: statements.map(s => s.trim()), lieIndex });
                 setStatements(['', '', '']);
                 setLieIndex(null);
+              } catch {
+                // Error already surfaced by the submit handler; keep the
+                // draft so the user can retry
               } finally {
                 setSubmitting(false);
               }
@@ -231,6 +234,9 @@ export const RouletteComposer = ({ visible, question, onClose, onSubmit }) => {
               try {
                 await onSubmit(draft.trim());
                 setDraft('');
+              } catch {
+                // Error already surfaced by the submit handler; keep the
+                // draft so the user can retry
               } finally {
                 setSubmitting(false);
               }
@@ -379,17 +385,25 @@ const PanelInner = ({
   instantDismiss,
 }) => {
   // One in-flight move at a time: instant haptic + selected state, siblings
-  // disabled, spinner row until the authoritative snapshot lands
+  // disabled, spinner row until the authoritative snapshot lands. The ref is
+  // the actual lock — state alone reads stale from the render closure, so a
+  // fast double-tap before React commits could slip through it.
   const [pendingMove, setPendingMove] = useState(null);
+  const pendingRef = React.useRef(false);
   const guardedMove = async payload => {
-    if (pendingMove) {
+    if (pendingRef.current) {
       return;
     }
+    pendingRef.current = true;
     Haptics.selectionAsync();
     setPendingMove(payload);
     try {
       await onMove?.(payload);
+    } catch {
+      // Errors are surfaced by the handler itself (toast + refetch) — this
+      // catch only stops the rejection from escaping the event handler
     } finally {
+      pendingRef.current = false;
       setPendingMove(null);
     }
   };
