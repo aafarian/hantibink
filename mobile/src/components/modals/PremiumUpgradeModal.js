@@ -8,12 +8,18 @@ import {
   Pressable,
   Animated,
   ActivityIndicator,
+  ScrollView,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuth } from '../../contexts/AuthContext';
 import { useToast } from '../../contexts/ToastContext';
-import { getPremiumPackages, purchasePremium, restorePurchases } from '../../utils/purchases';
+import {
+  getPremiumPackages,
+  purchasePremium,
+  restorePurchases,
+  isPurchasesReady,
+} from '../../utils/purchases';
 import { theme } from '../../styles/theme';
 
 const PACKAGE_LABELS = {
@@ -67,10 +73,14 @@ const PremiumUpgradeModal = ({ visible, onClose, onUpgrade }) => {
   const insets = useSafeAreaInsets();
   const overlayOpacity = useRef(new Animated.Value(0)).current;
   const { refreshUserProfile } = useAuth();
-  const { showSuccess, showError } = useToast();
+  const { showSuccess } = useToast();
   const [packages, setPackages] = useState([]);
   const [buying, setBuying] = useState(null);
   const [restoring, setRestoring] = useState(false);
+  const [comingSoon, setComingSoon] = useState(false);
+  // In-modal feedback line: toasts render beneath native modals, so any
+  // message that must be read while the modal is open lands here instead
+  const [notice, setNotice] = useState(null);
 
   // Live prices from RevenueCat; empty in builds without an RC key, where
   // the legacy single CTA renders instead
@@ -86,6 +96,7 @@ const PremiumUpgradeModal = ({ visible, onClose, onUpgrade }) => {
         return;
       }
       setBuying(pkg.identifier);
+      setNotice(null);
       try {
         const result = await purchasePremium(pkg);
         if (result.success && result.active) {
@@ -94,13 +105,13 @@ const PremiumUpgradeModal = ({ visible, onClose, onUpgrade }) => {
           showSuccess('Premium is active. Enjoy!');
           onClose?.();
         } else if (!result.cancelled) {
-          showError(result.message || 'Purchase failed. You were not charged.');
+          setNotice(result.message || 'Purchase failed. You were not charged.');
         }
       } finally {
         setBuying(null);
       }
     },
-    [buying, refreshUserProfile, showSuccess, showError, onClose]
+    [buying, refreshUserProfile, showSuccess, onClose]
   );
 
   const handleRestore = useCallback(async () => {
@@ -108,6 +119,7 @@ const PremiumUpgradeModal = ({ visible, onClose, onUpgrade }) => {
       return;
     }
     setRestoring(true);
+    setNotice(null);
     try {
       const result = await restorePurchases();
       if (result.active) {
@@ -115,12 +127,12 @@ const PremiumUpgradeModal = ({ visible, onClose, onUpgrade }) => {
         showSuccess('Premium restored!');
         onClose?.();
       } else {
-        showError(result.message || 'No previous purchase found for this account.');
+        setNotice(result.message || 'No previous purchase found for this account.');
       }
     } finally {
       setRestoring(false);
     }
-  }, [restoring, refreshUserProfile, showSuccess, showError, onClose]);
+  }, [restoring, refreshUserProfile, showSuccess, onClose]);
 
   useEffect(() => {
     if (visible) {
@@ -133,12 +145,21 @@ const PremiumUpgradeModal = ({ visible, onClose, onUpgrade }) => {
       }).start();
     } else {
       overlayOpacity.setValue(0);
+      setComingSoon(false);
+      setNotice(null);
     }
   }, [visible, overlayOpacity]);
 
   const handleUpgrade = () => {
-    onUpgrade?.();
-    onClose();
+    if (onUpgrade) {
+      onUpgrade();
+      onClose();
+      return;
+    }
+    // Keyless build (no RevenueCat key baked in): no purchase can start
+    // here. Feedback must render INSIDE the modal — native modals sit
+    // above the toast host, so a toast would be invisible.
+    setComingSoon(true);
   };
 
   return (
@@ -156,76 +177,97 @@ const PremiumUpgradeModal = ({ visible, onClose, onUpgrade }) => {
             <Ionicons name="close" size={24} color={theme.colors.text.secondary} />
           </TouchableOpacity>
 
-          {/* Header */}
-          <View style={styles.header}>
-            <View style={styles.premiumBadge}>
-              <Ionicons name="diamond" size={32} color={theme.colors.premium} />
-            </View>
-            <Text style={styles.title}>Upgrade to Premium</Text>
-            <Text style={styles.subtitle}>Get the most out of your experience</Text>
-          </View>
-
-          {/* Features list */}
-          <View style={styles.featuresContainer}>
-            {PREMIUM_FEATURES.map((feature, index) => (
-              <View key={index} style={styles.featureRow}>
-                <View
-                  style={[
-                    styles.featureIconContainer,
-                    { backgroundColor: `${feature.iconColor}15` },
-                  ]}
-                >
-                  <Ionicons name={feature.icon} size={22} color={feature.iconColor} />
-                </View>
-                <View style={styles.featureTextContainer}>
-                  <Text style={styles.featureTitle}>{feature.title}</Text>
-                  <Text style={styles.featureDescription}>{feature.description}</Text>
-                </View>
+          {/* Scrollable body: header, features, and purchase options. The
+              restore and dismiss actions stay OUTSIDE the scroll so they
+              remain reachable on short screens and with enlarged text. */}
+          <ScrollView style={styles.scrollArea} showsVerticalScrollIndicator={false}>
+            {/* Header */}
+            <View style={styles.header}>
+              <View style={styles.premiumBadge}>
+                <Ionicons name="diamond" size={32} color={theme.colors.premium} />
               </View>
-            ))}
-          </View>
+              <Text style={styles.title}>Upgrade to Premium</Text>
+              <Text style={styles.subtitle}>Get the most out of your experience</Text>
+            </View>
 
-          {/* Purchase options (live store prices) or the legacy CTA when
-              this build has no RevenueCat key */}
-          {packages.length > 0 ? (
-            <View style={styles.packagesRow}>
-              {packages.map(pkg => (
-                <TouchableOpacity
-                  key={pkg.identifier}
-                  style={[styles.packageOption, buying === pkg.identifier && styles.packageBuying]}
-                  disabled={!!buying}
-                  onPress={() => handlePurchase(pkg)}
-                  activeOpacity={0.8}
-                >
-                  {buying === pkg.identifier ? (
-                    <ActivityIndicator size="small" color={theme.colors.premium} />
-                  ) : (
-                    <>
-                      <Text style={styles.packageLabel}>
-                        {PACKAGE_LABELS[pkg.packageType] || pkg.packageType}
-                      </Text>
-                      <Text style={styles.packagePrice}>{pkg.product.priceString}</Text>
-                    </>
-                  )}
-                </TouchableOpacity>
+            {/* Features list */}
+            <View style={styles.featuresContainer}>
+              {PREMIUM_FEATURES.map((feature, index) => (
+                <View key={index} style={styles.featureRow}>
+                  <View
+                    style={[
+                      styles.featureIconContainer,
+                      { backgroundColor: `${feature.iconColor}15` },
+                    ]}
+                  >
+                    <Ionicons name={feature.icon} size={22} color={feature.iconColor} />
+                  </View>
+                  <View style={styles.featureTextContainer}>
+                    <Text style={styles.featureTitle}>{feature.title}</Text>
+                    <Text style={styles.featureDescription}>{feature.description}</Text>
+                  </View>
+                </View>
               ))}
             </View>
-          ) : (
+
+            {/* Purchase options (live store prices) or the legacy CTA when
+              this build has no RevenueCat key */}
+            {packages.length > 0 ? (
+              <View style={styles.packagesRow}>
+                {packages.map(pkg => (
+                  <TouchableOpacity
+                    key={pkg.identifier}
+                    style={[
+                      styles.packageOption,
+                      buying === pkg.identifier && styles.packageBuying,
+                    ]}
+                    disabled={!!buying}
+                    onPress={() => handlePurchase(pkg)}
+                    activeOpacity={0.8}
+                  >
+                    {buying === pkg.identifier ? (
+                      <ActivityIndicator size="small" color={theme.colors.premium} />
+                    ) : (
+                      <>
+                        <Text style={styles.packageLabel}>
+                          {PACKAGE_LABELS[pkg.packageType] || pkg.packageType}
+                        </Text>
+                        <Text style={styles.packagePrice}>{pkg.product.priceString}</Text>
+                      </>
+                    )}
+                  </TouchableOpacity>
+                ))}
+              </View>
+            ) : (
+              <TouchableOpacity
+                style={[styles.upgradeButton, comingSoon && styles.upgradeButtonDisabled]}
+                onPress={handleUpgrade}
+                activeOpacity={0.8}
+                disabled={comingSoon}
+              >
+                <Text style={styles.upgradeButtonText}>
+                  {comingSoon ? 'Purchases coming soon' : 'Get Premium'}
+                </Text>
+              </TouchableOpacity>
+            )}
+          </ScrollView>
+
+          {/* In-modal feedback (purchase/restore failures) */}
+          {notice && <Text style={styles.noticeText}>{notice}</Text>}
+
+          {/* App Store requires a visible restore path wherever purchases
+              can happen; keyless builds have neither, so no dead control */}
+          {isPurchasesReady() && (
             <TouchableOpacity
-              style={styles.upgradeButton}
-              onPress={handleUpgrade}
-              activeOpacity={0.8}
+              style={styles.laterButton}
+              onPress={handleRestore}
+              disabled={restoring}
             >
-              <Text style={styles.upgradeButtonText}>Get Premium</Text>
+              <Text style={styles.laterButtonText}>
+                {restoring ? 'Restoring…' : 'Restore Purchases'}
+              </Text>
             </TouchableOpacity>
           )}
-
-          {/* App Store requires a visible restore path */}
-          <TouchableOpacity style={styles.laterButton} onPress={handleRestore} disabled={restoring}>
-            <Text style={styles.laterButtonText}>
-              {restoring ? 'Restoring…' : 'Restore Purchases'}
-            </Text>
-          </TouchableOpacity>
 
           {/* Secondary action */}
           <TouchableOpacity style={styles.laterButton} onPress={onClose}>
@@ -255,6 +297,10 @@ const styles = StyleSheet.create({
     borderTopRightRadius: theme.borderRadius.xxl,
     paddingTop: theme.spacing.xl,
     paddingHorizontal: theme.spacing.xl,
+    maxHeight: '88%',
+  },
+  scrollArea: {
+    flexShrink: 1,
   },
   closeIcon: {
     position: 'absolute',
@@ -371,6 +417,16 @@ const styles = StyleSheet.create({
     color: theme.colors.text.muted,
     fontSize: theme.typography.sizes.md,
     fontFamily: theme.typography.fontFamily.regular,
+  },
+  upgradeButtonDisabled: {
+    opacity: 0.65,
+  },
+  noticeText: {
+    marginTop: theme.spacing.sm,
+    textAlign: 'center',
+    color: theme.colors.text.secondary,
+    fontSize: theme.typography.sizes.sm,
+    fontFamily: theme.typography.fontFamily.bodyMedium,
   },
 });
 

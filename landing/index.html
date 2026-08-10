@@ -1,0 +1,604 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>hantibink — Let's meet</title>
+<meta name="description" content="Hantibink (Հանդիպինք) is the dating app for Armenians everywhere. Icebreaker games, voice messages, real conversations, and language filters down to the dialect. Coming soon to iOS and Android.">
+<meta property="og:title" content="hantibink — Let's meet">
+<meta property="og:description" content="The dating app for Armenians everywhere. Join the waitlist and be first to know when we launch.">
+<meta property="og:type" content="website">
+<meta property="og:url" content="https://hantibink.com">
+<meta property="og:image" content="https://hantibink-landing.pages.dev/icon-512.png">
+<meta name="theme-color" content="#081420">
+<link rel="icon" type="image/png" href="/favicon.png">
+<link rel="apple-touch-icon" href="/apple-touch-icon.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Outfit:wght@500;600;700;800&family=DM+Sans:opsz,wght@9..40,400;9..40,500;9..40,600&family=Noto+Sans+Armenian:wght@600;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #081420;
+    --bg-2: #0D2431;
+    --cream: #FDF2E0;
+    --body: rgba(253, 242, 224, 0.62);
+    --muted: rgba(253, 242, 224, 0.38);
+    --line: rgba(253, 242, 224, 0.09);
+    --glass: rgba(253, 242, 224, 0.045);
+    --red: #E03926;
+    --red-hot: #FF5A47;
+    --blue: #2D62C4;
+    --blue-deep: #013B6D;
+    --orange: #F17D21;
+    --gold: #F59E0B;
+    --success: #34D399;
+    --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html { scroll-behavior: smooth; }
+  body {
+    font-family: 'DM Sans', system-ui, -apple-system, sans-serif;
+    color: var(--body); background: var(--bg);
+    line-height: 1.65; -webkit-font-smoothing: antialiased;
+    overflow-x: hidden;
+  }
+  h1, h2, h3 { font-family: 'Outfit', system-ui, sans-serif; color: var(--cream); }
+  .armenian { font-family: 'Noto Sans Armenian', 'DM Sans', system-ui, sans-serif; }
+  img { max-width: 100%; }
+  .container { max-width: 1120px; margin: 0 auto; padding: 0 24px; }
+  .tricolor { height: 3px; background: linear-gradient(90deg, var(--red) 0 33.4%, var(--blue) 33.4% 66.7%, var(--orange) 66.7% 100%); }
+
+  /* Inline icon system */
+  .ic {
+    display: inline-block; vertical-align: middle; flex: none;
+    stroke: currentColor; fill: none; stroke-width: 2;
+    stroke-linecap: round; stroke-linejoin: round;
+    width: 16px; height: 16px;
+  }
+
+  /* ---------- Buttons ---------- */
+  .btn {
+    display: inline-block; font: 600 15.5px 'Outfit', sans-serif; color: #fff;
+    background: linear-gradient(135deg, var(--red), var(--orange));
+    border: none; border-radius: 999px; padding: 12px 24px; cursor: pointer;
+    text-decoration: none; white-space: nowrap;
+    box-shadow: 0 8px 28px rgba(224, 57, 38, 0.32);
+    transition: transform 0.18s var(--ease-out), box-shadow 0.25s, filter 0.2s;
+  }
+  .btn:hover { transform: translateY(-2px); box-shadow: 0 12px 36px rgba(224, 57, 38, 0.45); filter: brightness(1.06); }
+  .btn:active { transform: translateY(0) scale(0.98); }
+
+  /* ---------- Nav ---------- */
+  .nav-wrap {
+    position: sticky; top: 0; z-index: 50;
+    background: rgba(8, 20, 32, 0.72);
+    backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px);
+    border-bottom: 1px solid var(--line);
+  }
+  .nav { display: flex; align-items: center; justify-content: space-between; padding: 14px 0; }
+  .brand { display: flex; align-items: center; gap: 11px; text-decoration: none; }
+  .brand img { width: 34px; height: 34px; border-radius: 9px; }
+  .brand span { font: 700 21px 'Outfit', sans-serif; color: var(--cream); letter-spacing: -0.02em; }
+
+  /* ---------- Hero ---------- */
+  .hero { position: relative; overflow: hidden; text-align: center; padding: 84px 0 92px; }
+  .aurora { position: absolute; inset: 0; pointer-events: none; }
+  .aurora i {
+    position: absolute; border-radius: 50%; filter: blur(90px); opacity: 0.34;
+    animation: drift 16s ease-in-out infinite alternate;
+  }
+  .aurora i:nth-child(1) { width: 560px; height: 560px; background: var(--red); top: -260px; left: -140px; }
+  .aurora i:nth-child(2) { width: 520px; height: 520px; background: var(--blue-deep); top: -180px; right: -160px; animation-delay: -5s; opacity: 0.5; }
+  .aurora i:nth-child(3) { width: 460px; height: 460px; background: var(--orange); bottom: -300px; left: 32%; animation-delay: -10s; opacity: 0.22; }
+  @keyframes drift {
+    from { transform: translate(0, 0) scale(1); }
+    to   { transform: translate(60px, 40px) scale(1.12); }
+  }
+  .hero .container { position: relative; }
+  .hero-icon {
+    width: 96px; height: 96px; border-radius: 25px; margin-bottom: 30px;
+    box-shadow: 0 18px 50px rgba(0, 0, 0, 0.5), 0 0 90px rgba(224, 57, 38, 0.18);
+    animation: float 6s ease-in-out infinite;
+  }
+  @keyframes float { 0%, 100% { transform: translateY(0) rotate(0deg); } 50% { transform: translateY(-10px) rotate(1.2deg); } }
+  .eyebrow {
+    display: inline-flex; align-items: center; gap: 8px;
+    font-size: 14px; font-weight: 600; color: var(--cream);
+    background: var(--glass); border: 1px solid var(--line);
+    border-radius: 999px; padding: 7px 18px; margin-bottom: 28px;
+  }
+  .eyebrow .armenian { color: var(--orange); }
+  .hero h1 {
+    font-size: clamp(42px, 7vw, 74px); font-weight: 800; line-height: 1.03;
+    letter-spacing: -0.035em; max-width: 840px; margin: 0 auto 22px;
+  }
+  .grad {
+    background: linear-gradient(92deg, var(--red-hot), var(--orange));
+    -webkit-background-clip: text; background-clip: text; color: transparent;
+  }
+  .hero .sub { font-size: clamp(17px, 2.2vw, 20px); max-width: 620px; margin: 0 auto 44px; }
+
+  .stage > * { opacity: 0; transform: translateY(24px); animation: rise 0.9s var(--ease-out) forwards; }
+  .stage > *:nth-child(1) { animation-delay: 0.05s; }
+  .stage > *:nth-child(2) { animation-delay: 0.16s; }
+  .stage > *:nth-child(3) { animation-delay: 0.27s; }
+  .stage > *:nth-child(4) { animation-delay: 0.38s; }
+  .stage > *:nth-child(5) { animation-delay: 0.49s; }
+  @keyframes rise { to { opacity: 1; transform: none; } }
+
+  /* ---------- Waitlist form ---------- */
+  .waitlist { max-width: 580px; margin: 0 auto; scroll-margin-top: 96px; }
+  .form-card {
+    position: relative;
+    background: var(--glass); border: 1px solid var(--line); border-radius: 20px;
+    padding: 12px; display: flex; gap: 10px;
+    backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px);
+  }
+  .form-card input {
+    flex: 1; min-width: 0;
+    font: 500 16px 'DM Sans', system-ui, sans-serif; color: var(--cream);
+    padding: 13px 16px; border: 1.5px solid transparent; border-radius: 12px;
+    background: rgba(253, 242, 224, 0.07); outline: none;
+    transition: border-color 0.2s, background 0.2s, box-shadow 0.2s;
+  }
+  .form-card input::placeholder { color: var(--muted); }
+  .form-card input:focus { background: rgba(253,242,224,0.1); border-color: var(--orange); box-shadow: 0 0 0 4px rgba(241, 125, 33, 0.15); }
+  .form-card .btn { border-radius: 12px; padding: 13px 24px; font-size: 16px; }
+  .hp { position: absolute; left: -9999px; width: 1px; height: 1px; opacity: 0; }
+  .form-note { font-size: 13.5px; color: var(--muted); margin-top: 14px; }
+  .form-msg { display: none; margin-top: 16px; padding: 13px 18px; border-radius: 12px; font-size: 15px; font-weight: 500; text-align: left; }
+  .form-msg.ok { display: block; background: rgba(52, 211, 153, 0.12); color: var(--success); border: 1px solid rgba(52, 211, 153, 0.25); }
+  .form-msg.err { display: block; background: rgba(224, 57, 38, 0.12); color: var(--red-hot); border: 1px solid rgba(224, 57, 38, 0.3); }
+
+  /* ---------- Ticker ---------- */
+  .ticker {
+    border-block: 1px solid var(--line); padding: 18px 0; overflow: hidden;
+    -webkit-mask-image: linear-gradient(90deg, transparent, #000 10%, #000 90%, transparent);
+    mask-image: linear-gradient(90deg, transparent, #000 10%, #000 90%, transparent);
+  }
+  .ticker-track { display: flex; gap: 12px; width: max-content; animation: scroll 30s linear infinite; }
+  .ticker:hover .ticker-track { animation-play-state: paused; }
+  @keyframes scroll { to { transform: translateX(-50%); } }
+  .chip {
+    display: inline-flex; align-items: center; gap: 9px; white-space: nowrap;
+    font: 500 14px 'DM Sans', sans-serif; color: var(--body);
+    background: var(--glass); border: 1px solid var(--line); border-radius: 999px; padding: 8px 16px;
+  }
+  .chip .ic { width: 14px; height: 14px; color: var(--orange); }
+
+  /* ---------- Sections ---------- */
+  section .kicker {
+    display: inline-block; font: 600 12.5px 'Outfit', sans-serif; letter-spacing: 0.1em;
+    text-transform: uppercase; border-radius: 999px; padding: 6px 14px; margin-bottom: 18px;
+  }
+  .k-orange { color: var(--orange); background: rgba(241, 125, 33, 0.1); border: 1px solid rgba(241, 125, 33, 0.25); }
+  .k-blue { color: #7FA7E8; background: rgba(45, 98, 196, 0.12); border: 1px solid rgba(45, 98, 196, 0.35); }
+  .k-gold { color: var(--gold); background: rgba(245, 158, 11, 0.1); border: 1px solid rgba(245, 158, 11, 0.3); }
+  h2 { font-size: clamp(30px, 4.4vw, 44px); font-weight: 700; letter-spacing: -0.025em; line-height: 1.1; }
+
+  .reveal { opacity: 0; transform: translateY(26px); transition: opacity 0.8s var(--ease-out), transform 0.8s var(--ease-out); }
+  .reveal.in { opacity: 1; transform: none; }
+  .reveal.d1 { transition-delay: 0.08s; } .reveal.d2 { transition-delay: 0.16s; }
+  .reveal.d3 { transition-delay: 0.24s; } .reveal.d4 { transition-delay: 0.32s; } .reveal.d5 { transition-delay: 0.4s; }
+
+  /* ---------- Chat demo ---------- */
+  .demo { padding: 100px 0; position: relative; overflow: hidden; }
+  .demo::before {
+    content: ''; position: absolute; width: 620px; height: 620px; border-radius: 50%;
+    background: var(--blue-deep); filter: blur(120px); opacity: 0.35; right: -240px; top: 10%;
+    pointer-events: none;
+  }
+  .demo-grid { display: grid; grid-template-columns: 1.05fr 1fr; gap: 64px; align-items: center; position: relative; }
+  .demo h2 { margin-bottom: 16px; }
+  .demo .copy p { font-size: 17px; margin-bottom: 14px; }
+  .demo .copy strong { color: var(--cream); font-weight: 600; }
+  .mini-list { list-style: none; margin-top: 22px; display: grid; gap: 12px; }
+  .mini-list li { display: flex; gap: 12px; align-items: flex-start; font-size: 15.5px; }
+  .mini-list .dot {
+    flex: none; width: 28px; height: 28px; border-radius: 9px; display: grid; place-items: center;
+    background: var(--glass); border: 1px solid var(--line); margin-top: 1px; color: var(--orange);
+  }
+  .mini-list .dot .ic { width: 14px; height: 14px; }
+
+  .phone {
+    width: min(340px, 88vw); margin: 0 auto; position: relative;
+    background: linear-gradient(180deg, #10293A, var(--bg-2));
+    border: 1px solid rgba(253, 242, 224, 0.12); border-radius: 40px;
+    box-shadow: 0 30px 80px rgba(0, 0, 0, 0.55), 0 0 60px rgba(1, 59, 109, 0.25);
+    padding: 18px 16px 16px;
+  }
+  .phone::before { content: ''; display: block; width: 108px; height: 5px; border-radius: 999px; background: rgba(253,242,224,0.14); margin: 0 auto 14px; }
+  .chat-head { display: flex; align-items: center; gap: 10px; padding: 0 4px 12px; border-bottom: 1px solid var(--line); margin-bottom: 14px; }
+  .chat-head .avatar { width: 36px; height: 36px; border-radius: 50%; background: linear-gradient(135deg, var(--orange), var(--red)); display: grid; place-items: center; color: #fff; font: 700 15px 'Outfit', sans-serif; }
+  .chat-head .who { font: 600 15px 'Outfit', sans-serif; color: var(--cream); line-height: 1.25; }
+  .chat-head .status { font-size: 12px; color: var(--success); display: flex; align-items: center; gap: 5px; }
+  .chat-head .status::before { content: ''; width: 7px; height: 7px; border-radius: 50%; background: var(--success); box-shadow: 0 0 0 0 rgba(52,211,153,0.5); animation: pulse 2.2s infinite; }
+  @keyframes pulse { 70% { box-shadow: 0 0 0 7px rgba(52, 211, 153, 0); } 100% { box-shadow: 0 0 0 0 rgba(52, 211, 153, 0); } }
+  .chat-head .search { margin-left: auto; color: var(--muted); }
+
+  .seq { opacity: 0; transform: translateY(14px) scale(0.97); transition: opacity 0.5s var(--ease-out), transform 0.5s var(--ease-out); }
+  .in .seq { opacity: 1; transform: none; }
+  .in .s1 { transition-delay: 0.2s; } .in .s2 { transition-delay: 0.75s; }
+  .in .s3 { transition-delay: 1.95s; } .in .s4 { transition-delay: 2.55s; }
+  .in .s5 { transition-delay: 3.15s; }
+
+  .bubble { position: relative; max-width: 84%; padding: 10px 14px; border-radius: 18px; font-size: 14.5px; margin-bottom: 12px; color: var(--cream); }
+  .bubble.them { background: rgba(253, 242, 224, 0.08); border: 1px solid var(--line); border-bottom-left-radius: 6px; }
+  .bubble.me { background: linear-gradient(135deg, var(--red), #C73223); margin-left: auto; border-bottom-right-radius: 6px; box-shadow: 0 4px 14px rgba(224, 57, 38, 0.25); }
+  .receipt { font-size: 11px; color: var(--muted); text-align: right; margin: -6px 4px 12px 0; }
+  .receipt b { color: var(--gold); font-weight: 600; }
+
+  .voice { display: flex; align-items: center; gap: 10px; }
+  .voice .play { flex: none; width: 28px; height: 28px; border-radius: 50%; background: rgba(253,242,224,0.15); display: grid; place-items: center; color: var(--cream); }
+  .voice .play .ic { width: 10px; height: 10px; }
+  .eq { display: flex; align-items: center; gap: 2.5px; height: 22px; }
+  .eq i { width: 3px; border-radius: 2px; background: rgba(253, 242, 224, 0.75); height: 30%; }
+  .in .eq i { animation: eq 1.1s ease-in-out infinite; }
+  .eq i:nth-child(2n) { animation-delay: 0.15s; } .eq i:nth-child(3n) { animation-delay: 0.3s; }
+  .eq i:nth-child(4n) { animation-delay: 0.45s; } .eq i:nth-child(5n) { animation-delay: 0.6s; }
+  @keyframes eq { 0%, 100% { height: 25%; } 50% { height: 95%; } }
+  .voice .len { font-size: 12px; color: rgba(253,242,224,0.6); }
+
+  .react {
+    position: absolute; bottom: -10px; left: 12px;
+    display: inline-flex; align-items: center; gap: 4px;
+    background: var(--bg-2); border: 1px solid var(--line); border-radius: 999px;
+    font-size: 11px; color: var(--cream); padding: 3px 8px;
+    opacity: 0; transform: scale(0.3);
+    transition: opacity 0.4s var(--ease-out), transform 0.5s cubic-bezier(0.34, 1.8, 0.5, 1);
+  }
+  .react .ic { width: 11px; height: 11px; color: var(--red-hot); fill: var(--red-hot); }
+  .in .react { opacity: 1; transform: scale(1); transition-delay: 1.5s; }
+
+  .typing { display: inline-flex; align-items: center; gap: 4px; background: rgba(253,242,224,0.08); border: 1px solid var(--line); border-radius: 18px; border-bottom-left-radius: 6px; padding: 12px 16px; margin-bottom: 4px; }
+  .typing i { width: 6px; height: 6px; border-radius: 50%; background: rgba(253,242,224,0.55); }
+  .in .typing i { animation: bounce 1.2s infinite; }
+  .typing i:nth-child(2) { animation-delay: 0.15s; } .typing i:nth-child(3) { animation-delay: 0.3s; }
+  @keyframes bounce { 0%, 60%, 100% { transform: translateY(0); } 30% { transform: translateY(-5px); } }
+  .typing-label { font-size: 11px; color: var(--muted); margin: 2px 0 0 6px; }
+  .typing-label b { color: var(--gold); font-weight: 600; }
+
+  /* ---------- Bento ---------- */
+  .bento-sec { padding: 100px 0; }
+  .bento-sec .head { text-align: center; max-width: 660px; margin: 0 auto 56px; }
+  .bento-sec .head p { font-size: 17px; margin-top: 14px; }
+  .bento { display: grid; grid-template-columns: repeat(3, 1fr); gap: 18px; }
+  .cell {
+    background: var(--glass); border: 1px solid var(--line); border-radius: 22px; padding: 30px 28px;
+    transition: transform 0.35s var(--ease-out), border-color 0.35s, background 0.35s;
+    position: relative; overflow: hidden;
+  }
+  .cell:hover { transform: translateY(-4px); border-color: rgba(253, 242, 224, 0.2); background: rgba(253, 242, 224, 0.06); }
+  .cell.wide { grid-column: span 2; }
+  .cell h3 { font-size: 19.5px; font-weight: 600; margin-bottom: 8px; letter-spacing: -0.01em; }
+  .cell p { font-size: 15px; }
+  .cell .icon {
+    width: 46px; height: 46px; border-radius: 14px; display: grid; place-items: center;
+    margin-bottom: 18px; border: 1px solid var(--line);
+  }
+  .cell .icon .ic { width: 21px; height: 21px; }
+  .i-red { background: rgba(224, 57, 38, 0.13); color: var(--red-hot); }
+  .i-blue { background: rgba(45, 98, 196, 0.15); color: #7FA7E8; }
+  .i-orange { background: rgba(241, 125, 33, 0.12); color: var(--orange); }
+  .i-green { background: rgba(52, 211, 153, 0.1); color: var(--success); }
+  .i-cream { background: rgba(253, 242, 224, 0.08); color: var(--cream); }
+  .lang-chips { display: flex; gap: 8px; margin-top: 16px; flex-wrap: wrap; }
+  .lang-chips span { font: 600 13px 'DM Sans', sans-serif; color: var(--cream); background: rgba(253,242,224,0.07); border: 1px solid var(--line); border-radius: 999px; padding: 6px 14px; }
+  .lang-chips .hot { border-color: rgba(241, 125, 33, 0.5); color: var(--orange); }
+
+  /* ---------- Premium ---------- */
+  .premium { padding: 20px 0 110px; }
+  .prem-card {
+    position: relative; overflow: hidden;
+    background: linear-gradient(160deg, rgba(245, 158, 11, 0.09), rgba(245, 158, 11, 0.02) 45%, var(--glass));
+    border: 1px solid rgba(245, 158, 11, 0.25); border-radius: 28px;
+    padding: 52px; display: grid; grid-template-columns: 1fr 1fr; gap: 48px; align-items: center;
+  }
+  .prem-card::before {
+    content: ''; position: absolute; width: 420px; height: 420px; border-radius: 50%;
+    background: var(--gold); filter: blur(130px); opacity: 0.14; top: -180px; right: -120px;
+  }
+  .prem-card h2 { margin-bottom: 14px; }
+  .prem-card > div p { font-size: 16.5px; }
+  .prem-list { list-style: none; display: grid; gap: 14px; position: relative; }
+  .prem-list li {
+    display: flex; align-items: center; gap: 14px;
+    background: rgba(8, 20, 32, 0.5); border: 1px solid var(--line); border-radius: 16px; padding: 14px 18px;
+    font-size: 15.5px; color: var(--cream);
+  }
+  .prem-list .pi {
+    flex: none; width: 34px; height: 34px; border-radius: 10px; display: grid; place-items: center;
+    background: rgba(245, 158, 11, 0.12); border: 1px solid rgba(245, 158, 11, 0.3); color: var(--gold);
+  }
+  .prem-list .pi .ic { width: 16px; height: 16px; }
+  .prem-list small { display: block; font-size: 13px; color: var(--body); }
+
+  /* ---------- Closing / Footer ---------- */
+  .closing { text-align: center; padding: 110px 0 100px; position: relative; overflow: hidden; border-top: 1px solid var(--line); }
+  .closing::before {
+    content: 'Հ'; position: absolute; font: 700 520px 'Noto Sans Armenian', serif;
+    color: rgba(253, 242, 224, 0.025); right: -70px; top: -140px; pointer-events: none;
+  }
+  .closing h2 { margin-bottom: 14px; }
+  .closing p { font-size: 17px; margin-bottom: 38px; }
+  .closing .btn { font-size: 16.5px; padding: 15px 34px; }
+  .store-note { margin-top: 28px; font-size: 13.5px; color: var(--muted); }
+  footer { border-top: 1px solid var(--line); padding: 34px 0 44px; }
+  .foot { display: flex; align-items: center; justify-content: space-between; gap: 16px; flex-wrap: wrap; }
+  .foot .left { display: flex; align-items: center; gap: 10px; }
+  .foot img { width: 26px; height: 26px; border-radius: 7px; }
+  .foot .fine { font-size: 13.5px; color: var(--muted); }
+  .foot a { color: var(--body); text-decoration: none; font-size: 14px; transition: color 0.2s; }
+  .foot a:hover { color: var(--orange); }
+  .foot nav { display: flex; gap: 20px; }
+
+  @media (max-width: 920px) {
+    .demo-grid, .prem-card { grid-template-columns: 1fr; gap: 44px; }
+    .demo .copy { text-align: center; }
+    .demo .kicker { margin-inline: auto; }
+    .mini-list { max-width: 420px; margin-inline: auto; text-align: left; }
+    .bento { grid-template-columns: 1fr 1fr; }
+    .cell.wide { grid-column: span 2; }
+    .prem-card { padding: 36px 28px; }
+  }
+  @media (max-width: 640px) {
+    .hero { padding: 56px 0 72px; }
+    .form-card { flex-direction: column; padding: 14px; }
+    .form-card .btn { width: 100%; }
+    .bento { grid-template-columns: 1fr; }
+    .cell.wide { grid-column: span 1; }
+    .foot { justify-content: center; text-align: center; }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    html { scroll-behavior: auto; }
+    .stage > *, .reveal, .seq, .react { opacity: 1 !important; transform: none !important; animation: none !important; transition: none !important; }
+    .hero-icon, .aurora i, .ticker-track, .eq i, .typing i, .chat-head .status::before { animation: none !important; }
+  }
+</style>
+</head>
+<body>
+<svg style="display:none" aria-hidden="true">
+  <symbol id="i-mic" viewBox="0 0 24 24"><path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" x2="12" y1="19" y2="22"/></symbol>
+  <symbol id="i-heart" viewBox="0 0 24 24"><path d="M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.29 1.51 4.04 3 5.5l7 7Z"/></symbol>
+  <symbol id="i-reply" viewBox="0 0 24 24"><polyline points="9 14 4 9 9 4"/><path d="M20 20v-7a4 4 0 0 0-4-4H4"/></symbol>
+  <symbol id="i-search" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></symbol>
+  <symbol id="i-dice" viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="4"/><circle cx="8.5" cy="8.5" r="1" fill="currentColor" stroke="none"/><circle cx="15.5" cy="8.5" r="1" fill="currentColor" stroke="none"/><circle cx="12" cy="12" r="1" fill="currentColor" stroke="none"/><circle cx="8.5" cy="15.5" r="1" fill="currentColor" stroke="none"/><circle cx="15.5" cy="15.5" r="1" fill="currentColor" stroke="none"/></symbol>
+  <symbol id="i-lang" viewBox="0 0 24 24"><path d="m5 8 6 6"/><path d="m4 14 6-6 2-3"/><path d="M2 5h12"/><path d="M7 2h1"/><path d="m22 22-5-10-5 10"/><path d="M14 18h6"/></symbol>
+  <symbol id="i-eye" viewBox="0 0 24 24"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/></symbol>
+  <symbol id="i-zap" viewBox="0 0 24 24"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></symbol>
+  <symbol id="i-clock" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></symbol>
+  <symbol id="i-chat" viewBox="0 0 24 24"><path d="M7.9 20A9 9 0 1 0 4 16.1L2 22Z"/><circle cx="8" cy="12" r="1" fill="currentColor" stroke="none"/><circle cx="12" cy="12" r="1" fill="currentColor" stroke="none"/><circle cx="16" cy="12" r="1" fill="currentColor" stroke="none"/></symbol>
+  <symbol id="i-shield" viewBox="0 0 24 24"><path d="M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1 1 0 0 1 1.52 0C14.5 3.8 17 5 19 5a1 1 0 0 1 1 1z"/></symbol>
+  <symbol id="i-play" viewBox="0 0 24 24"><polygon points="6 3 20 12 6 21 6 3" fill="currentColor" stroke="none"/></symbol>
+</svg>
+
+<div class="tricolor"></div>
+<div class="nav-wrap">
+  <div class="container">
+    <nav class="nav">
+      <a class="brand" href="/">
+        <img src="/favicon.png" alt="" width="34" height="34">
+        <span>hantibink</span>
+      </a>
+      <a class="btn" href="#waitlist">Join the waitlist</a>
+    </nav>
+  </div>
+</div>
+
+<main>
+  <section class="hero">
+    <div class="aurora" aria-hidden="true"><i></i><i></i><i></i></div>
+    <div class="container stage">
+      <img class="hero-icon" src="/icon-512.png" alt="Hantibink app icon" width="96" height="96">
+      <div><span class="eyebrow"><span class="armenian">Հանդիպինք</span>&nbsp;·&nbsp;Armenian for “let's meet”</span></div>
+      <h1>Good conversations<br><span class="grad">lead somewhere.</span></h1>
+      <p class="sub">The dating app built for Armenians everywhere. Icebreaker games, voice messages, and every way to get to know someone. Coming soon to iOS and Android.</p>
+
+      <form class="waitlist" id="waitlist" novalidate>
+        <div class="form-card">
+          <input type="text" name="name" placeholder="First name (optional)" autocomplete="given-name" maxlength="100">
+          <input type="email" name="email" placeholder="you@email.com" autocomplete="email" required maxlength="254">
+          <button type="submit" class="btn" id="submit-btn">Join the waitlist</button>
+        </div>
+        <input class="hp" type="text" name="website" tabindex="-1" autocomplete="off" aria-hidden="true">
+        <p class="form-note">Be first in line at launch. No spam, just the one email that matters.</p>
+        <p class="form-msg" id="form-msg" role="status"></p>
+      </form>
+    </div>
+  </section>
+
+  <div class="ticker" aria-hidden="true">
+    <div class="ticker-track">
+      <span class="chip"><svg class="ic"><use href="#i-mic"/></svg>Voice messages</span><span class="chip"><svg class="ic"><use href="#i-heart"/></svg>Message reactions</span><span class="chip"><svg class="ic"><use href="#i-reply"/></svg>Swipe to reply</span><span class="chip"><svg class="ic"><use href="#i-search"/></svg>Search inside chats</span><span class="chip"><svg class="ic"><use href="#i-dice"/></svg>Four icebreaker games</span><span class="chip"><svg class="ic"><use href="#i-lang"/></svg>Western &amp; Eastern Armenian</span><span class="chip"><svg class="ic"><use href="#i-eye"/></svg>Read receipts</span><span class="chip"><svg class="ic"><use href="#i-zap"/></svg>Online now</span><span class="chip"><svg class="ic"><use href="#i-chat"/></svg>Live typing</span><span class="chip"><svg class="ic"><use href="#i-shield"/></svg>Real moderation</span>
+      <span class="chip"><svg class="ic"><use href="#i-mic"/></svg>Voice messages</span><span class="chip"><svg class="ic"><use href="#i-heart"/></svg>Message reactions</span><span class="chip"><svg class="ic"><use href="#i-reply"/></svg>Swipe to reply</span><span class="chip"><svg class="ic"><use href="#i-search"/></svg>Search inside chats</span><span class="chip"><svg class="ic"><use href="#i-dice"/></svg>Four icebreaker games</span><span class="chip"><svg class="ic"><use href="#i-lang"/></svg>Western &amp; Eastern Armenian</span><span class="chip"><svg class="ic"><use href="#i-eye"/></svg>Read receipts</span><span class="chip"><svg class="ic"><use href="#i-zap"/></svg>Online now</span><span class="chip"><svg class="ic"><use href="#i-chat"/></svg>Live typing</span><span class="chip"><svg class="ic"><use href="#i-shield"/></svg>Real moderation</span>
+    </div>
+  </div>
+
+  <section class="demo">
+    <div class="container demo-grid">
+      <div class="copy reveal">
+        <span class="kicker k-orange">The chat is the product</span>
+        <h2>A conversation that feels alive.</h2>
+        <p>Most dating apps stop at the match. Hantibink is built around what happens after: a chat that feels as good as your favorite messenger, <strong>because your first conversation deserves better than a text box.</strong></p>
+        <ul class="mini-list">
+          <li><span class="dot"><svg class="ic"><use href="#i-mic"/></svg></span><span><strong>Voice messages</strong> with real waveforms. Sometimes it's just easier to say it.</span></li>
+          <li><span class="dot"><svg class="ic"><use href="#i-heart"/></svg></span><span><strong>React to anything</strong>, and swipe any message to reply in place.</span></li>
+          <li><span class="dot"><svg class="ic"><use href="#i-search"/></svg></span><span><strong>Search inside a conversation</strong> and find that restaurant they mentioned two weeks ago.</span></li>
+          <li><span class="dot"><svg class="ic"><use href="#i-dice"/></svg></span><span><strong>Icebreaker games</strong> when you both want them, never in the way.</span></li>
+        </ul>
+      </div>
+      <div class="reveal d1" id="phone-demo">
+        <div class="phone">
+          <div class="chat-head">
+            <div class="avatar">A</div>
+            <div>
+              <div class="who">Ani</div>
+              <div class="status">online now</div>
+            </div>
+            <svg class="ic search"><use href="#i-search"/></svg>
+          </div>
+          <div class="bubble them seq s1">wait, I have to tell you something</div>
+          <div class="bubble them seq s2" style="padding: 10px 14px 14px;">
+            <div class="voice">
+              <span class="play"><svg class="ic"><use href="#i-play"/></svg></span>
+              <span class="eq"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></span>
+              <span class="len">0:11</span>
+            </div>
+            <span class="react"><svg class="ic"><use href="#i-heart"/></svg>1</span>
+          </div>
+          <div class="bubble me seq s3">okay that laugh is dangerous</div>
+          <div class="receipt seq s4"><b>Seen</b> just now</div>
+          <div class="seq s5" style="margin-top: 6px;">
+            <div class="typing"><i></i><i></i><i></i></div>
+            <div class="typing-label"><b>typing…</b> visible with Premium</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="bento-sec">
+    <div class="container">
+      <div class="head reveal">
+        <span class="kicker k-blue">Why Hantibink</span>
+        <h2>Things no other Armenian dating app does</h2>
+        <p>Built from scratch for the community, not a generic app with a flag slapped on.</p>
+      </div>
+      <div class="bento">
+        <div class="cell wide reveal">
+          <div class="icon i-orange"><svg class="ic"><use href="#i-lang"/></svg></div>
+          <h3>Filter by language, down to the dialect</h3>
+          <p>Search and filter by the languages people speak, with Western and Eastern Armenian available as separate options alongside English, Russian, French, and more.</p>
+          <div class="lang-chips">
+            <span class="hot">Armenian (Western)</span><span class="hot">Armenian (Eastern)</span><span>English</span><span>Russian</span><span>French</span><span>+ more</span>
+          </div>
+        </div>
+        <div class="cell reveal d1">
+          <div class="icon i-red"><svg class="ic"><use href="#i-dice"/></svg></div>
+          <h3>Icebreaker games</h3>
+          <p>This or That, emoji riddles, two truths and a lie, question roulette. Right in the chat, only when both of you opt in.</p>
+        </div>
+        <div class="cell reveal">
+          <div class="icon i-cream"><svg class="ic"><use href="#i-mic"/></svg></div>
+          <h3>Voice messages</h3>
+          <p>Quick-tap recording, accurate waveforms, playback that just works. A more personal way to talk, like everywhere else you chat.</p>
+        </div>
+        <div class="cell reveal d1">
+          <div class="icon i-blue"><svg class="ic"><use href="#i-reply"/></svg></div>
+          <h3>Reactions &amp; replies</h3>
+          <p>React to any message, swipe to reply in place. Chat mechanics you already know from your favorite messenger.</p>
+        </div>
+        <div class="cell reveal d2">
+          <div class="icon i-green"><svg class="ic"><use href="#i-shield"/></svg></div>
+          <h3>Safe by design</h3>
+          <p>Real moderation, one-tap blocking and reporting, and controls that keep you in charge of every conversation.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="premium">
+    <div class="container">
+      <div class="prem-card reveal">
+        <div>
+          <span class="kicker k-gold">Hantibink Premium</span>
+          <h2>Know the moment it matters.</h2>
+          <p>Presence superpowers for people who are serious about meeting. See the conversation happening in real time.</p>
+        </div>
+        <ul class="prem-list">
+          <li class="reveal d1"><span class="pi"><svg class="ic"><use href="#i-zap"/></svg></span><span>Online now<small>A live pulse when your match is in the app</small></span></li>
+          <li class="reveal d2"><span class="pi"><svg class="ic"><use href="#i-clock"/></svg></span><span>Last seen<small>Know when they were last around</small></span></li>
+          <li class="reveal d3"><span class="pi"><svg class="ic"><use href="#i-eye"/></svg></span><span>Read receipts<small>See exactly when your message was seen</small></span></li>
+          <li class="reveal d4"><span class="pi"><svg class="ic"><use href="#i-chat"/></svg></span><span>Typing right now<small>Watch the reply happening live</small></span></li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <section class="closing">
+    <div class="container reveal">
+      <h2>Ready when you are</h2>
+      <p>Join the waitlist and be the first to know when Hantibink launches.</p>
+      <a class="btn" href="#waitlist">Get early access</a>
+      <div class="store-note">Coming soon to the App Store and Google Play</div>
+    </div>
+  </section>
+</main>
+
+<footer>
+  <div class="container foot">
+    <div class="left">
+      <img src="/favicon.png" alt="">
+      <span class="fine">© 2026 Hantibink. All rights reserved.</span>
+    </div>
+    <nav>
+      <a href="/privacy.html">Privacy</a>
+      <a href="/terms.html">Terms</a>
+      <a href="mailto:hello@hantibink.com">hello@hantibink.com</a>
+    </nav>
+  </div>
+</footer>
+
+<script>
+  const API_URL = 'https://hantibink-api-wxmdtvzfzq-uc.a.run.app/api/waitlist';
+  const form = document.getElementById('waitlist');
+  const btn = document.getElementById('submit-btn');
+  const msg = document.getElementById('form-msg');
+
+  const show = (text, ok) => {
+    msg.textContent = text;
+    msg.className = 'form-msg ' + (ok ? 'ok' : 'err');
+  };
+
+  form.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const data = Object.fromEntries(new FormData(form));
+    if (!data.email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(data.email)) {
+      show('Please enter a valid email address.', false);
+      return;
+    }
+    btn.disabled = true;
+    btn.textContent = 'Joining…';
+    try {
+      const res = await fetch(API_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          email: data.email.trim(),
+          name: (data.name || '').trim() || undefined,
+          source: 'landing',
+          website: data.website || undefined,
+        }),
+      });
+      const body = await res.json().catch(() => ({}));
+      if (res.ok && body.success) {
+        show(body.message || "You're on the list! We'll email you when Hantibink launches.", true);
+        form.reset();
+        btn.textContent = 'You’re in ✓';
+        return;
+      }
+      if (res.status === 429) {
+        show('Too many attempts from this network. Please try again in a few minutes.', false);
+      } else {
+        show(body.message || 'Something went wrong. Please try again.', false);
+      }
+    } catch {
+      show('Couldn’t reach the server. Check your connection and try again.', false);
+    }
+    btn.disabled = false;
+    btn.textContent = 'Join the waitlist';
+  });
+
+  const io = new IntersectionObserver(
+    (entries) => entries.forEach((en) => {
+      if (en.isIntersecting) {
+        en.target.classList.add('in');
+        io.unobserve(en.target);
+      }
+    }),
+    { threshold: 0.18 }
+  );
+  document.querySelectorAll('.reveal').forEach((el) => io.observe(el));
+</script>
+</body>
+</html>
