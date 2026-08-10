@@ -49,13 +49,21 @@ const LikedYouCard = ({ item, index, isPremium, onPress, onLike, onPass, loading
       )}
 
       <View style={styles.imageContainer}>
-        {/* Show blurred/pixelated image for non-premium users */}
+        {/* Free tier: the API withholds profiles (no photo URL is sent), so
+            render a branded placeholder; blur remains a fallback if a photo
+            is ever present */}
         {!isPremium ? (
-          <Image
-            source={{ uri: item.mainPhoto }}
-            style={styles.cardImage}
-            blurRadius={40} // Strong blur for maximum privacy
-          />
+          item.mainPhoto ? (
+            <Image
+              source={{ uri: item.mainPhoto }}
+              style={styles.cardImage}
+              blurRadius={40} // Strong blur for maximum privacy
+            />
+          ) : (
+            <View style={[styles.cardImage, styles.placeholderImage]}>
+              <Ionicons name="heart" size={44} color={theme.colors.primaryLight} />
+            </View>
+          )
         ) : (
           <Image source={{ uri: item.mainPhoto }} style={styles.cardImage} />
         )}
@@ -144,6 +152,11 @@ const styles = StyleSheet.create({
   cardImage: {
     width: '100%',
     height: '100%',
+  },
+  placeholderImage: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: theme.colors.primaryTint,
   },
   blurOverlay: {
     position: 'absolute',

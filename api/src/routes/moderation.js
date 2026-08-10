@@ -85,7 +85,12 @@ router.post(
   authenticateJWT,
   moderationValidation.userIdParam,
   catchAsync(async (req, res) => {
-    const result = await blockUser(req.user.id, req.params.userId, req.body.matchId);
+    const result = await blockUser(
+      req.user.id,
+      req.params.userId,
+      req.body.matchId,
+      req.app.get('io'),
+    );
     res.json({
       success: true,
       message: 'User blocked successfully',
@@ -140,7 +145,7 @@ router.post(
   authenticateJWT,
   moderationValidation.matchIdParam,
   catchAsync(async (req, res) => {
-    const result = await unmatch(req.user.id, req.params.matchId);
+    const result = await unmatch(req.user.id, req.params.matchId, req.app.get('io'));
     res.json({
       success: true,
       message: 'Unmatched successfully',
