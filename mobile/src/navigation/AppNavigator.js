@@ -35,6 +35,8 @@ import AdminScreen from '../screens/admin/AdminScreen';
 import ProfileSetupModal from '../components/modals/ProfileSetupModal';
 import ForceUpdateModal from '../components/ForceUpdateModal';
 import UpdateBanner from '../components/shared/UpdateBanner';
+import SoftUpdateBanner from '../components/shared/SoftUpdateBanner';
+import WhatsNewModal from '../components/shared/WhatsNewModal';
 import LegalScreen from '../screens/LegalScreen';
 
 // Import hooks
@@ -271,8 +273,15 @@ const AppNavigator = () => {
   const lastHapticTimeRef = useRef(0);
 
   // Force update check
-  const { showUpdateModal, isUpdateRequired, versionConfig, currentVersion, dismissModal } =
-    useForceUpdate();
+  const {
+    showUpdateModal,
+    isUpdateRequired,
+    showSoftUpdateBanner,
+    versionConfig,
+    currentVersion,
+    dismissModal,
+    dismissSoftUpdate,
+  } = useForceUpdate();
 
   // Handle pending navigation when navigation becomes ready
   const handleNavigationReady = React.useCallback(() => {
@@ -419,6 +428,16 @@ const AppNavigator = () => {
         isRequired={isUpdateRequired}
         onDismiss={dismissModal}
       />
+
+      {/* Dismissible soft-update nudge (store releases) */}
+      <SoftUpdateBanner
+        visible={showSoftUpdateBanner && !showUpdateModal}
+        versionConfig={versionConfig}
+        onDismiss={dismissSoftUpdate}
+      />
+
+      {/* Patch notes, once per version */}
+      <WhatsNewModal />
     </>
   );
 };

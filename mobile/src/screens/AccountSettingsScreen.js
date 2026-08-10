@@ -183,7 +183,11 @@ const AccountSettingsScreen = ({ navigation }) => {
   const renderSettingItem = (icon, label, description, onPress, destructive = false) => (
     <TouchableOpacity style={styles.settingItem} onPress={onPress}>
       <View style={[styles.settingIcon, destructive && styles.destructiveIcon]}>
-        <Ionicons name={icon} size={24} color={destructive ? '#FF3B30' : theme.colors.primary} />
+        <Ionicons
+          name={icon}
+          size={24}
+          color={destructive ? theme.colors.destructive : theme.colors.primary}
+        />
       </View>
       <View style={styles.settingContent}>
         <Text style={[styles.settingLabel, destructive && styles.destructiveLabel]}>{label}</Text>
@@ -245,7 +249,7 @@ const AccountSettingsScreen = ({ navigation }) => {
               onValueChange={handlePauseToggle}
               disabled={isPauseLoading}
               trackColor={{ false: theme.colors.border.light, true: `${theme.colors.primary}80` }}
-              thumbColor={isProfilePaused ? theme.colors.primary : '#f4f3f4'}
+              thumbColor={isProfilePaused ? theme.colors.primary : theme.colors.gray[100]}
             />
           </View>
 
@@ -383,7 +387,7 @@ const styles = StyleSheet.create({
     borderTopColor: theme.colors.background.tertiary,
   },
   dangerSectionTitle: {
-    color: '#FF3B30',
+    color: theme.colors.destructive,
   },
   accountInfo: {
     flexDirection: 'row',
@@ -438,7 +442,7 @@ const styles = StyleSheet.create({
     marginRight: 12,
   },
   destructiveIcon: {
-    backgroundColor: '#FF3B3015',
+    backgroundColor: theme.colors.destructiveTint,
   },
   settingContent: {
     flex: 1,
@@ -451,7 +455,7 @@ const styles = StyleSheet.create({
     color: theme.colors.text.primary,
   },
   destructiveLabel: {
-    color: '#FF3B30',
+    color: theme.colors.destructive,
   },
   settingDescription: {
     fontSize: 13,

@@ -15,8 +15,13 @@ import { theme } from '../../styles/theme';
 const ChatMenu = ({ visible, onClose, onAction, isMuted, gamesInfo }) => {
   if (!visible) return null;
 
-  // 'Search in conversation' is intentionally absent until the feature ships
   const menuItems = [
+    {
+      id: 'search',
+      icon: 'search',
+      label: 'Search in conversation',
+      color: theme.colors.text.primary,
+    },
     { id: 'viewProfile', icon: 'person', label: 'View profile', color: theme.colors.text.primary },
     {
       id: 'mute',
@@ -38,9 +43,9 @@ const ChatMenu = ({ visible, onClose, onAction, isMuted, gamesInfo }) => {
         : 'Turn on games in all chats',
       color: theme.colors.text.primary,
     },
-    { id: 'block', icon: 'ban', label: 'Block user', color: '#FF9800' },
-    { id: 'unmatch', icon: 'heart-dislike', label: 'Unmatch', color: '#F44336' },
-    { id: 'report', icon: 'flag', label: 'Report user', color: '#F44336' },
+    { id: 'block', icon: 'ban', label: 'Block user', color: theme.colors.status.warning },
+    { id: 'unmatch', icon: 'heart-dislike', label: 'Unmatch', color: theme.colors.status.error },
+    { id: 'report', icon: 'flag', label: 'Report user', color: theme.colors.status.error },
   ];
 
   return (
@@ -89,7 +94,7 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     paddingVertical: 8,
     minWidth: 220,
-    shadowColor: '#000',
+    shadowColor: theme.colors.shadow,
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.15,
     shadowRadius: 12,

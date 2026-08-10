@@ -393,7 +393,7 @@ const styles = StyleSheet.create({
     paddingVertical: 14,
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: '#ddd',
+    borderColor: theme.colors.border.medium,
     alignItems: 'center',
   },
   discardButtonText: {

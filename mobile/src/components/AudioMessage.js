@@ -307,19 +307,19 @@ const AudioMessage = ({
   const colors = isOwnMessage
     ? {
         playBg: 'rgba(255,255,255,0.25)',
-        playIcon: '#fff',
-        barPlayed: '#fff',
+        playIcon: theme.colors.text.white,
+        barPlayed: theme.colors.text.white,
         barUnplayed: 'rgba(255,255,255,0.4)',
         timeText: 'rgba(255,255,255,0.9)',
-        playhead: '#fff',
+        playhead: theme.colors.text.white,
       }
     : {
         playBg: 'rgba(0,0,0,0.08)',
         playIcon: theme.colors.text.secondary,
-        barPlayed: '#555',
+        barPlayed: theme.colors.text.secondary,
         barUnplayed: 'rgba(0,0,0,0.2)',
-        timeText: '#888',
-        playhead: '#555',
+        timeText: theme.colors.text.muted,
+        playhead: theme.colors.text.secondary,
       };
 
   // Show elapsed when playing/paused with progress, otherwise show duration

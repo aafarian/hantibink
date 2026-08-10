@@ -1,7 +1,8 @@
-import React, { memo, useEffect, useRef } from 'react';
-import { View, Text, TouchableOpacity, Animated } from 'react-native';
+import React, { memo } from 'react';
+import { View, Text, TouchableOpacity } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { theme } from '../styles/theme';
+import OnlineShockwave from './shared/OnlineShockwave';
 import {
   getUserProfilePhoto,
   getUserDisplayName,
@@ -31,53 +32,6 @@ export const MatchCard = memo(
 
     // Online status (premium only)
     const isOnline = isPremium && isUserOnline(user.lastActive);
-    const shockwaveScale = useRef(new Animated.Value(1)).current;
-    const shockwaveOpacity = useRef(new Animated.Value(0.6)).current;
-
-    // Shockwave animation for online dot
-    useEffect(() => {
-      let shockwaveAnimation;
-      if (isOnline) {
-        shockwaveAnimation = Animated.loop(
-          Animated.parallel([
-            Animated.sequence([
-              Animated.timing(shockwaveScale, {
-                toValue: 2.2,
-                duration: 1500,
-                useNativeDriver: true,
-              }),
-              Animated.timing(shockwaveScale, {
-                toValue: 1,
-                duration: 0,
-                useNativeDriver: true,
-              }),
-            ]),
-            Animated.sequence([
-              Animated.timing(shockwaveOpacity, {
-                toValue: 0,
-                duration: 1500,
-                useNativeDriver: true,
-              }),
-              Animated.timing(shockwaveOpacity, {
-                toValue: 0.6,
-                duration: 0,
-                useNativeDriver: true,
-              }),
-            ]),
-          ])
-        );
-        shockwaveAnimation.start();
-      } else {
-        shockwaveScale.setValue(1);
-        shockwaveOpacity.setValue(0.6);
-      }
-      return () => {
-        if (shockwaveAnimation) {
-          shockwaveAnimation.stop();
-        }
-      };
-    }, [isOnline, shockwaveScale, shockwaveOpacity]);
-
     // Normalize lastMessage to always be a string
     const lastMessageText =
       typeof match.lastMessage === 'string' ? match.lastMessage : match.lastMessage?.content || '';
@@ -136,12 +90,7 @@ export const MatchCard = memo(
             </Text>
             {isOnline && (
               <View style={styles.onlineContainer}>
-                <Animated.View
-                  style={[
-                    styles.onlineShockwave,
-                    { transform: [{ scale: shockwaveScale }], opacity: shockwaveOpacity },
-                  ]}
-                />
+                <OnlineShockwave size={10} />
                 <View style={styles.onlineDot} />
               </View>
             )}
@@ -244,13 +193,6 @@ const styles = {
     marginLeft: theme.spacing.xs,
   },
   onlineDot: {
-    width: 10,
-    height: 10,
-    borderRadius: 5,
-    backgroundColor: theme.colors.status.success,
-    position: 'absolute',
-  },
-  onlineShockwave: {
     width: 10,
     height: 10,
     borderRadius: 5,

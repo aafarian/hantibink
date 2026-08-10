@@ -17,7 +17,7 @@ import apiClient from '../services/ApiClient';
 import SocketService from '../services/SocketService';
 import MatchModal from '../components/MatchModal';
 import PremiumUpgradeModal from '../components/modals/PremiumUpgradeModal';
-import { LoadingScreen } from '../components/LoadingScreen';
+import { CardGridSkeleton } from '../components/shared/SkeletonPlaceholders';
 import { ErrorScreen } from '../components/ErrorScreen';
 import Logger from '../utils/logger';
 import { useTabNavigation } from '../hooks/useTabNavigation';
@@ -666,7 +666,11 @@ const LikedYouScreen = () => {
   };
 
   if (loading) {
-    return <LoadingScreen message="Loading likes..." />;
+    return (
+      <View style={styles.container}>
+        <CardGridSkeleton />
+      </View>
+    );
   }
 
   if (error) {
@@ -846,7 +850,7 @@ const styles = StyleSheet.create({
   emptyTitle: {
     fontSize: 22,
     fontWeight: 'bold',
-    fontFamily: theme.typography.fontFamily.bold,
+    fontFamily: theme.typography.fontFamily.heading,
     color: theme.colors.text.primary,
     marginBottom: 10,
   },
@@ -865,7 +869,7 @@ const styles = StyleSheet.create({
     width: '100%',
     marginBottom: 20,
     borderWidth: 1,
-    borderColor: '#eee',
+    borderColor: theme.colors.gray[200],
   },
   tipTitle: {
     fontSize: 16,
@@ -883,7 +887,7 @@ const styles = StyleSheet.create({
   tipText: {
     fontSize: 14,
     fontFamily: theme.typography.fontFamily.regular,
-    color: '#555',
+    color: theme.colors.text.secondary,
     flex: 1,
   },
   premiumIconContainer: {

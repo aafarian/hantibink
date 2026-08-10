@@ -133,7 +133,7 @@ const styles = StyleSheet.create({
     marginBottom: 15,
     borderRadius: 15,
     backgroundColor: 'white',
-    shadowColor: '#000',
+    shadowColor: theme.colors.shadow,
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
     shadowRadius: 4,
@@ -233,10 +233,10 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   passQuickButton: {
-    backgroundColor: '#FFE5E5',
+    backgroundColor: theme.colors.primaryTint,
   },
   likeQuickButton: {
-    backgroundColor: '#E5F9F9',
+    backgroundColor: theme.colors.secondaryTint,
   },
 });
 

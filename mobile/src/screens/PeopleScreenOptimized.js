@@ -3,6 +3,7 @@ import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
+import * as Haptics from 'expo-haptics';
 import { useFocusEffect } from '@react-navigation/native';
 import ImageViewing from 'react-native-image-viewing';
 import { useAuth } from '../contexts/AuthContext';
@@ -773,14 +774,17 @@ const PeopleScreenOptimized = ({ navigation }) => {
               }
             }}
           >
-            <Ionicons name="arrow-undo" size={24} color="#FFB300" />
+            <Ionicons name="arrow-undo" size={24} color={theme.colors.action.rewind} />
           </TouchableOpacity>
 
           <TouchableOpacity
             style={[styles.actionButton, styles.passButton]}
-            onPress={() => cardStackRef.current?.swipeLeft()}
+            onPress={() => {
+              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+              cardStackRef.current?.swipeLeft();
+            }}
           >
-            <Ionicons name="close" size={35} color="#FF5252" />
+            <Ionicons name="close" size={35} color={theme.colors.action.nope} />
           </TouchableOpacity>
 
           <TouchableOpacity
@@ -789,18 +793,22 @@ const PeopleScreenOptimized = ({ navigation }) => {
               if (!isPremium) {
                 setShowUpgradeModal(true);
               } else {
+                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
                 cardStackRef.current?.swipeSuperLike();
               }
             }}
           >
-            <Ionicons name="star" size={28} color="#00BCD4" />
+            <Ionicons name="star" size={28} color={theme.colors.action.superlike} />
           </TouchableOpacity>
 
           <TouchableOpacity
             style={[styles.actionButton, styles.likeButton]}
-            onPress={() => cardStackRef.current?.swipeRight()}
+            onPress={() => {
+              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+              cardStackRef.current?.swipeRight();
+            }}
           >
-            <Ionicons name="heart" size={30} color="#4CAF50" />
+            <Ionicons name="heart" size={30} color={theme.colors.action.like} />
           </TouchableOpacity>
         </View>
       )}
@@ -854,7 +862,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     zIndex: 100,
-    shadowColor: '#000',
+    shadowColor: theme.colors.shadow,
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.2,
     shadowRadius: 4,
@@ -881,7 +889,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     marginHorizontal: 10,
-    shadowColor: '#000',
+    shadowColor: theme.colors.shadow,
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.2,
     shadowRadius: 6,
@@ -889,25 +897,25 @@ const styles = StyleSheet.create({
   },
   passButton: {
     borderWidth: 2,
-    borderColor: '#FF5252',
+    borderColor: theme.colors.action.nope,
   },
   likeButton: {
     borderWidth: 2,
-    borderColor: '#4CAF50',
+    borderColor: theme.colors.action.like,
   },
   superLikeButton: {
     width: 50,
     height: 50,
     borderRadius: 25,
     borderWidth: 2,
-    borderColor: '#00BCD4',
+    borderColor: theme.colors.action.superlike,
   },
   undoButton: {
     width: 46,
     height: 46,
     borderRadius: 23,
     borderWidth: 2,
-    borderColor: '#FFB300',
+    borderColor: theme.colors.action.rewind,
   },
   noPhotosContainer: {
     flex: 1,
@@ -934,7 +942,7 @@ const styles = StyleSheet.create({
   incompleteTitle: {
     fontSize: 28,
     fontWeight: 'bold',
-    fontFamily: theme.typography.fontFamily.bold,
+    fontFamily: theme.typography.fontFamily.display,
     color: theme.colors.text.primary,
     marginBottom: 12,
   },
@@ -968,7 +976,7 @@ const styles = StyleSheet.create({
   noPhotosTitle: {
     fontSize: 20,
     fontWeight: 'bold',
-    fontFamily: theme.typography.fontFamily.bold,
+    fontFamily: theme.typography.fontFamily.heading,
     marginTop: 20,
     marginBottom: 10,
   },

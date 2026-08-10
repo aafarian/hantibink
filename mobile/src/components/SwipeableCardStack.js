@@ -364,7 +364,7 @@ const styles = StyleSheet.create({
   noMoreText: {
     fontSize: theme.typography.sizes.xxl,
     fontWeight: theme.typography.weights.bold,
-    fontFamily: theme.typography.fontFamily.bold,
+    fontFamily: theme.typography.fontFamily.heading,
     color: theme.colors.text.primary,
     marginTop: theme.spacing.xl,
   },

@@ -49,21 +49,21 @@ export const commonStyles = StyleSheet.create({
 
   // Headings
   h1: {
-    fontFamily: theme.typography.fontFamily.bold,
+    fontFamily: theme.typography.fontFamily.display,
     fontSize: theme.typography.sizes.huge,
     fontWeight: theme.typography.weights.bold,
     color: theme.colors.text.primary,
     lineHeight: theme.typography.sizes.huge * theme.typography.lineHeights.tight,
   },
   h2: {
-    fontFamily: theme.typography.fontFamily.bold,
+    fontFamily: theme.typography.fontFamily.heading,
     fontSize: theme.typography.sizes.xxxl,
     fontWeight: theme.typography.weights.bold,
     color: theme.colors.text.primary,
     lineHeight: theme.typography.sizes.xxxl * theme.typography.lineHeights.tight,
   },
   h3: {
-    fontFamily: theme.typography.fontFamily.semibold,
+    fontFamily: theme.typography.fontFamily.headingLight,
     fontSize: theme.typography.sizes.xxl,
     fontWeight: theme.typography.weights.semibold,
     color: theme.colors.text.primary,

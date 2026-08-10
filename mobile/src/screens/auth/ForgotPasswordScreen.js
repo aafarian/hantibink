@@ -122,7 +122,7 @@ const styles = StyleSheet.create({
     backgroundColor: theme.colors.background.primary,
     justifyContent: 'center',
     alignItems: 'center',
-    shadowColor: '#000',
+    shadowColor: theme.colors.shadow,
     shadowOffset: {
       width: 0,
       height: 2,
@@ -142,7 +142,7 @@ const styles = StyleSheet.create({
   },
   title: {
     fontSize: 28,
-    fontFamily: theme.typography.fontFamily.bold,
+    fontFamily: theme.typography.fontFamily.display,
     fontWeight: 'bold',
     color: theme.colors.text.primary,
     textAlign: 'center',

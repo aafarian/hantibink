@@ -1,31 +1,25 @@
 import { useState, useEffect, useCallback } from 'react';
 import * as Application from 'expo-application';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import ApiDataService from '../services/ApiDataService';
 import Logger from '../utils/logger';
+import { updateState } from '../utils/version';
+
+// Dismissals are stored per-version so a NEWER release re-nags once
+const DISMISSED_UPDATE_KEY = '@hantibink/dismissedUpdateVersion';
 
 /**
- * Compare two semantic version strings
- * Returns: -1 if v1 < v2, 0 if equal, 1 if v1 > v2
- */
-const compareVersions = (v1, v2) => {
-  const parts1 = v1.split('.').map(Number);
-  const parts2 = v2.split('.').map(Number);
-
-  for (let i = 0; i < Math.max(parts1.length, parts2.length); i++) {
-    const p1 = parts1[i] || 0;
-    const p2 = parts2[i] || 0;
-    if (p1 < p2) return -1;
-    if (p1 > p2) return 1;
-  }
-  return 0;
-};
-
-/**
- * Hook to check if app update is required
+ * Hook to check the server's version config.
+ *
+ * Two independent outcomes:
+ * - required  -> non-dismissible ForceUpdateModal (minVersion / kill switch)
+ * - available -> dismissible soft-update banner, dismissal persisted per
+ *                latestVersion in AsyncStorage
  */
 const useForceUpdate = () => {
   const [showUpdateModal, setShowUpdateModal] = useState(false);
   const [isUpdateRequired, setIsUpdateRequired] = useState(false);
+  const [showSoftUpdateBanner, setShowSoftUpdateBanner] = useState(false);
   const [versionConfig, setVersionConfig] = useState(null);
   const [currentVersion, setCurrentVersion] = useState('1.0.0');
   const [isChecking, setIsChecking] = useState(true);
@@ -34,46 +28,40 @@ const useForceUpdate = () => {
     try {
       setIsChecking(true);
 
-      // Get current app version
       const appVersion = Application.nativeApplicationVersion || '1.0.0';
       setCurrentVersion(appVersion);
       Logger.info(`📱 Current app version: ${appVersion}`);
 
-      // Fetch version requirements from server
       const config = await ApiDataService.checkAppVersion();
       if (!config) {
         Logger.info('📱 No version config received, skipping update check');
-        setIsChecking(false);
         return;
       }
 
       setVersionConfig(config);
 
-      // Check if force update is enabled (kill switch)
-      if (config.forceUpdate) {
-        Logger.warn('📱 Force update enabled via server config');
+      const state = updateState(appVersion, config);
+
+      if (state === 'required') {
+        Logger.warn(`📱 Update required: ${appVersion} < ${config.minVersion}`);
         setIsUpdateRequired(true);
         setShowUpdateModal(true);
-        setIsChecking(false);
+        setShowSoftUpdateBanner(false);
         return;
       }
 
-      // Compare versions
-      const comparison = compareVersions(appVersion, config.minVersion);
-
-      if (comparison < 0) {
-        // Current version is below minimum required
-        Logger.warn(`📱 App version ${appVersion} is below minimum ${config.minVersion}`);
-        setIsUpdateRequired(true);
-        setShowUpdateModal(true);
-      } else if (config.latestVersion && compareVersions(appVersion, config.latestVersion) < 0) {
-        // Optional update available
-        Logger.info(`📱 Optional update available: ${appVersion} → ${config.latestVersion}`);
-        // Don't show modal for optional updates automatically
-        // Could be triggered by a "Check for updates" button
-      } else {
-        Logger.info('📱 App is up to date');
+      if (state === 'available') {
+        const dismissedVersion = await AsyncStorage.getItem(DISMISSED_UPDATE_KEY);
+        if (dismissedVersion === config.latestVersion) {
+          Logger.info(`📱 Update ${config.latestVersion} available but dismissed`);
+        } else {
+          Logger.info(`📱 Optional update available: ${appVersion} → ${config.latestVersion}`);
+          setShowSoftUpdateBanner(true);
+        }
+        return;
       }
+
+      Logger.info('📱 App is up to date');
     } catch (error) {
       Logger.error('📱 Error checking app version:', error);
     } finally {
@@ -81,7 +69,6 @@ const useForceUpdate = () => {
     }
   }, []);
 
-  // Check version on mount
   useEffect(() => {
     checkVersion();
   }, [checkVersion]);
@@ -93,14 +80,27 @@ const useForceUpdate = () => {
     }
   }, [isUpdateRequired]);
 
+  const dismissSoftUpdate = useCallback(async () => {
+    setShowSoftUpdateBanner(false);
+    try {
+      if (versionConfig?.latestVersion) {
+        await AsyncStorage.setItem(DISMISSED_UPDATE_KEY, versionConfig.latestVersion);
+      }
+    } catch (error) {
+      Logger.warn('📱 Could not persist update dismissal:', error);
+    }
+  }, [versionConfig?.latestVersion]);
+
   return {
     showUpdateModal,
     isUpdateRequired,
+    showSoftUpdateBanner,
     versionConfig,
     currentVersion,
     isChecking,
     checkVersion, // Allow manual refresh
     dismissModal,
+    dismissSoftUpdate,
   };
 };
 

@@ -37,10 +37,10 @@ const SetNewPasswordScreen = ({ navigation, route }) => {
     if (/[^A-Za-z0-9]/.test(pwd)) strength++;
 
     if (strength <= 1) return { strength: 1, label: 'Weak', color: theme.colors.status.error };
-    if (strength <= 2) return { strength: 2, label: 'Fair', color: '#FF9800' };
-    if (strength <= 3) return { strength: 3, label: 'Good', color: '#FFC107' };
-    if (strength <= 4) return { strength: 4, label: 'Strong', color: '#4CAF50' };
-    return { strength: 5, label: 'Very Strong', color: '#2E7D32' };
+    if (strength <= 2) return { strength: 2, label: 'Fair', color: theme.colors.status.warning };
+    if (strength <= 3) return { strength: 3, label: 'Good', color: theme.colors.accentLight };
+    if (strength <= 4) return { strength: 4, label: 'Strong', color: theme.colors.status.success };
+    return { strength: 5, label: 'Very Strong', color: theme.colors.status.successDark };
   };
 
   const passwordStrength = getPasswordStrength(password);
@@ -226,7 +226,7 @@ const SetNewPasswordScreen = ({ navigation, route }) => {
             <Ionicons
               name={password.length >= 6 ? 'checkmark-circle' : 'ellipse-outline'}
               size={16}
-              color={password.length >= 6 ? '#4CAF50' : theme.colors.text.muted}
+              color={password.length >= 6 ? theme.colors.status.success : theme.colors.text.muted}
             />
             <Text style={styles.requirementText}>At least 6 characters</Text>
           </View>
@@ -234,7 +234,7 @@ const SetNewPasswordScreen = ({ navigation, route }) => {
             <Ionicons
               name={/[A-Z]/.test(password) ? 'checkmark-circle' : 'ellipse-outline'}
               size={16}
-              color={/[A-Z]/.test(password) ? '#4CAF50' : theme.colors.text.muted}
+              color={/[A-Z]/.test(password) ? theme.colors.status.success : theme.colors.text.muted}
             />
             <Text style={styles.requirementText}>One uppercase letter (recommended)</Text>
           </View>
@@ -242,7 +242,7 @@ const SetNewPasswordScreen = ({ navigation, route }) => {
             <Ionicons
               name={/[0-9]/.test(password) ? 'checkmark-circle' : 'ellipse-outline'}
               size={16}
-              color={/[0-9]/.test(password) ? '#4CAF50' : theme.colors.text.muted}
+              color={/[0-9]/.test(password) ? theme.colors.status.success : theme.colors.text.muted}
             />
             <Text style={styles.requirementText}>One number (recommended)</Text>
           </View>
@@ -268,7 +268,7 @@ const styles = StyleSheet.create({
     backgroundColor: theme.colors.background.primary,
     justifyContent: 'center',
     alignItems: 'center',
-    shadowColor: '#000',
+    shadowColor: theme.colors.shadow,
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
     shadowRadius: 3.84,
@@ -285,7 +285,7 @@ const styles = StyleSheet.create({
   },
   title: {
     fontSize: 28,
-    fontFamily: theme.typography.fontFamily.bold,
+    fontFamily: theme.typography.fontFamily.display,
     fontWeight: 'bold',
     color: theme.colors.text.primary,
     textAlign: 'center',

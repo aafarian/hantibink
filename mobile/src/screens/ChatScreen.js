@@ -7,7 +7,6 @@ import {
   TouchableOpacity,
   KeyboardAvoidingView,
   Platform,
-  Animated,
   ActivityIndicator,
   StatusBar,
   Keyboard,
@@ -67,7 +66,7 @@ import {
 const ChatScreen = ({ route, navigation }) => {
   const { match } = route.params;
   const { user } = useAuth();
-  const { showError, showSuccess } = useToast();
+  const { showError, showInfo, showSuccess } = useToast();
   const isPremium = useIsPremium();
   const { openPhotoViewer } = usePhotoViewer();
   const _insets = useSafeAreaInsets();
@@ -356,54 +355,6 @@ const ChatScreen = ({ route, navigation }) => {
   const MAX_SENT_MESSAGE_IDS = 100;
   const reactionsSheetRef = useRef(null);
   const inputRef = useRef(null);
-
-  // Animation values
-  const shockwaveScale = useRef(new Animated.Value(1)).current;
-  const shockwaveOpacity = useRef(new Animated.Value(0.6)).current;
-
-  // Shockwave animation for online dot — only run when screen is focused
-  useEffect(() => {
-    let shockwaveAnimation;
-    if (onlineStatus && isPremium && isFocused) {
-      shockwaveAnimation = Animated.loop(
-        Animated.parallel([
-          Animated.sequence([
-            Animated.timing(shockwaveScale, {
-              toValue: 2.2,
-              duration: 1500,
-              useNativeDriver: true,
-            }),
-            Animated.timing(shockwaveScale, {
-              toValue: 1,
-              duration: 0,
-              useNativeDriver: true,
-            }),
-          ]),
-          Animated.sequence([
-            Animated.timing(shockwaveOpacity, {
-              toValue: 0,
-              duration: 1500,
-              useNativeDriver: true,
-            }),
-            Animated.timing(shockwaveOpacity, {
-              toValue: 0.6,
-              duration: 0,
-              useNativeDriver: true,
-            }),
-          ]),
-        ])
-      );
-      shockwaveAnimation.start();
-    } else {
-      shockwaveScale.setValue(1);
-      shockwaveOpacity.setValue(0.6);
-    }
-    return () => {
-      if (shockwaveAnimation) {
-        shockwaveAnimation.stop();
-      }
-    };
-  }, [onlineStatus, isPremium, isFocused, shockwaveScale, shockwaveOpacity]);
 
   // Keep focus ref in sync for callbacks
   useEffect(() => {
@@ -1405,8 +1356,7 @@ const ChatScreen = ({ route, navigation }) => {
               profileSheetRef.current?.open();
             }}
             onMenuPress={() => setShowMenu(true)}
-            shockwaveScale={shockwaveScale}
-            shockwaveOpacity={shockwaveOpacity}
+            animateOnlineDot={isFocused}
           />
 
           {/* Messages */}
@@ -1615,7 +1565,7 @@ const ChatScreen = ({ route, navigation }) => {
           open={showReactionPicker !== null}
           onClose={handleCloseEmojiPicker}
           theme={{
-            backdrop: '#00000080',
+            backdrop: theme.colors.overlay.medium,
             knob: theme.colors.primary,
             category: {
               icon: theme.colors.text.secondary,
@@ -1624,7 +1574,7 @@ const ChatScreen = ({ route, navigation }) => {
               containerActive: 'rgba(211, 47, 47, 0.15)',
             },
             search: {
-              background: '#f5f5f5',
+              background: theme.colors.gray[100],
               placeholder: theme.colors.text.muted,
               text: theme.colors.text.primary,
             },
