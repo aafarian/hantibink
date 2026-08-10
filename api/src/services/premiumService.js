@@ -150,21 +150,20 @@ const getUserQuotas = async (userId) => {
 
 /**
  * The one true way to make a user premium (admin toggle today, the billing
- * webhook later). The accrual clock resets IN THE SAME WRITE that sets
- * isPremium, so a concurrent quota read can never pair premium=true with
- * free-era days and back-accrue them into Super Likes. The day-one bank of
- * 2 follows (never lowering a balance that survived a downgrade).
+ * webhook later). Flag, accrual clock, and day-one bank land in ONE
+ * statement: a concurrent quota read can never pair premium=true with
+ * free-era days, and a concurrent spend can never be restored by the seed.
+ * GREATEST keeps a balance that survived a downgrade (raw SQL because the
+ * Prisma update API cannot express a field-relative floor atomically).
  */
 const activatePremium = async (userId) => {
-  await prisma.user.update({
-    where: { id: userId },
-    data: { isPremium: true, superLikeAccruedAt: new Date() },
-    select: { id: true },
-  });
-  await prisma.user.updateMany({
-    where: { id: userId, superLikeBalance: { lt: 2 } },
-    data: { superLikeBalance: 2 },
-  });
+  await prisma.$executeRaw`
+    UPDATE "users"
+    SET "isPremium" = true,
+        "superLikeAccruedAt" = (NOW() AT TIME ZONE 'utc'),
+        "superLikeBalance" = GREATEST("superLikeBalance", 2)
+    WHERE "id" = ${userId}
+  `;
 };
 
 /**
