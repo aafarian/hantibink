@@ -1,4 +1,13 @@
-import React, { createContext, useContext, useState, useEffect, useCallback, useMemo } from 'react';
+import React, {
+  createContext,
+  useContext,
+  useState,
+  useEffect,
+  useCallback,
+  useMemo,
+  useRef,
+} from 'react';
+import { AppState } from 'react-native';
 import * as Updates from 'expo-updates';
 import Logger from '../utils/logger';
 
@@ -69,9 +78,19 @@ export const UpdateProvider = ({ children }) => {
     setIsReadyToInstall(false);
   }, []);
 
-  // Check for updates on mount
+  // Check for updates on mount AND whenever the app returns to the
+  // foreground (mount-only meant long-lived sessions never saw new OTAs)
+  const appStateRef = useRef(AppState.currentState);
   useEffect(() => {
     checkForUpdate();
+
+    const subscription = AppState.addEventListener('change', nextState => {
+      if (appStateRef.current.match(/inactive|background/) && nextState === 'active') {
+        checkForUpdate();
+      }
+      appStateRef.current = nextState;
+    });
+    return () => subscription.remove();
   }, [checkForUpdate]);
 
   const value = useMemo(

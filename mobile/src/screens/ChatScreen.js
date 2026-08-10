@@ -7,7 +7,6 @@ import {
   TouchableOpacity,
   KeyboardAvoidingView,
   Platform,
-  Animated,
   ActivityIndicator,
   StatusBar,
   Keyboard,
@@ -110,54 +109,6 @@ const ChatScreen = ({ route, navigation }) => {
   const MAX_SENT_MESSAGE_IDS = 100;
   const reactionsSheetRef = useRef(null);
   const inputRef = useRef(null);
-
-  // Animation values
-  const shockwaveScale = useRef(new Animated.Value(1)).current;
-  const shockwaveOpacity = useRef(new Animated.Value(0.6)).current;
-
-  // Shockwave animation for online dot — only run when screen is focused
-  useEffect(() => {
-    let shockwaveAnimation;
-    if (onlineStatus && isPremium && isFocused) {
-      shockwaveAnimation = Animated.loop(
-        Animated.parallel([
-          Animated.sequence([
-            Animated.timing(shockwaveScale, {
-              toValue: 2.2,
-              duration: 1500,
-              useNativeDriver: true,
-            }),
-            Animated.timing(shockwaveScale, {
-              toValue: 1,
-              duration: 0,
-              useNativeDriver: true,
-            }),
-          ]),
-          Animated.sequence([
-            Animated.timing(shockwaveOpacity, {
-              toValue: 0,
-              duration: 1500,
-              useNativeDriver: true,
-            }),
-            Animated.timing(shockwaveOpacity, {
-              toValue: 0.6,
-              duration: 0,
-              useNativeDriver: true,
-            }),
-          ]),
-        ])
-      );
-      shockwaveAnimation.start();
-    } else {
-      shockwaveScale.setValue(1);
-      shockwaveOpacity.setValue(0.6);
-    }
-    return () => {
-      if (shockwaveAnimation) {
-        shockwaveAnimation.stop();
-      }
-    };
-  }, [onlineStatus, isPremium, isFocused, shockwaveScale, shockwaveOpacity]);
 
   // Keep focus ref in sync for callbacks
   useEffect(() => {
@@ -1115,8 +1066,7 @@ const ChatScreen = ({ route, navigation }) => {
               profileSheetRef.current?.open();
             }}
             onMenuPress={() => setShowMenu(true)}
-            shockwaveScale={shockwaveScale}
-            shockwaveOpacity={shockwaveOpacity}
+            animateOnlineDot={isFocused}
           />
 
           {/* Messages */}

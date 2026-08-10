@@ -3,6 +3,7 @@ import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
+import * as Haptics from 'expo-haptics';
 import { useFocusEffect } from '@react-navigation/native';
 import ImageViewing from 'react-native-image-viewing';
 import { useAuth } from '../contexts/AuthContext';
@@ -778,7 +779,10 @@ const PeopleScreenOptimized = ({ navigation }) => {
 
           <TouchableOpacity
             style={[styles.actionButton, styles.passButton]}
-            onPress={() => cardStackRef.current?.swipeLeft()}
+            onPress={() => {
+              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+              cardStackRef.current?.swipeLeft();
+            }}
           >
             <Ionicons name="close" size={35} color={theme.colors.action.nope} />
           </TouchableOpacity>
@@ -789,6 +793,7 @@ const PeopleScreenOptimized = ({ navigation }) => {
               if (!isPremium) {
                 setShowUpgradeModal(true);
               } else {
+                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
                 cardStackRef.current?.swipeSuperLike();
               }
             }}
@@ -798,7 +803,10 @@ const PeopleScreenOptimized = ({ navigation }) => {
 
           <TouchableOpacity
             style={[styles.actionButton, styles.likeButton]}
-            onPress={() => cardStackRef.current?.swipeRight()}
+            onPress={() => {
+              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+              cardStackRef.current?.swipeRight();
+            }}
           >
             <Ionicons name="heart" size={30} color={theme.colors.action.like} />
           </TouchableOpacity>

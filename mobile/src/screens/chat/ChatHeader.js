@@ -1,9 +1,10 @@
 import React from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Animated, Image } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, Image } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { getUserProfilePhoto, getUserDisplayName } from '../../utils/profileHelpers';
 import { formatLastSeen } from '../../utils/timeHelpers';
 import { theme } from '../../styles/theme';
+import OnlineShockwave from '../../components/shared/OnlineShockwave';
 
 /**
  * Chat header component displaying user info, online status, and navigation controls
@@ -16,8 +17,6 @@ import { theme } from '../../styles/theme';
  * @param {Function} props.onBack - Callback when back button is pressed
  * @param {Function} props.onProfilePress - Callback when profile area is pressed
  * @param {Function} props.onMenuPress - Callback when menu button is pressed
- * @param {Animated.Value} props.shockwaveScale - Animation value for shockwave scale
- * @param {Animated.Value} props.shockwaveOpacity - Animation value for shockwave opacity
  */
 const ChatHeader = ({
   otherUser,
@@ -28,8 +27,7 @@ const ChatHeader = ({
   onBack,
   onProfilePress,
   onMenuPress,
-  shockwaveScale,
-  shockwaveOpacity,
+  animateOnlineDot = true,
 }) => {
   // Generate shared transition tag for profile photo morphing between screens
   return (
@@ -48,12 +46,7 @@ const ChatHeader = ({
             ) : isPremium && onlineStatus ? (
               <>
                 <View style={styles.onlineDotContainer}>
-                  <Animated.View
-                    style={[
-                      styles.onlineShockwave,
-                      { transform: [{ scale: shockwaveScale }], opacity: shockwaveOpacity },
-                    ]}
-                  />
+                  <OnlineShockwave active={animateOnlineDot} size={8} />
                   <View style={styles.onlineDot} />
                 </View>
                 <Text style={styles.statusText}>Online</Text>
@@ -130,13 +123,6 @@ const styles = StyleSheet.create({
     marginRight: 2,
   },
   onlineDot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-    backgroundColor: theme.colors.online,
-    position: 'absolute',
-  },
-  onlineShockwave: {
     width: 8,
     height: 8,
     borderRadius: 4,
