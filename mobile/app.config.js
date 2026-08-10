@@ -43,6 +43,17 @@ module.exports = () => {
         favicon: './assets/favicon.png',
       },
       plugins: [
+        [
+          'expo-build-properties',
+          {
+            ios: {
+              // GoogleSignIn 9.x pulls in Swift pods (AppCheckCore) that
+              // cannot build against plain static libraries — static
+              // frameworks give them the module maps they need
+              useFrameworks: 'static',
+            },
+          },
+        ],
         'expo-dev-client',
         'expo-image-picker',
         [
