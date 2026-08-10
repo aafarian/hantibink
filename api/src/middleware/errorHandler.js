@@ -22,32 +22,9 @@ const errorHandler = (err, req, res, _next) => {
   let error = { ...err };
   error.message = err.message;
 
-  // Log error — expected client errors (4xx) log as warnings, because
-  // logger.error forwards to Sentry via its wrapper and 404 noise from
-  // crawlers/typos would page as high-priority issues
-  const logLevel = (err.statusCode || 500) >= 500 ? 'error' : 'warn';
-  logger[logLevel](`Error ${err.statusCode || 500}: ${err.message}`, {
-    error: err.message,
-    stack: err.stack,
-    url: req.originalUrl,
-    method: req.method,
-    ip: req.ip,
-    userAgent: req.get('User-Agent'),
-    userId: req.user?.id || null,
-  });
-
-  // Report to Sentry (skip 4xx client errors to reduce noise)
-  const statusCode = err.statusCode || 500;
-  if (statusCode >= 500) {
-    Sentry.withScope((scope) => {
-      scope.setUser({ id: req.user?.id });
-      scope.setExtra('url', req.originalUrl);
-      scope.setExtra('method', req.method);
-      scope.setExtra('ip', req.ip);
-      scope.setTag('statusCode', statusCode);
-      Sentry.captureException(err);
-    });
-  }
+  // Normalize known error families BEFORE logging and Sentry, so an
+  // expired JWT is treated as the 401 it is — not an unstatused error
+  // defaulting to 500 and paging as a production incident
 
   // JWT errors
   if (err.name === 'JsonWebTokenError') {
@@ -107,6 +84,32 @@ const errorHandler = (err, req, res, _next) => {
     }
 
     error = new AppError(message, statusCode);
+  }
+
+  // Expected client errors (4xx) log as warnings — logger.error forwards
+  // to Sentry via its wrapper, and auth/404 noise would page as incidents
+  const statusCode = error.statusCode || 500;
+  const logLevel = statusCode >= 500 ? 'error' : 'warn';
+  logger[logLevel](`Error ${statusCode}: ${err.message}`, {
+    error: err.message,
+    stack: err.stack,
+    url: req.originalUrl,
+    method: req.method,
+    ip: req.ip,
+    userAgent: req.get('User-Agent'),
+    userId: req.user?.id || null,
+  });
+
+  // Only genuine server faults reach Sentry
+  if (statusCode >= 500) {
+    Sentry.withScope((scope) => {
+      scope.setUser({ id: req.user?.id });
+      scope.setExtra('url', req.originalUrl);
+      scope.setExtra('method', req.method);
+      scope.setExtra('ip', req.ip);
+      scope.setTag('statusCode', statusCode);
+      Sentry.captureException(err);
+    });
   }
 
   // Send error response

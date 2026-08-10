@@ -29,6 +29,7 @@ const getOAuthConfig = () => {
     google: {
       // Web client ID - used for getting idToken on native platforms
       webClientId: OAUTH_CONFIG.google[env],
+      iosClientId: OAUTH_CONFIG.google.iosClientId,
       scopes: ['openid', 'profile', 'email'],
     },
     facebook: {
@@ -51,8 +52,12 @@ class OAuthService {
     if (this.isNativeGoogleSignIn) {
       try {
         const config = getOAuthConfig();
+        const { iosClientId } = config.google;
         GoogleSignin.configure({
           webClientId: config.google.webClientId,
+          // Only pass a real value — the MISSING_ placeholder would break
+          // configure() harder than omitting it
+          ...(iosClientId && !iosClientId.startsWith('MISSING_') ? { iosClientId } : {}),
           offlineAccess: false,
           scopes: config.google.scopes,
         });

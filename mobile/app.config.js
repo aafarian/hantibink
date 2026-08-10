@@ -71,7 +71,19 @@ module.exports = () => {
             color: '#C0392B',
           },
         ],
-        '@react-native-google-signin/google-signin',
+        // iOS Google Sign-In needs the reversed client id as a URL scheme;
+        // derived from EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID when set
+        process.env.EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID
+          ? [
+              '@react-native-google-signin/google-signin',
+              {
+                iosUrlScheme: `com.googleusercontent.apps.${process.env.EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID.replace(
+                  '.apps.googleusercontent.com',
+                  ''
+                )}`,
+              },
+            ]
+          : '@react-native-google-signin/google-signin',
         'expo-font',
         [
           '@sentry/react-native/expo',
