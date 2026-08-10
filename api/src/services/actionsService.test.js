@@ -28,7 +28,7 @@ describe('Actions Service', () => {
     });
 
     it('should create a SUPER_LIKE action successfully', async () => {
-      const user1 = await userFactory.create(global.prisma, { isPremium: true });
+      const user1 = await userFactory.create(global.prisma, { isPremium: true, superLikeBalance: 5 });
       const user2 = await userFactory.create(global.prisma);
 
       const result = await likeUser(user1.id, user2.id, 'SUPER_LIKE');
@@ -80,7 +80,7 @@ describe('Actions Service', () => {
 
     it('should create match when reverse SUPER_LIKE exists', async () => {
       const user1 = await userFactory.create(global.prisma);
-      const user2 = await userFactory.create(global.prisma, { isPremium: true });
+      const user2 = await userFactory.create(global.prisma, { isPremium: true, superLikeBalance: 5 });
 
       // User2 super-likes User1
       await likeUser(user2.id, user1.id, 'SUPER_LIKE');
@@ -481,8 +481,8 @@ describe('Actions Service', () => {
     });
 
     it('should include action type (LIKE vs SUPER_LIKE)', async () => {
-      const user1 = await userFactory.create(global.prisma);
-      const user2 = await userFactory.create(global.prisma, { isPremium: true });
+      const user1 = await userFactory.create(global.prisma, { isPremium: true });
+      const user2 = await userFactory.create(global.prisma, { isPremium: true, superLikeBalance: 5 });
       await photoFactory.create(global.prisma, user2.id, { isMain: true });
 
       await likeUser(user2.id, user1.id, 'SUPER_LIKE');
@@ -508,7 +508,7 @@ describe('Actions Service', () => {
     });
 
     it('should return totalCount and totalLikesCount', async () => {
-      const user1 = await userFactory.create(global.prisma);
+      const user1 = await userFactory.create(global.prisma, { isPremium: true });
       const user2 = await userFactory.create(global.prisma);
       const user3 = await userFactory.create(global.prisma);
       await photoFactory.create(global.prisma, user2.id, { isMain: true });
@@ -557,7 +557,7 @@ describe('Actions Service', () => {
     });
 
     it('should include likedAt timestamp', async () => {
-      const user1 = await userFactory.create(global.prisma);
+      const user1 = await userFactory.create(global.prisma, { isPremium: true });
       const user2 = await userFactory.create(global.prisma);
       await photoFactory.create(global.prisma, user2.id, { isMain: true });
 
@@ -583,15 +583,14 @@ describe('Actions Service', () => {
 
       expect(result.isPremium).toBe(false);
       expect(result.premiumRequired).toBe(true);
-      expect(result.totalCount).toBe(1);
-      expect(result.users.length).toBe(1);
-      // The profile itself must be withheld server-side — no id, name, or photo
-      expect(result.users[0].user).toBeNull();
+      // Free users get no entries at all — only the teaser count
+      expect(result.users.length).toBe(0);
+      expect(result.totalLikesCount).toBe(1);
       expect(JSON.stringify(result)).not.toContain(liker.name);
       expect(JSON.stringify(result)).not.toContain('secret.jpg');
     });
 
-    it('caps free users at the whoLikedMeLimit and blocks deeper pagination', async () => {
+    it('free users get only the teaser count, never liker entries', async () => {
       const freeUser = await userFactory.create(global.prisma, { isPremium: false });
 
       for (let i = 0; i < 5; i++) {
@@ -600,13 +599,13 @@ describe('Actions Service', () => {
         await likeUser(liker.id, freeUser.id, 'LIKE');
       }
 
-      const firstPage = await getWhoLikedMe(freeUser.id, { limit: 20 });
-      expect(firstPage.users.length).toBeLessThanOrEqual(3);
-      expect(firstPage.hiddenCount).toBe(5);
-
-      const beyondLimit = await getWhoLikedMe(freeUser.id, { limit: 20, offset: 10 });
-      expect(beyondLimit.users.length).toBe(0);
-      expect(beyondLimit.premiumRequired).toBe(true);
+      const result = await getWhoLikedMe(freeUser.id, { limit: 20 });
+      expect(result.users.length).toBe(0);
+      expect(result.premiumRequired).toBe(true);
+      expect(result.totalLikesCount).toBe(5);
+      expect(result.hiddenCount).toBe(5);
+      // The screen displays totalCount — it must carry the real teaser number
+      expect(result.totalCount).toBe(5);
     });
 
     it('excludes blocked users from the liker list', async () => {

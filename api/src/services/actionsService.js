@@ -148,12 +148,19 @@ const likeUser = async (
         isMatch = true;
       }
 
-      // Increment daily quota inside transaction to prevent race conditions
+      // Spend quota inside the transaction to prevent race conditions.
+      // Super Likes come from the banked balance; the conditional WHERE is a
+      // race-safe backstop so concurrent spends can't drive it negative.
       if (actionType === 'SUPER_LIKE') {
-        await tx.user.update({
-          where: { id: senderId },
-          data: { dailySuperLikesUsed: { increment: 1 } },
+        const spent = await tx.user.updateMany({
+          where: { id: senderId, superLikeBalance: { gte: 1 } },
+          data: { superLikeBalance: { decrement: 1 } },
         });
+        if (spent.count === 0) {
+          const error = new Error('You\'re out of Super Likes. You bank 2 more each day, up to 5.');
+          error.code = 'DAILY_LIMIT_REACHED';
+          throw error;
+        }
       } else if (actionType === 'LIKE') {
         await tx.user.update({
           where: { id: senderId },
@@ -538,21 +545,7 @@ const getWhoLikedMe = async (userId, options = {}) => {
     // Check premium status to determine result limit
     const premiumLimit = await getWhoLikedMeLimit(userId);
 
-    // For free users, limit results to 3 and don't allow pagination beyond that
-    if (!premiumLimit.isPremium) {
-      limit = Math.min(limit, premiumLimit.limit);
-      if (offset >= premiumLimit.limit) {
-        // Free users can't paginate beyond the limit
-        return {
-          users: [],
-          totalCount: 0,
-          totalLikesCount: 0,
-          isPremium: false,
-          premiumRequired: true,
-          message: 'Upgrade to Premium to see everyone who liked you!',
-        };
-      }
-    }
+    limit = premiumLimit.isPremium ? limit : Math.min(limit, premiumLimit.limit);
 
     // Get the total count of users who liked the current user (before filtering)
     const totalLikesCount = await prisma.userAction.count({
@@ -575,6 +568,27 @@ const getWhoLikedMe = async (userId, options = {}) => {
       sender: { actionsReceived: { none: { senderId: userId } } },
       ...(blockedUserIds.length ? { senderId: { notIn: blockedUserIds } } : {}),
     };
+
+    // Free users get NO liker entries — only counts for the upsell teaser.
+    // totalCount is DELIBERATELY the unacted count, not the raw total: it is
+    // the same field with the same meaning the premium list displays, so the
+    // teaser equals exactly what upgrading reveals. Counting already-acted
+    // likers would advertise people who no longer appear after purchase.
+    // totalLikesCount carries the raw total for anything that wants it.
+    if (!premiumLimit.isPremium) {
+      const totalUnactedCount = await prisma.userAction.count({
+        where: unactedLikersWhere,
+      });
+      return {
+        users: [],
+        totalCount: totalUnactedCount,
+        totalLikesCount,
+        hiddenCount: totalUnactedCount,
+        isPremium: false,
+        premiumRequired: true,
+        message: 'Upgrade to Premium to see everyone who liked you!',
+      };
+    }
 
     logger.info(`🔍 Fetching who liked user ${userId} (limit: ${limit}, offset: ${offset})`);
     const likers = await prisma.userAction.findMany({
@@ -610,32 +624,6 @@ const getWhoLikedMe = async (userId, options = {}) => {
     });
     
     logger.info(`🔍 Batch ${offset}-${offset+limit}: Found ${likers.length} unacted likers`);
-
-    // Free tier is enforced HERE, not in the client: entries are returned so
-    // the app can show "N people liked you" placeholders, but the profiles
-    // themselves are withheld (a name or photo URL would BE the leak).
-    if (!premiumLimit.isPremium) {
-      const redactedLikers = likers.map((action) => ({
-        actionId: action.id,
-        actionType: action.action,
-        likedAt: action.createdAt,
-        user: null,
-      }));
-
-      const totalUnactedCount = await prisma.userAction.count({
-        where: unactedLikersWhere,
-      });
-
-      return {
-        users: redactedLikers,
-        totalCount: totalUnactedCount,
-        totalLikesCount,
-        isPremium: false,
-        premiumRequired: true,
-        hiddenCount: totalUnactedCount,
-        message: 'Upgrade to Premium to see everyone who liked you!',
-      };
-    }
 
     // Transform the data to include age calculation and format
     const transformedLikers = likers.map((action) => {

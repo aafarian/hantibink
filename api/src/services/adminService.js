@@ -240,11 +240,24 @@ const setUserActive = async (userId, isActive, adminEmail, io = null) => {
 };
 
 const setUserPremium = async (userId, isPremium, adminEmail) => {
-  const user = await prisma.user.update({
-    where: { id: userId },
-    data: { isPremium },
-    select: { id: true, email: true, isPremium: true },
-  });
+  let user;
+  if (isPremium) {
+    // activatePremium flips the flag and resets the Super Like accrual
+    // clock in one write — a concurrent quota read can never back-accrue
+    // free-era days — then seeds the day-one bank
+    const { activatePremium } = require('./premiumService');
+    await activatePremium(userId);
+    user = await prisma.user.findUnique({
+      where: { id: userId },
+      select: { id: true, email: true, isPremium: true },
+    });
+  } else {
+    user = await prisma.user.update({
+      where: { id: userId },
+      data: { isPremium: false },
+      select: { id: true, email: true, isPremium: true },
+    });
+  }
   await auditLog(adminEmail, isPremium ? 'user.premium.grant' : 'user.premium.revoke', 'user', userId);
   return user;
 };
