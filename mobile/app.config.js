@@ -57,7 +57,7 @@ module.exports = () => {
           'expo-notifications',
           {
             icon: './assets/notification-icon.png',
-            color: '#D32F2F',
+            color: '#C0392B',
           },
         ],
         '@react-native-google-signin/google-signin',

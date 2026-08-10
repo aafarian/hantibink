@@ -55,7 +55,16 @@ module.exports = {
   // File-specific overrides
   overrides: [
     {
-      files: ['**/*.test.js', '**/*.spec.js'],
+      files: [
+        '**/*.test.js',
+        '**/*.spec.js',
+        'jest.setup.js',
+        'jest.setup-early.js',
+        '__mocks__/**/*.js',
+      ],
+      env: {
+        jest: true,
+      },
       rules: {
         'no-unused-vars': 'warn', // Test files should still warn about unused vars
       },
