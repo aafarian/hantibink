@@ -385,26 +385,36 @@ const createSession = async (matchId, userId, gameType, payload, io = null) => {
     throw error;
   }
 
-  // The start card is a real chat message (survives in history, reuses
-  // the existing new-message socket + preview pipeline)
-  try {
-    await sendMessage(
-      matchId,
-      userId,
-      {
-        content: GAME_LABELS[gameType],
-        messageType: 'GAME',
-        metadata: JSON.stringify({ kind: 'game-start', sessionId: session.id, gameType }),
-      },
-      io,
-    );
-  } catch (error) {
-    logger.warn('Game start message failed (session still created):', error.message);
+  // The retract above holds the playable-game invariant; what's left is
+  // presentation. A disable/mute can still commit right after that check
+  // and forfeit this session before our start side effects run, so gate
+  // them on ONE fresh read instead of the cached ACTIVE object: no start
+  // card or 'started' emit for an already-ended game, and the creator
+  // gets the truthful snapshot back. Anything that commits after this
+  // read is reconciled by the version gates every consumer applies — the
+  // forfeit emit carries version+1 and wins over this snapshot everywhere.
+  const fresh = (await prisma.gameSession.findUnique({ where: { id: session.id } })) ?? session;
+  if (fresh.status === 'ACTIVE') {
+    // The start card is a real chat message (survives in history, reuses
+    // the existing new-message socket + preview pipeline)
+    try {
+      await sendMessage(
+        matchId,
+        userId,
+        {
+          content: GAME_LABELS[gameType],
+          messageType: 'GAME',
+          metadata: JSON.stringify({ kind: 'game-start', sessionId: session.id, gameType }),
+        },
+        io,
+      );
+    } catch (error) {
+      logger.warn('Game start message failed (session still created):', error.message);
+    }
+    emitGameUpdate(io, fresh, 'started', userId);
   }
-
-  emitGameUpdate(io, session, 'started', userId);
   logger.info(`🎮 ${gameType} session ${session.id} started in match ${matchId}`);
-  return redactedSession(session, userId);
+  return redactedSession(fresh, userId);
 };
 
 const getActiveSession = async (matchId, userId) => {
