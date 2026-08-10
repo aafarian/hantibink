@@ -10,6 +10,7 @@ import {
   ScrollView,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import * as Sentry from '@sentry/react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { theme } from '../styles/theme';
 import Logger from '../utils/logger';
@@ -117,13 +118,13 @@ const Toast = ({
   };
 
   const handleReportError = () => {
-    // Log the full error details for debugging
-    Logger.info('Error report requested:', {
-      message,
-      errorDetails,
-      timestamp,
+    // Ships the report to Sentry (hantibink-mobile project) — no-op in dev
+    // builds where Sentry isn't initialized, but always logged locally
+    Sentry.captureMessage(`User-reported error: ${message}`, {
+      level: 'error',
+      extra: { errorDetails, timestamp },
     });
-    // TODO: Could integrate with Sentry or email reporting here
+    Logger.info('Error report sent:', { message, errorDetails, timestamp });
     handleCloseModal();
   };
 

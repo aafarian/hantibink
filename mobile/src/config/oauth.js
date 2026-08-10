@@ -39,6 +39,13 @@ const OAUTH_CONFIG = {
       'EXPO_PUBLIC_GOOGLE_CLIENT_ID_PROD',
       { required: true } // Google OAuth is actively used
     ),
+    // iOS needs its own OAuth client (Google Cloud Console -> iOS type,
+    // bundle id com.antoafarian.hantibink); Android works off the web client
+    iosClientId: validateConfig(
+      process.env.EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID,
+      'EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID',
+      { required: false }
+    ),
   },
   facebook: {
     // Get these from Facebook Developer Console

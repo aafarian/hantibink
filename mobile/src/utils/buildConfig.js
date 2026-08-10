@@ -3,8 +3,6 @@
  * Helps detect if we're in development, preview, or production builds
  */
 
-import Constants from 'expo-constants';
-
 /**
  * Check if we're in a development environment
  * This includes local development with Metro bundler
@@ -17,17 +15,10 @@ export const isDevelopment = __DEV__;
  * They use production API but should show developer options
  */
 export const isPreviewBuild = () => {
-  // In preview builds:
-  // - __DEV__ is false (production bundle)
-  // - distribution is 'internal'
-  // - API URL points to production
-
-  // Check if we have the production API URL but it's an internal build
-  const apiUrl = process.env.EXPO_PUBLIC_API_URL || '';
-  const isInternalDistribution = Constants.expoConfig?.distribution === 'internal';
-  const hasProductionApi = apiUrl.includes('hantibink-api');
-
-  return !__DEV__ && (isInternalDistribution || hasProductionApi);
+  // Explicit per-profile flag set in eas.json — NEVER inferred from the API
+  // URL: production builds point at the same production API, and the old
+  // heuristic made store builds show Developer Settings
+  return !__DEV__ && process.env.EXPO_PUBLIC_BUILD_PROFILE === 'preview';
 };
 
 /**
