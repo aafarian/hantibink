@@ -8,6 +8,17 @@
  */
 export const PATCH_NOTES = [
   {
+    version: '1.0.1',
+    headline: 'Faster and smoother',
+    notes: [
+      'The app is noticeably faster, everywhere',
+      'Voice messages: tap the mic once to record, tap again to send',
+      'GIFs now show at their proper size, with a full-screen viewer',
+      'Tapping a notification takes you straight to that conversation',
+      'You’ll now see these patch notes after every update',
+    ],
+  },
+  {
     version: '1.0.0',
     headline: 'Welcome to Hantibink',
     notes: [
