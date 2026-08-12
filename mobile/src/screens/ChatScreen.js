@@ -524,12 +524,25 @@ const ChatScreen = ({ route, navigation }) => {
         }));
 
       // Merge instead of replace: messages in state but missing from this
-      // snapshot are either newer than it (socket deliveries, optimistic
-      // sends) or older than its history window (paginated backscroll) —
-      // keep both and re-sort chronologically
+      // snapshot are kept only when they fall OUTSIDE the snapshot's time
+      // window — newer (socket deliveries, optimistic sends) or older
+      // (paginated backscroll). A message INSIDE the window that the
+      // server no longer returns was deleted, so it must not survive.
       setMessages(prev => {
+        if (!validMessages.length) {
+          return validMessages;
+        }
         const fetchedIds = new Set(validMessages.map(msg => msg.id));
-        const extras = prev.filter(msg => !fetchedIds.has(msg.id));
+        const times = validMessages.map(msg => new Date(msg.createdAt).getTime());
+        const windowStart = Math.min(...times);
+        const windowEnd = Math.max(...times);
+        const extras = prev.filter(msg => {
+          if (fetchedIds.has(msg.id)) {
+            return false;
+          }
+          const t = new Date(msg.createdAt).getTime();
+          return t < windowStart || t > windowEnd;
+        });
         if (!extras.length) {
           return validMessages;
         }
