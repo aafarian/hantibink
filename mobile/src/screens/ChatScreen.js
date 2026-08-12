@@ -523,7 +523,25 @@ const ChatScreen = ({ route, navigation }) => {
           createdAt: msg.timestamp || msg.createdAt,
         }));
 
-      setMessages(validMessages);
+      // Merge instead of replace: the only survivors from previous state
+      // are messages NEWER than this snapshot's window (socket deliveries
+      // and optimistic sends that landed while the fetch was in flight).
+      // Anything at or before the window end that the server no longer
+      // returns was deleted and must not be resurrected. The chat never
+      // paginates older history, so nothing older is worth keeping.
+      setMessages(prev => {
+        if (!validMessages.length) {
+          // Empty snapshot has no window: everything in state (optimistic
+          // sends, socket arrivals during the fetch) counts as newer
+          return prev;
+        }
+        const fetchedIds = new Set(validMessages.map(msg => msg.id));
+        const windowEnd = Math.max(...validMessages.map(msg => new Date(msg.createdAt).getTime()));
+        const newerThanSnapshot = prev.filter(
+          msg => !fetchedIds.has(msg.id) && new Date(msg.createdAt).getTime() > windowEnd
+        );
+        return newerThanSnapshot.length ? [...validMessages, ...newerThanSnapshot] : validMessages;
+      });
       setLoadError(false);
 
       // Only mark as read if there are messages from the other user
@@ -628,12 +646,16 @@ const ChatScreen = ({ route, navigation }) => {
       const previousState = appStateRef.current;
       appStateRef.current = nextAppState;
 
-      // If returning to foreground while this screen is focused, mark messages as read
+      // If returning to foreground while this screen is focused, refetch —
+      // the socket was disconnected in the background, so anything sent
+      // meanwhile (e.g. the message behind the notification that woke us)
+      // never arrived over the wire — then mark messages as read
       if (
         previousState.match(/inactive|background/) &&
         nextAppState === 'active' &&
         isFocusedRef.current
       ) {
+        loadMessages();
         markMessagesAsRead();
       }
     });

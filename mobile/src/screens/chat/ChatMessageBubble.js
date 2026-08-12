@@ -250,7 +250,13 @@ const ChatMessageBubble = ({
             >
               {message.messageType === 'GIF' ? (
                 <TouchableOpacity
-                  onPress={() => onPhotoPress([message.mediaUrl || message.content], 0)}
+                  onPress={() =>
+                    onPhotoPress({
+                      photos: [message.mediaUrl || message.content],
+                      initialIndex: 0,
+                      title: 'GIF',
+                    })
+                  }
                   onLongPress={() => onLongPress(message)}
                   delayLongPress={500}
                   activeOpacity={0.9}
@@ -258,7 +264,7 @@ const ChatMessageBubble = ({
                   <Image
                     source={{ uri: message.mediaUrl || message.content }}
                     style={styles.gifMessage}
-                    resizeMode="cover"
+                    resizeMode="contain"
                   />
                 </TouchableOpacity>
               ) : message.messageType === 'AUDIO' ? (
