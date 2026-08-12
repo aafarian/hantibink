@@ -324,6 +324,60 @@ describe('Admin Routes', () => {
       expect(cleared.body.data.updateMessage).toBeNull();
       expect(cleared.body.data.latestVersion).toBe('1.3.0');
     });
+
+    it('publishes, guards, and clears per-platform overrides', async () => {
+      const adminUser = await createAdmin();
+
+      // Android-only release: only the android block carries the new version
+      const publish = await request(app)
+        .put('/admin/config/app-version')
+        .set('Authorization', adminUser.authHeader)
+        .send({
+          latestVersion: '1.0.0',
+          platforms: { android: { latestVersion: '1.0.1' } },
+        });
+      expect(publish.status).toBe(200);
+      expect(publish.body.data.platforms.android.latestVersion).toBe('1.0.1');
+      expect(publish.body.data.platforms.ios).toBeUndefined();
+      expect(publish.body.data.latestVersion).toBe('1.0.0');
+
+      // A later ios-only publish must not disturb the android block
+      const iosPublish = await request(app)
+        .put('/admin/config/app-version')
+        .set('Authorization', adminUser.authHeader)
+        .send({ platforms: { ios: { latestVersion: '1.0.2' } } });
+      expect(iosPublish.status).toBe(200);
+      expect(iosPublish.body.data.platforms.android.latestVersion).toBe('1.0.1');
+      expect(iosPublish.body.data.platforms.ios.latestVersion).toBe('1.0.2');
+
+      const downgrade = await request(app)
+        .put('/admin/config/app-version')
+        .set('Authorization', adminUser.authHeader)
+        .send({ platforms: { android: { latestVersion: '1.0.0' } } });
+      expect(downgrade.status).toBe(400);
+      expect(downgrade.body.message).toMatch(/downgrade/i);
+
+      const junkVersion = await request(app)
+        .put('/admin/config/app-version')
+        .set('Authorization', adminUser.authHeader)
+        .send({ platforms: { android: { latestVersion: 'not-a-version' } } });
+      expect(junkVersion.status).toBe(400);
+
+      const junkPlatform = await request(app)
+        .put('/admin/config/app-version')
+        .set('Authorization', adminUser.authHeader)
+        .send({ platforms: { windows: { latestVersion: '1.0.0' } } });
+      expect(junkPlatform.status).toBe(400);
+
+      // null clears an override (allowed even though the version goes away)
+      const cleared = await request(app)
+        .put('/admin/config/app-version')
+        .set('Authorization', adminUser.authHeader)
+        .send({ platforms: { android: null } });
+      expect(cleared.status).toBe(200);
+      expect(cleared.body.data.platforms.android).toBeUndefined();
+      expect(cleared.body.data.platforms.ios.latestVersion).toBe('1.0.2');
+    });
   });
 
   describe('flags', () => {

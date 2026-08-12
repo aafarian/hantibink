@@ -122,7 +122,7 @@ const defaultVersionConfig = () => ({
   forceUpdate: process.env.FORCE_APP_UPDATE === 'true',
   updateMessage: process.env.APP_UPDATE_MESSAGE || null,
   storeUrls: {
-    ios: 'https://apps.apple.com/app/hantibink/id000000000', // Replace once the App Store listing exists
+    ios: 'https://apps.apple.com/app/id6799826153',
     android: 'https://play.google.com/store/apps/details?id=com.antoafarian.hantibink',
   },
 });

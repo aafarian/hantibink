@@ -33,6 +33,30 @@ export const compareVersions = (a, b) => {
 };
 
 /**
+ * Overlay a platform's override block onto the flat version config.
+ *
+ * The server may carry `platforms: { ios: {...}, android: {...} }` where
+ * each block overrides the global fields for that platform only — so an
+ * Android-only release never raises the update banner on iOS. Configs
+ * without a block for this platform pass through unchanged (old servers,
+ * platform not overridden).
+ *
+ * @param {object|null} config - Raw config from /health/app-version
+ * @param {string} platform - Platform.OS ('ios' | 'android')
+ * @returns {object|null} Flat config with platform overrides applied
+ */
+export const mergePlatformConfig = (config, platform) => {
+  if (!config || typeof config !== 'object') {
+    return null;
+  }
+  const override = config.platforms?.[platform];
+  if (!override || typeof override !== 'object') {
+    return config;
+  }
+  return { ...config, ...override };
+};
+
+/**
  * Derive the update state from the installed version and server config.
  * Missing/malformed config fails open to 'none' — never nags.
  *

@@ -297,6 +297,8 @@ const ConfigSection = ({ refreshKey }) => {
   const [minVersion, setMinVersion] = useState('');
   const [latestVersion, setLatestVersion] = useState('');
   const [forceUpdate, setForceUpdate] = useState(false);
+  const [iosLatest, setIosLatest] = useState('');
+  const [androidLatest, setAndroidLatest] = useState('');
   const [flags, setFlags] = useState({});
   const { showSuccess, showError } = useToast();
 
@@ -307,6 +309,8 @@ const ConfigSection = ({ refreshKey }) => {
         setMinVersion(config?.minVersion || '');
         setLatestVersion(config?.latestVersion || '');
         setForceUpdate(!!config?.forceUpdate);
+        setIosLatest(config?.platforms?.ios?.latestVersion || '');
+        setAndroidLatest(config?.platforms?.android?.latestVersion || '');
       })
       .catch(Logger.error);
     AdminApiService.getFlags().then(setFlags).catch(Logger.error);
@@ -314,10 +318,18 @@ const ConfigSection = ({ refreshKey }) => {
 
   const publish = async () => {
     try {
+      // Platform blocks are replaced wholesale: the form writes back exactly
+      // what it shows, and an emptied field clears that platform's override
+      const platformOverride = (current, latest) =>
+        latest ? { ...(current || {}), latestVersion: latest } : null;
       const published = await AdminApiService.publishAppVersion({
         minVersion: minVersion || undefined,
         latestVersion: latestVersion || undefined,
         forceUpdate,
+        platforms: {
+          ios: platformOverride(versionConfig?.platforms?.ios, iosLatest.trim()),
+          android: platformOverride(versionConfig?.platforms?.android, androidLatest.trim()),
+        },
       });
       setVersionConfig(published);
       showSuccess('Version config published');
@@ -344,7 +356,13 @@ const ConfigSection = ({ refreshKey }) => {
         title="App version"
         subtitle={
           versionConfig
-            ? `Published: min ${versionConfig.minVersion || '—'} · latest ${versionConfig.latestVersion || '—'}`
+            ? `Published: min ${versionConfig.minVersion || '—'} · latest ${versionConfig.latestVersion || '—'}` +
+              (versionConfig.platforms?.ios?.latestVersion
+                ? ` · iOS ${versionConfig.platforms.ios.latestVersion}`
+                : '') +
+              (versionConfig.platforms?.android?.latestVersion
+                ? ` · Android ${versionConfig.platforms.android.latestVersion}`
+                : '')
             : 'Nothing published yet (env/defaults serving)'
         }
       />
@@ -364,6 +382,24 @@ const ConfigSection = ({ refreshKey }) => {
           value={latestVersion}
           onChangeText={setLatestVersion}
           placeholder="1.0.0"
+          autoCapitalize="none"
+          keyboardType="numbers-and-punctuation"
+        />
+        <Text style={styles.configLabel}>iOS latest override (empty = follow global)</Text>
+        <TextInput
+          style={styles.configInput}
+          value={iosLatest}
+          onChangeText={setIosLatest}
+          placeholder="—"
+          autoCapitalize="none"
+          keyboardType="numbers-and-punctuation"
+        />
+        <Text style={styles.configLabel}>Android latest override (empty = follow global)</Text>
+        <TextInput
+          style={styles.configInput}
+          value={androidLatest}
+          onChangeText={setAndroidLatest}
+          placeholder="—"
           autoCapitalize="none"
           keyboardType="numbers-and-punctuation"
         />
