@@ -523,13 +523,19 @@ const ChatScreen = ({ route, navigation }) => {
           createdAt: msg.timestamp || msg.createdAt,
         }));
 
-      // Merge instead of replace: anything already in state but missing
-      // from this snapshot arrived AFTER the fetch started (socket
-      // deliveries, optimistic sends) and must survive the refresh
+      // Merge instead of replace: messages in state but missing from this
+      // snapshot are either newer than it (socket deliveries, optimistic
+      // sends) or older than its history window (paginated backscroll) —
+      // keep both and re-sort chronologically
       setMessages(prev => {
         const fetchedIds = new Set(validMessages.map(msg => msg.id));
-        const newerThanSnapshot = prev.filter(msg => !fetchedIds.has(msg.id));
-        return newerThanSnapshot.length ? [...validMessages, ...newerThanSnapshot] : validMessages;
+        const extras = prev.filter(msg => !fetchedIds.has(msg.id));
+        if (!extras.length) {
+          return validMessages;
+        }
+        return [...validMessages, ...extras].sort(
+          (a, b) => new Date(a.createdAt) - new Date(b.createdAt)
+        );
       });
       setLoadError(false);
 
