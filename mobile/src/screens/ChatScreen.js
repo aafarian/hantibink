@@ -531,7 +531,9 @@ const ChatScreen = ({ route, navigation }) => {
       // paginates older history, so nothing older is worth keeping.
       setMessages(prev => {
         if (!validMessages.length) {
-          return validMessages;
+          // Empty snapshot has no window: everything in state (optimistic
+          // sends, socket arrivals during the fetch) counts as newer
+          return prev;
         }
         const fetchedIds = new Set(validMessages.map(msg => msg.id));
         const windowEnd = Math.max(...validMessages.map(msg => new Date(msg.createdAt).getTime()));
