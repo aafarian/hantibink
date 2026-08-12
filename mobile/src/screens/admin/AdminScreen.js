@@ -299,39 +299,52 @@ const ConfigSection = ({ refreshKey }) => {
   const [forceUpdate, setForceUpdate] = useState(false);
   const [iosLatest, setIosLatest] = useState('');
   const [androidLatest, setAndroidLatest] = useState('');
+  const [loadedPlatformLatest, setLoadedPlatformLatest] = useState({ ios: '', android: '' });
   const [flags, setFlags] = useState({});
   const { showSuccess, showError } = useToast();
 
+  const applyVersionConfig = config => {
+    setVersionConfig(config);
+    setMinVersion(config?.minVersion || '');
+    setLatestVersion(config?.latestVersion || '');
+    setForceUpdate(!!config?.forceUpdate);
+    const ios = config?.platforms?.ios?.latestVersion || '';
+    const android = config?.platforms?.android?.latestVersion || '';
+    setIosLatest(ios);
+    setAndroidLatest(android);
+    setLoadedPlatformLatest({ ios, android });
+  };
+
   useEffect(() => {
-    AdminApiService.getAppVersionConfig()
-      .then(config => {
-        setVersionConfig(config);
-        setMinVersion(config?.minVersion || '');
-        setLatestVersion(config?.latestVersion || '');
-        setForceUpdate(!!config?.forceUpdate);
-        setIosLatest(config?.platforms?.ios?.latestVersion || '');
-        setAndroidLatest(config?.platforms?.android?.latestVersion || '');
-      })
-      .catch(Logger.error);
+    AdminApiService.getAppVersionConfig().then(applyVersionConfig).catch(Logger.error);
     AdminApiService.getFlags().then(setFlags).catch(Logger.error);
   }, [refreshKey]);
 
   const publish = async () => {
     try {
-      // Platform blocks are replaced wholesale: the form writes back exactly
-      // what it shows, and an emptied field clears that platform's override
+      // Only platforms the admin actually edited are sent, so a stale form
+      // can't clobber an override another admin published concurrently. An
+      // edited-to-empty field clears that platform's override (null); an
+      // edited value replaces the block with the new latestVersion.
       const platformOverride = (current, latest) =>
         latest ? { ...(current || {}), latestVersion: latest } : null;
+      const platforms = {};
+      if (iosLatest.trim() !== loadedPlatformLatest.ios) {
+        platforms.ios = platformOverride(versionConfig?.platforms?.ios, iosLatest.trim());
+      }
+      if (androidLatest.trim() !== loadedPlatformLatest.android) {
+        platforms.android = platformOverride(
+          versionConfig?.platforms?.android,
+          androidLatest.trim()
+        );
+      }
       const published = await AdminApiService.publishAppVersion({
         minVersion: minVersion || undefined,
         latestVersion: latestVersion || undefined,
         forceUpdate,
-        platforms: {
-          ios: platformOverride(versionConfig?.platforms?.ios, iosLatest.trim()),
-          android: platformOverride(versionConfig?.platforms?.android, androidLatest.trim()),
-        },
+        ...(Object.keys(platforms).length > 0 ? { platforms } : {}),
       });
-      setVersionConfig(published);
+      applyVersionConfig(published);
       showSuccess('Version config published');
     } catch (error) {
       showError(error.message || 'Publish failed (downgrades are refused)');
