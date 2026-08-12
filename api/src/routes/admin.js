@@ -249,6 +249,14 @@ router.put(
     body('latestVersion').optional({ values: 'falsy' }).isString().isLength({ max: 20 }),
     body('forceUpdate').optional().isBoolean(),
     body('updateMessage').optional({ values: 'null' }).isString().isLength({ max: 200 }),
+    body('platforms').optional().isObject(),
+    body('platforms.*.minVersion').optional({ values: 'falsy' }).isString().isLength({ max: 20 }),
+    body('platforms.*.latestVersion')
+      .optional({ values: 'falsy' })
+      .isString()
+      .isLength({ max: 20 }),
+    body('platforms.*.forceUpdate').optional().isBoolean(),
+    body('platforms.*.updateMessage').optional({ values: 'null' }).isString().isLength({ max: 200 }),
     handleValidationErrors,
   ],
   catchAsync(async (req, res) => {

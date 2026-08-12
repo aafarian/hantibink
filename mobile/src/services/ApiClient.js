@@ -58,6 +58,11 @@ function sleep(ms) {
   return new Promise(resolve => setTimeout(resolve, ms));
 }
 
+// Prior hostnames of the SAME production backend (same database, same JWT
+// secret). A stored URL matching one of these is a region migration, not an
+// environment switch — the session must survive it.
+const LEGACY_API_URLS = ['https://hantibink-api-393816901275.us-central1.run.app/api'];
+
 class ApiClient {
   constructor() {
     this.baseURL = `${environment.apiUrl}/api`;
@@ -75,10 +80,17 @@ class ApiClient {
       const currentApiUrl = this.baseURL;
 
       if (storedApiUrl && storedApiUrl !== currentApiUrl) {
-        Logger.warn('🔄 API URL changed, clearing old tokens');
-        await this.clearTokens();
-        await AsyncStorage.setItem('currentApiUrl', currentApiUrl);
-        return;
+        if (LEGACY_API_URLS.includes(storedApiUrl)) {
+          // Same backend under a new hostname (region move): the stored
+          // session is fully valid, so migrate the URL without logging out
+          Logger.info('🔄 API URL migrated to new region, keeping session');
+          await AsyncStorage.setItem('currentApiUrl', currentApiUrl);
+        } else {
+          Logger.warn('🔄 API URL changed, clearing old tokens');
+          await this.clearTokens();
+          await AsyncStorage.setItem('currentApiUrl', currentApiUrl);
+          return;
+        }
       }
 
       // Store current API URL if not set

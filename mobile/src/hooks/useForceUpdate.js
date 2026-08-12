@@ -1,9 +1,10 @@
 import { useState, useEffect, useCallback } from 'react';
+import { Platform } from 'react-native';
 import * as Application from 'expo-application';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import ApiDataService from '../services/ApiDataService';
 import Logger from '../utils/logger';
-import { updateState } from '../utils/version';
+import { mergePlatformConfig, updateState } from '../utils/version';
 
 // Dismissals are stored per-version so a NEWER release re-nags once
 const DISMISSED_UPDATE_KEY = '@hantibink/dismissedUpdateVersion';
@@ -32,11 +33,15 @@ const useForceUpdate = () => {
       setCurrentVersion(appVersion);
       Logger.info(`📱 Current app version: ${appVersion}`);
 
-      const config = await ApiDataService.checkAppVersion();
-      if (!config) {
+      const rawConfig = await ApiDataService.checkAppVersion();
+      if (!rawConfig) {
         Logger.info('📱 No version config received, skipping update check');
         return;
       }
+
+      // Apply this platform's override block (if any) so an Android-only
+      // release never nags iOS users, and vice versa
+      const config = mergePlatformConfig(rawConfig, Platform.OS);
 
       setVersionConfig(config);
 

@@ -414,6 +414,41 @@ const compareVersions = (a, b) => {
 
 const VERSION_REGEX = /^\d+(\.\d+){0,3}$/;
 
+const PLATFORM_KEYS = ['ios', 'android'];
+
+/**
+ * Validate and normalize a per-platform override block. Returns the cleaned
+ * override, or null when the input means "clear this platform's override"
+ * (explicit null, or an object with no recognized fields).
+ */
+const cleanPlatformOverride = (platform, override) => {
+  if (override === null) {
+    return null;
+  }
+  if (typeof override !== 'object' || Array.isArray(override)) {
+    throw new AppError(`platforms.${platform} must be an object or null`, 400);
+  }
+  for (const field of ['minVersion', 'latestVersion']) {
+    if (override[field] && !VERSION_REGEX.test(override[field])) {
+      throw new AppError(
+        `Invalid platforms.${platform}.${field}: must be dotted-numeric (e.g. 1.2.3)`,
+        400,
+      );
+    }
+  }
+  const cleaned = {
+    ...(override.minVersion ? { minVersion: override.minVersion } : {}),
+    ...(override.latestVersion ? { latestVersion: override.latestVersion } : {}),
+    ...(Object.prototype.hasOwnProperty.call(override, 'forceUpdate')
+      ? { forceUpdate: !!override.forceUpdate }
+      : {}),
+    ...(Object.prototype.hasOwnProperty.call(override, 'updateMessage')
+      ? { updateMessage: override.updateMessage }
+      : {}),
+  };
+  return Object.keys(cleaned).length > 0 ? cleaned : null;
+};
+
 const getAppVersionConfig = async () => {
   const row = await prisma.appConfig.findUnique({ where: { key: 'app_version' } });
   return row?.value || null;
@@ -426,7 +461,7 @@ const getAppVersionConfig = async () => {
  * silently clear an active force-update policy or its message.
  */
 const updateAppVersionConfig = async (input, adminEmail) => {
-  const { minVersion, latestVersion, forceUpdate, updateMessage, storeUrls } = input;
+  const { minVersion, latestVersion, forceUpdate, updateMessage, storeUrls, platforms } = input;
 
   for (const [label, value] of [
     ['minVersion', minVersion],
@@ -434,6 +469,25 @@ const updateAppVersionConfig = async (input, adminEmail) => {
   ]) {
     if (value && !VERSION_REGEX.test(value)) {
       throw new AppError(`Invalid ${label}: must be dotted-numeric (e.g. 1.2.3)`, 400);
+    }
+  }
+
+  // Per-platform overrides ride on top of the global fields: clients merge
+  // platforms[ios|android] over the flat config, so an Android-only release
+  // never nags iOS users. Each platform block is validated up front and
+  // merged field-by-field into the current block on publish; null or an
+  // empty block clears it.
+  let platformUpdates;
+  if (platforms !== undefined) {
+    if (typeof platforms !== 'object' || platforms === null || Array.isArray(platforms)) {
+      throw new AppError('platforms must be an object with ios/android keys', 400);
+    }
+    platformUpdates = {};
+    for (const key of Object.keys(platforms)) {
+      if (!PLATFORM_KEYS.includes(key)) {
+        throw new AppError(`Unknown platform "${key}" (expected ios/android)`, 400);
+      }
+      platformUpdates[key] = cleanPlatformOverride(key, platforms[key]);
     }
   }
 
@@ -471,6 +525,37 @@ const updateAppVersionConfig = async (input, adminEmail) => {
             : {}),
           ...(storeUrls ? { storeUrls } : {}),
         };
+
+        if (platformUpdates) {
+          const nextPlatforms = { ...(current?.platforms || {}) };
+          for (const [key, override] of Object.entries(platformUpdates)) {
+            if (override === null) {
+              // Clearing is always allowed — it can only stop a nag,
+              // never raise a false one.
+              delete nextPlatforms[key];
+              continue;
+            }
+            const existing = nextPlatforms[key] || {};
+            for (const field of ['minVersion', 'latestVersion']) {
+              if (
+                override[field] &&
+                existing[field] &&
+                compareVersions(override[field], existing[field]) < 0
+              ) {
+                throw new AppError(`Refusing version downgrade of platforms.${key}.${field}`, 400);
+              }
+            }
+            // Merge field-by-field over the CURRENT block (not the caller's
+            // snapshot) so concurrent publishes touching different fields of
+            // the same platform never revert each other
+            nextPlatforms[key] = { ...existing, ...override };
+          }
+          if (Object.keys(nextPlatforms).length > 0) {
+            value.platforms = nextPlatforms;
+          } else {
+            delete value.platforms;
+          }
+        }
 
         const saved = await tx.appConfig.upsert({
           where: { key: 'app_version' },

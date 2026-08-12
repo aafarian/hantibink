@@ -13,7 +13,7 @@ fi
 # Configuration
 PROJECT_ID="hantibink"
 SERVICE_NAME="hantibink-api"
-REGION="us-central1"
+REGION="us-west2"
 IMAGE_NAME="gcr.io/${PROJECT_ID}/${SERVICE_NAME}"
 
 # Colors for output
@@ -53,7 +53,7 @@ gcloud run deploy ${SERVICE_NAME} \
   --platform managed \
   --region ${REGION} \
   --allow-unauthenticated \
-  --min-instances 0 \
+  --min-instances 1 \
   --max-instances 100 \
   --memory 512Mi \
   --cpu 1 \

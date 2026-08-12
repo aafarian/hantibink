@@ -18,9 +18,9 @@ const ENV = {
   },
   prod: {
     apiUrl:
-      process.env.EXPO_PUBLIC_API_URL || 'https://hantibink-api-393816901275.us-central1.run.app',
+      process.env.EXPO_PUBLIC_API_URL || 'https://hantibink-api-393816901275.us-west2.run.app',
     socketUrl:
-      process.env.EXPO_PUBLIC_SOCKET_URL || 'wss://hantibink-api-393816901275.us-central1.run.app',
+      process.env.EXPO_PUBLIC_SOCKET_URL || 'wss://hantibink-api-393816901275.us-west2.run.app',
     giphyApiKey,
   },
 };

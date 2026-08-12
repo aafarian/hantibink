@@ -11,7 +11,7 @@ on:
 
 env:
   PROJECT_ID: hantibink
-  REGION: us-central1
+  REGION: us-west2
   SERVICE_NAME: hantibink-api
 
 jobs:
@@ -98,7 +98,7 @@ jobs:
             --allow-unauthenticated \
             --set-env-vars="^##^NODE_ENV=production##HOST=0.0.0.0##FIREBASE_PROJECT_ID=hantibink##DATABASE_URL=${{ secrets.SUPABASE_DATABASE_URL }}##DIRECT_URL=${{ secrets.SUPABASE_DIRECT_URL }}##JWT_SECRET=${{ secrets.JWT_SECRET }}##GOOGLE_CLIENT_ID=${{ secrets.GOOGLE_CLIENT_ID }}##GOOGLE_CLIENT_SECRET=${{ secrets.GOOGLE_CLIENT_SECRET }}##ADMIN_EMAILS=${{ secrets.ADMIN_EMAILS }}##CORS_ORIGIN=${{ secrets.CORS_ORIGIN }}##SENTRY_DSN=${{ secrets.SENTRY_DSN }}##RESEND_API_KEY=${{ secrets.RESEND_API_KEY }}##FROM_EMAIL=${{ secrets.FROM_EMAIL }}##APP_URL=${{ secrets.APP_URL }}##REVENUECAT_WEBHOOK_SECRET=${{ secrets.REVENUECAT_WEBHOOK_SECRET }}##REVENUECAT_SANDBOX_USER_IDS=${{ vars.REVENUECAT_SANDBOX_USER_IDS }}##FIREBASE_SERVICE_ACCOUNT_KEY_BASE64=${{ secrets.FIREBASE_SERVICE_ACCOUNT_KEY_BASE64 }}" \
             --session-affinity \
-            --min-instances=0 \
+            --min-instances=1 \
             --max-instances=2 \
             --memory=512Mi
 

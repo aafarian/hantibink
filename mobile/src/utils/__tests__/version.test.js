@@ -1,4 +1,4 @@
-import { compareVersions, updateState } from '../version';
+import { compareVersions, mergePlatformConfig, updateState } from '../version';
 
 describe('compareVersions', () => {
   it('orders plain versions', () => {
@@ -36,6 +36,46 @@ describe('compareVersions', () => {
   it('malformed server config never produces an update state', () => {
     expect(updateState('1.0.0', { minVersion: '2.x' })).toBe('none');
     expect(updateState('1.0.0', { latestVersion: 'not-a-version' })).toBe('none');
+  });
+});
+
+describe('mergePlatformConfig', () => {
+  const config = {
+    minVersion: '1.0.0',
+    latestVersion: '1.0.0',
+    storeUrls: { ios: 'apple', android: 'play' },
+    platforms: { android: { latestVersion: '1.0.1' } },
+  };
+
+  it('applies only the matching platform override', () => {
+    // Android-only release: android sees the bump, iOS keeps the global
+    expect(mergePlatformConfig(config, 'android').latestVersion).toBe('1.0.1');
+    expect(mergePlatformConfig(config, 'ios').latestVersion).toBe('1.0.0');
+  });
+
+  it('keeps non-overridden fields from the global config', () => {
+    const merged = mergePlatformConfig(config, 'android');
+    expect(merged.minVersion).toBe('1.0.0');
+    expect(merged.storeUrls).toEqual({ ios: 'apple', android: 'play' });
+  });
+
+  it('passes configs without platform blocks through unchanged', () => {
+    const flat = { latestVersion: '1.2.0' };
+    expect(mergePlatformConfig(flat, 'ios')).toBe(flat);
+  });
+
+  it('fails open on missing or malformed config', () => {
+    expect(mergePlatformConfig(null, 'ios')).toBeNull();
+    expect(mergePlatformConfig(undefined, 'ios')).toBeNull();
+    expect(
+      mergePlatformConfig({ platforms: { ios: 'junk' } }, 'ios').latestVersion
+    ).toBeUndefined();
+  });
+
+  it('platform override drives the update state', () => {
+    const merged = mergePlatformConfig(config, 'android');
+    expect(updateState('1.0.0', merged)).toBe('available');
+    expect(updateState('1.0.0', mergePlatformConfig(config, 'ios'))).toBe('none');
   });
 });
 

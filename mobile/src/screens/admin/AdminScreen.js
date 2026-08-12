@@ -297,29 +297,50 @@ const ConfigSection = ({ refreshKey }) => {
   const [minVersion, setMinVersion] = useState('');
   const [latestVersion, setLatestVersion] = useState('');
   const [forceUpdate, setForceUpdate] = useState(false);
+  const [iosLatest, setIosLatest] = useState('');
+  const [androidLatest, setAndroidLatest] = useState('');
+  const [loadedPlatformLatest, setLoadedPlatformLatest] = useState({ ios: '', android: '' });
   const [flags, setFlags] = useState({});
   const { showSuccess, showError } = useToast();
 
+  const applyVersionConfig = config => {
+    setVersionConfig(config);
+    setMinVersion(config?.minVersion || '');
+    setLatestVersion(config?.latestVersion || '');
+    setForceUpdate(!!config?.forceUpdate);
+    const ios = config?.platforms?.ios?.latestVersion || '';
+    const android = config?.platforms?.android?.latestVersion || '';
+    setIosLatest(ios);
+    setAndroidLatest(android);
+    setLoadedPlatformLatest({ ios, android });
+  };
+
   useEffect(() => {
-    AdminApiService.getAppVersionConfig()
-      .then(config => {
-        setVersionConfig(config);
-        setMinVersion(config?.minVersion || '');
-        setLatestVersion(config?.latestVersion || '');
-        setForceUpdate(!!config?.forceUpdate);
-      })
-      .catch(Logger.error);
+    AdminApiService.getAppVersionConfig().then(applyVersionConfig).catch(Logger.error);
     AdminApiService.getFlags().then(setFlags).catch(Logger.error);
   }, [refreshKey]);
 
   const publish = async () => {
     try {
+      // Only platforms the admin actually edited are sent, and only the
+      // edited field — the server merges it into the CURRENT block, so a
+      // stale form can never revert or clear what another admin published
+      // concurrently. An edited-to-empty field clears the override (null).
+      const platformOverride = latest => (latest ? { latestVersion: latest } : null);
+      const platforms = {};
+      if (iosLatest.trim() !== loadedPlatformLatest.ios) {
+        platforms.ios = platformOverride(iosLatest.trim());
+      }
+      if (androidLatest.trim() !== loadedPlatformLatest.android) {
+        platforms.android = platformOverride(androidLatest.trim());
+      }
       const published = await AdminApiService.publishAppVersion({
         minVersion: minVersion || undefined,
         latestVersion: latestVersion || undefined,
         forceUpdate,
+        ...(Object.keys(platforms).length > 0 ? { platforms } : {}),
       });
-      setVersionConfig(published);
+      applyVersionConfig(published);
       showSuccess('Version config published');
     } catch (error) {
       showError(error.message || 'Publish failed (downgrades are refused)');
@@ -344,7 +365,13 @@ const ConfigSection = ({ refreshKey }) => {
         title="App version"
         subtitle={
           versionConfig
-            ? `Published: min ${versionConfig.minVersion || '—'} · latest ${versionConfig.latestVersion || '—'}`
+            ? `Published: min ${versionConfig.minVersion || '—'} · latest ${versionConfig.latestVersion || '—'}` +
+              (versionConfig.platforms?.ios?.latestVersion
+                ? ` · iOS ${versionConfig.platforms.ios.latestVersion}`
+                : '') +
+              (versionConfig.platforms?.android?.latestVersion
+                ? ` · Android ${versionConfig.platforms.android.latestVersion}`
+                : '')
             : 'Nothing published yet (env/defaults serving)'
         }
       />
@@ -364,6 +391,24 @@ const ConfigSection = ({ refreshKey }) => {
           value={latestVersion}
           onChangeText={setLatestVersion}
           placeholder="1.0.0"
+          autoCapitalize="none"
+          keyboardType="numbers-and-punctuation"
+        />
+        <Text style={styles.configLabel}>iOS latest override (empty = follow global)</Text>
+        <TextInput
+          style={styles.configInput}
+          value={iosLatest}
+          onChangeText={setIosLatest}
+          placeholder="—"
+          autoCapitalize="none"
+          keyboardType="numbers-and-punctuation"
+        />
+        <Text style={styles.configLabel}>Android latest override (empty = follow global)</Text>
+        <TextInput
+          style={styles.configInput}
+          value={androidLatest}
+          onChangeText={setAndroidLatest}
+          placeholder="—"
           autoCapitalize="none"
           keyboardType="numbers-and-punctuation"
         />
