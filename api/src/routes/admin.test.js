@@ -369,6 +369,16 @@ describe('Admin Routes', () => {
         .send({ platforms: { windows: { latestVersion: '1.0.0' } } });
       expect(junkPlatform.status).toBe(400);
 
+      // Publishes merge field-by-field into the current block, so a
+      // latestVersion-only publish can't revert a concurrent forceUpdate
+      const fieldMerge = await request(app)
+        .put('/admin/config/app-version')
+        .set('Authorization', adminUser.authHeader)
+        .send({ platforms: { android: { forceUpdate: true } } });
+      expect(fieldMerge.status).toBe(200);
+      expect(fieldMerge.body.data.platforms.android.forceUpdate).toBe(true);
+      expect(fieldMerge.body.data.platforms.android.latestVersion).toBe('1.0.1');
+
       // null clears an override (allowed even though the version goes away)
       const cleared = await request(app)
         .put('/admin/config/app-version')

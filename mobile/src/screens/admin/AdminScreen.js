@@ -322,21 +322,17 @@ const ConfigSection = ({ refreshKey }) => {
 
   const publish = async () => {
     try {
-      // Only platforms the admin actually edited are sent, so a stale form
-      // can't clobber an override another admin published concurrently. An
-      // edited-to-empty field clears that platform's override (null); an
-      // edited value replaces the block with the new latestVersion.
-      const platformOverride = (current, latest) =>
-        latest ? { ...(current || {}), latestVersion: latest } : null;
+      // Only platforms the admin actually edited are sent, and only the
+      // edited field — the server merges it into the CURRENT block, so a
+      // stale form can never revert or clear what another admin published
+      // concurrently. An edited-to-empty field clears the override (null).
+      const platformOverride = latest => (latest ? { latestVersion: latest } : null);
       const platforms = {};
       if (iosLatest.trim() !== loadedPlatformLatest.ios) {
-        platforms.ios = platformOverride(versionConfig?.platforms?.ios, iosLatest.trim());
+        platforms.ios = platformOverride(iosLatest.trim());
       }
       if (androidLatest.trim() !== loadedPlatformLatest.android) {
-        platforms.android = platformOverride(
-          versionConfig?.platforms?.android,
-          androidLatest.trim()
-        );
+        platforms.android = platformOverride(androidLatest.trim());
       }
       const published = await AdminApiService.publishAppVersion({
         minVersion: minVersion || undefined,

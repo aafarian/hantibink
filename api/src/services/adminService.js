@@ -475,8 +475,8 @@ const updateAppVersionConfig = async (input, adminEmail) => {
   // Per-platform overrides ride on top of the global fields: clients merge
   // platforms[ios|android] over the flat config, so an Android-only release
   // never nags iOS users. Each platform block is validated up front and
-  // REPLACED wholesale on publish (the admin form shows current state and
-  // writes back exactly what it shows); null or an empty block clears it.
+  // merged field-by-field into the current block on publish; null or an
+  // empty block clears it.
   let platformUpdates;
   if (platforms !== undefined) {
     if (typeof platforms !== 'object' || platforms === null || Array.isArray(platforms)) {
@@ -545,7 +545,10 @@ const updateAppVersionConfig = async (input, adminEmail) => {
                 throw new AppError(`Refusing version downgrade of platforms.${key}.${field}`, 400);
               }
             }
-            nextPlatforms[key] = override;
+            // Merge field-by-field over the CURRENT block (not the caller's
+            // snapshot) so concurrent publishes touching different fields of
+            // the same platform never revert each other
+            nextPlatforms[key] = { ...existing, ...override };
           }
           if (Object.keys(nextPlatforms).length > 0) {
             value.platforms = nextPlatforms;
