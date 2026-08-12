@@ -383,9 +383,9 @@ const AudioRecorder = ({
       },
       onPanResponderRelease: () => {
         if (!isRecordingRef.current && isBusyRef.current) {
-          // Start still in flight — flag it so the recorder unloads the
-          // moment it comes up instead of recording to nobody
-          releasedDuringStartRef.current = true;
+          // Start still in flight after a quick TAP: let it finish and
+          // latch into recording (stop/cancel via the visible buttons).
+          // Only a system-terminated gesture aborts the start.
           return;
         }
         if (isRecordingRef.current) {

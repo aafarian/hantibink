@@ -283,23 +283,8 @@ const AppNavigator = () => {
     dismissSoftUpdate,
   } = useForceUpdate();
 
-  // Handle pending navigation when navigation becomes ready
   const handleNavigationReady = React.useCallback(() => {
     setIsNavigationReady(true);
-    // Execute any pending navigation
-    if (pendingNavigationRef.current && navigationRef.current) {
-      const data = pendingNavigationRef.current;
-      pendingNavigationRef.current = null;
-      navigationRef.current.navigate('Messages', {
-        screen: 'Chat',
-        params: {
-          match: {
-            matchId: data.matchId,
-            otherUser: data.otherUser,
-          },
-        },
-      });
-    }
   }, []);
 
   // Track navigation ready state in a ref so the effect doesn't need to re-run
@@ -308,32 +293,67 @@ const AppNavigator = () => {
     isNavigationReadyRef.current = isNavigationReady;
   }, [isNavigationReady]);
 
-  // Handle notification tap to navigate to the correct screen
+  // The Messages route only exists once the authed MainNavigator has
+  // mounted; navigating before that is a silent no-op that eats the tap
+  // and strands the user on the default tab (My Profile)
+  const isMainTreeMountedRef = useRef(false);
   useEffect(() => {
-    notificationResponseListener.current = Notifications.addNotificationResponseReceivedListener(
-      response => {
-        const data = response.notification.request.content.data;
-        Logger.info('Notification tapped:', data);
+    isMainTreeMountedRef.current = !!(user && userProfile);
+  }, [user, userProfile]);
 
-        if (data?.type === 'message' && data?.matchId && data?.otherUser) {
-          if (isNavigationReadyRef.current && navigationRef.current) {
-            // Navigate immediately if ready
-            navigationRef.current.navigate('Messages', {
-              screen: 'Chat',
-              params: {
-                match: {
-                  matchId: data.matchId,
-                  otherUser: data.otherUser,
-                },
-              },
-            });
-          } else {
-            // Store for later navigation when ready
-            pendingNavigationRef.current = data;
-          }
-        }
+  const drainPendingNotificationNav = React.useCallback(() => {
+    const data = pendingNavigationRef.current;
+    if (
+      !data ||
+      !isNavigationReadyRef.current ||
+      !navigationRef.current ||
+      !isMainTreeMountedRef.current
+    ) {
+      return;
+    }
+    pendingNavigationRef.current = null;
+    navigationRef.current.navigate('Messages', {
+      screen: 'Chat',
+      params: {
+        match: {
+          matchId: data.matchId,
+          otherUser: data.otherUser,
+        },
+      },
+    });
+  }, []);
+
+  // Retry the pending navigation whenever a gate opens (auth resolves,
+  // navigator becomes ready) — the tap is held until it can land
+  useEffect(() => {
+    drainPendingNotificationNav();
+  }, [user, userProfile, isNavigationReady, drainPendingNotificationNav]);
+
+  // Handle notification taps: the live listener plus the LAUNCH tap —
+  // on cold start the response is delivered before any listener exists,
+  // so it must be fetched explicitly. Deduped by notification identifier.
+  const handledNotificationIdRef = useRef(null);
+  useEffect(() => {
+    const handleResponse = response => {
+      const id = response?.notification?.request?.identifier;
+      if (!id || handledNotificationIdRef.current === id) {
+        return;
       }
-    );
+      const data = response.notification.request.content.data;
+      Logger.info('Notification tapped:', data);
+
+      if (data?.type === 'message' && data?.matchId && data?.otherUser) {
+        handledNotificationIdRef.current = id;
+        pendingNavigationRef.current = data;
+        drainPendingNotificationNav();
+      }
+    };
+
+    notificationResponseListener.current =
+      Notifications.addNotificationResponseReceivedListener(handleResponse);
+    Notifications.getLastNotificationResponseAsync()
+      .then(response => response && handleResponse(response))
+      .catch(() => {});
 
     return () => {
       if (notificationResponseListener.current) {
@@ -341,7 +361,7 @@ const AppNavigator = () => {
         notificationResponseListener.current.remove();
       }
     };
-  }, []);
+  }, [drainPendingNotificationNav]);
 
   // Don't check onboarding flag here - let MainNavigator handle it
   // This was causing a race condition where the flag was being cleared

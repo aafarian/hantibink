@@ -173,8 +173,10 @@ const AnimatedTabBar = ({ state, descriptors, navigation, unreadCount = 0 }) => 
     () => [
       styles.tabBar,
       {
-        paddingBottom: Platform.OS === 'android' ? insets.bottom : 5,
-        height: Platform.OS === 'android' ? 60 + insets.bottom : 60,
+        // Bar background reaches the screen edge; buttons sit above the
+        // home indicator (Math.max keeps old spacing on no-inset devices)
+        paddingBottom: Platform.OS === 'android' ? insets.bottom : Math.max(insets.bottom, 5),
+        height: Platform.OS === 'android' ? 60 + insets.bottom : 55 + Math.max(insets.bottom, 5),
       },
     ],
     [insets.bottom]

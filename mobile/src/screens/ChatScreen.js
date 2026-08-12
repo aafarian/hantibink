@@ -628,12 +628,16 @@ const ChatScreen = ({ route, navigation }) => {
       const previousState = appStateRef.current;
       appStateRef.current = nextAppState;
 
-      // If returning to foreground while this screen is focused, mark messages as read
+      // If returning to foreground while this screen is focused, refetch —
+      // the socket was disconnected in the background, so anything sent
+      // meanwhile (e.g. the message behind the notification that woke us)
+      // never arrived over the wire — then mark messages as read
       if (
         previousState.match(/inactive|background/) &&
         nextAppState === 'active' &&
         isFocusedRef.current
       ) {
+        loadMessages();
         markMessagesAsRead();
       }
     });
