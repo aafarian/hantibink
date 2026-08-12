@@ -523,32 +523,22 @@ const ChatScreen = ({ route, navigation }) => {
           createdAt: msg.timestamp || msg.createdAt,
         }));
 
-      // Merge instead of replace: messages in state but missing from this
-      // snapshot are kept only when they fall OUTSIDE the snapshot's time
-      // window — newer (socket deliveries, optimistic sends) or older
-      // (paginated backscroll). A message INSIDE the window that the
-      // server no longer returns was deleted, so it must not survive.
+      // Merge instead of replace: the only survivors from previous state
+      // are messages NEWER than this snapshot's window (socket deliveries
+      // and optimistic sends that landed while the fetch was in flight).
+      // Anything at or before the window end that the server no longer
+      // returns was deleted and must not be resurrected. The chat never
+      // paginates older history, so nothing older is worth keeping.
       setMessages(prev => {
         if (!validMessages.length) {
           return validMessages;
         }
         const fetchedIds = new Set(validMessages.map(msg => msg.id));
-        const times = validMessages.map(msg => new Date(msg.createdAt).getTime());
-        const windowStart = Math.min(...times);
-        const windowEnd = Math.max(...times);
-        const extras = prev.filter(msg => {
-          if (fetchedIds.has(msg.id)) {
-            return false;
-          }
-          const t = new Date(msg.createdAt).getTime();
-          return t < windowStart || t > windowEnd;
-        });
-        if (!extras.length) {
-          return validMessages;
-        }
-        return [...validMessages, ...extras].sort(
-          (a, b) => new Date(a.createdAt) - new Date(b.createdAt)
+        const windowEnd = Math.max(...validMessages.map(msg => new Date(msg.createdAt).getTime()));
+        const newerThanSnapshot = prev.filter(
+          msg => !fetchedIds.has(msg.id) && new Date(msg.createdAt).getTime() > windowEnd
         );
+        return newerThanSnapshot.length ? [...validMessages, ...newerThanSnapshot] : validMessages;
       });
       setLoadError(false);
 
