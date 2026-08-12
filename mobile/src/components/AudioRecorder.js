@@ -105,6 +105,10 @@ const AudioRecorder = ({
   // Cleanup on unmount
   useEffect(() => {
     return () => {
+      // A start may still be in flight (createAsync pending): flag it so
+      // the startup path unloads the recording instead of leaking a
+      // native recorder with no owning component
+      releasedDuringStartRef.current = true;
       if (recordingRef.current) {
         recordingRef.current.stopAndUnloadAsync().catch(() => {});
       }

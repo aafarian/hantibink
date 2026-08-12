@@ -353,7 +353,9 @@ const AppNavigator = () => {
       Notifications.addNotificationResponseReceivedListener(handleResponse);
     Notifications.getLastNotificationResponseAsync()
       .then(response => response && handleResponse(response))
-      .catch(() => {});
+      .catch(error => {
+        Logger.warn('Failed to read launch notification response:', error?.message);
+      });
 
     return () => {
       if (notificationResponseListener.current) {

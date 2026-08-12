@@ -523,7 +523,14 @@ const ChatScreen = ({ route, navigation }) => {
           createdAt: msg.timestamp || msg.createdAt,
         }));
 
-      setMessages(validMessages);
+      // Merge instead of replace: anything already in state but missing
+      // from this snapshot arrived AFTER the fetch started (socket
+      // deliveries, optimistic sends) and must survive the refresh
+      setMessages(prev => {
+        const fetchedIds = new Set(validMessages.map(msg => msg.id));
+        const newerThanSnapshot = prev.filter(msg => !fetchedIds.has(msg.id));
+        return newerThanSnapshot.length ? [...validMessages, ...newerThanSnapshot] : validMessages;
+      });
       setLoadError(false);
 
       // Only mark as read if there are messages from the other user
