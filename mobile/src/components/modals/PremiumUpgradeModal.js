@@ -9,8 +9,10 @@ import {
   Animated,
   ActivityIndicator,
   ScrollView,
+  Platform,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { LinearGradient } from 'expo-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuth } from '../../contexts/AuthContext';
 import { useToast } from '../../contexts/ToastContext';
@@ -26,6 +28,56 @@ const PACKAGE_LABELS = {
   MONTHLY: 'Monthly',
   THREE_MONTH: '3 Months',
   ANNUAL: 'Yearly',
+};
+
+const PACKAGE_MONTHS = {
+  MONTHLY: 1,
+  THREE_MONTH: 3,
+  ANNUAL: 12,
+};
+
+const PACKAGE_BADGES = {
+  ANNUAL: 'BEST VALUE',
+  THREE_MONTH: 'POPULAR',
+};
+
+const PACKAGE_PERIODS = {
+  MONTHLY: '/month',
+  THREE_MONTH: '/3 months',
+  ANNUAL: '/year',
+};
+
+/** "$5.00/mo" equivalent for multi-month packages, null for monthly. */
+const formatPerMonth = pkg => {
+  const months = PACKAGE_MONTHS[pkg.packageType];
+  if (!months || months === 1 || !pkg.product?.price) {
+    return null;
+  }
+  const perMonth = pkg.product.price / months;
+  if (pkg.product.currencyCode) {
+    try {
+      const formatted = new Intl.NumberFormat(undefined, {
+        style: 'currency',
+        currency: pkg.product.currencyCode,
+      }).format(perMonth);
+      return `${formatted}/mo`;
+    } catch {
+      // Intl or the currency code unavailable — derive from priceString below
+    }
+  }
+  const symbol = (pkg.product.priceString || '').replace(/[\d.,\s]/g, '');
+  return `${symbol}${perMonth.toFixed(2)}/mo`;
+};
+
+/** "Save 50%" vs paying monthly, null when it doesn't apply. */
+const formatSavings = (pkg, packages) => {
+  const months = PACKAGE_MONTHS[pkg.packageType];
+  const monthly = packages.find(p => p.packageType === 'MONTHLY');
+  if (!months || months === 1 || !monthly?.product?.price || !pkg.product?.price) {
+    return null;
+  }
+  const pct = Math.round((1 - pkg.product.price / months / monthly.product.price) * 100);
+  return pct >= 5 ? `Save ${pct}%` : null;
 };
 
 /**
@@ -82,11 +134,18 @@ const PremiumUpgradeModal = ({ visible, onClose, onUpgrade }) => {
   // message that must be read while the modal is open lands here instead
   const [notice, setNotice] = useState(null);
 
+  const [selectedId, setSelectedId] = useState(null);
+
   // Live prices from RevenueCat; empty in builds without an RC key, where
-  // the legacy single CTA renders instead
+  // the legacy single CTA renders instead. Yearly (best value) starts
+  // selected — the standard anchor.
   useEffect(() => {
     if (visible) {
-      getPremiumPackages().then(setPackages);
+      getPremiumPackages().then(pkgs => {
+        setPackages(pkgs);
+        const annual = pkgs.find(p => p.packageType === 'ANNUAL');
+        setSelectedId((annual || pkgs[0])?.identifier ?? null);
+      });
     }
   }, [visible]);
 
@@ -211,33 +270,105 @@ const PremiumUpgradeModal = ({ visible, onClose, onUpgrade }) => {
             </View>
 
             {/* Purchase options (live store prices) or the legacy CTA when
-              this build has no RevenueCat key */}
+              this build has no RevenueCat key. Tapping a card selects it;
+              the Continue button confirms — no buy-on-tap accidents. */}
             {packages.length > 0 ? (
-              <View style={styles.packagesRow}>
-                {packages.map(pkg => (
-                  <TouchableOpacity
-                    key={pkg.identifier}
-                    style={[
-                      styles.packageOption,
-                      buying === pkg.identifier && styles.packageBuying,
-                    ]}
-                    disabled={!!buying}
-                    onPress={() => handlePurchase(pkg)}
-                    activeOpacity={0.8}
-                  >
-                    {buying === pkg.identifier ? (
-                      <ActivityIndicator size="small" color={theme.colors.premium} />
-                    ) : (
-                      <>
-                        <Text style={styles.packageLabel}>
+              <>
+                <View style={styles.packagesRow}>
+                  {packages.map(pkg => {
+                    const isSelected = pkg.identifier === selectedId;
+                    const badge = PACKAGE_BADGES[pkg.packageType];
+                    const perMonth = formatPerMonth(pkg);
+                    const savings = formatSavings(pkg, packages);
+                    return (
+                      <TouchableOpacity
+                        key={pkg.identifier}
+                        style={[styles.packageOption, isSelected && styles.packageOptionSelected]}
+                        disabled={!!buying}
+                        onPress={() => setSelectedId(pkg.identifier)}
+                        activeOpacity={0.85}
+                      >
+                        {isSelected && (
+                          <LinearGradient
+                            colors={[theme.colors.accentLight, theme.colors.premium]}
+                            start={{ x: 0, y: 0 }}
+                            end={{ x: 1, y: 1 }}
+                            style={StyleSheet.absoluteFill}
+                          />
+                        )}
+                        <View style={styles.packageBadgeSlot}>
+                          {badge && (
+                            <View
+                              style={[
+                                styles.packageBadge,
+                                isSelected && styles.packageBadgeSelected,
+                              ]}
+                            >
+                              <Text style={styles.packageBadgeText}>{badge}</Text>
+                            </View>
+                          )}
+                        </View>
+                        <Text
+                          style={[styles.packageLabel, isSelected && styles.packageTextSelected]}
+                        >
                           {PACKAGE_LABELS[pkg.packageType] || pkg.packageType}
                         </Text>
-                        <Text style={styles.packagePrice}>{pkg.product.priceString}</Text>
-                      </>
+                        <Text
+                          style={[styles.packagePrice, isSelected && styles.packageTextSelected]}
+                        >
+                          {pkg.product.priceString}
+                        </Text>
+                        <Text
+                          style={[styles.packageDetail, isSelected && styles.packageDetailSelected]}
+                        >
+                          {perMonth || ' '}
+                        </Text>
+                        <Text
+                          style={[styles.packageSavings, isSelected && styles.packageTextSelected]}
+                        >
+                          {savings || ' '}
+                        </Text>
+                      </TouchableOpacity>
+                    );
+                  })}
+                </View>
+
+                <TouchableOpacity
+                  style={styles.continueButton}
+                  disabled={!selectedId || !!buying}
+                  onPress={() => {
+                    const pkg = packages.find(p => p.identifier === selectedId);
+                    if (pkg) {
+                      handlePurchase(pkg);
+                    }
+                  }}
+                  activeOpacity={0.85}
+                >
+                  <LinearGradient
+                    colors={[theme.colors.accentLight, theme.colors.premium]}
+                    start={{ x: 0, y: 0 }}
+                    end={{ x: 1, y: 1 }}
+                    style={styles.continueGradient}
+                  >
+                    {buying ? (
+                      <ActivityIndicator size="small" color={theme.colors.text.white} />
+                    ) : (
+                      <Text style={styles.continueText}>
+                        {(() => {
+                          const pkg = packages.find(p => p.identifier === selectedId);
+                          return pkg
+                            ? `Continue • ${pkg.product.priceString}${PACKAGE_PERIODS[pkg.packageType] || ''}`
+                            : 'Continue';
+                        })()}
+                      </Text>
                     )}
-                  </TouchableOpacity>
-                ))}
-              </View>
+                  </LinearGradient>
+                </TouchableOpacity>
+                <Text style={styles.finePrint}>
+                  Auto-renews until cancelled. Cancel anytime in your{' '}
+                  {Platform.OS === 'ios' ? 'App Store' : 'Google Play'} settings.
+                </Text>
+              </>
             ) : (
               <TouchableOpacity
                 style={[styles.upgradeButton, comingSoon && styles.upgradeButtonDisabled]}
@@ -368,32 +499,101 @@ const styles = StyleSheet.create({
   packagesRow: {
     flexDirection: 'row',
     gap: theme.spacing.sm,
-    marginBottom: theme.spacing.sm,
+    marginBottom: theme.spacing.md,
   },
   packageOption: {
     flex: 1,
     alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: theme.spacing.md,
+    paddingVertical: theme.spacing.sm,
+    paddingHorizontal: theme.spacing.xs,
     borderRadius: theme.borderRadius.lg,
     borderWidth: 1.5,
-    borderColor: theme.colors.premium,
-    backgroundColor: `${theme.colors.premium}10`,
-    minHeight: 64,
+    borderColor: theme.colors.border.light,
+    backgroundColor: theme.colors.background.primary,
+    overflow: 'hidden',
   },
-  packageBuying: {
-    opacity: 0.7,
+  packageOptionSelected: {
+    borderColor: theme.colors.premium,
+    ...theme.shadows.medium,
+  },
+  packageBadgeSlot: {
+    height: 18,
+    marginBottom: theme.spacing.xs,
+    justifyContent: 'center',
+  },
+  packageBadge: {
+    backgroundColor: theme.colors.premium,
+    borderRadius: theme.borderRadius.round,
+    paddingHorizontal: theme.spacing.sm,
+    paddingVertical: 2,
+  },
+  packageBadgeSelected: {
+    backgroundColor: theme.colors.overlay.light,
+  },
+  packageBadgeText: {
+    fontSize: 9,
+    fontWeight: theme.typography.weights.bold,
+    fontFamily: theme.typography.fontFamily.bold,
+    color: theme.colors.text.white,
+    letterSpacing: 0.5,
   },
   packageLabel: {
     fontSize: theme.typography.sizes.sm,
     fontWeight: theme.typography.weights.semibold,
+    fontFamily: theme.typography.fontFamily.semibold,
     color: theme.colors.text.primary,
   },
   packagePrice: {
-    fontSize: theme.typography.sizes.md,
+    fontSize: theme.typography.sizes.lg,
     fontWeight: theme.typography.weights.bold,
+    fontFamily: theme.typography.fontFamily.bold,
     color: theme.colors.premium,
     marginTop: 2,
+  },
+  packageDetail: {
+    fontSize: theme.typography.sizes.xs,
+    fontFamily: theme.typography.fontFamily.regular,
+    color: theme.colors.text.muted,
+    marginTop: 2,
+  },
+  packageDetailSelected: {
+    color: theme.colors.text.white,
+    opacity: 0.9,
+  },
+  packageSavings: {
+    fontSize: theme.typography.sizes.xs,
+    fontWeight: theme.typography.weights.bold,
+    fontFamily: theme.typography.fontFamily.bold,
+    color: theme.colors.status.success,
+    marginTop: 2,
+  },
+  packageTextSelected: {
+    color: theme.colors.text.white,
+  },
+  continueButton: {
+    borderRadius: theme.borderRadius.round,
+    overflow: 'hidden',
+    marginBottom: theme.spacing.sm,
+    ...theme.shadows.medium,
+  },
+  continueGradient: {
+    paddingVertical: theme.spacing.lg,
+    alignItems: 'center',
+    justifyContent: 'center',
+    minHeight: 54,
+  },
+  continueText: {
+    color: theme.colors.text.white,
+    fontSize: theme.typography.sizes.lg,
+    fontWeight: theme.typography.weights.bold,
+    fontFamily: theme.typography.fontFamily.bold,
+  },
+  finePrint: {
+    fontSize: theme.typography.sizes.xs,
+    fontFamily: theme.typography.fontFamily.regular,
+    color: theme.colors.text.muted,
+    textAlign: 'center',
+    marginBottom: theme.spacing.xs,
   },
   upgradeButton: {
     backgroundColor: theme.colors.primary,

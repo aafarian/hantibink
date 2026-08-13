@@ -9,6 +9,7 @@ import {
   ActivityIndicator,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { LinearGradient } from 'expo-linear-gradient';
 import { useAuth } from '../contexts/AuthContext';
 import { useToast } from '../contexts/ToastContext';
 import { useIsPremium } from '../contexts/FeatureFlagsContext';
@@ -19,6 +20,7 @@ import MatchModal from '../components/MatchModal';
 import PremiumUpgradeModal from '../components/modals/PremiumUpgradeModal';
 import { CardGridSkeleton } from '../components/shared/SkeletonPlaceholders';
 import { ErrorScreen } from '../components/ErrorScreen';
+import GlowPulseIcon from '../components/shared/GlowPulseIcon';
 import Logger from '../utils/logger';
 import { useTabNavigation } from '../hooks/useTabNavigation';
 import { theme } from '../styles/theme';
@@ -600,8 +602,14 @@ const LikedYouScreen = () => {
     if (!isPremium) {
       return (
         <View style={styles.emptyState}>
-          <View style={[styles.emptyIconContainer, styles.premiumIconContainer]}>
-            <Ionicons name="sparkles" size={32} color={theme.colors.premium} />
+          <View style={styles.emptyIconContainer}>
+            <GlowPulseIcon
+              icon="sparkles"
+              size={84}
+              colors={[theme.colors.accentLight, theme.colors.premium]}
+              ringColor={theme.colors.premium}
+              heartbeat={false}
+            />
           </View>
           <Text style={styles.emptyTitle}>Get Discovered</Text>
           <Text style={styles.emptySubtitle}>
@@ -628,9 +636,17 @@ const LikedYouScreen = () => {
           <TouchableOpacity
             style={styles.emptyUpgradeButton}
             onPress={() => setShowUpgradeModal(true)}
+            activeOpacity={0.85}
           >
-            <Ionicons name="diamond" size={18} color="white" style={styles.upgradeButtonIcon} />
-            <Text style={styles.emptyUpgradeButtonText}>Upgrade to Premium</Text>
+            <LinearGradient
+              colors={[theme.colors.accentLight, theme.colors.premium]}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 1 }}
+              style={styles.emptyUpgradeGradient}
+            >
+              <Ionicons name="diamond" size={18} color="white" style={styles.upgradeButtonIcon} />
+              <Text style={styles.emptyUpgradeButtonText}>Upgrade to Premium</Text>
+            </LinearGradient>
           </TouchableOpacity>
         </View>
       );
@@ -639,8 +655,8 @@ const LikedYouScreen = () => {
     // Premium users with no likes
     return (
       <View style={styles.emptyState}>
-        <View style={[styles.emptyIconContainer, styles.emptyHeartContainer]}>
-          <Ionicons name="heart-outline" size={32} color={theme.colors.primary} />
+        <View style={styles.emptyIconContainer}>
+          <GlowPulseIcon icon="heart" size={84} />
         </View>
         <Text style={styles.emptyTitle}>No Likes Yet</Text>
         <Text style={styles.emptySubtitle}>
@@ -890,35 +906,21 @@ const styles = StyleSheet.create({
     color: theme.colors.text.secondary,
     flex: 1,
   },
-  premiumIconContainer: {
-    backgroundColor: `${theme.colors.premium}15`,
-    width: 70,
-    height: 70,
-    borderRadius: 35,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  emptyHeartContainer: {
-    backgroundColor: `${theme.colors.primary}10`,
-    width: 70,
-    height: 70,
-    borderRadius: 35,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
   emptyUpgradeButton: {
-    backgroundColor: theme.colors.primary,
-    paddingVertical: 16,
-    paddingHorizontal: 32,
     borderRadius: 25,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    shadowColor: theme.colors.primary,
+    overflow: 'hidden',
+    shadowColor: theme.colors.premium,
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.3,
     shadowRadius: 8,
     elevation: 4,
+  },
+  emptyUpgradeGradient: {
+    paddingVertical: 16,
+    paddingHorizontal: 32,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   upgradeButtonIcon: {
     marginRight: 8,
