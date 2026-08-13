@@ -729,8 +729,8 @@ const PeopleScreenOptimized = ({ navigation }) => {
         {profiles.length === 0 && hasInitialized && !loading && !error ? (
           <EmptyState
             icon="heart-outline"
-            title="No more profiles nearby"
-            subtitle="Try adjusting your filters or check back later"
+            title="You're all caught up"
+            subtitle="New people join all the time — widen your filters or check back soon"
             draggableIcon={true}
             action={{
               text: 'Adjust Filters',

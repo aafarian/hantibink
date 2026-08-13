@@ -9,6 +9,7 @@ import Animated, {
   withTiming,
   withDelay,
 } from 'react-native-reanimated';
+import GlowPulseIcon from './shared/GlowPulseIcon';
 import { commonStyles } from '../styles/commonStyles';
 import { theme } from '../styles/theme';
 
@@ -71,9 +72,9 @@ export const ErrorScreen = ({
 };
 
 /**
- * Draggable icon that springs back to center when released
+ * Draggable wrapper that springs its child back to center when released
  */
-const DraggableIcon = ({ icon, size, color }) => {
+const DraggableIcon = ({ children }) => {
   const translateX = useSharedValue(0);
   const translateY = useSharedValue(0);
   const scale = useSharedValue(1);
@@ -100,9 +101,7 @@ const DraggableIcon = ({ icon, size, color }) => {
 
   return (
     <GestureDetector gesture={panGesture}>
-      <Animated.View style={[styles.draggableIcon, animatedStyle]}>
-        <Ionicons name={icon} size={size} color={color} />
-      </Animated.View>
+      <Animated.View style={[styles.draggableIcon, animatedStyle]}>{children}</Animated.View>
     </GestureDetector>
   );
 };
@@ -114,6 +113,8 @@ export const EmptyState = ({
   action = null,
   style = {},
   draggableIcon = false,
+  iconColors,
+  heartbeat = true,
 }) => {
   const iconScale = useSharedValue(0);
   const iconOpacity = useSharedValue(0);
@@ -146,15 +147,18 @@ export const EmptyState = ({
     transform: [{ translateY: subtitleTranslateY.value }],
   }));
 
+  // The medallion renders filled glyphs — outline variants read too thin
+  // on the gradient disc
+  const medallionIcon = String(icon).replace(/-outline$/, '');
+  const medallion = (
+    <GlowPulseIcon icon={medallionIcon} colors={iconColors} heartbeat={heartbeat} />
+  );
+
   // Button is not animated to avoid touch blocking issues on navigation
   return (
     <View style={[commonStyles.centered, commonStyles.p_huge, style]}>
       <Animated.View style={[commonStyles.mb_lg, iconAnimatedStyle]}>
-        {draggableIcon ? (
-          <DraggableIcon icon={icon} size={80} color={theme.colors.text.muted} />
-        ) : (
-          <Ionicons name={icon} size={80} color={theme.colors.text.muted} />
-        )}
+        {draggableIcon ? <DraggableIcon>{medallion}</DraggableIcon> : medallion}
       </Animated.View>
       <Animated.Text
         style={[commonStyles.h3, commonStyles.mb_sm, commonStyles.textCenter, titleAnimatedStyle]}
