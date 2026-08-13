@@ -22,6 +22,7 @@ import {
   restorePurchases,
   isPurchasesReady,
 } from '../../utils/purchases';
+import Logger from '../../utils/logger';
 import { theme } from '../../styles/theme';
 
 const PACKAGE_LABELS = {
@@ -141,11 +142,18 @@ const PremiumUpgradeModal = ({ visible, onClose, onUpgrade }) => {
   // selected — the standard anchor.
   useEffect(() => {
     if (visible) {
-      getPremiumPackages().then(pkgs => {
-        setPackages(pkgs);
-        const annual = pkgs.find(p => p.packageType === 'ANNUAL');
-        setSelectedId((annual || pkgs[0])?.identifier ?? null);
-      });
+      getPremiumPackages()
+        .then(pkgs => {
+          setPackages(pkgs);
+          const annual = pkgs.find(p => p.packageType === 'ANNUAL');
+          setSelectedId((annual || pkgs[0])?.identifier ?? null);
+        })
+        .catch(error => {
+          // Contained: an empty list falls back to the legacy CTA path
+          Logger.error('Failed to load premium packages:', error);
+          setPackages([]);
+          setSelectedId(null);
+        });
     }
   }, [visible]);
 
@@ -316,7 +324,7 @@ const PremiumUpgradeModal = ({ visible, onClose, onUpgrade }) => {
                         <Text
                           style={[styles.packagePrice, isSelected && styles.packageTextSelected]}
                         >
-                          {pkg.product.priceString}
+                          {pkg.product?.priceString || '—'}
                         </Text>
                         <Text
                           style={[styles.packageDetail, isSelected && styles.packageDetailSelected]}
@@ -356,7 +364,7 @@ const PremiumUpgradeModal = ({ visible, onClose, onUpgrade }) => {
                       <Text style={styles.continueText}>
                         {(() => {
                           const pkg = packages.find(p => p.identifier === selectedId);
-                          return pkg
+                          return pkg?.product?.priceString
                             ? `Continue • ${pkg.product.priceString}${PACKAGE_PERIODS[pkg.packageType] || ''}`
                             : 'Continue';
                         })()}

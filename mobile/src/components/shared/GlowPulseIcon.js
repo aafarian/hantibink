@@ -9,6 +9,7 @@ import Animated, {
   withSequence,
   withTiming,
   withDelay,
+  cancelAnimation,
   Easing,
 } from 'react-native-reanimated';
 import { theme } from '../../styles/theme';
@@ -38,6 +39,7 @@ const SonarRing = ({ size, color, delay }) => {
         false
       )
     );
+    return () => cancelAnimation(progress);
   }, [progress, delay]);
 
   const ringStyle = useAnimatedStyle(() => ({
@@ -88,6 +90,7 @@ const GlowPulseIcon = ({
       );
     }
     return () => {
+      cancelAnimation(beat);
       beat.value = 1;
     };
   }, [heartbeat, beat]);
