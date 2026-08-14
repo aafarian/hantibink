@@ -1,10 +1,20 @@
 import React from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, ActivityIndicator } from 'react-native';
+import Reanimated, { FadeInDown, FadeOutDown } from 'react-native-reanimated';
 import { MaterialIcons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useUpdate } from '../../contexts/UpdateContext';
 import { theme } from '../../styles/theme';
 
+// Clearance for the floating card above the bottom tab bar
+const TAB_BAR_CLEARANCE = 76;
+
+/**
+ * OTA update nudge as a floating snackbar above the tab bar. A top banner
+ * displaced every screen header (headers pad for the translucent status
+ * bar themselves, so an in-flow banner doubled that spacing); down here it
+ * overlays dead space instead of shifting content.
+ */
 const UpdateBanner = () => {
   const { isUpdateAvailable, isDownloading, isReadyToInstall, applyUpdate, dismissUpdate } =
     useUpdate();
@@ -16,65 +26,78 @@ const UpdateBanner = () => {
   }
 
   return (
-    // The status bar is translucent, so the banner must clear the notch
-    // itself — without the inset it renders squished into the status bar
-    <View style={[styles.container, { paddingTop: insets.top + theme.spacing.sm }]}>
-      <View style={styles.content}>
-        {isDownloading ? (
-          <>
-            <ActivityIndicator size="small" color={theme.colors.text.white} style={styles.icon} />
-            <Text style={styles.text}>Downloading update...</Text>
-          </>
-        ) : isReadyToInstall ? (
-          <>
-            <MaterialIcons
-              name="system-update"
-              size={theme.icons.xs}
-              color={theme.colors.text.white}
-              style={styles.icon}
-            />
-            <Text style={styles.text}>New version ready</Text>
-            <TouchableOpacity
-              style={styles.updateButton}
-              onPress={applyUpdate}
-              hitSlop={{ top: 10, bottom: 10, left: 6, right: 6 }}
-            >
-              <Text style={styles.updateButtonText}>Restart</Text>
-            </TouchableOpacity>
-          </>
-        ) : (
-          <>
-            <MaterialIcons
-              name="cloud-download"
-              size={theme.icons.xs}
-              color={theme.colors.text.white}
-              style={styles.icon}
-            />
-            <Text style={styles.text}>Update available</Text>
-          </>
+    <Reanimated.View
+      entering={FadeInDown.duration(300)}
+      exiting={FadeOutDown.duration(200)}
+      style={[styles.wrap, { bottom: insets.bottom + TAB_BAR_CLEARANCE }]}
+    >
+      <View style={styles.card}>
+        <View style={styles.content}>
+          {isDownloading ? (
+            <>
+              <ActivityIndicator size="small" color={theme.colors.text.white} style={styles.icon} />
+              <Text style={styles.text}>Downloading update...</Text>
+            </>
+          ) : isReadyToInstall ? (
+            <>
+              <MaterialIcons
+                name="system-update"
+                size={theme.icons.xs}
+                color={theme.colors.text.white}
+                style={styles.icon}
+              />
+              <Text style={styles.text}>New version ready</Text>
+              <TouchableOpacity
+                style={styles.updateButton}
+                onPress={applyUpdate}
+                hitSlop={{ top: 10, bottom: 10, left: 6, right: 6 }}
+              >
+                <Text style={styles.updateButtonText}>Restart</Text>
+              </TouchableOpacity>
+            </>
+          ) : (
+            <>
+              <MaterialIcons
+                name="cloud-download"
+                size={theme.icons.xs}
+                color={theme.colors.text.white}
+                style={styles.icon}
+              />
+              <Text style={styles.text}>Update available</Text>
+            </>
+          )}
+        </View>
+        {isReadyToInstall && (
+          <TouchableOpacity
+            style={styles.dismissButton}
+            onPress={dismissUpdate}
+            hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+          >
+            <MaterialIcons name="close" size={theme.icons.xs} color={theme.colors.text.white} />
+          </TouchableOpacity>
         )}
       </View>
-      {isReadyToInstall && (
-        <TouchableOpacity
-          style={styles.dismissButton}
-          onPress={dismissUpdate}
-          hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
-        >
-          <MaterialIcons name="close" size={theme.icons.xs} color={theme.colors.text.white} />
-        </TouchableOpacity>
-      )}
-    </View>
+    </Reanimated.View>
   );
 };
 
 const styles = StyleSheet.create({
-  container: {
+  wrap: {
+    position: 'absolute',
+    left: theme.spacing.lg,
+    right: theme.spacing.lg,
+    zIndex: 100,
+    elevation: 10,
+  },
+  card: {
     backgroundColor: theme.colors.primary,
-    paddingBottom: 10,
+    borderRadius: theme.borderRadius.xl,
+    paddingVertical: theme.spacing.md,
     paddingHorizontal: theme.spacing.lg,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
+    ...theme.shadows.medium,
   },
   content: {
     flexDirection: 'row',
