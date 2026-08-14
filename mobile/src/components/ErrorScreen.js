@@ -115,26 +115,18 @@ export const EmptyState = ({
   draggableIcon = false,
   iconColors,
 }) => {
-  const iconScale = useSharedValue(0);
-  const iconOpacity = useSharedValue(0);
   const titleOpacity = useSharedValue(0);
   const titleTranslateY = useSharedValue(15);
   const subtitleOpacity = useSharedValue(0);
   const subtitleTranslateY = useSharedValue(15);
 
+  // The medallion animates its own entrance; only the text staggers here
   useEffect(() => {
-    iconScale.value = withSpring(1, { damping: 14, stiffness: 100 });
-    iconOpacity.value = withTiming(1, { duration: 300 });
     titleOpacity.value = withDelay(150, withTiming(1, { duration: 250 }));
     titleTranslateY.value = withDelay(150, withTiming(0, { duration: 300 }));
     subtitleOpacity.value = withDelay(250, withTiming(1, { duration: 250 }));
     subtitleTranslateY.value = withDelay(250, withTiming(0, { duration: 300 }));
-  }, [iconScale, iconOpacity, titleOpacity, titleTranslateY, subtitleOpacity, subtitleTranslateY]);
-
-  const iconAnimatedStyle = useAnimatedStyle(() => ({
-    transform: [{ scale: iconScale.value }],
-    opacity: iconOpacity.value,
-  }));
+  }, [titleOpacity, titleTranslateY, subtitleOpacity, subtitleTranslateY]);
 
   const titleAnimatedStyle = useAnimatedStyle(() => ({
     opacity: titleOpacity.value,
@@ -154,9 +146,9 @@ export const EmptyState = ({
   // Button is not animated to avoid touch blocking issues on navigation
   return (
     <View style={[commonStyles.centered, commonStyles.p_huge, style]}>
-      <Animated.View style={[commonStyles.mb_lg, iconAnimatedStyle]}>
+      <View style={commonStyles.mb_lg}>
         {draggableIcon ? <DraggableIcon>{medallion}</DraggableIcon> : medallion}
-      </Animated.View>
+      </View>
       <Animated.Text
         style={[commonStyles.h3, commonStyles.mb_sm, commonStyles.textCenter, titleAnimatedStyle]}
       >
