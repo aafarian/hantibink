@@ -114,7 +114,6 @@ export const EmptyState = ({
   style = {},
   draggableIcon = false,
   iconColors,
-  heartbeat = true,
 }) => {
   const iconScale = useSharedValue(0);
   const iconOpacity = useSharedValue(0);
@@ -150,9 +149,7 @@ export const EmptyState = ({
   // The medallion renders filled glyphs — outline variants read too thin
   // on the gradient disc
   const medallionIcon = String(icon).replace(/-outline$/, '');
-  const medallion = (
-    <GlowPulseIcon icon={medallionIcon} colors={iconColors} heartbeat={heartbeat} />
-  );
+  const medallion = <GlowPulseIcon icon={medallionIcon} colors={iconColors} />;
 
   // Button is not animated to avoid touch blocking issues on navigation
   return (

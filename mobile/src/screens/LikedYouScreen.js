@@ -607,8 +607,7 @@ const LikedYouScreen = () => {
               icon="sparkles"
               size={72}
               colors={[theme.colors.accentLight, theme.colors.premium]}
-              ringColor={theme.colors.premium}
-              heartbeat={false}
+              glowColor={theme.colors.premium}
             />
           </View>
           <Text style={styles.emptyTitle}>Get Discovered</Text>
