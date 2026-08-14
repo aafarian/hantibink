@@ -1,12 +1,14 @@
 import React from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, ActivityIndicator } from 'react-native';
 import { MaterialIcons } from '@expo/vector-icons';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useUpdate } from '../../contexts/UpdateContext';
 import { theme } from '../../styles/theme';
 
 const UpdateBanner = () => {
   const { isUpdateAvailable, isDownloading, isReadyToInstall, applyUpdate, dismissUpdate } =
     useUpdate();
+  const insets = useSafeAreaInsets();
 
   // Don't show if no update available
   if (!isUpdateAvailable) {
@@ -14,7 +16,9 @@ const UpdateBanner = () => {
   }
 
   return (
-    <View style={styles.container}>
+    // The status bar is translucent, so the banner must clear the notch
+    // itself — without the inset it renders squished into the status bar
+    <View style={[styles.container, { paddingTop: insets.top + theme.spacing.sm }]}>
       <View style={styles.content}>
         {isDownloading ? (
           <>
@@ -30,7 +34,11 @@ const UpdateBanner = () => {
               style={styles.icon}
             />
             <Text style={styles.text}>New version ready</Text>
-            <TouchableOpacity style={styles.updateButton} onPress={applyUpdate}>
+            <TouchableOpacity
+              style={styles.updateButton}
+              onPress={applyUpdate}
+              hitSlop={{ top: 10, bottom: 10, left: 6, right: 6 }}
+            >
               <Text style={styles.updateButtonText}>Restart</Text>
             </TouchableOpacity>
           </>
@@ -47,7 +55,11 @@ const UpdateBanner = () => {
         )}
       </View>
       {isReadyToInstall && (
-        <TouchableOpacity style={styles.dismissButton} onPress={dismissUpdate}>
+        <TouchableOpacity
+          style={styles.dismissButton}
+          onPress={dismissUpdate}
+          hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+        >
           <MaterialIcons name="close" size={theme.icons.xs} color={theme.colors.text.white} />
         </TouchableOpacity>
       )}
@@ -58,7 +70,7 @@ const UpdateBanner = () => {
 const styles = StyleSheet.create({
   container: {
     backgroundColor: theme.colors.primary,
-    paddingVertical: 10,
+    paddingBottom: 10,
     paddingHorizontal: theme.spacing.lg,
     flexDirection: 'row',
     alignItems: 'center',
@@ -81,8 +93,8 @@ const styles = StyleSheet.create({
   },
   updateButton: {
     backgroundColor: theme.colors.background.primary,
-    paddingHorizontal: 14,
-    paddingVertical: 6,
+    paddingHorizontal: 16,
+    paddingVertical: 8,
     borderRadius: theme.borderRadius.xl,
     marginLeft: 10,
   },

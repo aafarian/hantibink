@@ -2,6 +2,7 @@ import React from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, Platform, Linking } from 'react-native';
 import Reanimated, { FadeInDown, FadeOutUp } from 'react-native-reanimated';
 import { MaterialIcons } from '@expo/vector-icons';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Logger from '../../utils/logger';
 import { theme } from '../../styles/theme';
 
@@ -9,8 +10,14 @@ import { theme } from '../../styles/theme';
  * Dismissible "new version available" banner (store update, not OTA).
  * Dismissal is persisted per version by useForceUpdate, so a newer release
  * re-nags exactly once. The non-dismissible path is ForceUpdateModal.
+ *
+ * Overlays the top of the screen (absolute, above navigation) and pads
+ * itself below the notch — the status bar is translucent, so without the
+ * inset the row lands inside the status bar and is nearly untappable.
  */
 const SoftUpdateBanner = ({ visible, versionConfig, onDismiss }) => {
+  const insets = useSafeAreaInsets();
+
   if (!visible || !versionConfig) {
     return null;
   }
@@ -24,8 +31,12 @@ const SoftUpdateBanner = ({ visible, versionConfig, onDismiss }) => {
   };
 
   return (
-    <Reanimated.View entering={FadeInDown.duration(300)} exiting={FadeOutUp.duration(200)}>
-      <View style={styles.container}>
+    <Reanimated.View
+      entering={FadeInDown.duration(300)}
+      exiting={FadeOutUp.duration(200)}
+      style={styles.wrap}
+    >
+      <View style={[styles.container, { paddingTop: insets.top + theme.spacing.sm }]}>
         <MaterialIcons
           name="system-update"
           size={theme.icons.sm}
@@ -39,13 +50,17 @@ const SoftUpdateBanner = ({ visible, versionConfig, onDismiss }) => {
               `Version ${versionConfig.latestVersion} is ready for you`}
           </Text>
         </View>
-        <TouchableOpacity style={styles.updateButton} onPress={openStore}>
+        <TouchableOpacity
+          style={styles.updateButton}
+          onPress={openStore}
+          hitSlop={{ top: 10, bottom: 10, left: 6, right: 6 }}
+        >
           <Text style={styles.updateButtonText}>Update</Text>
         </TouchableOpacity>
         <TouchableOpacity
           style={styles.dismissButton}
           onPress={onDismiss}
-          hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+          hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
         >
           <MaterialIcons name="close" size={theme.icons.xs} color={theme.colors.text.white} />
         </TouchableOpacity>
@@ -55,12 +70,20 @@ const SoftUpdateBanner = ({ visible, versionConfig, onDismiss }) => {
 };
 
 const styles = StyleSheet.create({
+  wrap: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    zIndex: 100,
+    elevation: 10,
+  },
   container: {
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: theme.colors.secondary,
     paddingHorizontal: theme.spacing.lg,
-    paddingVertical: theme.spacing.md,
+    paddingBottom: theme.spacing.md,
   },
   icon: {
     marginRight: theme.spacing.md,
