@@ -138,15 +138,15 @@ const PremiumUpgradeModal = ({ visible, onClose, onUpgrade }) => {
   const [selectedId, setSelectedId] = useState(null);
 
   // Live prices from RevenueCat; empty in builds without an RC key, where
-  // the legacy single CTA renders instead. Yearly (best value) starts
-  // selected — the standard anchor.
+  // the legacy single CTA renders instead. Monthly starts selected (the
+  // most common choice); the BEST VALUE badge still points at yearly.
   useEffect(() => {
     if (visible) {
       getPremiumPackages()
         .then(pkgs => {
           setPackages(pkgs);
-          const annual = pkgs.find(p => p.packageType === 'ANNUAL');
-          setSelectedId((annual || pkgs[0])?.identifier ?? null);
+          const monthly = pkgs.find(p => p.packageType === 'MONTHLY');
+          setSelectedId((monthly || pkgs[0])?.identifier ?? null);
         })
         .catch(error => {
           // Contained: an empty list falls back to the legacy CTA path
@@ -267,7 +267,7 @@ const PremiumUpgradeModal = ({ visible, onClose, onUpgrade }) => {
                       { backgroundColor: `${feature.iconColor}15` },
                     ]}
                   >
-                    <Ionicons name={feature.icon} size={22} color={feature.iconColor} />
+                    <Ionicons name={feature.icon} size={20} color={feature.iconColor} />
                   </View>
                   <View style={styles.featureTextContainer}>
                     <Text style={styles.featureTitle}>{feature.title}</Text>
@@ -450,16 +450,16 @@ const styles = StyleSheet.create({
   },
   header: {
     alignItems: 'center',
-    marginBottom: theme.spacing.xxl,
+    marginBottom: theme.spacing.lg,
   },
   premiumBadge: {
-    width: 64,
-    height: 64,
-    borderRadius: 32,
+    width: 52,
+    height: 52,
+    borderRadius: 26,
     backgroundColor: `${theme.colors.premium}20`,
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: theme.spacing.md,
+    marginBottom: theme.spacing.sm,
   },
   title: {
     fontSize: theme.typography.sizes.xxxl,
@@ -474,16 +474,16 @@ const styles = StyleSheet.create({
     color: theme.colors.text.secondary,
   },
   featuresContainer: {
-    marginBottom: theme.spacing.xxl,
+    marginBottom: theme.spacing.lg,
   },
   featureRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: theme.spacing.lg,
+    marginBottom: theme.spacing.md,
   },
   featureIconContainer: {
-    width: 44,
-    height: 44,
+    width: 38,
+    height: 38,
     borderRadius: theme.borderRadius.lg,
     alignItems: 'center',
     justifyContent: 'center',
@@ -585,10 +585,10 @@ const styles = StyleSheet.create({
     ...theme.shadows.medium,
   },
   continueGradient: {
-    paddingVertical: theme.spacing.lg,
+    paddingVertical: theme.spacing.md,
     alignItems: 'center',
     justifyContent: 'center',
-    minHeight: 54,
+    minHeight: 48,
   },
   continueText: {
     color: theme.colors.text.white,
@@ -618,7 +618,7 @@ const styles = StyleSheet.create({
     fontFamily: theme.typography.fontFamily.bold,
   },
   laterButton: {
-    paddingVertical: theme.spacing.md,
+    paddingVertical: theme.spacing.sm,
     alignItems: 'center',
   },
   laterButtonText: {
