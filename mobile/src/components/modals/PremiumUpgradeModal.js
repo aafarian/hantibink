@@ -244,17 +244,15 @@ const PremiumUpgradeModal = ({ visible, onClose, onUpgrade }) => {
             <Ionicons name="close" size={24} color={theme.colors.text.secondary} />
           </TouchableOpacity>
 
-          {/* Scrollable body: header, features, and purchase options. The
-              restore and dismiss actions stay OUTSIDE the scroll so they
-              remain reachable on short screens and with enlarged text. */}
+          {/* Only the header and feature list scroll; everything a purchase
+              needs (packages, CTA, disclosure, restore) stays pinned below */}
           <ScrollView style={styles.scrollArea} showsVerticalScrollIndicator={false}>
             {/* Header */}
             <View style={styles.header}>
               <View style={styles.premiumBadge}>
-                <Ionicons name="diamond" size={32} color={theme.colors.premium} />
+                <Ionicons name="diamond" size={24} color={theme.colors.premium} />
               </View>
               <Text style={styles.title}>Upgrade to Premium</Text>
-              <Text style={styles.subtitle}>Get the most out of your experience</Text>
             </View>
 
             {/* Features list */}
@@ -276,120 +274,114 @@ const PremiumUpgradeModal = ({ visible, onClose, onUpgrade }) => {
                 </View>
               ))}
             </View>
-
-            {/* Purchase options (live store prices) or the legacy CTA when
-              this build has no RevenueCat key. Tapping a card selects it;
-              the Continue button confirms — no buy-on-tap accidents. */}
-            {packages.length > 0 ? (
-              <>
-                <View style={styles.packagesRow}>
-                  {packages.map(pkg => {
-                    const isSelected = pkg.identifier === selectedId;
-                    const badge = PACKAGE_BADGES[pkg.packageType];
-                    const perMonth = formatPerMonth(pkg);
-                    const savings = formatSavings(pkg, packages);
-                    return (
-                      <TouchableOpacity
-                        key={pkg.identifier}
-                        style={[styles.packageOption, isSelected && styles.packageOptionSelected]}
-                        disabled={!!buying}
-                        onPress={() => setSelectedId(pkg.identifier)}
-                        activeOpacity={0.85}
-                      >
-                        {isSelected && (
-                          <LinearGradient
-                            colors={[theme.colors.accentLight, theme.colors.premium]}
-                            start={{ x: 0, y: 0 }}
-                            end={{ x: 1, y: 1 }}
-                            style={StyleSheet.absoluteFill}
-                          />
-                        )}
-                        <View style={styles.packageBadgeSlot}>
-                          {badge && (
-                            <View
-                              style={[
-                                styles.packageBadge,
-                                isSelected && styles.packageBadgeSelected,
-                              ]}
-                            >
-                              <Text style={styles.packageBadgeText}>{badge}</Text>
-                            </View>
-                          )}
-                        </View>
-                        <Text
-                          style={[styles.packageLabel, isSelected && styles.packageTextSelected]}
-                        >
-                          {PACKAGE_LABELS[pkg.packageType] || pkg.packageType}
-                        </Text>
-                        <Text
-                          style={[styles.packagePrice, isSelected && styles.packageTextSelected]}
-                        >
-                          {pkg.product?.priceString || '—'}
-                        </Text>
-                        <Text
-                          style={[styles.packageDetail, isSelected && styles.packageDetailSelected]}
-                        >
-                          {perMonth || ' '}
-                        </Text>
-                        <Text
-                          style={[styles.packageSavings, isSelected && styles.packageTextSelected]}
-                        >
-                          {savings || ' '}
-                        </Text>
-                      </TouchableOpacity>
-                    );
-                  })}
-                </View>
-
-                <TouchableOpacity
-                  style={styles.continueButton}
-                  disabled={!selectedId || !!buying}
-                  onPress={() => {
-                    const pkg = packages.find(p => p.identifier === selectedId);
-                    if (pkg) {
-                      handlePurchase(pkg);
-                    }
-                  }}
-                  activeOpacity={0.85}
-                >
-                  <LinearGradient
-                    colors={[theme.colors.accentLight, theme.colors.premium]}
-                    start={{ x: 0, y: 0 }}
-                    end={{ x: 1, y: 1 }}
-                    style={styles.continueGradient}
-                  >
-                    {buying ? (
-                      <ActivityIndicator size="small" color={theme.colors.text.white} />
-                    ) : (
-                      <Text style={styles.continueText}>
-                        {(() => {
-                          const pkg = packages.find(p => p.identifier === selectedId);
-                          return pkg?.product?.priceString
-                            ? `Continue • ${pkg.product.priceString}${PACKAGE_PERIODS[pkg.packageType] || ''}`
-                            : 'Continue';
-                        })()}
-                      </Text>
-                    )}
-                  </LinearGradient>
-                </TouchableOpacity>
-                <Text style={styles.finePrint}>
-                  Auto-renews until cancelled. Cancel anytime in your{' '}
-                  {Platform.OS === 'ios' ? 'App Store' : 'Google Play'} settings.
-                </Text>
-              </>
-            ) : (
-              <TouchableOpacity
-                style={[styles.upgradeButton, comingSoon && styles.upgradeButtonDisabled]}
-                onPress={handleUpgrade}
-                activeOpacity={0.8}
-                disabled={comingSoon}
-              >
-                <Text style={styles.upgradeButtonText}>
-                  {comingSoon ? 'Purchases coming soon' : 'Get Premium'}
-                </Text>
-              </TouchableOpacity>
-            )}
           </ScrollView>
+
+          {/* Purchase cluster pinned BELOW the scroll — the buy button and
+              auto-renew disclosure are always visible. Live store prices,
+              or the legacy CTA when this build has no RevenueCat key.
+              Tapping a card selects; Continue confirms — no buy-on-tap. */}
+          {packages.length > 0 ? (
+            <>
+              <View style={styles.packagesRow}>
+                {packages.map(pkg => {
+                  const isSelected = pkg.identifier === selectedId;
+                  const badge = PACKAGE_BADGES[pkg.packageType];
+                  const perMonth = formatPerMonth(pkg);
+                  const savings = formatSavings(pkg, packages);
+                  return (
+                    <TouchableOpacity
+                      key={pkg.identifier}
+                      style={[styles.packageOption, isSelected && styles.packageOptionSelected]}
+                      disabled={!!buying}
+                      onPress={() => setSelectedId(pkg.identifier)}
+                      activeOpacity={0.85}
+                    >
+                      {isSelected && (
+                        <LinearGradient
+                          colors={[theme.colors.accentLight, theme.colors.premium]}
+                          start={{ x: 0, y: 0 }}
+                          end={{ x: 1, y: 1 }}
+                          style={StyleSheet.absoluteFill}
+                        />
+                      )}
+                      <View style={styles.packageBadgeSlot}>
+                        {badge && (
+                          <View
+                            style={[styles.packageBadge, isSelected && styles.packageBadgeSelected]}
+                          >
+                            <Text style={styles.packageBadgeText}>{badge}</Text>
+                          </View>
+                        )}
+                      </View>
+                      <Text style={[styles.packageLabel, isSelected && styles.packageTextSelected]}>
+                        {PACKAGE_LABELS[pkg.packageType] || pkg.packageType}
+                      </Text>
+                      <Text style={[styles.packagePrice, isSelected && styles.packageTextSelected]}>
+                        {pkg.product?.priceString || '—'}
+                      </Text>
+                      <Text
+                        style={[styles.packageDetail, isSelected && styles.packageDetailSelected]}
+                      >
+                        {perMonth || ' '}
+                      </Text>
+                      <Text
+                        style={[styles.packageSavings, isSelected && styles.packageTextSelected]}
+                      >
+                        {savings || ' '}
+                      </Text>
+                    </TouchableOpacity>
+                  );
+                })}
+              </View>
+
+              <TouchableOpacity
+                style={styles.continueButton}
+                disabled={!selectedId || !!buying}
+                onPress={() => {
+                  const pkg = packages.find(p => p.identifier === selectedId);
+                  if (pkg) {
+                    handlePurchase(pkg);
+                  }
+                }}
+                activeOpacity={0.85}
+              >
+                <LinearGradient
+                  colors={[theme.colors.accentLight, theme.colors.premium]}
+                  start={{ x: 0, y: 0 }}
+                  end={{ x: 1, y: 1 }}
+                  style={styles.continueGradient}
+                >
+                  {buying ? (
+                    <ActivityIndicator size="small" color={theme.colors.text.white} />
+                  ) : (
+                    <Text style={styles.continueText}>
+                      {(() => {
+                        const pkg = packages.find(p => p.identifier === selectedId);
+                        return pkg?.product?.priceString
+                          ? `Continue • ${pkg.product.priceString}${PACKAGE_PERIODS[pkg.packageType] || ''}`
+                          : 'Continue';
+                      })()}
+                    </Text>
+                  )}
+                </LinearGradient>
+              </TouchableOpacity>
+              <Text style={styles.finePrint}>
+                Auto-renews until cancelled. Cancel anytime in your{' '}
+                {Platform.OS === 'ios' ? 'App Store' : 'Google Play'} settings.
+              </Text>
+            </>
+          ) : (
+            <TouchableOpacity
+              style={[styles.upgradeButton, comingSoon && styles.upgradeButtonDisabled]}
+              onPress={handleUpgrade}
+              activeOpacity={0.8}
+              disabled={comingSoon}
+            >
+              <Text style={styles.upgradeButtonText}>
+                {comingSoon ? 'Purchases coming soon' : 'Get Premium'}
+              </Text>
+            </TouchableOpacity>
+          )}
 
           {/* In-modal feedback (purchase/restore failures) */}
           {notice && <Text style={styles.noticeText}>{notice}</Text>}
@@ -453,9 +445,9 @@ const styles = StyleSheet.create({
     marginBottom: theme.spacing.lg,
   },
   premiumBadge: {
-    width: 52,
-    height: 52,
-    borderRadius: 26,
+    width: 44,
+    height: 44,
+    borderRadius: 22,
     backgroundColor: `${theme.colors.premium}20`,
     alignItems: 'center',
     justifyContent: 'center',
@@ -467,11 +459,6 @@ const styles = StyleSheet.create({
     fontFamily: theme.typography.fontFamily.heading,
     color: theme.colors.text.primary,
     marginBottom: theme.spacing.xs,
-  },
-  subtitle: {
-    fontSize: theme.typography.sizes.md,
-    fontFamily: theme.typography.fontFamily.regular,
-    color: theme.colors.text.secondary,
   },
   featuresContainer: {
     marginBottom: theme.spacing.lg,
