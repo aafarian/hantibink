@@ -1,0 +1,42 @@
+name: Publish OTA Update
+
+# Manually-triggered OTA publish that runs on CI instead of a laptop.
+# The production env is fully pinned inside mobile's update:prod script
+# (with --clear-cache), and CI has no local .env files or stale bundler
+# caches — so what lands in the bundle is exactly the pinned values.
+#
+# Requires the EXPO_TOKEN repository secret (expo.dev -> Access tokens).
+
+on:
+  workflow_dispatch:
+    inputs:
+      message:
+        description: "Update message shown in the EAS dashboard"
+        required: true
+        type: string
+
+jobs:
+  publish:
+    name: Publish to production channel
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Publish update
+        working-directory: ./mobile
+        env:
+          EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+          UPDATE_MESSAGE: ${{ inputs.message }}
+        run: npm run update:prod -- --message "$UPDATE_MESSAGE" --non-interactive
