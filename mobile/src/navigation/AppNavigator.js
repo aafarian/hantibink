@@ -204,7 +204,6 @@ const MainNavigator = () => {
 
   return (
     <>
-      <UpdateBanner />
       <Tab.Navigator tabBar={renderTabBar} screenOptions={{ freezeOnBlur: true }}>
         <Tab.Screen
           name="Profile"
@@ -230,6 +229,9 @@ const MainNavigator = () => {
         />
         <Tab.Screen name="Messages" component={MessagesStack} options={{ headerShown: false }} />
       </Tab.Navigator>
+
+      {/* OTA restart nudge — floating snackbar above the tab bar */}
+      <UpdateBanner />
 
       {/* Profile Setup Modal - Shows on app open if profile incomplete */}
       {showSetupModal && (
