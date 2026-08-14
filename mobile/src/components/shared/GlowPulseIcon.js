@@ -26,6 +26,10 @@ import { theme } from '../../styles/theme';
 const RING_COUNT = 2;
 const RING_LOOP_MS = 2400;
 const RING_MAX_SCALE = 1.9;
+// The layout box is intentionally SMALLER than the ring spread: rings
+// overflow it as pure decoration, so the medallion doesn't reserve a
+// huge square and push content below the fold on small screens
+const LAYOUT_SCALE = 1.2;
 
 const SonarRing = ({ size, color, delay }) => {
   const progress = useSharedValue(0);
@@ -99,7 +103,7 @@ const GlowPulseIcon = ({
     transform: [{ scale: beat.value }],
   }));
 
-  const box = size * RING_MAX_SCALE;
+  const box = size * LAYOUT_SCALE;
 
   return (
     <View style={[styles.container, { width: box, height: box }]}>

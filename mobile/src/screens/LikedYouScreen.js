@@ -605,7 +605,7 @@ const LikedYouScreen = () => {
           <View style={styles.emptyIconContainer}>
             <GlowPulseIcon
               icon="sparkles"
-              size={84}
+              size={72}
               colors={[theme.colors.accentLight, theme.colors.premium]}
               ringColor={theme.colors.premium}
               heartbeat={false}
@@ -656,7 +656,7 @@ const LikedYouScreen = () => {
     return (
       <View style={styles.emptyState}>
         <View style={styles.emptyIconContainer}>
-          <GlowPulseIcon icon="heart" size={84} />
+          <GlowPulseIcon icon="heart" size={72} />
         </View>
         <Text style={styles.emptyTitle}>No Likes Yet</Text>
         <Text style={styles.emptySubtitle}>
@@ -857,33 +857,33 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
   },
   emptyState: {
-    padding: 24,
+    padding: 16,
     alignItems: 'center',
   },
   emptyIconContainer: {
-    marginBottom: 16,
+    marginBottom: 8,
   },
   emptyTitle: {
     fontSize: 22,
     fontWeight: 'bold',
     fontFamily: theme.typography.fontFamily.heading,
     color: theme.colors.text.primary,
-    marginBottom: 10,
+    marginBottom: 8,
   },
   emptySubtitle: {
     fontSize: 15,
     fontFamily: theme.typography.fontFamily.regular,
     color: theme.colors.text.secondary,
     textAlign: 'center',
-    marginBottom: 20,
+    marginBottom: 16,
     paddingHorizontal: 10,
   },
   tipContainer: {
     backgroundColor: theme.colors.background.secondary,
-    padding: 20,
+    padding: 16,
     borderRadius: 16,
     width: '100%',
-    marginBottom: 20,
+    marginBottom: 16,
     borderWidth: 1,
     borderColor: theme.colors.gray[200],
   },
@@ -892,12 +892,12 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     fontFamily: theme.typography.fontFamily.bold,
     color: theme.colors.text.primary,
-    marginBottom: 16,
+    marginBottom: 12,
   },
   tipItem: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 12,
+    marginBottom: 10,
     gap: 12,
   },
   tipText: {
