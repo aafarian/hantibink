@@ -8,131 +8,119 @@ import Animated, {
   withRepeat,
   withSequence,
   withTiming,
-  withDelay,
   cancelAnimation,
   Easing,
 } from 'react-native-reanimated';
 import { theme } from '../../styles/theme';
 
-/**
- * Animated icon medallion for empty states and upsells: a gradient disc
- * with sonar rings rippling outward (searching…) and an optional heartbeat
- * pulse on the icon. Purely decorative — wrap it in a GestureDetector or
- * Touchable at the call site if interaction is needed.
- *
- * Rings expand outward on a staggered loop; the layout box is sized to
- * contain them fully so surrounding content never shifts.
- */
-const RING_COUNT = 2;
-const RING_LOOP_MS = 2400;
-const RING_MAX_SCALE = 1.9;
-// The layout box is intentionally SMALLER than the ring spread: rings
+// The layout box is intentionally smaller than the glow spread: halos
 // overflow it as pure decoration, so the medallion doesn't reserve a
 // huge square and push content below the fold on small screens
 const LAYOUT_SCALE = 1.2;
+// Weightless bob: gentle vertical drift, one direction per cycle
+const FLOAT_RANGE = 5;
+const FLOAT_MS = 2600;
+// Light glint sweeping across the disc, then a long rest
+const SHINE_SWEEP_MS = 900;
+const SHINE_PAUSE_MS = 2800;
 
-const SonarRing = ({ size, color, delay }) => {
-  const progress = useSharedValue(0);
-
-  useEffect(() => {
-    progress.value = withDelay(
-      delay,
-      withRepeat(
-        withTiming(1, { duration: RING_LOOP_MS, easing: Easing.out(Easing.quad) }),
-        -1,
-        false
-      )
-    );
-    return () => cancelAnimation(progress);
-  }, [progress, delay]);
-
-  const ringStyle = useAnimatedStyle(() => ({
-    opacity: 0.35 * (1 - progress.value),
-    transform: [{ scale: 1 + (RING_MAX_SCALE - 1) * progress.value }],
-  }));
-
-  return (
-    <Animated.View
-      pointerEvents="none"
-      style={[
-        styles.ring,
-        {
-          width: size,
-          height: size,
-          borderRadius: size / 2,
-          backgroundColor: color,
-        },
-        ringStyle,
-      ]}
-    />
-  );
-};
-
+/**
+ * Animated icon medallion for empty states and upsells: a gradient disc
+ * over layered static glow halos, floating gently with a periodic shine
+ * sweep. Purely decorative — wrap it in a GestureDetector or Touchable
+ * at the call site if interaction is needed.
+ */
 const GlowPulseIcon = ({
   icon = 'heart',
   size = 96,
   colors = [theme.colors.primaryLight, theme.colors.primary],
-  ringColor = theme.colors.primary,
+  glowColor = theme.colors.primary,
   iconColor = theme.colors.text.white,
-  heartbeat = false,
 }) => {
-  const beat = useSharedValue(1);
+  const float = useSharedValue(0);
+  const shine = useSharedValue(0);
 
   useEffect(() => {
-    if (heartbeat) {
-      // Lub-dub, then rest — a heartbeat, not a metronome
-      beat.value = withRepeat(
-        withSequence(
-          withTiming(1.14, { duration: 130, easing: Easing.out(Easing.quad) }),
-          withTiming(1, { duration: 150 }),
-          withTiming(1.08, { duration: 130, easing: Easing.out(Easing.quad) }),
-          withTiming(1, { duration: 200 }),
-          withTiming(1, { duration: 1100 })
-        ),
-        -1,
-        false
-      );
-    }
+    float.value = withRepeat(
+      withTiming(1, { duration: FLOAT_MS, easing: Easing.inOut(Easing.quad) }),
+      -1,
+      true
+    );
+    shine.value = withRepeat(
+      withSequence(
+        withTiming(1, { duration: SHINE_SWEEP_MS, easing: Easing.inOut(Easing.cubic) }),
+        withTiming(0, { duration: 0 }),
+        withTiming(0, { duration: SHINE_PAUSE_MS })
+      ),
+      -1,
+      false
+    );
     return () => {
-      cancelAnimation(beat);
-      beat.value = 1;
+      cancelAnimation(float);
+      cancelAnimation(shine);
     };
-  }, [heartbeat, beat]);
+  }, [float, shine]);
 
-  const beatStyle = useAnimatedStyle(() => ({
-    transform: [{ scale: beat.value }],
+  const floatStyle = useAnimatedStyle(() => ({
+    transform: [{ translateY: FLOAT_RANGE - float.value * 2 * FLOAT_RANGE }],
+  }));
+
+  const shineStyle = useAnimatedStyle(() => ({
+    transform: [{ translateX: -size + shine.value * 2 * size }, { rotate: '25deg' }],
   }));
 
   const box = size * LAYOUT_SCALE;
 
   return (
     <View style={[styles.container, { width: box, height: box }]}>
-      {Array.from({ length: RING_COUNT }, (_, i) => (
-        <SonarRing key={i} size={size} color={ringColor} delay={(i * RING_LOOP_MS) / RING_COUNT} />
-      ))}
-      {/* Soft static halo for depth between the rings and the disc */}
+      {/* Layered static halos give depth without motion */}
       <View
         pointerEvents="none"
         style={[
           styles.halo,
           {
-            width: size * 1.28,
-            height: size * 1.28,
-            borderRadius: (size * 1.28) / 2,
-            backgroundColor: `${ringColor}14`,
+            width: size * 1.52,
+            height: size * 1.52,
+            borderRadius: (size * 1.52) / 2,
+            backgroundColor: `${glowColor}0A`,
           },
         ]}
       />
-      <LinearGradient
-        colors={colors}
-        start={{ x: 0, y: 0 }}
-        end={{ x: 1, y: 1 }}
-        style={[styles.disc, { width: size, height: size, borderRadius: size / 2 }]}
-      >
-        <Animated.View style={beatStyle}>
+      <View
+        pointerEvents="none"
+        style={[
+          styles.halo,
+          {
+            width: size * 1.26,
+            height: size * 1.26,
+            borderRadius: (size * 1.26) / 2,
+            backgroundColor: `${glowColor}14`,
+          },
+        ]}
+      />
+      <Animated.View style={floatStyle}>
+        <LinearGradient
+          colors={colors}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 1 }}
+          style={[styles.disc, { width: size, height: size, borderRadius: size / 2 }]}
+        >
           <Ionicons name={icon} size={size * 0.44} color={iconColor} />
-        </Animated.View>
-      </LinearGradient>
+          {/* Shine strip parks outside the disc between sweeps; the disc's
+              overflow clipping hides it at rest */}
+          <Animated.View
+            pointerEvents="none"
+            style={[styles.shine, { width: size * 0.5, height: size * 1.6 }, shineStyle]}
+          >
+            <LinearGradient
+              colors={['transparent', theme.colors.overlay.light, 'transparent']}
+              start={{ x: 0, y: 0.5 }}
+              end={{ x: 1, y: 0.5 }}
+              style={styles.shineGradient}
+            />
+          </Animated.View>
+        </LinearGradient>
+      </Animated.View>
     </View>
   );
 };
@@ -142,16 +130,20 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  ring: {
-    position: 'absolute',
-  },
   halo: {
     position: 'absolute',
   },
   disc: {
     alignItems: 'center',
     justifyContent: 'center',
+    overflow: 'hidden',
     ...theme.shadows.medium,
+  },
+  shine: {
+    position: 'absolute',
+  },
+  shineGradient: {
+    flex: 1,
   },
 });
 
