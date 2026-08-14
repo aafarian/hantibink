@@ -18,7 +18,7 @@
     "build:dev:ios": "cd mobile && eas build --profile development --platform ios",
     "build:prod": "cd mobile && eas build --profile production --platform android --non-interactive",
     "build:prod:ios": "cd mobile && eas build --profile production --platform ios --non-interactive",
-    "update:prod": "cd mobile && eas update --channel production",
+    "update:prod": "cd mobile && npm run update:prod",
     "lint": "cd mobile && npm run lint && cd ../api && npm run lint",
     "lint:fix": "cd mobile && npm run lint:fix && cd ../api && npm run lint:fix",
     "format": "cd mobile && npm run format && cd ../api && npm run format",
