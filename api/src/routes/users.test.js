@@ -30,18 +30,32 @@ describe('Users Routes', () => {
   });
 
   describe('POST /users/photos', () => {
-    it('accepts a valid https photo URL', async () => {
-      const { authHeader } = await userFactory.createWithAuth(global.prisma);
+    const storageUrl = (userId, folder = 'profile-photos') =>
+      `https://firebasestorage.googleapis.com/v0/b/hantibink.firebasestorage.app/o/${encodeURIComponent(`${folder}/${userId}_1.jpg`)}?alt=media`;
+
+    it('accepts a photo the user uploaded to our bucket', async () => {
+      const { authHeader, user } = await userFactory.createWithAuth(global.prisma);
 
       const response = await request(app)
         .post('/users/photos')
         .set('Authorization', authHeader)
-        .send({
-          photoUrl: 'https://firebasestorage.googleapis.com/v0/b/hantibink/o/photo.jpg',
-          isMain: true,
-        });
+        .send({ photoUrl: storageUrl(user.id), isMain: true });
 
       expectSuccess(response);
+    });
+
+    it("rejects another user's object in our bucket (ownership)", async () => {
+      const { authHeader } = await userFactory.createWithAuth(global.prisma);
+      const other = await userFactory.createWithAuth(global.prisma, {
+        email: 'other-owner@example.com',
+      });
+
+      const response = await request(app)
+        .post('/users/photos')
+        .set('Authorization', authHeader)
+        .send({ photoUrl: storageUrl(other.user.id) });
+
+      expectError(response, 400);
     });
 
     it('rejects https URLs outside our storage host', async () => {

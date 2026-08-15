@@ -11,36 +11,36 @@ const { AppError } = require('../middleware/errorHandler');
 const prisma = getPrismaClient();
 
 const submitVerification = async (userId, photoUrl) => {
-  const user = await prisma.user.findUnique({
-    where: { id: userId },
-    select: { verificationStatus: true },
-  });
+  const submittedAt = new Date();
 
-  if (!user) {
-    throw new AppError('User not found', 404);
-  }
-  if (user.verificationStatus === 'PENDING') {
-    throw new AppError('Your verification selfie is already in review', 400);
-  }
-  if (user.verificationStatus === 'APPROVED') {
-    throw new AppError('Your profile is already verified', 400);
-  }
-
-  const updated = await prisma.user.update({
-    where: { id: userId },
+  // Atomic: the transition only applies from NONE/REJECTED, so a submit
+  // racing an admin review can never demote an APPROVED account back to
+  // PENDING or swap the selfie out from under a reviewer
+  const result = await prisma.user.updateMany({
+    where: { id: userId, verificationStatus: { in: ['NONE', 'REJECTED'] } },
     data: {
       verificationStatus: 'PENDING',
       verificationPhotoUrl: photoUrl,
-      verificationSubmittedAt: new Date(),
+      verificationSubmittedAt: submittedAt,
       verificationReviewedAt: null,
-    },
-    select: {
-      verificationStatus: true,
-      verificationSubmittedAt: true,
     },
   });
 
-  return updated;
+  if (result.count === 0) {
+    const user = await prisma.user.findUnique({
+      where: { id: userId },
+      select: { verificationStatus: true },
+    });
+    if (!user) {
+      throw new AppError('User not found', 404);
+    }
+    if (user.verificationStatus === 'APPROVED') {
+      throw new AppError('Your profile is already verified', 400);
+    }
+    throw new AppError('Your verification selfie is already in review', 400);
+  }
+
+  return { verificationStatus: 'PENDING', verificationSubmittedAt: submittedAt };
 };
 
 module.exports = { submitVerification };
