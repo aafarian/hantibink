@@ -1004,6 +1004,28 @@ class ApiDataService {
     }
   }
 
+  // ============ VERIFICATION METHODS ============
+
+  /**
+   * Submit a verification selfie for review
+   * @param {string} photoUrl - Uploaded selfie URL (verification-selfies folder)
+   */
+  static async submitVerification(photoUrl) {
+    try {
+      Logger.info('🪪 Submitting verification selfie via API...');
+      const response = await apiClient.post('/users/verification', { photoUrl });
+      if (response.success) {
+        Logger.success('✅ Verification submitted');
+        return response.data;
+      }
+      Logger.error('❌ Failed to submit verification:', response.message);
+      throw new Error(response.message || 'Verification submission failed');
+    } catch (error) {
+      Logger.error('❌ Error submitting verification:', error);
+      throw error;
+    }
+  }
+
   // ============ ACCOUNT METHODS ============
 
   /**

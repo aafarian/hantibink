@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   View,
   Text,
@@ -7,13 +7,17 @@ import {
   TouchableOpacity,
   AppState,
   Image,
+  Alert,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import * as Application from 'expo-application';
 import * as Updates from 'expo-updates';
+import * as ImagePicker from 'expo-image-picker';
 import { useAuth } from '../contexts/AuthContext';
 import { useFeatureFlags } from '../contexts/FeatureFlagsContext';
+import ApiDataService from '../services/ApiDataService';
 import Logger from '../utils/logger';
+import { uploadImageToFirebase } from '../utils/imageUpload';
 import { useToast } from '../contexts/ToastContext';
 import { LoadingScreen } from '../components/LoadingScreen';
 import { ErrorScreen } from '../components/ErrorScreen';
@@ -28,10 +32,11 @@ import { theme } from '../styles/theme';
 const ProfileScreen = ({ navigation }) => {
   const { user, userProfile: authUserProfile, refreshUserProfile } = useAuth();
   const { isPremium, togglePremiumForTesting } = useFeatureFlags();
-  const { showSuccess } = useToast();
+  const { showSuccess, showError } = useToast();
   const [userProfile, setUserProfile] = useState(null);
   const [loading, setLoading] = useState(true);
   const [showSetupModal, setShowSetupModal] = useState(false);
+  const [verificationSubmitting, setVerificationSubmitting] = useState(false);
 
   // Check if user is missing required fields for matching
   const needsRequiredFields =
@@ -91,6 +96,56 @@ const ProfileScreen = ({ navigation }) => {
 
   // Photo management is now handled by ProfileEditScreen
   // Account management (logout, delete) is now in AccountSettingsScreen
+
+  // Take a verification selfie with the FRONT CAMERA ONLY (never the gallery —
+  // a live camera capture is the anti-spoof property) and submit for review.
+  const takeVerificationSelfie = useCallback(async () => {
+    try {
+      const permission = await ImagePicker.requestCameraPermissionsAsync();
+      if (!permission.granted) {
+        showError('Camera access is needed to take your verification selfie');
+        return;
+      }
+
+      const result = await ImagePicker.launchCameraAsync({
+        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        cameraType: ImagePicker.CameraType.front,
+        quality: 0.7,
+        allowsEditing: false,
+      });
+
+      if (result.canceled || !result.assets?.[0]?.uri) {
+        return;
+      }
+
+      setVerificationSubmitting(true);
+      const photoUrl = await uploadImageToFirebase(
+        result.assets[0].uri,
+        user?.uid,
+        'verification-selfies'
+      );
+      await ApiDataService.submitVerification(photoUrl);
+      showSuccess('Selfie submitted! We will review it shortly.');
+      await refreshUserProfile();
+    } catch (error) {
+      Logger.error('Verification submission failed:', error);
+      showError('Failed to submit verification. Please try again.');
+    } finally {
+      setVerificationSubmitting(false);
+    }
+  }, [user?.uid, refreshUserProfile, showSuccess, showError]);
+
+  // Explainer alert before opening the camera
+  const handleVerifyPress = useCallback(() => {
+    Alert.alert(
+      'Verify your profile',
+      "Take a quick selfie so we can confirm you're the person in your photos. The selfie is only used for verification and isn't shown on your profile.",
+      [
+        { text: 'Cancel', style: 'cancel' },
+        { text: 'Take Selfie', onPress: takeVerificationSelfie },
+      ]
+    );
+  }, [takeVerificationSelfie]);
 
   if (loading) {
     return <LoadingScreen message="Loading profile..." />;
@@ -180,10 +235,20 @@ const ProfileScreen = ({ navigation }) => {
               </View>
               <View style={styles.infoContent}>
                 <Text style={styles.infoLabel}>Name & Age</Text>
-                <Text style={styles.infoValue}>
-                  {userProfile.name}
-                  {userProfile.age ? `, ${userProfile.age}` : ''}
-                </Text>
+                <View style={styles.nameRow}>
+                  <Text style={styles.infoValue}>
+                    {userProfile.name}
+                    {userProfile.age ? `, ${userProfile.age}` : ''}
+                  </Text>
+                  {userProfile.isVerified && (
+                    <Ionicons
+                      name="checkmark-circle"
+                      size={16}
+                      color={theme.colors.secondaryLight}
+                      style={styles.nameVerifiedBadge}
+                    />
+                  )}
+                </View>
               </View>
             </View>
 
@@ -392,6 +457,59 @@ const ProfileScreen = ({ navigation }) => {
         {/* Settings */}
         <View style={styles.settingsSection}>
           <Text style={styles.sectionTitle}>Settings</Text>
+
+          {/* Verification - status-aware row */}
+          {(() => {
+            const status = userProfile.verificationStatus || 'NONE';
+            const isApproved = status === 'APPROVED' || userProfile.isVerified;
+            const isPending = status === 'PENDING';
+
+            if (isApproved) {
+              return (
+                <View style={styles.settingItem}>
+                  <Ionicons name="checkmark-circle" size={20} color={theme.colors.secondaryLight} />
+                  <Text style={styles.settingText}>Verified</Text>
+                  <View style={styles.verifiedPill}>
+                    <Ionicons
+                      name="checkmark-circle"
+                      size={14}
+                      color={theme.colors.secondaryLight}
+                    />
+                    <Text style={styles.verifiedPillText}>Verified</Text>
+                  </View>
+                </View>
+              );
+            }
+
+            if (isPending) {
+              return (
+                <View style={[styles.settingItem, styles.settingItemDisabled]}>
+                  <Ionicons name="hourglass-outline" size={20} color={theme.colors.text.muted} />
+                  <Text style={[styles.settingText, styles.settingTextMuted]}>
+                    Verification in review
+                  </Text>
+                </View>
+              );
+            }
+
+            return (
+              <TouchableOpacity
+                style={styles.settingItem}
+                onPress={handleVerifyPress}
+                disabled={verificationSubmitting}
+              >
+                <Ionicons name="shield-checkmark" size={20} color={theme.colors.primary} />
+                <Text style={styles.settingText}>
+                  {verificationSubmitting
+                    ? 'Submitting verification…'
+                    : status === 'REJECTED'
+                      ? 'Verification declined — try again'
+                      : 'Verify your profile'}
+                </Text>
+                <Ionicons name="chevron-forward" size={20} color={theme.colors.border.medium} />
+              </TouchableOpacity>
+            );
+          })()}
 
           <TouchableOpacity
             style={styles.settingItem}
@@ -703,6 +821,34 @@ const styles = StyleSheet.create({
     marginLeft: 15,
     color: theme.colors.text.primary,
     fontFamily: theme.typography.fontFamily.regular,
+  },
+  settingItemDisabled: {
+    opacity: 0.7,
+  },
+  settingTextMuted: {
+    color: theme.colors.text.muted,
+  },
+  verifiedPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: theme.colors.secondaryTint,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 12,
+    gap: 4,
+  },
+  verifiedPillText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: theme.colors.secondaryLight,
+    fontFamily: theme.typography.fontFamily.semibold,
+  },
+  nameRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  nameVerifiedBadge: {
+    marginLeft: 4,
   },
   // Guidance styles
   guidanceContainer: {

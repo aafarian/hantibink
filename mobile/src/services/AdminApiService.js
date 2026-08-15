@@ -86,6 +86,42 @@ const AdminApiService = {
     return response.data;
   },
 
+  async listVerifications() {
+    return unwrap(await apiClient.get('/admin/verifications'));
+  },
+
+  async reviewVerification(userId, action) {
+    const response = await apiClient.post(`/admin/verifications/${userId}`, { action });
+    if (!response?.success) {
+      throw new Error(response?.message || 'Review failed');
+    }
+    return response.data;
+  },
+
+  async getQuotasConfig() {
+    return unwrap(await apiClient.get('/admin/config/quotas'));
+  },
+
+  async publishQuotasConfig(config) {
+    const response = await apiClient.put('/admin/config/quotas', config);
+    if (!response?.success) {
+      throw new Error(response?.message || 'Publish failed');
+    }
+    return response.data;
+  },
+
+  async getLaunchPromoConfig() {
+    return unwrap(await apiClient.get('/admin/config/launch-promo'));
+  },
+
+  async publishLaunchPromoConfig(config) {
+    const response = await apiClient.put('/admin/config/launch-promo', config);
+    if (!response?.success) {
+      throw new Error(response?.message || 'Publish failed');
+    }
+    return response.data;
+  },
+
   async getFlags() {
     return unwrap(await apiClient.get('/admin/config/flags'));
   },

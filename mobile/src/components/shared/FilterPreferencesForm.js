@@ -72,6 +72,7 @@ const DEFAULT_CORE_PREFERENCES = {
 };
 
 const DEFAULT_ADVANCED_FILTERS = {
+  verifiedOnly: false,
   strictAge: false,
   strictDistance: false,
   relationshipType: [],
@@ -469,6 +470,13 @@ const FilterPreferencesForm = ({
                 advancedFilters.strictDistance
               )}
             </View>
+
+            {renderToggle(
+              'Verified profiles only',
+              'Only show people with a verified profile',
+              'verifiedOnly',
+              advancedFilters.verifiedOnly
+            )}
           </>
         )}
 

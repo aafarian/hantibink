@@ -248,6 +248,11 @@ const SimpleRegisterScreen = ({ navigation }) => {
         } else {
           showSuccess('Welcome to Hantibink!');
         }
+
+        // Celebrate an active launch trial if the server granted one
+        if (result.user?.trialEndsAt && new Date(result.user.trialEndsAt) > new Date()) {
+          showSuccess('🎉 Premium trial activated — enjoy!');
+        }
         // Navigation to profile setup or main app happens automatically via AuthContext
       } else {
         Logger.error('❌ Registration failed:', result.error);

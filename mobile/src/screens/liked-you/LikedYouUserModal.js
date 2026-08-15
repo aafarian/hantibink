@@ -7,6 +7,7 @@ import {
   Image,
   TouchableOpacity,
   ActivityIndicator,
+  Alert,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { theme } from '../../styles/theme';
@@ -20,12 +21,31 @@ import { theme } from '../../styles/theme';
  * @param {Function} props.onClose - Callback when modal is closed
  * @param {Function} props.onLike - Callback when like button is pressed
  * @param {Function} props.onPass - Callback when pass button is pressed
+ * @param {Function} props.onReport - Callback when Report is chosen from the overflow menu
+ * @param {Function} props.onBlock - Callback when Block is chosen from the overflow menu
  * @param {Object} props.loadingAction - Loading state { userId, type: 'like' | 'pass' }
  */
-const LikedYouUserModal = ({ user, visible, onClose, onLike, onPass, loadingAction }) => {
+const LikedYouUserModal = ({
+  user,
+  visible,
+  onClose,
+  onLike,
+  onPass,
+  onReport,
+  onBlock,
+  loadingAction,
+}) => {
   const isLoading = loadingAction?.userId === user?.id;
   const isLoadingPass = isLoading && loadingAction?.type === 'pass';
   const isLoadingLike = isLoading && loadingAction?.type === 'like';
+
+  const handleOverflowPress = () => {
+    Alert.alert(user?.name || 'Options', undefined, [
+      { text: 'Report', onPress: () => onReport?.(user) },
+      { text: 'Block', style: 'destructive', onPress: () => onBlock?.(user) },
+      { text: 'Cancel', style: 'cancel' },
+    ]);
+  };
 
   return (
     <Modal visible={visible} animationType="slide" transparent={true} onRequestClose={onClose}>
@@ -36,12 +56,26 @@ const LikedYouUserModal = ({ user, visible, onClose, onLike, onPass, loadingActi
               <Ionicons name="close" size={28} color={theme.colors.text.primary} />
             </TouchableOpacity>
 
+            <TouchableOpacity style={styles.modalOverflow} onPress={handleOverflowPress}>
+              <Ionicons name="ellipsis-horizontal" size={24} color={theme.colors.text.primary} />
+            </TouchableOpacity>
+
             <Image source={{ uri: user.mainPhoto }} style={styles.modalImage} />
 
             <View style={styles.modalInfo}>
-              <Text style={styles.modalName}>
-                {user.name}, {user.age}
-              </Text>
+              <View style={styles.modalNameRow}>
+                <Text style={styles.modalName}>
+                  {user.name}, {user.age}
+                </Text>
+                {user.isVerified && (
+                  <Ionicons
+                    name="checkmark-circle"
+                    size={20}
+                    color={theme.colors.secondaryLight}
+                    style={styles.verifiedBadge}
+                  />
+                )}
+              </View>
               <Text style={styles.modalLocation}>
                 <Ionicons name="location" size={16} color={theme.colors.text.secondary} />{' '}
                 {user.location}
@@ -119,15 +153,31 @@ const styles = StyleSheet.create({
     width: '100%',
     height: 300,
   },
+  modalOverflow: {
+    position: 'absolute',
+    top: 20,
+    left: 20,
+    zIndex: 1,
+    backgroundColor: 'white',
+    borderRadius: 20,
+    padding: 7,
+  },
   modalInfo: {
     padding: 20,
+  },
+  modalNameRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 5,
   },
   modalName: {
     fontSize: 24,
     fontWeight: 'bold',
     fontFamily: theme.typography.fontFamily.bold,
     color: theme.colors.text.primary,
-    marginBottom: 5,
+  },
+  verifiedBadge: {
+    marginLeft: 6,
   },
   modalLocation: {
     fontSize: 16,

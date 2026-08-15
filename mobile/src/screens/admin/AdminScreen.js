@@ -9,6 +9,7 @@ import {
   Switch,
   RefreshControl,
   Alert,
+  Image,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -29,7 +30,7 @@ import {
 } from '../../components/admin/AdminKit';
 import { theme } from '../../styles/theme';
 
-const TABS = ['Overview', 'Users', 'Reports', 'Waitlist', 'Config', 'Audit'];
+const TABS = ['Overview', 'Users', 'Reports', 'Verifications', 'Waitlist', 'Config', 'Audit'];
 
 /* ----------------------------- Overview ----------------------------- */
 
@@ -260,6 +261,94 @@ const ReportsSection = ({ refreshKey }) => {
   );
 };
 
+/* --------------------------- Verifications -------------------------- */
+
+const VerificationsSection = ({ refreshKey }) => {
+  const [result, setResult] = useState(null);
+  const [actingOn, setActingOn] = useState(null); // userId currently being reviewed
+  const { showSuccess, showError } = useToast();
+
+  useEffect(() => {
+    AdminApiService.listVerifications().then(setResult).catch(Logger.error);
+  }, [refreshKey]);
+
+  const review = async (item, action) => {
+    setActingOn(item.id);
+    try {
+      await AdminApiService.reviewVerification(item.id, action);
+      setResult(prev =>
+        prev ? { ...prev, items: prev.items.filter(row => row.id !== item.id) } : prev
+      );
+      showSuccess(action === 'APPROVE' ? 'Verification approved' : 'Verification rejected');
+    } catch (error) {
+      showError(error.message || 'Action failed');
+    } finally {
+      setActingOn(null);
+    }
+  };
+
+  if (!result) {
+    return <EmptyState message="Loading verifications…" />;
+  }
+  if (result.items.length === 0) {
+    return <EmptyState message="No pending verifications 🎉" />;
+  }
+  return (
+    <View>
+      {result.items.map(item => {
+        // Selfie first, then up to 2 profile photos (main photo leading)
+        const profilePhotos = [...(item.photos || [])]
+          .sort((a, b) => (b.isMain ? 1 : 0) - (a.isMain ? 1 : 0))
+          .slice(0, 2);
+        return (
+          <View key={item.id} style={styles.verificationCard}>
+            <View style={styles.verificationPhotos}>
+              <View>
+                <Image
+                  source={{ uri: item.verificationPhotoUrl }}
+                  style={styles.verificationPhoto}
+                />
+                <Text style={styles.verificationPhotoLabel}>Selfie</Text>
+              </View>
+              {profilePhotos.map(photo => (
+                <View key={photo.url}>
+                  <Image source={{ uri: photo.url }} style={styles.verificationPhoto} />
+                  <Text style={styles.verificationPhotoLabel}>
+                    {photo.isMain ? 'Main photo' : 'Profile'}
+                  </Text>
+                </View>
+              ))}
+            </View>
+            <Text style={styles.verificationName}>{item.name || '(no name)'}</Text>
+            <Text style={styles.verificationMeta}>
+              {item.email}
+              {item.verificationSubmittedAt
+                ? ` · ${new Date(item.verificationSubmittedAt).toLocaleString()}`
+                : ''}
+            </Text>
+            <View style={styles.verificationActions}>
+              <TouchableOpacity
+                style={[styles.verificationButton, styles.approveButton]}
+                onPress={() => review(item, 'APPROVE')}
+                disabled={actingOn === item.id}
+              >
+                <Text style={styles.verificationButtonText}>Approve</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.verificationButton, styles.rejectButton]}
+                onPress={() => review(item, 'REJECT')}
+                disabled={actingOn === item.id}
+              >
+                <Text style={styles.verificationButtonText}>Reject</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        );
+      })}
+    </View>
+  );
+};
+
 /* ------------------------------ Waitlist ---------------------------- */
 
 const WaitlistSection = ({ refreshKey }) => {
@@ -301,6 +390,10 @@ const ConfigSection = ({ refreshKey }) => {
   const [androidLatest, setAndroidLatest] = useState('');
   const [loadedPlatformLatest, setLoadedPlatformLatest] = useState({ ios: '', android: '' });
   const [flags, setFlags] = useState({});
+  const [freeLikes, setFreeLikes] = useState('');
+  const [promoEnabled, setPromoEnabled] = useState(false);
+  const [promoTrialDays, setPromoTrialDays] = useState('');
+  const [promoWaitlistOnly, setPromoWaitlistOnly] = useState(false);
   const { showSuccess, showError } = useToast();
 
   const applyVersionConfig = config => {
@@ -315,10 +408,62 @@ const ConfigSection = ({ refreshKey }) => {
     setLoadedPlatformLatest({ ios, android });
   };
 
+  const applyQuotasConfig = config => {
+    setFreeLikes(
+      config?.freeLikesPerWindow !== null && config?.freeLikesPerWindow !== undefined
+        ? String(config.freeLikesPerWindow)
+        : ''
+    );
+  };
+
+  const applyLaunchPromoConfig = config => {
+    setPromoEnabled(!!config?.enabled);
+    setPromoTrialDays(
+      config?.trialDays !== null && config?.trialDays !== undefined ? String(config.trialDays) : ''
+    );
+    setPromoWaitlistOnly(!!config?.waitlistOnly);
+  };
+
   useEffect(() => {
     AdminApiService.getAppVersionConfig().then(applyVersionConfig).catch(Logger.error);
     AdminApiService.getFlags().then(setFlags).catch(Logger.error);
+    AdminApiService.getQuotasConfig().then(applyQuotasConfig).catch(Logger.error);
+    AdminApiService.getLaunchPromoConfig().then(applyLaunchPromoConfig).catch(Logger.error);
   }, [refreshKey]);
+
+  const publishQuotas = async () => {
+    const parsed = parseInt(freeLikes, 10);
+    if (Number.isNaN(parsed) || parsed < 0) {
+      showError('Enter a valid number of free likes');
+      return;
+    }
+    try {
+      const published = await AdminApiService.publishQuotasConfig({ freeLikesPerWindow: parsed });
+      applyQuotasConfig(published);
+      showSuccess('Quotas published');
+    } catch (error) {
+      showError(error.message || 'Publish failed');
+    }
+  };
+
+  const publishLaunchPromo = async () => {
+    const parsedDays = parseInt(promoTrialDays, 10);
+    if (Number.isNaN(parsedDays) || parsedDays < 0) {
+      showError('Enter a valid number of trial days');
+      return;
+    }
+    try {
+      const published = await AdminApiService.publishLaunchPromoConfig({
+        enabled: promoEnabled,
+        trialDays: parsedDays,
+        waitlistOnly: promoWaitlistOnly,
+      });
+      applyLaunchPromoConfig(published);
+      showSuccess('Launch promo published');
+    } catch (error) {
+      showError(error.message || 'Publish failed');
+    }
+  };
 
   const publish = async () => {
     try {
@@ -421,6 +566,41 @@ const ConfigSection = ({ refreshKey }) => {
         </TouchableOpacity>
       </View>
 
+      <SectionHeader title="Launch levers" subtitle="Free-tier quota and launch promo" />
+      <View style={styles.configForm}>
+        <Text style={styles.configLabel}>Free likes per window</Text>
+        <TextInput
+          style={styles.configInput}
+          value={freeLikes}
+          onChangeText={setFreeLikes}
+          placeholder="10"
+          keyboardType="number-pad"
+        />
+        <TouchableOpacity style={styles.publishButton} onPress={publishQuotas}>
+          <Text style={styles.publishButtonText}>Publish quotas</Text>
+        </TouchableOpacity>
+
+        <View style={styles.switchRow}>
+          <Text style={styles.configLabel}>Launch promo enabled</Text>
+          <Switch value={promoEnabled} onValueChange={setPromoEnabled} />
+        </View>
+        <Text style={styles.configLabel}>Trial days</Text>
+        <TextInput
+          style={styles.configInput}
+          value={promoTrialDays}
+          onChangeText={setPromoTrialDays}
+          placeholder="7"
+          keyboardType="number-pad"
+        />
+        <View style={styles.switchRow}>
+          <Text style={styles.configLabel}>Waitlist only</Text>
+          <Switch value={promoWaitlistOnly} onValueChange={setPromoWaitlistOnly} />
+        </View>
+        <TouchableOpacity style={styles.publishButton} onPress={publishLaunchPromo}>
+          <Text style={styles.publishButtonText}>Publish launch promo</Text>
+        </TouchableOpacity>
+      </View>
+
       <SectionHeader title="Feature flags" subtitle="Served to clients within ~60s" />
       {Object.keys(flags).length === 0 ? (
         <EmptyState message="No flags yet — they appear here once set" />
@@ -491,6 +671,7 @@ const AdminScreen = ({ navigation }) => {
     Overview: OverviewSection,
     Users: UsersSection,
     Reports: ReportsSection,
+    Verifications: VerificationsSection,
     Waitlist: WaitlistSection,
     Config: ConfigSection,
     Audit: AuditSection,
@@ -594,6 +775,65 @@ const styles = StyleSheet.create({
     fontSize: theme.typography.sizes.md,
     fontFamily: theme.typography.fontFamily.medium,
     color: theme.colors.text.primary,
+  },
+  verificationCard: {
+    marginHorizontal: theme.spacing.lg,
+    marginBottom: theme.spacing.md,
+    padding: theme.spacing.md,
+    borderWidth: 1,
+    borderColor: theme.colors.border.light,
+    borderRadius: theme.borderRadius.lg,
+  },
+  verificationPhotos: {
+    flexDirection: 'row',
+    gap: theme.spacing.sm,
+    marginBottom: theme.spacing.sm,
+  },
+  verificationPhoto: {
+    width: 96,
+    height: 96,
+    borderRadius: theme.borderRadius.md,
+    backgroundColor: theme.colors.background.tertiary,
+  },
+  verificationPhotoLabel: {
+    fontSize: theme.typography.sizes.xs,
+    fontFamily: theme.typography.fontFamily.regular,
+    color: theme.colors.text.muted,
+    textAlign: 'center',
+    marginTop: theme.spacing.xs,
+  },
+  verificationName: {
+    fontSize: theme.typography.sizes.md,
+    fontFamily: theme.typography.fontFamily.semibold,
+    color: theme.colors.text.primary,
+  },
+  verificationMeta: {
+    fontSize: theme.typography.sizes.sm,
+    fontFamily: theme.typography.fontFamily.regular,
+    color: theme.colors.text.secondary,
+    marginTop: 2,
+  },
+  verificationActions: {
+    flexDirection: 'row',
+    gap: theme.spacing.sm,
+    marginTop: theme.spacing.md,
+  },
+  verificationButton: {
+    flex: 1,
+    borderRadius: theme.borderRadius.md,
+    paddingVertical: theme.spacing.sm,
+    alignItems: 'center',
+  },
+  approveButton: {
+    backgroundColor: theme.colors.status.success,
+  },
+  rejectButton: {
+    backgroundColor: theme.colors.status.error,
+  },
+  verificationButtonText: {
+    color: theme.colors.text.white,
+    fontSize: theme.typography.sizes.md,
+    fontFamily: theme.typography.fontFamily.bold,
   },
   publishButton: {
     backgroundColor: theme.colors.primary,

@@ -21,6 +21,9 @@ module.exports = () => {
         infoPlist: {
           NSLocationWhenInUseUsageDescription:
             'This app uses location to show you people nearby and improve your dating experience.',
+          NSCameraUsageDescription: 'Hantibink uses your camera to take a verification selfie.',
+          NSPhotoLibraryUsageDescription:
+            'Hantibink needs access to your photos so you can add them to your profile.',
           ITSAppUsesNonExemptEncryption: false,
         },
         bundleIdentifier: IS_DEV ? 'com.antoafarian.hantibink.dev' : 'com.antoafarian.hantibink',
@@ -35,6 +38,7 @@ module.exports = () => {
           'android.permission.ACCESS_FINE_LOCATION',
           'android.permission.ACCESS_COARSE_LOCATION',
           'android.permission.RECORD_AUDIO',
+          'android.permission.CAMERA',
         ],
         package: IS_DEV ? 'com.antoafarian.hantibink.dev' : 'com.antoafarian.hantibink',
         googleServicesFile: process.env.GOOGLE_SERVICES_JSON || './google-services.json',
