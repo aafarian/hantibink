@@ -47,8 +47,14 @@ model User {
   isProfilePaused        Boolean        @default(false)
   pausedAt               DateTime?
   isPremium              Boolean        @default(false)
+  trialEndsAt            DateTime?      // launch-promo premium trial; effective premium = isPremium OR trial active
   rcLastEventAt          DateTime?      // newest RevenueCat event applied — stale/duplicate webhooks are no-ops
   rcLastEventId          String?        // id of that event — tie-breaks distinct events sharing a timestamp
+  isVerified             Boolean        @default(false) // human-reviewed selfie verification badge
+  verificationStatus     VerificationStatus @default(NONE)
+  verificationPhotoUrl   String?
+  verificationSubmittedAt DateTime?
+  verificationReviewedAt DateTime?
   gamesEnabled           Boolean        @default(true)  // in-chat games; icon shows only when both members enabled
   hasCompletedOnboarding Boolean        @default(false)
   onboardingStage        OnboardingStage @default(REGISTERED)
@@ -420,6 +426,13 @@ enum ReportStatus {
 enum OnboardingStage {
   REGISTERED        // Just signed up
   SETUP_COMPLETE    // Has gender, interestedIn, photo, location
+}
+
+enum VerificationStatus {
+  NONE       // never submitted
+  PENDING    // selfie awaiting admin review
+  APPROVED   // badge granted
+  REJECTED   // reviewer declined; user may retry
 }
 
 /// Server-published runtime configuration (app version, feature flags, ...).

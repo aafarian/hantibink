@@ -1,6 +1,7 @@
 const { OAuth2Client } = require('google-auth-library');
 const { getPrismaClient } = require('../config/database');
 const { generateTokenPair } = require('../utils/jwt');
+const { grantLaunchTrial } = require('./premiumService');
 const logger = require('../utils/logger');
 
 const prisma = getPrismaClient();
@@ -185,6 +186,13 @@ const handleOAuthAuth = async (provider, providerData) => {
       },
     });
     
+    // Launch promo: new accounts may receive a premium trial (no-op
+    // unless enabled in AppConfig; never throws)
+    const trialEndsAt = await grantLaunchTrial(newUser.id, newUser.email);
+    if (trialEndsAt) {
+      newUser.trialEndsAt = trialEndsAt;
+    }
+
     const { accessToken, refreshToken } = generateTokenPair({
       userId: newUser.id,
       email: newUser.email,

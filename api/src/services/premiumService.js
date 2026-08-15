@@ -4,6 +4,7 @@
  */
 
 const { getPrismaClient } = require('../config/database');
+const logger = require('../utils/logger');
 
 const prisma = getPrismaClient();
 
@@ -11,8 +12,9 @@ const prisma = getPrismaClient();
 const LIMITS = {
   FREE: {
     // Likes arrive as a conveyor: a fresh batch every half day (00:00 and
-    // 12:00 UTC), use-it-or-lose-it — no banking
-    dailyLikes: 5,
+    // 12:00 UTC), use-it-or-lose-it — no banking. 25/window (50/day) is the
+    // launch-liquidity setting; tune live via the AppConfig `quotas` key.
+    dailyLikes: 25,
     superLikeAccrualPerDay: 0,
     superLikeBankCap: 0,
     canUndo: false,
@@ -27,6 +29,95 @@ const LIMITS = {
     canUndo: true,
     whoLikedMeLimit: Infinity, // Unlimited
   },
+};
+
+/**
+ * Effective premium: a paid flag OR an active launch-promo trial.
+ * Callers must select both `isPremium` and `trialEndsAt`.
+ */
+const hasPremiumAccess = (user) =>
+  !!user?.isPremium || (!!user?.trialEndsAt && new Date(user.trialEndsAt) > new Date());
+
+/**
+ * Free-tier quota overrides, tunable from the admin panel without a deploy
+ * (AppConfig key `quotas`, e.g. { "freeLikesPerWindow": 25 }). Cached
+ * in-process for 60s; code defaults serve when unset or on read failure.
+ */
+const QUOTA_CACHE_TTL_MS = 60 * 1000;
+let quotaCache = { value: null, fetchedAt: 0 };
+
+const getFreeLikesPerWindow = async () => {
+  const now = Date.now();
+  if (!quotaCache.value || now - quotaCache.fetchedAt > QUOTA_CACHE_TTL_MS) {
+    let value = {};
+    try {
+      const row = await prisma.appConfig.findUnique({ where: { key: 'quotas' } });
+      if (row?.value && typeof row.value === 'object') {
+        value = row.value;
+      }
+    } catch (error) {
+      // Fail open on code defaults — quota reads must never break liking
+    }
+    quotaCache = { value, fetchedAt: now };
+  }
+  const configured = Number(quotaCache.value.freeLikesPerWindow);
+  return Number.isFinite(configured) && configured > 0 ? configured : LIMITS.FREE.dailyLikes;
+};
+
+/**
+ * Launch-promo config (AppConfig key `launch_promo`), cached 60s:
+ * { "enabled": true, "trialDays": 3, "waitlistOnly": false }
+ */
+const PROMO_CACHE_TTL_MS = 60 * 1000;
+let promoCache = { value: null, fetchedAt: 0 };
+
+const getLaunchPromoConfig = async () => {
+  const now = Date.now();
+  if (!promoCache.value || now - promoCache.fetchedAt > PROMO_CACHE_TTL_MS) {
+    let value = {};
+    try {
+      const row = await prisma.appConfig.findUnique({ where: { key: 'launch_promo' } });
+      if (row?.value && typeof row.value === 'object') {
+        value = row.value;
+      }
+    } catch (error) {
+      // Fail closed (no promo) — a config read must never break signup
+    }
+    promoCache = { value, fetchedAt: now };
+  }
+  return promoCache.value;
+};
+
+/**
+ * Grant the launch-promo premium trial to a newly created account.
+ * No-op unless the promo is enabled; optionally restricted to emails on
+ * the waitlist. Returns the trial end date, or null when nothing applied.
+ * Never throws — the promo must not be able to break registration.
+ */
+const grantLaunchTrial = async (userId, email) => {
+  try {
+    const promo = await getLaunchPromoConfig();
+    if (!promo.enabled) {
+      return null;
+    }
+    if (promo.waitlistOnly) {
+      const onList = await prisma.waitlist.findFirst({
+        where: { email: { equals: email, mode: 'insensitive' } },
+        select: { id: true },
+      });
+      if (!onList) {
+        return null;
+      }
+    }
+    const days = Number(promo.trialDays);
+    const trialDays = Number.isFinite(days) && days > 0 ? Math.min(days, 30) : 3;
+    const trialEndsAt = new Date(Date.now() + trialDays * 86400000);
+    await prisma.user.update({ where: { id: userId }, data: { trialEndsAt } });
+    return trialEndsAt;
+  } catch (error) {
+    logger.warn('Launch trial grant failed (signup unaffected):', error.message);
+    return null;
+  }
 };
 
 /** Start of the current likes window (half-day boundaries at UTC 00/12). */
@@ -57,6 +148,7 @@ const getUserQuotas = async (userId) => {
     where: { id: userId },
     select: {
       isPremium: true,
+      trialEndsAt: true,
       dailyLikesUsed: true,
       dailyLikesResetAt: true,
       superLikeBalance: true,
@@ -68,7 +160,9 @@ const getUserQuotas = async (userId) => {
     throw new Error('User not found');
   }
 
-  const limits = user.isPremium ? LIMITS.PREMIUM : LIMITS.FREE;
+  const premium = hasPremiumAccess(user);
+  const limits = premium ? LIMITS.PREMIUM : LIMITS.FREE;
+  const freeLikesLimit = premium ? Infinity : await getFreeLikesPerWindow();
   let likesUsed = user.dailyLikesUsed;
   let superLikeBalance = user.superLikeBalance;
 
@@ -103,7 +197,7 @@ const getUserQuotas = async (userId) => {
   // advances even when the bank is full, so idle days never pile up into an
   // instant refill after a spend. Using increment (not an absolute write)
   // means a concurrent spend can't be resurrected by a stale read here.
-  if (user.isPremium && limits.superLikeAccrualPerDay > 0) {
+  if (premium && limits.superLikeAccrualPerDay > 0) {
     const days = utcDaysSince(user.superLikeAccruedAt);
     if (days >= 1) {
       const grant = Math.max(
@@ -131,15 +225,15 @@ const getUserQuotas = async (userId) => {
   }
 
   return {
-    isPremium: user.isPremium,
+    isPremium: premium,
     likes: {
       used: likesUsed,
-      limit: limits.dailyLikes,
-      remaining: limits.dailyLikes === Infinity ? Infinity : Math.max(0, limits.dailyLikes - likesUsed),
-      refillAt: limits.dailyLikes === Infinity ? null : nextLikesRefillAt(),
+      limit: freeLikesLimit,
+      remaining: freeLikesLimit === Infinity ? Infinity : Math.max(0, freeLikesLimit - likesUsed),
+      refillAt: freeLikesLimit === Infinity ? null : nextLikesRefillAt(),
     },
     superLikes: {
-      remaining: user.isPremium ? superLikeBalance : 0,
+      remaining: premium ? superLikeBalance : 0,
       limit: limits.superLikeBankCap,
       accrualPerDay: limits.superLikeAccrualPerDay,
     },
@@ -269,16 +363,17 @@ const canUndo = async (userId) => {
 const getWhoLikedMeLimit = async (userId) => {
   const user = await prisma.user.findUnique({
     where: { id: userId },
-    select: { isPremium: true },
+    select: { isPremium: true, trialEndsAt: true },
   });
 
   if (!user) {
     throw new Error('User not found');
   }
 
-  const limits = user.isPremium ? LIMITS.PREMIUM : LIMITS.FREE;
+  const premium = hasPremiumAccess(user);
+  const limits = premium ? LIMITS.PREMIUM : LIMITS.FREE;
   return {
-    isPremium: user.isPremium,
+    isPremium: premium,
     limit: limits.whoLikedMeLimit,
   };
 };
@@ -289,14 +384,14 @@ const getWhoLikedMeLimit = async (userId) => {
 const requiresPremium = async (userId, feature) => {
   const user = await prisma.user.findUnique({
     where: { id: userId },
-    select: { isPremium: true },
+    select: { isPremium: true, trialEndsAt: true },
   });
 
   if (!user) {
     throw new Error('User not found');
   }
 
-  if (user.isPremium) {
+  if (hasPremiumAccess(user)) {
     return { allowed: true };
   }
 
@@ -316,6 +411,8 @@ const requiresPremium = async (userId, feature) => {
 
 module.exports = {
   LIMITS,
+  hasPremiumAccess,
+  grantLaunchTrial,
   getUserQuotas,
   activatePremium,
   canLike,

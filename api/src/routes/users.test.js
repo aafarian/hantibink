@@ -36,9 +36,23 @@ describe('Users Routes', () => {
       const response = await request(app)
         .post('/users/photos')
         .set('Authorization', authHeader)
-        .send({ photoUrl: 'https://storage.example.com/photo.jpg', isMain: true });
+        .send({
+          photoUrl: 'https://firebasestorage.googleapis.com/v0/b/hantibink/o/photo.jpg',
+          isMain: true,
+        });
 
       expectSuccess(response);
+    });
+
+    it('rejects https URLs outside our storage host', async () => {
+      const { authHeader } = await userFactory.createWithAuth(global.prisma);
+
+      const response = await request(app)
+        .post('/users/photos')
+        .set('Authorization', authHeader)
+        .send({ photoUrl: 'https://evil.example.com/hotlinked.jpg' });
+
+      expectError(response, 400);
     });
 
     it('rejects non-https photo URLs', async () => {

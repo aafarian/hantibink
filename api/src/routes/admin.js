@@ -302,6 +302,82 @@ router.put(
 );
 
 /**
+ * @route   GET /api/admin/verifications — selfie review queue
+ */
+router.get(
+  '/verifications',
+  [
+    query('status').optional().isIn(['PENDING', 'APPROVED', 'REJECTED']),
+    handleValidationErrors,
+  ],
+  catchAsync(async (req, res) => {
+    const data = await admin.listVerifications(req.query.status || 'PENDING');
+    res.json({ success: true, data });
+  }),
+);
+
+/**
+ * @route   POST /api/admin/verifications/:userId — approve or reject
+ */
+router.post(
+  '/verifications/:userId',
+  [
+    param('userId').matches(/^c[a-z0-9]{24,25}$/i),
+    body('action').isIn(['APPROVE', 'REJECT']),
+    handleValidationErrors,
+  ],
+  catchAsync(async (req, res) => {
+    const data = await admin.reviewVerification(req.params.userId, req.body.action, req.user.email);
+    res.json({ success: true, message: `Verification ${data.status.toLowerCase()}`, data });
+  }),
+);
+
+/**
+ * @route   GET|PUT /api/admin/config/quotas — free-tier like quota lever
+ */
+router.get(
+  '/config/quotas',
+  catchAsync(async (req, res) => {
+    const data = await admin.getQuotasConfig();
+    res.json({ success: true, data });
+  }),
+);
+
+router.put(
+  '/config/quotas',
+  [body('freeLikesPerWindow').isInt({ min: 1, max: 1000 }), handleValidationErrors],
+  catchAsync(async (req, res) => {
+    const data = await admin.updateQuotasConfig(req.body, req.user.email);
+    res.json({ success: true, message: 'Quotas updated', data });
+  }),
+);
+
+/**
+ * @route   GET|PUT /api/admin/config/launch-promo — signup premium trial
+ */
+router.get(
+  '/config/launch-promo',
+  catchAsync(async (req, res) => {
+    const data = await admin.getLaunchPromo();
+    res.json({ success: true, data });
+  }),
+);
+
+router.put(
+  '/config/launch-promo',
+  [
+    body('enabled').isBoolean(),
+    body('trialDays').optional().isInt({ min: 1, max: 30 }),
+    body('waitlistOnly').optional().isBoolean(),
+    handleValidationErrors,
+  ],
+  catchAsync(async (req, res) => {
+    const data = await admin.updateLaunchPromo(req.body, req.user.email);
+    res.json({ success: true, message: 'Launch promo updated', data });
+  }),
+);
+
+/**
  * @route   GET /api/admin/audit
  */
 router.get(

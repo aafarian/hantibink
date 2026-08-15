@@ -260,10 +260,14 @@ const sendMessage = async (matchId, senderId, messageData, io = null) => {
     });
 
     if (receiver?.pushToken) {
-      // Check if user wants message notifications
+      // Check global preference AND the per-match mute
       const shouldNotify = await shouldSendNotification(receiverId, 'messages');
-      if (!shouldNotify) {
-        logger.info(`📵 Message notification skipped - user ${receiverId} has messages disabled`);
+      const muted = await prisma.mutedMatch.findFirst({
+        where: { userId: receiverId, matchId },
+        select: { id: true },
+      });
+      if (!shouldNotify || muted) {
+        logger.info(`📵 Message notification skipped for ${receiverId} (${muted ? 'match muted' : 'messages disabled'})`);
       } else {
         // Get recent unread messages from this sender in this match (for stacking)
         const recentUnread = await prisma.message.findMany({

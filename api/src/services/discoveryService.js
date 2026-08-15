@@ -366,13 +366,21 @@ const getUsersForDiscovery = async (currentUserId, options = {}) => {
       isDiscoverable: true, // Complete profiles only (backfilled by migration)
     };
 
+    // Gender preference is a HARD filter, always: once a small community's
+    // deck runs dry, soft-scored gender would surface wrong-gender cards.
+    // Everything else stays soft (scored) unless a strict flag is set.
+    const isInterestedInEveryone = currentUser.interestedIn.length === 3;
+    if (!isInterestedInEveryone && currentUser.interestedIn.length > 0) {
+      baseWhereClause.gender = { in: currentUser.interestedIn };
+    }
+
+    // "Verified profiles only" — opt-in filter, off by default
+    if (filters?.verifiedOnly) {
+      baseWhereClause.isVerified = true;
+    }
+
     // In strict mode, only get users matching preferences
     if (strictMode) {
-      // If user is interested in EVERYONE (all 3 genders), don't filter by gender
-      const isInterestedInEveryone = currentUser.interestedIn.length === 3;
-      if (!isInterestedInEveryone) {
-        baseWhereClause.gender = { in: currentUser.interestedIn };
-      }
       // Check if other users would be interested in current user
       baseWhereClause.OR = [
         { interestedIn: { hasSome: [currentUser.gender] } },

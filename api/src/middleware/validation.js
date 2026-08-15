@@ -8,6 +8,20 @@ const { body, query, param, validationResult } = require('express-validator');
 const ID_REGEX = /^c[a-z0-9]{24,25}$|^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 /**
+ * Image URLs must point at OUR Firebase Storage — arbitrary hosts would let
+ * clients register hotlinked content we can neither moderate nor delete.
+ */
+const ALLOWED_IMAGE_HOSTS = new Set(['firebasestorage.googleapis.com']);
+
+const isOurStorageUrl = (value) => {
+  try {
+    return ALLOWED_IMAGE_HOSTS.has(new URL(value).hostname);
+  } catch {
+    return false;
+  }
+};
+
+/**
  * Validation middleware for handling validation errors
  */
 const handleValidationErrors = (req, res, next) => {
@@ -500,10 +514,20 @@ const userValidation = {
     body('photoUrl')
       .notEmpty().withMessage('Photo URL is required')
       .isURL({ protocols: ['https'], require_protocol: true }).withMessage('Photo URL must be a valid https URL')
-      .isLength({ max: 2048 }).withMessage('Photo URL too long'),
+      .isLength({ max: 2048 }).withMessage('Photo URL too long')
+      .custom(isOurStorageUrl).withMessage('Photos must be uploaded through the app'),
     body('isMain')
       .optional()
       .isBoolean({ strict: true }).withMessage('isMain must be a boolean'),
+    handleValidationErrors,
+  ],
+
+  submitVerification: [
+    body('photoUrl')
+      .notEmpty().withMessage('Selfie URL is required')
+      .isURL({ protocols: ['https'], require_protocol: true }).withMessage('Selfie URL must be a valid https URL')
+      .isLength({ max: 2048 }).withMessage('Selfie URL too long')
+      .custom(isOurStorageUrl).withMessage('Selfies must be uploaded through the app'),
     handleValidationErrors,
   ],
 

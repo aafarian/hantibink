@@ -4,6 +4,8 @@ import express from 'express';
 import { userFactory } from '../../test-setup/helpers/factories.js';
 import { createMockSocketIO } from '../../test-setup/helpers/test-utils.js';
 import adminRouter from './admin.js';
+import { hasPremiumAccess, grantLaunchTrial } from '../services/premiumService.js';
+import { submitVerification } from '../services/verificationService.js';
 import { errorHandler } from '../middleware/errorHandler.js';
 import notFoundHandler from '../middleware/notFoundHandler.js';
 
@@ -387,6 +389,138 @@ describe('Admin Routes', () => {
       expect(cleared.status).toBe(200);
       expect(cleared.body.data.platforms.android).toBeUndefined();
       expect(cleared.body.data.platforms.ios.latestVersion).toBe('1.0.2');
+    });
+  });
+
+  describe('verification queue', () => {
+    const SELFIE = 'https://firebasestorage.googleapis.com/v0/b/hantibink/o/selfie.jpg';
+
+    it('submit -> list -> approve grants the badge exactly once', async () => {
+      const adminUser = await createAdmin();
+      const subject = await userFactory.createWithAuth(global.prisma, {
+        email: 'verifyme@example.com',
+      });
+
+      const submitted = await submitVerification(subject.user.id, SELFIE);
+      expect(submitted.verificationStatus).toBe('PENDING');
+
+      // Resubmission while pending is refused
+      await expect(submitVerification(subject.user.id, SELFIE)).rejects.toThrow(/already in review/i);
+
+      const list = await request(app)
+        .get('/admin/verifications')
+        .set('Authorization', adminUser.authHeader);
+      expect(list.status).toBe(200);
+      expect(list.body.data.items.some(u => u.id === subject.user.id)).toBe(true);
+
+      const approve = await request(app)
+        .post(`/admin/verifications/${subject.user.id}`)
+        .set('Authorization', adminUser.authHeader)
+        .send({ action: 'APPROVE' });
+      expect(approve.status).toBe(200);
+
+      const fresh = await global.prisma.user.findUnique({
+        where: { id: subject.user.id },
+        select: { isVerified: true, verificationStatus: true },
+      });
+      expect(fresh.isVerified).toBe(true);
+      expect(fresh.verificationStatus).toBe('APPROVED');
+
+      // Double review races to a 409, and verified users can't resubmit
+      const again = await request(app)
+        .post(`/admin/verifications/${subject.user.id}`)
+        .set('Authorization', adminUser.authHeader)
+        .send({ action: 'REJECT' });
+      expect(again.status).toBe(409);
+      await expect(submitVerification(subject.user.id, SELFIE)).rejects.toThrow(/already verified/i);
+    });
+
+    it('reject leaves the user unverified and able to retry', async () => {
+      const adminUser = await createAdmin();
+      const subject = await userFactory.createWithAuth(global.prisma, {
+        email: 'rejectme@example.com',
+      });
+      await submitVerification(subject.user.id, SELFIE);
+
+      const reject = await request(app)
+        .post(`/admin/verifications/${subject.user.id}`)
+        .set('Authorization', adminUser.authHeader)
+        .send({ action: 'REJECT' });
+      expect(reject.status).toBe(200);
+
+      const fresh = await global.prisma.user.findUnique({
+        where: { id: subject.user.id },
+        select: { isVerified: true, verificationStatus: true },
+      });
+      expect(fresh.isVerified).toBe(false);
+      expect(fresh.verificationStatus).toBe('REJECTED');
+
+      const retry = await submitVerification(subject.user.id, SELFIE);
+      expect(retry.verificationStatus).toBe('PENDING');
+    });
+  });
+
+  describe('launch levers', () => {
+    it('publishes quota and promo config with validation', async () => {
+      const adminUser = await createAdmin();
+
+      const quotas = await request(app)
+        .put('/admin/config/quotas')
+        .set('Authorization', adminUser.authHeader)
+        .send({ freeLikesPerWindow: 25 });
+      expect(quotas.status).toBe(200);
+      expect(quotas.body.data.freeLikesPerWindow).toBe(25);
+
+      const badQuota = await request(app)
+        .put('/admin/config/quotas')
+        .set('Authorization', adminUser.authHeader)
+        .send({ freeLikesPerWindow: 0 });
+      expect(badQuota.status).toBe(400);
+
+      const promo = await request(app)
+        .put('/admin/config/launch-promo')
+        .set('Authorization', adminUser.authHeader)
+        .send({ enabled: true, trialDays: 3, waitlistOnly: true });
+      expect(promo.status).toBe(200);
+      expect(promo.body.data).toEqual({ enabled: true, trialDays: 3, waitlistOnly: true });
+
+      const badPromo = await request(app)
+        .put('/admin/config/launch-promo')
+        .set('Authorization', adminUser.authHeader)
+        .send({ enabled: true, trialDays: 90 });
+      expect(badPromo.status).toBe(400);
+    });
+
+    it('grants the trial to waitlisted signups only (waitlistOnly promo)', async () => {
+      const adminUser = await createAdmin();
+      await request(app)
+        .put('/admin/config/launch-promo')
+        .set('Authorization', adminUser.authHeader)
+        .send({ enabled: true, trialDays: 3, waitlistOnly: true });
+
+      await global.prisma.waitlist.create({
+        data: { email: 'onlist@example.com' },
+      });
+      const onList = await userFactory.createWithAuth(global.prisma, {
+        email: 'onlist@example.com',
+      });
+      const offList = await userFactory.createWithAuth(global.prisma, {
+        email: 'offlist@example.com',
+      });
+
+      const granted = await grantLaunchTrial(onList.user.id, 'onlist@example.com');
+      expect(granted).toBeInstanceOf(Date);
+      expect(granted.getTime()).toBeGreaterThan(Date.now());
+
+      const denied = await grantLaunchTrial(offList.user.id, 'offlist@example.com');
+      expect(denied).toBeNull();
+
+      // Trial confers effective premium until it lapses
+      expect(hasPremiumAccess({ isPremium: false, trialEndsAt: granted })).toBe(true);
+      expect(
+        hasPremiumAccess({ isPremium: false, trialEndsAt: new Date(Date.now() - 1000) }),
+      ).toBe(false);
+      expect(hasPremiumAccess({ isPremium: true, trialEndsAt: null })).toBe(true);
     });
   });
 

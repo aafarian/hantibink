@@ -3,6 +3,7 @@ const logger = require('../utils/logger');
 const { authenticateJWT } = require('../middleware/auth');
 const { profileValidation, userValidation } = require('../middleware/validation');
 const { getPrismaClient } = require('../config/database');
+const { submitVerification } = require('../services/verificationService');
 // Removed caching from profile endpoint as it changes frequently
 const {
   getUserProfile,
@@ -252,6 +253,37 @@ router.post('/profile/complete-setup', authenticateJWT, profileValidation.comple
     });
   }
 });
+
+/**
+ * @route   POST /api/users/verification
+ * @desc    Submit a selfie for the verified badge (human-reviewed)
+ * @access  Private
+ */
+router.post(
+  '/verification',
+  authenticateJWT,
+  userValidation.submitVerification,
+  async (req, res) => {
+    try {
+      const result = await submitVerification(req.user.id, req.body.photoUrl);
+      res.json({
+        success: true,
+        message: 'Selfie submitted — we will review it shortly',
+        data: result,
+      });
+    } catch (error) {
+      // 4xx are expected outcomes (double-submit, already verified) — warn
+      // only, so they never page through Sentry
+      const log = error.statusCode && error.statusCode < 500 ? logger.warn : logger.error;
+      log('Verification submit rejected:', error.message);
+      res.status(error.statusCode || 500).json({
+        success: false,
+        error: 'Verification submission failed',
+        message: error.message,
+      });
+    }
+  },
+);
 
 /**
  * @route   POST /api/users/photos
