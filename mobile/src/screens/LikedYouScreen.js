@@ -7,6 +7,7 @@ import {
   TouchableOpacity,
   RefreshControl,
   ActivityIndicator,
+  Alert,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -18,6 +19,7 @@ import apiClient from '../services/ApiClient';
 import SocketService from '../services/SocketService';
 import MatchModal from '../components/MatchModal';
 import PremiumUpgradeModal from '../components/modals/PremiumUpgradeModal';
+import ReportReasonModal from '../components/ReportReasonModal';
 import { CardGridSkeleton } from '../components/shared/SkeletonPlaceholders';
 import { ErrorScreen } from '../components/ErrorScreen';
 import GlowPulseIcon from '../components/shared/GlowPulseIcon';
@@ -48,6 +50,8 @@ const LikedYouScreen = () => {
   const [hasShownUpgradeHint, setHasShownUpgradeHint] = useState(false);
   const [totalLikesCount, setTotalLikesCount] = useState(0); // Track the total count
   const [loadingAction, setLoadingAction] = useState(null); // Track which user action is loading { userId, type: 'like' | 'pass' }
+  const [reportTarget, setReportTarget] = useState(null); // User being reported
+  const [reportSubmitting, setReportSubmitting] = useState(false);
   const timeoutRef = useRef(null);
   const BATCH_SIZE = 10;
 
@@ -538,6 +542,68 @@ const LikedYouScreen = () => {
     [isPremium, showError]
   );
 
+  // Report chosen from the user modal overflow — close the modal, open the reason sheet
+  const handleReportRequest = useCallback(profile => {
+    setSelectedUser(null);
+    setReportTarget(profile);
+  }, []);
+
+  // Block chosen from the user modal overflow — confirm, block, close and refresh
+  const handleBlockRequest = useCallback(
+    profile => {
+      Alert.alert(
+        `Block ${profile.name}?`,
+        "They won't be able to see your profile or contact you.",
+        [
+          { text: 'Cancel', style: 'cancel' },
+          {
+            text: 'Block',
+            style: 'destructive',
+            onPress: async () => {
+              try {
+                const success = await ApiDataService.blockUser(profile.id);
+                if (success) {
+                  showSuccess(`${profile.name} has been blocked`);
+                  setSelectedUser(null);
+                  handleRefresh();
+                } else {
+                  showError('Failed to block user');
+                }
+              } catch (err) {
+                Logger.error('Block error:', err);
+                showError('Something went wrong');
+              }
+            },
+          },
+        ]
+      );
+    },
+    [handleRefresh, showSuccess, showError]
+  );
+
+  const handleReportSubmit = useCallback(
+    async (reason, description) => {
+      if (!reportTarget) return;
+      setReportSubmitting(true);
+      try {
+        const success = await ApiDataService.reportUser(reportTarget.id, reason, description);
+        if (success) {
+          showSuccess('Report submitted. Thank you for helping keep our community safe.');
+          setReportTarget(null);
+          handleRefresh();
+        } else {
+          showError('Failed to submit report');
+        }
+      } catch (err) {
+        Logger.error('Report error:', err);
+        showError('Something went wrong');
+      } finally {
+        setReportSubmitting(false);
+      }
+    },
+    [reportTarget, handleRefresh, showSuccess, showError]
+  );
+
   const renderLikeCard = useCallback(
     ({ item, index }) => (
       <LikedYouCard
@@ -750,7 +816,16 @@ const LikedYouScreen = () => {
         onClose={() => setSelectedUser(null)}
         onLike={handleLikeBack}
         onPass={handlePass}
+        onReport={handleReportRequest}
+        onBlock={handleBlockRequest}
         loadingAction={loadingAction}
+      />
+      <ReportReasonModal
+        visible={!!reportTarget}
+        userName={reportTarget?.name}
+        onSubmit={handleReportSubmit}
+        onCancel={() => setReportTarget(null)}
+        isSubmitting={reportSubmitting}
       />
       <PremiumUpgradeModal visible={showUpgradeModal} onClose={() => setShowUpgradeModal(false)} />
 

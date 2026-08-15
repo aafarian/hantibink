@@ -118,8 +118,14 @@ export const genderOptions = [
 export const interestedInOptions = [
   { id: 'MAN', label: 'Men' },
   { id: 'WOMAN', label: 'Women' },
-  { id: 'EVERYONE', label: 'Everyone' },
+  { id: 'OTHER', label: 'Other' },
 ];
+
+// API value -> display label map for interestedIn
+export const interestedInDisplayMap = interestedInOptions.reduce(
+  (acc, i) => ({ ...acc, [i.id]: i.label }),
+  {}
+);
 
 // Field configurations for forms
 export const profileFieldsConfig = {
@@ -213,15 +219,6 @@ export const profileFieldsConfig = {
       valueMap: genderOptions.reduce((acc, g) => ({ ...acc, [g.label]: g.id }), {}),
       displayMap: genderOptions.reduce((acc, g) => ({ ...acc, [g.id]: g.label }), {}),
     },
-    {
-      key: 'interestedIn',
-      label: 'Interested In',
-      placeholder: "Select who you're interested in",
-      options: interestedInOptions.map(i => i.label),
-      singleSelect: true,
-      valueMap: interestedInOptions.reduce((acc, i) => ({ ...acc, [i.label]: i.id }), {}),
-      displayMap: interestedInOptions.reduce((acc, i) => ({ ...acc, [i.id]: i.label }), {}),
-    },
   ],
 
   // Multi-select dropdown fields (with checkboxes)
@@ -238,6 +235,13 @@ export const profileFieldsConfig = {
 
   // Multi-Select Bubble Fields
   bubbleFields: [
+    {
+      key: 'interestedIn',
+      label: 'Interested In',
+      options: interestedInOptions.map(i => i.id),
+      multiSelect: true,
+      displayTransform: value => interestedInDisplayMap[value] || value,
+    },
     {
       key: 'relationshipType',
       label: 'Looking For',
@@ -273,14 +277,17 @@ export const transformProfileData = {
         return;
       }
 
-      // Handle interestedIn conversion from display value to API format
+      // interestedIn is a multi-select array of API values (MAN/WOMAN/OTHER).
+      // Legacy single-string values (including 'EVERYONE') still convert.
       if (key === 'interestedIn') {
-        if (value === 'EVERYONE') {
+        if (Array.isArray(value)) {
+          if (value.length > 0) {
+            cleaned[key] = value; // Send the full array
+          }
+        } else if (value === 'EVERYONE') {
           cleaned[key] = ['MAN', 'WOMAN', 'OTHER'];
         } else if (typeof value === 'string') {
-          cleaned[key] = [value]; // Convert single string to array
-        } else if (Array.isArray(value)) {
-          cleaned[key] = value; // Already an array
+          cleaned[key] = [value]; // Convert legacy single string to array
         }
         return;
       }
@@ -347,12 +354,13 @@ export const transformProfileData = {
       height: apiData.height || '',
       // Transform gender from backend enum to display value
       gender: apiData.gender || '',
-      // Transform interestedIn - it's an array in backend
+      // interestedIn is a multi-select — keep the full array from the backend.
+      // Legacy single-string values are wrapped so they still render.
       interestedIn: Array.isArray(apiData.interestedIn)
-        ? apiData.interestedIn.length === 3 // If all 3 genders, show EVERYONE
-          ? 'EVERYONE'
-          : apiData.interestedIn[0] || ''
-        : apiData.interestedIn || '',
+        ? apiData.interestedIn
+        : apiData.interestedIn
+          ? [apiData.interestedIn]
+          : [],
       // Handle relationshipType - can be string with commas or array
       relationshipType: parseRelationshipType(apiData.relationshipType),
       religion: apiData.religion || '',

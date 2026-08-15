@@ -70,7 +70,9 @@ const LegalScreen = ({ route, navigation }) => {
       <Text style={styles.bulletPoint}>• Access your personal data</Text>
       <Text style={styles.bulletPoint}>• Correct inaccurate data</Text>
       <Text style={styles.bulletPoint}>• Delete your account and data</Text>
-      <Text style={styles.bulletPoint}>• Export your data</Text>
+      <Text style={styles.bulletPoint}>
+        • Request a copy of your data by emailing support@hantibink.com
+      </Text>
       <Text style={styles.bulletPoint}>• Opt out of marketing communications</Text>
 
       <Text style={styles.sectionTitle}>8. Children's Privacy</Text>

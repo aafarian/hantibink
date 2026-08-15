@@ -27,6 +27,7 @@ const PUBLIC_USER_SELECT = {
   lastActive: true,
   mainPhotoUrl: true,
   isPremium: true,
+  isVerified: true,
   createdAt: true,
 };
 

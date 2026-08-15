@@ -8,6 +8,36 @@ const { body, query, param, validationResult } = require('express-validator');
 const ID_REGEX = /^c[a-z0-9]{24,25}$|^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 /**
+ * Image URLs must point at an object in OUR Firebase Storage bucket that
+ * the requesting user uploaded. Host alone is not enough (any Firebase
+ * project shares it), and bucket alone is not enough (another user's
+ * object would pass) — the app writes objects as <folder>/<userId>_..., so
+ * the path proves both origin and ownership.
+ */
+const OUR_STORAGE_BUCKET = process.env.FIREBASE_STORAGE_BUCKET || 'hantibink.firebasestorage.app';
+
+const parseOurStorageObject = (value) => {
+  try {
+    const url = new URL(value);
+    if (url.hostname !== 'firebasestorage.googleapis.com') {
+      return null;
+    }
+    const prefix = `/v0/b/${OUR_STORAGE_BUCKET}/o/`;
+    if (!url.pathname.startsWith(prefix)) {
+      return null;
+    }
+    return decodeURIComponent(url.pathname.slice(prefix.length));
+  } catch {
+    return null;
+  }
+};
+
+const ownsStorageObject = (folder) => (value, { req }) => {
+  const objectPath = parseOurStorageObject(value);
+  return !!objectPath && !!req.user?.id && objectPath.startsWith(`${folder}/${req.user.id}_`);
+};
+
+/**
  * Validation middleware for handling validation errors
  */
 const handleValidationErrors = (req, res, next) => {
@@ -500,10 +530,20 @@ const userValidation = {
     body('photoUrl')
       .notEmpty().withMessage('Photo URL is required')
       .isURL({ protocols: ['https'], require_protocol: true }).withMessage('Photo URL must be a valid https URL')
-      .isLength({ max: 2048 }).withMessage('Photo URL too long'),
+      .isLength({ max: 2048 }).withMessage('Photo URL too long')
+      .custom(ownsStorageObject('profile-photos')).withMessage('Photos must be uploaded through the app'),
     body('isMain')
       .optional()
       .isBoolean({ strict: true }).withMessage('isMain must be a boolean'),
+    handleValidationErrors,
+  ],
+
+  submitVerification: [
+    body('photoUrl')
+      .notEmpty().withMessage('Selfie URL is required')
+      .isURL({ protocols: ['https'], require_protocol: true }).withMessage('Selfie URL must be a valid https URL')
+      .isLength({ max: 2048 }).withMessage('Selfie URL too long')
+      .custom(ownsStorageObject('verification-selfies')).withMessage('Selfies must be uploaded through the app'),
     handleValidationErrors,
   ],
 

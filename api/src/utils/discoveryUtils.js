@@ -10,6 +10,7 @@ const prisma = getPrismaClient();
  */
 const checkDiscoveryRequirements = (user) => {
   return !!(
+    user.birthDate &&
     user.gender &&
     user.interestedIn && user.interestedIn.length > 0 &&
     user.photos && user.photos.length > 0 &&
@@ -32,6 +33,7 @@ const updateDiscoverableStatus = async (userId, context = 'profile update') => {
       where: { id: userId },
       select: {
         email: true,
+        birthDate: true,
         gender: true,
         interestedIn: true,
         location: true,

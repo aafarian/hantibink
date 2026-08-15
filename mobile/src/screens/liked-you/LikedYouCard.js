@@ -81,9 +81,19 @@ const LikedYouCard = ({ item, index, isPremium, onPress, onLike, onPass, loading
             colors={['transparent', theme.colors.overlay.heavy]}
             style={styles.gradient}
           >
-            <Text style={styles.cardName}>
-              {item.name}, {item.age}
-            </Text>
+            <View style={styles.cardNameRow}>
+              <Text style={styles.cardName}>
+                {item.name}, {item.age}
+              </Text>
+              {item.isVerified && (
+                <Ionicons
+                  name="checkmark-circle"
+                  size={14}
+                  color={theme.colors.secondaryLight}
+                  style={styles.verifiedBadge}
+                />
+              )}
+            </View>
             <Text style={styles.cardLocation}>
               <Ionicons name="location-outline" size={12} color="white" /> {item.location}
             </Text>
@@ -183,12 +193,19 @@ const styles = StyleSheet.create({
     right: 0,
     padding: 15,
   },
+  cardNameRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 4,
+  },
   cardName: {
     color: 'white',
     fontSize: 16,
     fontWeight: 'bold',
     fontFamily: theme.typography.fontFamily.bold,
-    marginBottom: 4,
+  },
+  verifiedBadge: {
+    marginLeft: 4,
   },
   cardLocation: {
     color: 'white',
@@ -251,6 +268,7 @@ const areEqual = (prevProps, nextProps) => {
     prevProps.item.name === nextProps.item.name &&
     prevProps.item.age === nextProps.item.age &&
     prevProps.item.location === nextProps.item.location &&
+    prevProps.item.isVerified === nextProps.item.isVerified &&
     prevProps.item.isSuperLike === nextProps.item.isSuperLike &&
     prevProps.item.isNew === nextProps.item.isNew &&
     prevProps.index === nextProps.index &&

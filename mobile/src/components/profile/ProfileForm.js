@@ -40,6 +40,7 @@ const ProfileForm = forwardRef(
       education: '',
       profession: '',
       height: '',
+      interestedIn: [],
       relationshipType: [],
       religion: '',
       smoking: '',
@@ -273,17 +274,13 @@ const ProfileForm = forwardRef(
               >
                 {(() => {
                   const value = formData[field.key];
-                  if (!value) return field.placeholder;
-
-                  // Handle interestedIn array - take first value
-                  const displayValue = Array.isArray(value) ? value[0] : value;
-
-                  // Use displayMap if available
-                  if (field.displayMap && field.displayMap[displayValue]) {
-                    return field.displayMap[displayValue];
+                  if (!value || (Array.isArray(value) && value.length === 0)) {
+                    return field.placeholder;
                   }
 
-                  return displayValue || field.placeholder;
+                  // Arrays render as joined labels — never truncate to the first value
+                  const values = Array.isArray(value) ? value : [value];
+                  return values.map(v => (field.displayMap && field.displayMap[v]) || v).join(', ');
                 })()}
               </Text>
               <Ionicons
@@ -420,8 +417,8 @@ const ProfileForm = forwardRef(
           // Get the display value for fields with displayMap
           let selectedOption = formData[field.key];
 
-          // Handle interestedIn array - take first value
-          if (field.key === 'interestedIn' && Array.isArray(selectedOption)) {
+          // Defensive: a single-select panel can only highlight one option
+          if (Array.isArray(selectedOption)) {
             selectedOption = selectedOption[0];
           }
 

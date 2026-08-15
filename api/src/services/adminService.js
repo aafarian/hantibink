@@ -12,6 +12,7 @@ const { Prisma } = require('@prisma/client');
 const { getPrismaClient } = require('../config/database');
 const logger = require('../utils/logger');
 const { AppError } = require('../middleware/errorHandler');
+const { sendPushNotification } = require('./notificationService');
 
 const prisma = getPrismaClient();
 
@@ -586,6 +587,121 @@ const getFlags = async () => {
   return row?.value || {};
 };
 
+/**
+ * Launch levers: free-likes quota and the signup premium-trial promo.
+ * Served to premiumService with a 60s in-process cache, so changes land
+ * within a minute of publishing — no deploy.
+ */
+const getQuotasConfig = async () => {
+  const row = await prisma.appConfig.findUnique({ where: { key: 'quotas' } });
+  return row?.value || {};
+};
+
+const updateQuotasConfig = async (input, adminEmail) => {
+  const freeLikesPerWindow = Number(input?.freeLikesPerWindow);
+  if (!Number.isInteger(freeLikesPerWindow) || freeLikesPerWindow < 1 || freeLikesPerWindow > 1000) {
+    throw new AppError('freeLikesPerWindow must be an integer between 1 and 1000', 400);
+  }
+  const value = { freeLikesPerWindow };
+  const row = await prisma.appConfig.upsert({
+    where: { key: 'quotas' },
+    update: { value },
+    create: { key: 'quotas', value },
+  });
+  await auditLog(adminEmail, 'config.quotas.update', 'appConfig', 'quotas', value);
+  return row.value;
+};
+
+/**
+ * Verification review queue. Selfies are compared against profile photos
+ * by a human; approval grants the badge and notifies the user.
+ */
+const listVerifications = async (status = 'PENDING') => {
+  const users = await prisma.user.findMany({
+    where: { verificationStatus: status },
+    select: {
+      id: true,
+      name: true,
+      email: true,
+      verificationPhotoUrl: true,
+      verificationSubmittedAt: true,
+      photos: {
+        select: { url: true, isMain: true },
+        orderBy: [{ isMain: 'desc' }, { order: 'asc' }],
+        take: 3,
+      },
+    },
+    orderBy: { verificationSubmittedAt: 'asc' },
+    take: 100,
+  });
+  return { items: users, total: users.length };
+};
+
+const reviewVerification = async (userId, action, adminEmail) => {
+  if (!['APPROVE', 'REJECT'].includes(action)) {
+    throw new AppError('action must be APPROVE or REJECT', 400);
+  }
+
+  // Guarded on PENDING so two admins can't double-review; the loser's
+  // update matches zero rows
+  const result = await prisma.user.updateMany({
+    where: { id: userId, verificationStatus: 'PENDING' },
+    data: {
+      verificationStatus: action === 'APPROVE' ? 'APPROVED' : 'REJECTED',
+      isVerified: action === 'APPROVE',
+      verificationReviewedAt: new Date(),
+    },
+  });
+
+  if (result.count === 0) {
+    throw new AppError('No pending verification for this user', 409);
+  }
+
+  if (action === 'APPROVE') {
+    const user = await prisma.user.findUnique({
+      where: { id: userId },
+      select: { pushToken: true },
+    });
+    if (user?.pushToken) {
+      sendPushNotification(user.pushToken, {
+        title: 'You’re verified ✓',
+        body: 'Your profile now shows the verified badge.',
+        data: { type: 'verification' },
+      }).catch((err) => logger.warn('Verification push failed:', err.message));
+    }
+  }
+
+  await auditLog(
+    adminEmail,
+    action === 'APPROVE' ? 'verification.approve' : 'verification.reject',
+    'user',
+    userId,
+  );
+  return { status: action === 'APPROVE' ? 'APPROVED' : 'REJECTED' };
+};
+
+const getLaunchPromo = async () => {
+  const row = await prisma.appConfig.findUnique({ where: { key: 'launch_promo' } });
+  return row?.value || {};
+};
+
+const updateLaunchPromo = async (input, adminEmail) => {
+  const enabled = !!input?.enabled;
+  const trialDays = Number(input?.trialDays ?? 3);
+  const waitlistOnly = !!input?.waitlistOnly;
+  if (!Number.isInteger(trialDays) || trialDays < 1 || trialDays > 30) {
+    throw new AppError('trialDays must be an integer between 1 and 30', 400);
+  }
+  const value = { enabled, trialDays, waitlistOnly };
+  const row = await prisma.appConfig.upsert({
+    where: { key: 'launch_promo' },
+    update: { value },
+    create: { key: 'launch_promo', value },
+  });
+  await auditLog(adminEmail, 'config.launchPromo.update', 'appConfig', 'launch_promo', value);
+  return row.value;
+};
+
 const updateFlags = async (flags, adminEmail) => {
   if (!flags || typeof flags !== 'object' || Array.isArray(flags)) {
     throw new AppError('Flags must be an object of key -> boolean', 400);
@@ -653,5 +769,11 @@ module.exports = {
   updateAppVersionConfig: withContext('app-version publish', updateAppVersionConfig),
   getFlags: withContext('flags read', getFlags),
   updateFlags: withContext('flags update', updateFlags),
+  listVerifications: withContext('verification list', listVerifications),
+  reviewVerification: withContext('verification review', reviewVerification),
+  getQuotasConfig: withContext('quotas read', getQuotasConfig),
+  updateQuotasConfig: withContext('quotas update', updateQuotasConfig),
+  getLaunchPromo: withContext('launch-promo read', getLaunchPromo),
+  updateLaunchPromo: withContext('launch-promo update', updateLaunchPromo),
   listAudit: withContext('audit list', listAudit),
 };

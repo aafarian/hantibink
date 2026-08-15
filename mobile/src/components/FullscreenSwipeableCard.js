@@ -477,10 +477,20 @@ const FullscreenSwipeableCard = ({
 
           {/* Name overlay on hero */}
           <View style={styles.heroInfo}>
-            <Text style={styles.heroName}>
-              {profile.name}
-              {age && <Text style={styles.heroAge}>, {age}</Text>}
-            </Text>
+            <View style={styles.heroNameRow}>
+              <Text style={styles.heroName}>
+                {profile.name}
+                {age && <Text style={styles.heroAge}>, {age}</Text>}
+              </Text>
+              {profile.isVerified && (
+                <Ionicons
+                  name="checkmark-circle"
+                  size={26}
+                  color={theme.colors.secondaryLight}
+                  style={styles.verifiedBadge}
+                />
+              )}
+            </View>
             <View style={styles.heroDetails}>
               {profile.distance !== null && profile.distance !== undefined && (
                 <View style={styles.heroDetailItem}>
@@ -556,6 +566,13 @@ const styles = StyleSheet.create({
     bottom: 24,
     left: theme.spacing.xl,
     right: theme.spacing.xl,
+  },
+  heroNameRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  verifiedBadge: {
+    marginLeft: theme.spacing.sm,
   },
   heroName: {
     fontSize: 32,

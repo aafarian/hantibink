@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, Alert } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -19,6 +19,7 @@ import { LoadingScreen } from '../components/LoadingScreen';
 import { ErrorScreen, EmptyState } from '../components/ErrorScreen';
 import ProfileSetupModal from '../components/modals/ProfileSetupModal';
 import PremiumUpgradeModal from '../components/modals/PremiumUpgradeModal';
+import ReportReasonModal from '../components/ReportReasonModal';
 import { pickAdvancedFilters } from '../components/shared/FilterPreferencesForm';
 import Logger from '../utils/logger';
 import { getUserProfilePhoto } from '../utils/profileHelpers';
@@ -52,6 +53,10 @@ const PeopleScreenOptimized = ({ navigation }) => {
   const [error, setError] = useState(null);
   const [showUpgradeModal, setShowUpgradeModal] = useState(false);
 
+  // Report/block state
+  const [reportTarget, setReportTarget] = useState(null);
+  const [reportSubmitting, setReportSubmitting] = useState(false);
+
   // Photo viewer state
   const [photoViewerVisible, setPhotoViewerVisible] = useState(false);
   const [photoViewerImages, setPhotoViewerImages] = useState([]);
@@ -73,6 +78,7 @@ const PeopleScreenOptimized = ({ navigation }) => {
     interestedIn: userProfile?.interestedIn || [],
     strictAge: false,
     strictDistance: false,
+    verifiedOnly: false,
     relationshipType: [],
     strictRelationshipType: false,
     education: [],
@@ -282,6 +288,7 @@ const PeopleScreenOptimized = ({ navigation }) => {
           maxDistance: filtersToUse.maxDistance,
           strictAge: filtersToUse.strictAge || false,
           strictDistance: filtersToUse.strictDistance || false,
+          verifiedOnly: filtersToUse.verifiedOnly || false,
           onlyWithPhotos: true, // Always require photos
           relationshipType: filtersToUse.relationshipType,
           strictRelationshipType: filtersToUse.strictRelationshipType || false,
@@ -370,6 +377,7 @@ const PeopleScreenOptimized = ({ navigation }) => {
           maxDistance: filters.maxDistance,
           strictAge: filters.strictAge || false,
           strictDistance: filters.strictDistance || false,
+          verifiedOnly: filters.verifiedOnly || false,
           onlyWithPhotos: true, // Always require photos
           relationshipType: filters.relationshipType,
           strictRelationshipType: filters.strictRelationshipType || false,
@@ -579,6 +587,80 @@ const PeopleScreenOptimized = ({ navigation }) => {
     }
   }, [showError]);
 
+  // Remove a profile from the deck without recording a swipe (report/block).
+  // Same idiom as the socket new-match handler: mark processed + filter out.
+  const removeProfileFromDeck = useCallback(profile => {
+    processedIds.current.add(profile.id);
+    setProfiles(prev => prev.filter(p => p.id !== profile.id));
+  }, []);
+
+  // Block the given profile after confirmation
+  const handleBlock = useCallback(
+    profile => {
+      Alert.alert(
+        `Block ${profile.name}?`,
+        "They won't be able to see your profile or contact you.",
+        [
+          { text: 'Cancel', style: 'cancel' },
+          {
+            text: 'Block',
+            style: 'destructive',
+            onPress: async () => {
+              try {
+                const success = await ApiDataService.blockUser(profile.id);
+                if (success) {
+                  showSuccess(`${profile.name} has been blocked`);
+                  removeProfileFromDeck(profile);
+                } else {
+                  showError('Failed to block user');
+                }
+              } catch (blockErr) {
+                Logger.error('Block error:', blockErr);
+                showError('Something went wrong');
+              }
+            },
+          },
+        ]
+      );
+    },
+    [removeProfileFromDeck, showSuccess, showError]
+  );
+
+  // Submit a report for the current report target
+  const handleReportSubmit = useCallback(
+    async (reason, description) => {
+      if (!reportTarget) return;
+      setReportSubmitting(true);
+      try {
+        const success = await ApiDataService.reportUser(reportTarget.id, reason, description);
+        if (success) {
+          showSuccess('Report submitted. Thank you for helping keep our community safe.');
+          removeProfileFromDeck(reportTarget);
+          setReportTarget(null);
+        } else {
+          showError('Failed to submit report');
+        }
+      } catch (reportErr) {
+        Logger.error('Report error:', reportErr);
+        showError('Something went wrong');
+      } finally {
+        setReportSubmitting(false);
+      }
+    },
+    [reportTarget, removeProfileFromDeck, showSuccess, showError]
+  );
+
+  // Overflow menu on the current card — Report / Block / Cancel
+  const handleCardOverflowPress = useCallback(() => {
+    const profile = cardStackRef.current?.getCurrentProfile?.();
+    if (!profile) return;
+    Alert.alert(profile.name, undefined, [
+      { text: 'Report', onPress: () => setReportTarget(profile) },
+      { text: 'Block', style: 'destructive', onPress: () => handleBlock(profile) },
+      { text: 'Cancel', style: 'cancel' },
+    ]);
+  }, [handleBlock]);
+
   // Handle photo press - show fullscreen viewer
   const handlePhotoPress = useCallback((photos, index) => {
     const images = photos.map(uri => ({ uri }));
@@ -724,6 +806,16 @@ const PeopleScreenOptimized = ({ navigation }) => {
         <Ionicons name="options-outline" size={24} color={theme.colors.text.secondary} />
       </TouchableOpacity>
 
+      {/* Overflow (report/block) button - mirrors the filter button on the left */}
+      {profiles.length > 0 && (
+        <TouchableOpacity
+          style={[styles.overflowButton, { top: insets.top + 10 }]}
+          onPress={handleCardOverflowPress}
+        >
+          <Ionicons name="ellipsis-horizontal" size={24} color={theme.colors.text.secondary} />
+        </TouchableOpacity>
+      )}
+
       {/* Fullscreen Card Stack */}
       <View style={styles.cardStackContainer}>
         {profiles.length === 0 && hasInitialized && !loading && !error ? (
@@ -838,6 +930,15 @@ const PeopleScreenOptimized = ({ navigation }) => {
       {/* Premium Upgrade Modal */}
       <PremiumUpgradeModal visible={showUpgradeModal} onClose={() => setShowUpgradeModal(false)} />
 
+      {/* Report Modal */}
+      <ReportReasonModal
+        visible={!!reportTarget}
+        userName={reportTarget?.name}
+        onSubmit={handleReportSubmit}
+        onCancel={() => setReportTarget(null)}
+        isSubmitting={reportSubmitting}
+      />
+
       {/* Fullscreen Photo Viewer - rendered at screen level to avoid gesture conflicts */}
       {photoViewerVisible && (
         <ImageViewing
@@ -863,6 +964,22 @@ const styles = StyleSheet.create({
   filterButton: {
     position: 'absolute',
     right: 20,
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: 'rgba(255, 255, 255, 0.95)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    zIndex: 100,
+    shadowColor: theme.colors.shadow,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 4,
+    elevation: 8,
+  },
+  overflowButton: {
+    position: 'absolute',
+    left: 20,
     width: 44,
     height: 44,
     borderRadius: 22,

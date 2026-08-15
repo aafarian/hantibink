@@ -15,6 +15,8 @@ const prisma = getPrismaClient();
 /**
  * Register a new user
  */
+const { hasPremiumAccess, grantLaunchTrial } = require('./premiumService');
+
 const registerUser = async (userData) => {
   try {
     const { 
@@ -236,6 +238,13 @@ const registerUser = async (userData) => {
       logger.warn('Failed to send verification email:', emailError.message);
     }
 
+    // Launch promo: new accounts may receive a premium trial (no-op
+    // unless enabled in AppConfig; never throws)
+    const trialEndsAt = await grantLaunchTrial(user.id, user.email);
+    if (trialEndsAt) {
+      user.trialEndsAt = trialEndsAt;
+    }
+
     // Return user data without password
     // eslint-disable-next-line no-unused-vars
     const { password: _password, ...userWithoutPassword } = user;
@@ -243,6 +252,7 @@ const registerUser = async (userData) => {
     return {
       user: {
         ...userWithoutPassword,
+        isPremium: hasPremiumAccess(user),
         photos: userPhotos,
       },
       tokens,
@@ -316,6 +326,7 @@ const loginUser = async (email, password) => {
     // Return user data without password
     // eslint-disable-next-line no-unused-vars
     const { password: _password, ...userWithoutPassword } = userWithPhotos;
+    userWithoutPassword.isPremium = hasPremiumAccess(userWithoutPassword);
     
     return {
       user: userWithoutPassword,
@@ -371,6 +382,7 @@ const loginWithFirebase = async (idToken) => {
     // Return user data without password
     // eslint-disable-next-line no-unused-vars
     const { password: _password, ...userWithoutPassword } = user;
+    userWithoutPassword.isPremium = hasPremiumAccess(userWithoutPassword);
     
     return {
       user: userWithoutPassword,
@@ -465,6 +477,8 @@ const getUserProfile = async (userId) => {
     
     // eslint-disable-next-line no-unused-vars
     const { password: _password, ...userWithoutPassword } = userWithInterests;
+    // Trial-aware premium: the client gates features off this one field
+    userWithoutPassword.isPremium = hasPremiumAccess(userWithoutPassword);
     
     return userWithoutPassword;
   } catch (error) {

@@ -18,7 +18,7 @@ import Logger from '../../utils/logger';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { theme } from '../../styles/theme';
 
-const OAuthCompleteScreen = ({ route }) => {
+const OAuthCompleteScreen = ({ route, navigation }) => {
   const { user: _routeUser, missingFields: _missingFields = [] } = route.params || {};
 
   const [birthDate, setBirthDate] = useState(new Date(2000, 0, 1)); // Default to Jan 1, 2000
@@ -81,6 +81,12 @@ const OAuthCompleteScreen = ({ route }) => {
         await AsyncStorage.setItem('@HantibinkShowOnboarding', 'true');
 
         showSuccess("Profile completed! Let's set up your preferences");
+
+        // Celebrate an active launch trial if the server granted one
+        const completedUser = response.data?.user || response.data;
+        if (completedUser?.trialEndsAt && new Date(completedUser.trialEndsAt) > new Date()) {
+          showSuccess('🎉 Premium trial activated — enjoy!');
+        }
 
         // Navigation will be handled by AppNavigator based on onboarding stage
         await refreshUserProfile();
@@ -155,6 +161,26 @@ const OAuthCompleteScreen = ({ route }) => {
           {calculateAge(birthDate) < 18 && (
             <Text style={styles.errorText}>You must be at least 18 years old</Text>
           )}
+
+          {/* Legal Agreement */}
+          <View style={styles.legalContainer}>
+            <Text style={styles.legalText}>
+              By creating an account, you agree to our{' '}
+              <Text
+                style={styles.legalLink}
+                onPress={() => navigation.navigate('Legal', { type: 'terms' })}
+              >
+                Terms of Service
+              </Text>{' '}
+              and{' '}
+              <Text
+                style={styles.legalLink}
+                onPress={() => navigation.navigate('Legal', { type: 'privacy' })}
+              >
+                Privacy Policy
+              </Text>
+            </Text>
+          </View>
         </View>
       </KeyboardAwareScrollView>
     </SafeAreaView>
@@ -266,6 +292,23 @@ const styles = StyleSheet.create({
     fontFamily: theme.typography.fontFamily.regular,
     textAlign: 'center',
     marginTop: 12,
+  },
+  legalContainer: {
+    paddingHorizontal: 20,
+    marginTop: 20,
+    marginBottom: 10,
+  },
+  legalText: {
+    fontSize: 13,
+    fontFamily: theme.typography.fontFamily.regular,
+    color: theme.colors.text.secondary,
+    textAlign: 'center',
+    lineHeight: 20,
+  },
+  legalLink: {
+    color: theme.colors.primary,
+    fontFamily: theme.typography.fontFamily.medium,
+    fontWeight: '500',
   },
 });
 
