@@ -26,6 +26,7 @@ import Animated, {
 } from 'react-native-reanimated';
 import { theme } from '../../styles/theme';
 import AnimatedInterestTags from './AnimatedInterestTags';
+import VerifiedBadge from './VerifiedBadge';
 
 const { height: screenHeight, width: screenWidth } = Dimensions.get('window');
 const statusBarHeight = Platform.OS === 'android' ? StatusBar.currentHeight || 24 : 44;
@@ -193,6 +194,7 @@ const ProfileBottomSheet = forwardRef(
           name: profile.name || 'Anonymous',
           age: age,
           location: profile.location || 'Location not provided',
+          isVerified: !!profile.isVerified,
         },
         key: 'header',
       });
@@ -293,10 +295,15 @@ const ProfileBottomSheet = forwardRef(
           case 'header':
             return (
               <View style={styles.contentSection} key={section.key}>
-                <Text style={styles.nameText}>
-                  {section.data.name}
-                  {section.data.age && <Text style={styles.ageText}>, {section.data.age}</Text>}
-                </Text>
+                <View style={styles.nameRow}>
+                  <Text style={styles.nameText}>
+                    {section.data.name}
+                    {section.data.age && <Text style={styles.ageText}>, {section.data.age}</Text>}
+                  </Text>
+                  {section.data.isVerified && (
+                    <VerifiedBadge size={24} style={styles.verifiedBadge} />
+                  )}
+                </View>
                 <View style={styles.locationRow}>
                   <Ionicons name="location-outline" size={18} color={theme.colors.text.secondary} />
                   <Text style={styles.locationText}>{section.data.location}</Text>
@@ -577,12 +584,20 @@ const styles = StyleSheet.create({
     paddingVertical: 24,
     backgroundColor: theme.colors.background.primary,
   },
+  nameRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
   nameText: {
     fontSize: 32,
     fontWeight: 'bold',
     fontFamily: theme.typography.fontFamily.bold,
     color: theme.colors.text.primary,
-    marginBottom: 8,
+    flexShrink: 1,
+  },
+  verifiedBadge: {
+    marginLeft: 8,
   },
   ageText: {
     fontSize: 28,

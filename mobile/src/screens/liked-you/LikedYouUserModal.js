@@ -10,6 +10,7 @@ import {
   Alert,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import VerifiedBadge from '../../components/shared/VerifiedBadge';
 import { theme } from '../../styles/theme';
 
 /**
@@ -67,14 +68,7 @@ const LikedYouUserModal = ({
                 <Text style={styles.modalName}>
                   {user.name}, {user.age}
                 </Text>
-                {user.isVerified && (
-                  <Ionicons
-                    name="checkmark-circle"
-                    size={20}
-                    color={theme.colors.secondaryLight}
-                    style={styles.verifiedBadge}
-                  />
-                )}
+                {user.isVerified && <VerifiedBadge size={20} style={styles.verifiedBadge} />}
               </View>
               <Text style={styles.modalLocation}>
                 <Ionicons name="location" size={16} color={theme.colors.text.secondary} />{' '}
