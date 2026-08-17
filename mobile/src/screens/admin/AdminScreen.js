@@ -10,6 +10,8 @@ import {
   RefreshControl,
   Alert,
   Image,
+  Modal,
+  Pressable,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -17,6 +19,7 @@ import AdminApiService from '../../services/AdminApiService';
 import useAdminCheck from '../../hooks/useAdminCheck';
 import { useToast } from '../../contexts/ToastContext';
 import Logger from '../../utils/logger';
+import { getUserAge } from '../../utils/profileHelpers';
 import {
   AdminTabs,
   KpiGrid,
@@ -263,9 +266,96 @@ const ReportsSection = ({ refreshKey }) => {
 
 /* --------------------------- Verifications -------------------------- */
 
+// Sort a verification item's photos main-first
+const sortPhotosMainFirst = photos =>
+  [...(photos || [])].sort((a, b) => (b.isMain ? 1 : 0) - (a.isMain ? 1 : 0));
+
+const VerificationReviewModal = ({ item, actingOn, onReview, onClose }) => {
+  if (!item) {
+    return null;
+  }
+
+  const age = getUserAge(item);
+  const allPhotos = sortPhotosMainFirst(item.photos);
+  const details = [
+    { label: 'Gender', value: item.gender },
+    { label: 'Location', value: item.location },
+    { label: 'Bio', value: item.bio },
+    { label: 'Profession', value: item.profession },
+    { label: 'Education', value: item.education },
+    { label: 'Languages', value: item.languages?.length ? item.languages.join(', ') : null },
+  ].filter(field => field.value);
+  const acting = actingOn === item.id;
+
+  return (
+    <Modal visible transparent animationType="fade" onRequestClose={onClose}>
+      <View style={styles.modalContainer}>
+        {/* Backdrop - sibling of the content, NOT a wrapper (keeps ScrollView scrollable) */}
+        <Pressable style={styles.modalBackdrop} onPress={onClose} />
+        <View style={styles.modalContent}>
+          <ScrollView style={styles.modalScroll} contentContainerStyle={styles.modalScrollContent}>
+            <Image source={{ uri: item.verificationPhotoUrl }} style={styles.modalSelfie} />
+            <Text style={styles.modalSelfieLabel}>Verification selfie</Text>
+
+            {allPhotos.length > 0 && (
+              <ScrollView
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                contentContainerStyle={styles.modalPhotoStrip}
+              >
+                {allPhotos.map(photo => (
+                  <View key={photo.url} style={styles.modalPhotoItem}>
+                    <Image source={{ uri: photo.url }} style={styles.modalPhoto} />
+                    <Text style={styles.verificationPhotoLabel}>
+                      {photo.isMain ? 'Main photo' : 'Profile'}
+                    </Text>
+                  </View>
+                ))}
+              </ScrollView>
+            )}
+
+            <Text style={styles.modalName}>
+              {item.name || '(no name)'}
+              {age ? `, ${age}` : ''}
+            </Text>
+            {details.map(field => (
+              <View key={field.label} style={styles.modalDetailRow}>
+                <Text style={styles.modalDetailLabel}>{field.label}</Text>
+                <Text style={styles.modalDetailValue}>{field.value}</Text>
+              </View>
+            ))}
+          </ScrollView>
+
+          {/* Pinned actions below the scroll */}
+          <View style={styles.modalActions}>
+            <TouchableOpacity
+              style={[styles.verificationButton, styles.approveButton]}
+              onPress={() => onReview(item, 'APPROVE')}
+              disabled={acting}
+            >
+              <Text style={styles.verificationButtonText}>Approve</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[styles.verificationButton, styles.rejectButton]}
+              onPress={() => onReview(item, 'REJECT')}
+              disabled={acting}
+            >
+              <Text style={styles.verificationButtonText}>Reject</Text>
+            </TouchableOpacity>
+          </View>
+          <TouchableOpacity style={styles.modalCancelButton} onPress={onClose} disabled={acting}>
+            <Text style={styles.modalCancelText}>Cancel</Text>
+          </TouchableOpacity>
+        </View>
+      </View>
+    </Modal>
+  );
+};
+
 const VerificationsSection = ({ refreshKey }) => {
   const [result, setResult] = useState(null);
   const [actingOn, setActingOn] = useState(null); // userId currently being reviewed
+  const [reviewItem, setReviewItem] = useState(null); // item open in the review modal
   const { showSuccess, showError } = useToast();
 
   useEffect(() => {
@@ -280,10 +370,19 @@ const VerificationsSection = ({ refreshKey }) => {
         prev ? { ...prev, items: prev.items.filter(row => row.id !== item.id) } : prev
       );
       showSuccess(action === 'APPROVE' ? 'Verification approved' : 'Verification rejected');
+      return true;
     } catch (error) {
       showError(error.message || 'Action failed');
+      return false;
     } finally {
       setActingOn(null);
+    }
+  };
+
+  const reviewFromModal = async (item, action) => {
+    const ok = await review(item, action);
+    if (ok) {
+      setReviewItem(null);
     }
   };
 
@@ -297,11 +396,14 @@ const VerificationsSection = ({ refreshKey }) => {
     <View>
       {result.items.map(item => {
         // Selfie first, then up to 2 profile photos (main photo leading)
-        const profilePhotos = [...(item.photos || [])]
-          .sort((a, b) => (b.isMain ? 1 : 0) - (a.isMain ? 1 : 0))
-          .slice(0, 2);
+        const profilePhotos = sortPhotosMainFirst(item.photos).slice(0, 2);
         return (
-          <View key={item.id} style={styles.verificationCard}>
+          <TouchableOpacity
+            key={item.id}
+            style={styles.verificationCard}
+            onPress={() => setReviewItem(item)}
+            activeOpacity={0.8}
+          >
             <View style={styles.verificationPhotos}>
               <View>
                 <Image
@@ -342,9 +444,15 @@ const VerificationsSection = ({ refreshKey }) => {
                 <Text style={styles.verificationButtonText}>Reject</Text>
               </TouchableOpacity>
             </View>
-          </View>
+          </TouchableOpacity>
         );
       })}
+      <VerificationReviewModal
+        item={reviewItem}
+        actingOn={actingOn}
+        onReview={reviewFromModal}
+        onClose={() => setReviewItem(null)}
+      />
     </View>
   );
 };
@@ -834,6 +942,95 @@ const styles = StyleSheet.create({
     color: theme.colors.text.white,
     fontSize: theme.typography.sizes.md,
     fontFamily: theme.typography.fontFamily.bold,
+  },
+  modalContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  modalBackdrop: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: theme.colors.overlay.medium,
+  },
+  modalContent: {
+    width: '90%',
+    maxHeight: '85%',
+    backgroundColor: theme.colors.background.primary,
+    borderRadius: theme.borderRadius.lg,
+    overflow: 'hidden',
+    padding: theme.spacing.lg,
+  },
+  modalScroll: {
+    flexGrow: 0,
+    flexShrink: 1,
+  },
+  modalScrollContent: {
+    paddingBottom: theme.spacing.sm,
+  },
+  modalSelfie: {
+    width: '55%',
+    aspectRatio: 0.8,
+    alignSelf: 'center',
+    borderRadius: theme.borderRadius.lg,
+    backgroundColor: theme.colors.background.tertiary,
+  },
+  modalSelfieLabel: {
+    fontSize: theme.typography.sizes.sm,
+    fontFamily: theme.typography.fontFamily.semibold,
+    color: theme.colors.text.secondary,
+    textAlign: 'center',
+    marginTop: theme.spacing.xs,
+    marginBottom: theme.spacing.md,
+  },
+  modalPhotoStrip: {
+    gap: theme.spacing.sm,
+    paddingBottom: theme.spacing.md,
+  },
+  modalPhotoItem: {
+    alignItems: 'center',
+  },
+  modalPhoto: {
+    width: 110,
+    height: 110,
+    borderRadius: theme.borderRadius.md,
+    backgroundColor: theme.colors.background.tertiary,
+  },
+  modalName: {
+    fontSize: theme.typography.sizes.lg,
+    fontFamily: theme.typography.fontFamily.bold,
+    color: theme.colors.text.primary,
+    marginBottom: theme.spacing.sm,
+  },
+  modalDetailRow: {
+    marginBottom: theme.spacing.sm,
+  },
+  modalDetailLabel: {
+    fontSize: theme.typography.sizes.xs,
+    fontFamily: theme.typography.fontFamily.semibold,
+    color: theme.colors.text.muted,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+    marginBottom: 2,
+  },
+  modalDetailValue: {
+    fontSize: theme.typography.sizes.md,
+    fontFamily: theme.typography.fontFamily.regular,
+    color: theme.colors.text.primary,
+  },
+  modalActions: {
+    flexDirection: 'row',
+    gap: theme.spacing.sm,
+    marginTop: theme.spacing.md,
+  },
+  modalCancelButton: {
+    alignItems: 'center',
+    paddingVertical: theme.spacing.sm,
+    marginTop: theme.spacing.sm,
+  },
+  modalCancelText: {
+    fontSize: theme.typography.sizes.md,
+    fontFamily: theme.typography.fontFamily.semibold,
+    color: theme.colors.text.secondary,
   },
   publishButton: {
     backgroundColor: theme.colors.primary,

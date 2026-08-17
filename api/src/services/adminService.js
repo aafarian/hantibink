@@ -625,10 +625,18 @@ const listVerifications = async (status = 'PENDING') => {
       email: true,
       verificationPhotoUrl: true,
       verificationSubmittedAt: true,
+      // Full context for the review modal: every photo plus the profile
+      // text a reviewer should eyeball before granting a badge
+      birthDate: true,
+      gender: true,
+      bio: true,
+      profession: true,
+      education: true,
+      location: true,
+      languages: true,
       photos: {
         select: { url: true, isMain: true },
         orderBy: [{ isMain: 'desc' }, { order: 'asc' }],
-        take: 3,
       },
     },
     orderBy: { verificationSubmittedAt: 'asc' },
