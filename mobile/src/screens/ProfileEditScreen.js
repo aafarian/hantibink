@@ -8,6 +8,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { useToast } from '../contexts/ToastContext';
 import ProfileForm from '../components/profile/ProfileForm';
 import PhotoManager from '../components/profile/PhotoManager';
+import VerificationPrompt from '../components/profile/VerificationPrompt';
 import { transformProfileData } from '../components/profile/ProfileFieldsConfig';
 import ProfileCompletionBar from '../components/profile/ProfileCompletionBar';
 import Logger from '../utils/logger';
@@ -214,18 +215,22 @@ const ProfileEditScreen = ({ navigation }) => {
 
   // Render photos component for ProfileForm
   const renderPhotosComponent = () => (
-    <PhotoManager
-      photos={photos}
-      onPhotosChange={handlePhotosChange}
-      userId={user?.uid}
-      maxPhotos={6}
-      showTitle={true}
-      showAddButton={true}
-      mode="edit"
-      onError={handlePhotoError}
-      onSuccess={handlePhotoSuccess}
-      onScrollControl={handleScrollControl}
-    />
+    <View>
+      <PhotoManager
+        photos={photos}
+        onPhotosChange={handlePhotosChange}
+        userId={user?.uid}
+        maxPhotos={6}
+        showTitle={true}
+        showAddButton={true}
+        mode="edit"
+        onError={handlePhotoError}
+        onSuccess={handlePhotoSuccess}
+        onScrollControl={handleScrollControl}
+      />
+      {/* Compact verify CTA - only shown when unverified (NONE/REJECTED) */}
+      <VerificationPrompt compact />
+    </View>
   );
 
   return (

@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -7,23 +7,21 @@ import {
   TouchableOpacity,
   AppState,
   Image,
-  Alert,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import * as Application from 'expo-application';
 import * as Updates from 'expo-updates';
-import * as ImagePicker from 'expo-image-picker';
 import { useAuth } from '../contexts/AuthContext';
 import { useFeatureFlags } from '../contexts/FeatureFlagsContext';
-import ApiDataService from '../services/ApiDataService';
 import Logger from '../utils/logger';
-import { uploadImageToFirebase } from '../utils/imageUpload';
 import { useToast } from '../contexts/ToastContext';
 import { LoadingScreen } from '../components/LoadingScreen';
 import { ErrorScreen } from '../components/ErrorScreen';
+import VerificationPrompt from '../components/profile/VerificationPrompt';
 import { capitalizeFirst, formatRelationshipTypes } from '../utils/profileDataUtils';
 import { shouldShowDeveloperOptions, getBuildEnvironment } from '../utils/buildConfig';
 import ProfileSetupModal from '../components/modals/ProfileSetupModal';
+import useVerification from '../hooks/useVerification';
 
 import { theme } from '../styles/theme';
 // import { commonStyles } from '../styles/commonStyles';
@@ -32,11 +30,11 @@ import { theme } from '../styles/theme';
 const ProfileScreen = ({ navigation }) => {
   const { user, userProfile: authUserProfile, refreshUserProfile } = useAuth();
   const { isPremium, togglePremiumForTesting } = useFeatureFlags();
-  const { showSuccess, showError } = useToast();
+  const { showSuccess } = useToast();
+  const { verificationStatus, isVerified, isSubmitting, startVerification } = useVerification();
   const [userProfile, setUserProfile] = useState(null);
   const [loading, setLoading] = useState(true);
   const [showSetupModal, setShowSetupModal] = useState(false);
-  const [verificationSubmitting, setVerificationSubmitting] = useState(false);
 
   // Check if user is missing required fields for matching
   const needsRequiredFields =
@@ -97,55 +95,8 @@ const ProfileScreen = ({ navigation }) => {
   // Photo management is now handled by ProfileEditScreen
   // Account management (logout, delete) is now in AccountSettingsScreen
 
-  // Take a verification selfie with the FRONT CAMERA ONLY (never the gallery —
-  // a live camera capture is the anti-spoof property) and submit for review.
-  const takeVerificationSelfie = useCallback(async () => {
-    try {
-      const permission = await ImagePicker.requestCameraPermissionsAsync();
-      if (!permission.granted) {
-        showError('Camera access is needed to take your verification selfie');
-        return;
-      }
-
-      const result = await ImagePicker.launchCameraAsync({
-        mediaTypes: ImagePicker.MediaTypeOptions.Images,
-        cameraType: ImagePicker.CameraType.front,
-        quality: 0.7,
-        allowsEditing: false,
-      });
-
-      if (result.canceled || !result.assets?.[0]?.uri) {
-        return;
-      }
-
-      setVerificationSubmitting(true);
-      const photoUrl = await uploadImageToFirebase(
-        result.assets[0].uri,
-        user?.uid,
-        'verification-selfies'
-      );
-      await ApiDataService.submitVerification(photoUrl);
-      showSuccess('Selfie submitted! We will review it shortly.');
-      await refreshUserProfile();
-    } catch (error) {
-      Logger.error('Verification submission failed:', error);
-      showError('Failed to submit verification. Please try again.');
-    } finally {
-      setVerificationSubmitting(false);
-    }
-  }, [user?.uid, refreshUserProfile, showSuccess, showError]);
-
-  // Explainer alert before opening the camera
-  const handleVerifyPress = useCallback(() => {
-    Alert.alert(
-      'Verify your profile',
-      "Take a quick selfie so we can confirm you're the person in your photos. The selfie is only used for verification and isn't shown on your profile.",
-      [
-        { text: 'Cancel', style: 'cancel' },
-        { text: 'Take Selfie', onPress: takeVerificationSelfie },
-      ]
-    );
-  }, [takeVerificationSelfie]);
+  // Verification flow (explainer → camera → upload → submit → refresh)
+  // now lives in the useVerification hook.
 
   if (loading) {
     return <LoadingScreen message="Loading profile..." />;
@@ -214,6 +165,9 @@ const ProfileScreen = ({ navigation }) => {
             </TouchableOpacity>
           </View>
         )}
+
+        {/* Verification prompt - banner variant (hidden when approved) */}
+        <VerificationPrompt />
 
         {/* Profile Info */}
         <View style={styles.infoSection}>
@@ -460,9 +414,8 @@ const ProfileScreen = ({ navigation }) => {
 
           {/* Verification - status-aware row */}
           {(() => {
-            const status = userProfile.verificationStatus || 'NONE';
-            const isApproved = status === 'APPROVED' || userProfile.isVerified;
-            const isPending = status === 'PENDING';
+            const isApproved = isVerified;
+            const isPending = verificationStatus === 'PENDING';
 
             if (isApproved) {
               return (
@@ -495,14 +448,14 @@ const ProfileScreen = ({ navigation }) => {
             return (
               <TouchableOpacity
                 style={styles.settingItem}
-                onPress={handleVerifyPress}
-                disabled={verificationSubmitting}
+                onPress={startVerification}
+                disabled={isSubmitting}
               >
                 <Ionicons name="shield-checkmark" size={20} color={theme.colors.primary} />
                 <Text style={styles.settingText}>
-                  {verificationSubmitting
+                  {isSubmitting
                     ? 'Submitting verification…'
-                    : status === 'REJECTED'
+                    : verificationStatus === 'REJECTED'
                       ? 'Verification declined — try again'
                       : 'Verify your profile'}
                 </Text>
