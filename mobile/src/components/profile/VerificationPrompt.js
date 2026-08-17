@@ -14,8 +14,12 @@ import { theme } from '../../styles/theme';
  * Compact variant (edit-profile photos section): only shown for
  * NONE/REJECTED.
  */
-const VerificationPrompt = ({ compact = false }) => {
-  const { verificationStatus, isVerified, isSubmitting, startVerification } = useVerification();
+const VerificationPrompt = ({ compact = false, verification }) => {
+  // A caller rendering several prompts (banner + settings row) passes ONE
+  // hook instance so the submit lock is shared; the own instance is the
+  // standalone fallback (hooks must be called unconditionally)
+  const own = useVerification();
+  const { verificationStatus, isVerified, isSubmitting, startVerification } = verification || own;
 
   if (isVerified) {
     return null;

@@ -31,7 +31,8 @@ const ProfileScreen = ({ navigation }) => {
   const { user, userProfile: authUserProfile, refreshUserProfile } = useAuth();
   const { isPremium, togglePremiumForTesting } = useFeatureFlags();
   const { showSuccess } = useToast();
-  const { verificationStatus, isVerified, isSubmitting, startVerification } = useVerification();
+  const verification = useVerification();
+  const { verificationStatus, isVerified, isSubmitting, startVerification } = verification;
   const [userProfile, setUserProfile] = useState(null);
   const [loading, setLoading] = useState(true);
   const [showSetupModal, setShowSetupModal] = useState(false);
@@ -167,7 +168,7 @@ const ProfileScreen = ({ navigation }) => {
         )}
 
         {/* Verification prompt - banner variant (hidden when approved) */}
-        <VerificationPrompt />
+        <VerificationPrompt verification={verification} />
 
         {/* Profile Info */}
         <View style={styles.infoSection}>

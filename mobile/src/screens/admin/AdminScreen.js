@@ -288,10 +288,26 @@ const VerificationReviewModal = ({ item, actingOn, onReview, onClose }) => {
   const acting = actingOn === item.id;
 
   return (
-    <Modal visible transparent animationType="fade" onRequestClose={onClose}>
+    <Modal
+      visible
+      transparent
+      animationType="fade"
+      onRequestClose={() => {
+        if (!acting) {
+          onClose();
+        }
+      }}
+    >
       <View style={styles.modalContainer}>
         {/* Backdrop - sibling of the content, NOT a wrapper (keeps ScrollView scrollable) */}
-        <Pressable style={styles.modalBackdrop} onPress={onClose} />
+        <Pressable
+          style={styles.modalBackdrop}
+          onPress={() => {
+            if (!acting) {
+              onClose();
+            }
+          }}
+        />
         <View style={styles.modalContent}>
           <ScrollView style={styles.modalScroll} contentContainerStyle={styles.modalScrollContent}>
             <Image source={{ uri: item.verificationPhotoUrl }} style={styles.modalSelfie} />
