@@ -10,6 +10,7 @@ import {
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
+import VerifiedBadge from '../../components/shared/VerifiedBadge';
 import { theme } from '../../styles/theme';
 
 const { width: screenWidth } = Dimensions.get('window');
@@ -85,14 +86,7 @@ const LikedYouCard = ({ item, index, isPremium, onPress, onLike, onPass, loading
               <Text style={styles.cardName}>
                 {item.name}, {item.age}
               </Text>
-              {item.isVerified && (
-                <Ionicons
-                  name="checkmark-circle"
-                  size={14}
-                  color={theme.colors.secondaryLight}
-                  style={styles.verifiedBadge}
-                />
-              )}
+              {item.isVerified && <VerifiedBadge size={14} style={styles.verifiedBadge} />}
             </View>
             <Text style={styles.cardLocation}>
               <Ionicons name="location-outline" size={12} color="white" /> {item.location}

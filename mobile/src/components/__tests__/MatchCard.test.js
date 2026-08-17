@@ -42,6 +42,18 @@ describe('MatchCard', () => {
     expect(screen.queryByText('3')).toBeNull();
   });
 
+  it('shows the verified badge only when the other user is verified', () => {
+    const verifiedMatch = {
+      ...baseMatch,
+      otherUser: { ...baseMatch.otherUser, isVerified: true },
+    };
+    const { rerender } = render(<MatchCard match={verifiedMatch} onPress={jest.fn()} />);
+    expect(screen.getByTestId('verified-badge')).toBeTruthy();
+
+    rerender(<MatchCard match={baseMatch} onPress={jest.fn()} />);
+    expect(screen.queryByTestId('verified-badge')).toBeNull();
+  });
+
   it('tolerates a match object without otherUser (self-shaped payload)', () => {
     const flat = { ...baseMatch.otherUser, matchId: 'match-2' };
     render(<MatchCard match={flat} onPress={jest.fn()} />);

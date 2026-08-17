@@ -3,6 +3,7 @@ import { View, Text, TouchableOpacity } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { theme } from '../styles/theme';
 import OnlineShockwave from './shared/OnlineShockwave';
+import VerifiedBadge from './shared/VerifiedBadge';
 import {
   getUserProfilePhoto,
   getUserDisplayName,
@@ -88,6 +89,7 @@ export const MatchCard = memo(
               {getUserDisplayName(user)}
               {getUserAge(user) ? `, ${getUserAge(user)}` : ''}
             </Text>
+            {user.isVerified && <VerifiedBadge size={14} style={styles.verifiedBadge} />}
             {isOnline && (
               <View style={styles.onlineContainer}>
                 <OnlineShockwave size={10} />
@@ -184,6 +186,9 @@ const styles = {
     fontWeight: theme.typography.weights.bold,
     fontFamily: theme.typography.fontFamily.bold,
     color: theme.colors.text.primary,
+  },
+  verifiedBadge: {
+    marginLeft: theme.spacing.xs,
   },
   onlineContainer: {
     width: 20,

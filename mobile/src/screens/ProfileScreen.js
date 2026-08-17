@@ -18,6 +18,7 @@ import { useToast } from '../contexts/ToastContext';
 import { LoadingScreen } from '../components/LoadingScreen';
 import { ErrorScreen } from '../components/ErrorScreen';
 import VerificationPrompt from '../components/profile/VerificationPrompt';
+import VerifiedBadge from '../components/shared/VerifiedBadge';
 import { capitalizeFirst, formatRelationshipTypes } from '../utils/profileDataUtils';
 import { shouldShowDeveloperOptions, getBuildEnvironment } from '../utils/buildConfig';
 import ProfileSetupModal from '../components/modals/ProfileSetupModal';
@@ -196,12 +197,7 @@ const ProfileScreen = ({ navigation }) => {
                     {userProfile.age ? `, ${userProfile.age}` : ''}
                   </Text>
                   {userProfile.isVerified && (
-                    <Ionicons
-                      name="checkmark-circle"
-                      size={16}
-                      color={theme.colors.secondaryLight}
-                      style={styles.nameVerifiedBadge}
-                    />
+                    <VerifiedBadge size={16} style={styles.nameVerifiedBadge} />
                   )}
                 </View>
               </View>

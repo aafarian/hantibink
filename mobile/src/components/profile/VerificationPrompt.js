@@ -1,6 +1,7 @@
 import React from 'react';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import VerifiedBadge from '../shared/VerifiedBadge';
 import useVerification from '../../hooks/useVerification';
 import { theme } from '../../styles/theme';
 
@@ -53,7 +54,7 @@ const VerificationPrompt = ({ compact = false, verification }) => {
       activeOpacity={0.7}
     >
       <View style={styles.iconCircle}>
-        <Ionicons name="checkmark-circle" size={22} color={theme.colors.secondaryLight} />
+        <VerifiedBadge size={22} />
       </View>
       <View style={styles.textContainer}>
         <Text style={styles.title}>{isSubmitting ? 'Submitting verification…' : title}</Text>

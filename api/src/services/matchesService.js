@@ -98,6 +98,7 @@ const getUserMatches = async (userId, options = {}) => {
         otherUser: {
           id: otherUser.id,
           name: otherUser.name,
+          isVerified: otherUser.isVerified,
           bio: otherUser.bio,
           location: otherUser.location,
           age,

@@ -5,6 +5,7 @@ import { getUserProfilePhoto, getUserDisplayName } from '../../utils/profileHelp
 import { formatLastSeen } from '../../utils/timeHelpers';
 import { theme } from '../../styles/theme';
 import OnlineShockwave from '../../components/shared/OnlineShockwave';
+import VerifiedBadge from '../../components/shared/VerifiedBadge';
 
 /**
  * Chat header component displaying user info, online status, and navigation controls
@@ -39,7 +40,12 @@ const ChatHeader = ({
       <TouchableOpacity style={styles.headerProfile} onPress={onProfilePress}>
         <Image source={{ uri: getUserProfilePhoto(otherUser) }} style={styles.headerAvatar} />
         <View style={styles.headerInfo}>
-          <Text style={styles.headerName}>{getUserDisplayName(otherUser)}</Text>
+          <View style={styles.headerNameRow}>
+            <Text style={styles.headerName} numberOfLines={1}>
+              {getUserDisplayName(otherUser)}
+            </Text>
+            {otherUser?.isVerified && <VerifiedBadge size={14} style={styles.verifiedBadge} />}
+          </View>
           <View style={styles.statusRow}>
             {isPremium && isTyping ? (
               <Text style={styles.statusText}>Typing...</Text>
@@ -104,11 +110,19 @@ const styles = StyleSheet.create({
   headerInfo: {
     flex: 1,
   },
+  headerNameRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
   headerName: {
     fontSize: 16,
     fontWeight: '600',
     fontFamily: theme.typography.fontFamily.semibold,
     color: theme.colors.text.primary,
+    flexShrink: 1,
+  },
+  verifiedBadge: {
+    marginLeft: 4,
   },
   statusRow: {
     flexDirection: 'row',

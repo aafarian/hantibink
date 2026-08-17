@@ -4,6 +4,7 @@ import Animated, { useAnimatedStyle, interpolate, Extrapolation } from 'react-na
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
+import VerifiedBadge from './shared/VerifiedBadge';
 import { getUserProfilePhoto } from '../utils/profileHelpers';
 import { formatDistanceAway } from '../utils/distanceUtils';
 import { theme } from '../styles/theme';
@@ -482,14 +483,7 @@ const FullscreenSwipeableCard = ({
                 {profile.name}
                 {age && <Text style={styles.heroAge}>, {age}</Text>}
               </Text>
-              {profile.isVerified && (
-                <Ionicons
-                  name="checkmark-circle"
-                  size={26}
-                  color={theme.colors.secondaryLight}
-                  style={styles.verifiedBadge}
-                />
-              )}
+              {profile.isVerified && <VerifiedBadge size={26} style={styles.verifiedBadge} />}
             </View>
             <View style={styles.heroDetails}>
               {profile.distance !== null && profile.distance !== undefined && (
