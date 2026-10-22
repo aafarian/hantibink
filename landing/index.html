@@ -569,6 +569,14 @@
     }
   };
   ['wheel', 'touchstart'].forEach((ev) => window.addEventListener(ev, cancelScrollAnim, { passive: true }));
+  // Scroll-intent keys cancel too — but not when typing in a field, where
+  // arrows/Home/End/space move the caret rather than the page.
+  const scrollKeys = ['ArrowUp', 'ArrowDown', 'PageUp', 'PageDown', 'Home', 'End', ' '];
+  window.addEventListener('keydown', (e) => {
+    if (scrollKeys.includes(e.key) && !/^(INPUT|TEXTAREA)$/.test(e.target.tagName)) {
+      cancelScrollAnim();
+    }
+  }, { passive: true });
 
   const scrollToWaitlist = () => {
     const navOffset = parseFloat(getComputedStyle(scrollTarget).scrollMarginTop) || 0;
