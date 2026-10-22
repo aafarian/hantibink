@@ -35,7 +35,6 @@
     --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
   }
   * { margin: 0; padding: 0; box-sizing: border-box; }
-  html { scroll-behavior: smooth; }
   body {
     font-family: 'DM Sans', system-ui, -apple-system, sans-serif;
     color: var(--body); background: var(--bg);
@@ -350,7 +349,6 @@
     .foot { justify-content: center; text-align: center; }
   }
   @media (prefers-reduced-motion: reduce) {
-    html { scroll-behavior: auto; }
     .stage > *, .reveal, .seq, .react { opacity: 1 !important; transform: none !important; animation: none !important; transition: none !important; }
     .hero-icon, .aurora i, .ticker-track, .eq i, .typing i, .chat-head .status::before { animation: none !important; }
   }
@@ -551,8 +549,21 @@
     msg.className = 'form-msg ' + (ok ? 'ok' : 'err');
   };
 
+  // Scroll CTAs via JS instead of hash navigation: a #waitlist hash in the URL
+  // makes browsers re-anchor (Safari crawls the full page on every re-layout).
+  const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)');
+  document.querySelectorAll('a[href="#waitlist"]').forEach((link) => {
+    link.addEventListener('click', (e) => {
+      e.preventDefault();
+      form.scrollIntoView({ behavior: reducedMotion.matches ? 'auto' : 'smooth', block: 'center' });
+    });
+  });
+
   form.addEventListener('submit', async (e) => {
     e.preventDefault();
+    if (location.hash) {
+      history.replaceState(null, '', location.pathname + location.search);
+    }
     const data = Object.fromEntries(new FormData(form));
     if (!data.email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(data.email)) {
       show('Please enter a valid email address.', false);
