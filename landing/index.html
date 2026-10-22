@@ -552,16 +552,48 @@
   };
 
   // Scroll CTAs via JS instead of hash navigation: a #waitlist hash in the URL
-  // makes browsers re-anchor (Safari crawls the full page on every re-layout).
-  // Scrolls to the Premium-offer line above the form so the offer stays fully
+  // makes browsers re-anchor on re-layout. The animation is driven manually
+  // because Safari paces native smooth scrolling by distance — a footer-to-top
+  // jump crawls for seconds. A fixed 500ms tween is consistent everywhere.
+  // Targets the Premium-offer line above the form so the offer stays fully
   // visible below the sticky nav however many lines it wraps to.
   const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)');
   const scrollTarget = document.getElementById('waitlist-offer') || form;
+
+  let scrollAnim = null;
+  const cancelScrollAnim = () => {
+    if (scrollAnim) {
+      cancelAnimationFrame(scrollAnim);
+      scrollAnim = null;
+    }
+  };
+  ['wheel', 'touchstart'].forEach((ev) => window.addEventListener(ev, cancelScrollAnim, { passive: true }));
+
+  const scrollToWaitlist = () => {
+    const navOffset = parseFloat(getComputedStyle(scrollTarget).scrollMarginTop) || 0;
+    const endY = scrollTarget.getBoundingClientRect().top + window.scrollY - navOffset;
+    cancelScrollAnim();
+    if (reducedMotion.matches) {
+      window.scrollTo(0, endY);
+      return;
+    }
+    const startY = window.scrollY;
+    const startT = performance.now();
+    const duration = 500;
+    const easeOutCubic = (t) => 1 - Math.pow(1 - t, 3);
+    const step = (now) => {
+      const t = Math.min(1, (now - startT) / duration);
+      window.scrollTo(0, startY + (endY - startY) * easeOutCubic(t));
+      scrollAnim = t < 1 ? requestAnimationFrame(step) : null;
+    };
+    scrollAnim = requestAnimationFrame(step);
+  };
+
   document.querySelectorAll('a[href="#waitlist"]').forEach((link) => {
     link.addEventListener('click', (e) => {
       if (e.ctrlKey || e.metaKey || e.shiftKey || e.altKey) return;
       e.preventDefault();
-      scrollTarget.scrollIntoView({ behavior: reducedMotion.matches ? 'auto' : 'smooth', block: 'start' });
+      scrollToWaitlist();
       form.focus({ preventScroll: true });
     });
   });
