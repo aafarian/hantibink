@@ -558,6 +558,7 @@
   // Targets the Premium-offer line above the form so the offer stays fully
   // visible below the sticky nav however many lines it wraps to.
   const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)');
+  const finePointer = window.matchMedia('(hover: hover) and (pointer: fine)');
   const scrollTarget = document.getElementById('waitlist-offer') || form;
 
   let scrollAnim = null;
@@ -594,7 +595,11 @@
       if (e.ctrlKey || e.metaKey || e.shiftKey || e.altKey) return;
       e.preventDefault();
       scrollToWaitlist();
-      form.focus({ preventScroll: true });
+      // Desktop: put the cursor in the email field, ready to type. Touch:
+      // focus the form container instead — focusing an input would pop the
+      // keyboard mid-scroll and iOS force-scrolls to it, fighting the tween.
+      const focusEl = finePointer.matches ? form.elements.email : form;
+      focusEl.focus({ preventScroll: true });
     });
   });
 
