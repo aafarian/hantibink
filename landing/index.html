@@ -35,7 +35,6 @@
     --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
   }
   * { margin: 0; padding: 0; box-sizing: border-box; }
-  html { scroll-behavior: smooth; }
   body {
     font-family: 'DM Sans', system-ui, -apple-system, sans-serif;
     color: var(--body); background: var(--bg);
@@ -128,6 +127,7 @@
 
   /* ---------- Waitlist form ---------- */
   .waitlist { max-width: 580px; margin: 0 auto; scroll-margin-top: 96px; }
+  .waitlist:focus { outline: none; }
   .form-card {
     position: relative;
     background: var(--glass); border: 1px solid var(--line); border-radius: 20px;
@@ -350,7 +350,6 @@
     .foot { justify-content: center; text-align: center; }
   }
   @media (prefers-reduced-motion: reduce) {
-    html { scroll-behavior: auto; }
     .stage > *, .reveal, .seq, .react { opacity: 1 !important; transform: none !important; animation: none !important; transition: none !important; }
     .hero-icon, .aurora i, .ticker-track, .eq i, .typing i, .chat-head .status::before { animation: none !important; }
   }
@@ -395,7 +394,7 @@
       <p class="sub">The dating app built for Armenians everywhere. Icebreaker games, voice messages, and every way to get to know someone. Coming soon to iOS and Android.</p>
       <p class="sub"><strong>Join the waitlist and get 3 days of Premium free when we launch.</strong></p>
 
-      <form class="waitlist" id="waitlist" novalidate>
+      <form class="waitlist" id="waitlist" novalidate tabindex="-1">
         <div class="form-card">
           <input type="text" name="name" placeholder="First name (optional)" autocomplete="given-name" maxlength="100">
           <input type="email" name="email" placeholder="you@email.com" autocomplete="email" required maxlength="254">
@@ -551,8 +550,23 @@
     msg.className = 'form-msg ' + (ok ? 'ok' : 'err');
   };
 
+  // Scroll CTAs via JS instead of hash navigation: a #waitlist hash in the URL
+  // makes browsers re-anchor (Safari crawls the full page on every re-layout).
+  const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)');
+  document.querySelectorAll('a[href="#waitlist"]').forEach((link) => {
+    link.addEventListener('click', (e) => {
+      if (e.ctrlKey || e.metaKey || e.shiftKey || e.altKey) return;
+      e.preventDefault();
+      form.scrollIntoView({ behavior: reducedMotion.matches ? 'auto' : 'smooth', block: 'center' });
+      form.focus({ preventScroll: true });
+    });
+  });
+
   form.addEventListener('submit', async (e) => {
     e.preventDefault();
+    if (location.hash) {
+      history.replaceState(null, '', location.pathname + location.search);
+    }
     const data = Object.fromEntries(new FormData(form));
     if (!data.email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(data.email)) {
       show('Please enter a valid email address.', false);
