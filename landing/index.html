@@ -126,7 +126,8 @@
   @keyframes rise { to { opacity: 1; transform: none; } }
 
   /* ---------- Waitlist form ---------- */
-  .waitlist { max-width: 580px; margin: 0 auto; scroll-margin-top: 96px; }
+  /* scroll-margin leaves room for the sticky nav plus the Premium-offer line above the form */
+  .waitlist { max-width: 580px; margin: 0 auto; scroll-margin-top: 150px; }
   .waitlist:focus { outline: none; }
   .form-card {
     position: relative;
@@ -557,7 +558,7 @@
     link.addEventListener('click', (e) => {
       if (e.ctrlKey || e.metaKey || e.shiftKey || e.altKey) return;
       e.preventDefault();
-      form.scrollIntoView({ behavior: reducedMotion.matches ? 'auto' : 'smooth', block: 'center' });
+      form.scrollIntoView({ behavior: reducedMotion.matches ? 'auto' : 'smooth', block: 'start' });
       form.focus({ preventScroll: true });
     });
   });
