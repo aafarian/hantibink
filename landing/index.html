@@ -127,6 +127,7 @@
 
   /* ---------- Waitlist form ---------- */
   .waitlist { max-width: 580px; margin: 0 auto; scroll-margin-top: 96px; }
+  #waitlist-offer { scroll-margin-top: 96px; }
   .waitlist:focus { outline: none; }
   .form-card {
     position: relative;
@@ -392,7 +393,7 @@
       <div><span class="eyebrow"><span class="armenian">Հանդիպինք</span>&nbsp;·&nbsp;Armenian for “let's meet”</span></div>
       <h1>Good conversations<br><span class="grad">lead somewhere.</span></h1>
       <p class="sub">The dating app built for Armenians everywhere. Icebreaker games, voice messages, and every way to get to know someone. Coming soon to iOS and Android.</p>
-      <p class="sub"><strong>Join the waitlist and get 3 days of Premium free when we launch.</strong></p>
+      <p class="sub" id="waitlist-offer"><strong>Join the waitlist and get 3 days of Premium free when we launch.</strong></p>
 
       <form class="waitlist" id="waitlist" novalidate tabindex="-1">
         <div class="form-card">
@@ -552,12 +553,15 @@
 
   // Scroll CTAs via JS instead of hash navigation: a #waitlist hash in the URL
   // makes browsers re-anchor (Safari crawls the full page on every re-layout).
+  // Scrolls to the Premium-offer line above the form so the offer stays fully
+  // visible below the sticky nav however many lines it wraps to.
   const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)');
+  const scrollTarget = document.getElementById('waitlist-offer') || form;
   document.querySelectorAll('a[href="#waitlist"]').forEach((link) => {
     link.addEventListener('click', (e) => {
       if (e.ctrlKey || e.metaKey || e.shiftKey || e.altKey) return;
       e.preventDefault();
-      form.scrollIntoView({ behavior: reducedMotion.matches ? 'auto' : 'smooth', block: 'center' });
+      scrollTarget.scrollIntoView({ behavior: reducedMotion.matches ? 'auto' : 'smooth', block: 'start' });
       form.focus({ preventScroll: true });
     });
   });
